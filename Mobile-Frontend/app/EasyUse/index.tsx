@@ -141,8 +141,6 @@ const EasyUse = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Set initial search query from URL params on first load
   useEffect(() => {
     const searchParam = params.search as string;
     if (searchParam) {
@@ -255,12 +253,14 @@ const EasyUse = () => {
           <PageHeader
             title="隨取即用"
             infoPopupTitle="什麼是隨取即用？"
-            infoPopupContent="「隨取即用」是 CouPro 上的基本優惠類型，由店家提供，平台整理後讓所有用戶都能更快速方便的得知優惠資訊並直接使用。"
-            showSearch={true}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onClearSearch={clearSearch}
-            navbarProps={{ atEasyUse: true }}
+            infoPopupContent={
+              <View>
+                <Text className="text-xs mb-2 text-gray-700">
+                「隨取即用」是 CouPro 上的基本優惠類型，由店家提供，平台整理後讓所有用戶都能更快速方便的得知優惠資訊並直接使用。
+                </Text>
+              </View>
+            }
+            navbarProps={{ atCollection: true }}
             sourcePage="/EasyUse"
           />
 

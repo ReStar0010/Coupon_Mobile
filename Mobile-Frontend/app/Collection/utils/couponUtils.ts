@@ -85,3 +85,4 @@ export const filterCoupons = (coupons: CouponType[], searchQuery: string): Coupo
       coupon.description?.toLowerCase().includes(query)
   );
 };
+export default transformApiCoupon;

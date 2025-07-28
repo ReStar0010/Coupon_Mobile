@@ -12,7 +12,7 @@ import {
 import { useRouter } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth, fetchAPI } from "../../utils/authAPI";
-import { useToast } from "../../components/ToastContext";
+import { useToast } from "../../components/providers/ToastProvider";
 
 type CouponHistoryItem = {
   coupon_id: number;

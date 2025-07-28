@@ -243,7 +243,7 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
     } else {
       devLog('⚠️ No access_token in response - this might cause auth issues');
     }
-    
+    // 
     if (loginResponse.refresh_token || loginResponse.refresh) {
       const refreshToken = loginResponse.refresh_token || loginResponse.refresh;
       await AsyncStorage.setItem('refresh_token', refreshToken);
