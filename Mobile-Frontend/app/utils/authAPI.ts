@@ -10,7 +10,7 @@ import { devLog, devDebug } from "./devLogger";
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api`;
+const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api` || 'http://localhost:8000/api';
 
 // Token refresh state
 let isRefreshing = false;
@@ -228,6 +228,60 @@ const clearStoredTokens = async (): Promise<void> => {
 };
 
 /**
+ * Store login data in AsyncStorage after successful login
+ * @param loginResponse The response data from login API
+ */
+export const storeLoginData = async (loginResponse: any): Promise<void> => {
+  try {
+    devLog('📦 Storing login data:', loginResponse);
+    
+    // Store tokens if they exist
+    if (loginResponse.access_token || loginResponse.access) {
+      const accessToken = loginResponse.access_token || loginResponse.access;
+      await AsyncStorage.setItem('access_token', accessToken);
+      devLog('✅ Stored access_token');
+    } else {
+      devLog('⚠️ No access_token in response - this might cause auth issues');
+    }
+    
+    if (loginResponse.refresh_token || loginResponse.refresh) {
+      const refreshToken = loginResponse.refresh_token || loginResponse.refresh;
+      await AsyncStorage.setItem('refresh_token', refreshToken);
+      devLog('✅ Stored refresh_token');
+    } else {
+      devLog('⚠️ No refresh_token in response - this might cause auth issues');
+    }
+    
+    // Store user ID
+    if (loginResponse.user_id) {
+      await AsyncStorage.setItem('user_id', loginResponse.user_id.toString());
+      devLog('✅ Stored user_id:', loginResponse.user_id);
+    }
+    
+    // Mark user as logged in (this is crucial for isUserLoggedIn to work)
+    await AsyncStorage.setItem('is_logged_in', 'true');
+    devLog('✅ Marked user as logged in');
+    
+    // Debug: Verify what was stored
+    const storedData = {
+      access_token: await AsyncStorage.getItem('access_token'),
+      refresh_token: await AsyncStorage.getItem('refresh_token'),
+      user_id: await AsyncStorage.getItem('user_id'),
+      is_logged_in: await AsyncStorage.getItem('is_logged_in'),
+    };
+    devDebug('📦 Verification - Stored data:', storedData);
+    
+    // Check login status after storing
+    const loginCheck = await isUserLoggedIn();
+    devLog('🔍 Login status check after storing:', loginCheck);
+    
+  } catch (error) {
+    console.error('Error storing login data:', error);
+    throw error;
+  }
+};
+
+/**
  * Get the JWT refresh token from AsyncStorage
  * @returns The token string or null if not found
  */
@@ -363,6 +417,7 @@ export default {
   getUserId,
   useRequireAuth,
   logout,
+  storeLoginData,
   subscribeToRefresh,
   onRefreshComplete,
   isPublicEndpoint,

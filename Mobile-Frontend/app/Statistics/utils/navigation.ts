@@ -15,3 +15,4 @@ export const useNavigateToOptionsMenu = () => {
   
   return navigateToOptionsMenu;
 };
+export default useNavigateToOptionsMenu;

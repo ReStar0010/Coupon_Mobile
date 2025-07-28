@@ -39,3 +39,4 @@ export const useAuthCheck = (isAuthenticated: boolean, authLoading: boolean) => 
     }
   };
 };
+export default useAuthCheck;

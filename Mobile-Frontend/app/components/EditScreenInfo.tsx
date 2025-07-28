@@ -27,3 +27,4 @@ const styles = {
   helpLinkText: `text-center`,
   homeScreenFilename: `my-2`,
 };
+export default EditScreenInfo;

@@ -130,3 +130,4 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
     closeDailyDrawWithSuccess
   };
 }
+export default useDailyDraw;

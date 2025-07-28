@@ -18,3 +18,4 @@ export function useSearch() {
     clearSearch
   };
 }
+export default useSearch;

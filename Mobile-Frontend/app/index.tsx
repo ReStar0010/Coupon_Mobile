@@ -2,25 +2,31 @@ import "../global.css"
 import { useEffect, useState } from 'react';
 import { Text, View } from "react-native";
 import { useRouter } from 'expo-router';
+import { isUserLoggedIn } from './utils/authAPI';
+import axios from 'axios';
 
 export default function App() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 模擬檢查登入狀態
-    const checkLoginStatus = () => {
-      // 這裡用簡單的條件判斷，你可以改成任何邏輯
-      const isLoggedIn = true; // 改成 true 測試不同路由
-      
-      setTimeout(() => {
-        if (isLoggedIn) {
-          router.replace('/EasyUse'); 
+    // Check login status using the centralized auth function
+    const checkLoginStatus = async () => {
+      try {
+        const loggedIn = await isUserLoggedIn();
+        
+        if (loggedIn) {
+          router.replace('/EasyUse');
         } else {
           router.replace('/Login');
         }
+      } catch (error) {
+        console.error('Error checking login status:', error);
+        // If there's an error, default to login page
+        router.replace('/Login');
+      } finally {
         setIsLoading(false);
-      }, 1000); // 1秒後執行路由跳轉
+      }
     };
 
     checkLoginStatus();

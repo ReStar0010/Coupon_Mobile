@@ -28,3 +28,4 @@ export const SuccessIcon: React.FC<SuccessIconProps> = ({
     </Svg>
   );
 };
+export default SuccessIcon;

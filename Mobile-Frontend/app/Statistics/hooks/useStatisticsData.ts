@@ -212,3 +212,4 @@ export const useStatisticsData = (isAuthenticated: boolean) => {
     fetchUserStats,
   };
 };
+export default useStatisticsData;

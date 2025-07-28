@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import axios from "axios";
-import { devDebug, devLog } from "../../utils/devLogger";
+import { devDebug, devLog, devError } from "../../utils/devLogger";
+import { storeLoginData } from "../../utils/authAPI";
 
 interface LoginFormProps {
   email: string;
@@ -44,15 +45,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       // Handle successful login
       devDebug("Login successful", response.data);
 
-      // If returnUrl is set, redirect there, otherwise go to EasyUse
-      if (returnUrl) {
-        devLog("Redirecting to:", returnUrl);
-        router.push(returnUrl as any);
-      } else {
-        router.replace("/EasyUse");
-      }
+      // 🔥 NEW: Store login data in AsyncStorage
+      await storeLoginData(response.data);
+      devLog("✅ Login data stored successfully");
+
+      // Add a longer delay to ensure storage is complete and auth state updates
+      setTimeout(() => {
+        // If returnUrl is set, redirect there, otherwise go to EasyUse
+        if (returnUrl) {
+          devLog("Redirecting to:", returnUrl);
+          router.push(returnUrl as any);
+        } else {
+          devLog("Redirecting to: /EasyUse");
+          router.replace("/EasyUse");
+        }
+      }, 500); // Increased delay to 500ms
+
     } catch (err) {
       // Handle axios errors
+      devError("❌ Login error:", err);
+      
       if (axios.isAxiosError(err)) {
         if (err.response?.data) {
           const errorData = err.response.data;

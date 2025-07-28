@@ -63,3 +63,4 @@ export function useCoupons(isAuthenticated: boolean, authLoading: boolean) {
     fetchCoupons
   };
 }
+export default useCoupons;

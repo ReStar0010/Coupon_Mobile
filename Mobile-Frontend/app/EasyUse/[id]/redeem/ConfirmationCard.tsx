@@ -42,3 +42,4 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
     </View>
   );
 };
+export default ConfirmationCard;

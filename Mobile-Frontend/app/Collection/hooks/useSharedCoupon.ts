@@ -85,3 +85,4 @@ export function useSharedCoupon(fetchCouponsCallback: () => void) {
     handleGiftAccepted
   };
 }
+export default useSharedCoupon;
