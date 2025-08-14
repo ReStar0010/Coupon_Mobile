@@ -1,18 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useColorScheme } from "nativewind";
+import { useColorScheme as useRNColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// 定義 ThemeContext 的類型
+// Define ThemeContext type
 type ThemeContextType = {
   theme: "light" | "dark" | "system";
   setTheme: (theme: "light" | "dark" | "system") => void;
   effectiveTheme: "light" | "dark";
 };
 
-// 創建 ThemeContext
+// Create ThemeContext
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-// 導出 useTheme hook
+// Export useTheme hook
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
@@ -25,12 +25,13 @@ interface ThemeProviderProps {
   children: React.ReactNode;
 }
 
-// 創建 ThemeProvider 組件
+// Create ThemeProvider component
 const ThemeProvider = ({ children }: ThemeProviderProps) => {
-  const { colorScheme, setColorScheme } = useColorScheme();
+  const systemColorScheme = useRNColorScheme();
   const [theme, setThemeState] = useState<"light" | "dark" | "system">("system");
+  const [effectiveTheme, setEffectiveTheme] = useState<"light" | "dark">("light");
 
-  // 1. 從 AsyncStorage 加載保存的主題
+  // Load saved theme from AsyncStorage
   useEffect(() => {
     const loadTheme = async () => {
       const savedTheme = (await AsyncStorage.getItem("theme")) as
@@ -40,23 +41,37 @@ const ThemeProvider = ({ children }: ThemeProviderProps) => {
         | null;
       if (savedTheme) {
         setThemeState(savedTheme);
-        setColorScheme(savedTheme);
       }
     };
     loadTheme();
-  }, [setColorScheme]);
+  }, []);
 
-  // 2. 處理主題變更
+  // Update effective theme based on current theme and system preference
+  useEffect(() => {
+    const newEffectiveTheme = theme === "system"
+      ? (systemColorScheme ?? "light")
+      : theme;
+
+    setEffectiveTheme(newEffectiveTheme);
+
+    // Apply theme to document root for CSS-based theming
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      root.classList.remove('t_light', 't_dark');
+      root.classList.add(`t_${newEffectiveTheme}`);
+    }
+  }, [theme, systemColorScheme]);
+
+  // Handle theme changes
   const handleSetTheme = async (newTheme: "light" | "dark" | "system") => {
     setThemeState(newTheme);
-    setColorScheme(newTheme);
     await AsyncStorage.setItem("theme", newTheme);
   };
 
   const contextValue: ThemeContextType = {
     theme,
     setTheme: handleSetTheme,
-    effectiveTheme: colorScheme ?? "light",
+    effectiveTheme,
   };
 
   return (
