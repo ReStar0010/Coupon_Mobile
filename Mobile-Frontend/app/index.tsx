@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Text, View } from "react-native";
 import { useRouter } from 'expo-router';
 import { isUserLoggedIn } from './utils/authAPI';
-import axios from 'axios';
 
 export default function App() {
   const router = useRouter();
