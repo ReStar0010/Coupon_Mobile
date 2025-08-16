@@ -1,33 +1,26 @@
 import React from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, TextInput, TextInputProps } from 'react-native';
 
-interface LoginInputProps {
-  label: string;
-  placeholder?: string;
+interface LoginInputProps extends TextInputProps {
+  placeholder: string;
   secureTextEntry?: boolean;
-  value?: string;
-  onChangeText?: (text: string) => void;
 }
 
 export const LoginInput: React.FC<LoginInputProps> = ({
-  label,
   placeholder,
   secureTextEntry = false,
-  value,
-  onChangeText,
+  ...props
 }) => {
   return (
-    <View className="mb-4">
-      <View className="mb-2">
-        <Text className="text-gray-700 text-base">{label}</Text>
-      </View>
+    <View className="flex h-[41px] px-4 items-center border border-login-border bg-login-dark rounded-[9px]">
       <TextInput
-        className="border border-gray-300 rounded-lg px-4 py-3 text-base bg-white"
-        placeholder={placeholder}
         secureTextEntry={secureTextEntry}
-        value={value}
-        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#9CA3AF"
+        className="flex-1 bg-transparent text-login-light-gray text-base font-normal outline-none"
+        style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
         autoCapitalize="none"
+        {...props}
       />
     </View>
   );
