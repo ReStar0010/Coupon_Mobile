@@ -19,47 +19,43 @@ const ContactUsPage: React.FC = () => {
     router.push('https://www.instagram.com/');
   };
 
-return (
-  <>
-    <Stack.Screen options={{ headerShown: true }} />
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true }} />
 
-    <View flex="1" px="$4" py="$6" gap={13}>
+      <View flex="1" px="$4" py="$6" gap={13}>
+        {/* Header with back button and title */}
+        <XStack gap={13} items="center">
+          <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />
+          <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
+            聯絡我們
+          </H4>
+        </XStack>
 
-      {/* Header with back button and title */}
-      <XStack gap={13} items="center">
-        <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />
-        <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
-          聯絡我們
-        </H4>
-      </XStack>
-
-      {/* Tamagui ListItem Group with 3 items */}
-      <YStack style={{ borderWidth: 1, borderColor: '#e1e1e1' }} rounded={'$5'}>
-        <ListItem
-          icon={InstagramLogo}
-          iconAfter={ArrowUpRight}
-          style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
-          bg="white"
-          pressTheme
-          size="$6"
-          onPress={handleInstagramPress}
-        >
-          <ListItem.Text>CouPro</ListItem.Text>
-        </ListItem>
-        <Separator />
-        <ListItem
-          icon={Mail}
-          style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
-          bg="white"
-          size="$6"
-        >
-          <ListItem.Text>coupro707@gmail.com</ListItem.Text>
-        </ListItem>
-      </YStack>
-
-    </View>
-  </>
-);
+        {/* Tamagui ListItem Group with 3 items */}
+        <YStack style={{ borderWidth: 1, borderColor: '#e1e1e1' }} rounded={'$5'}>
+          <ListItem
+            icon={InstagramLogo}
+            iconAfter={ArrowUpRight}
+            style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
+            bg="white"
+            pressTheme
+            size="$6"
+            onPress={handleInstagramPress}>
+            <ListItem.Text>CouPro</ListItem.Text>
+          </ListItem>
+          <Separator />
+          <ListItem
+            icon={Mail}
+            style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
+            bg="white"
+            size="$6">
+            <ListItem.Text>coupro707@gmail.com</ListItem.Text>
+          </ListItem>
+        </YStack>
+      </View>
+    </>
+  );
 };
 
 export default ContactUsPage;

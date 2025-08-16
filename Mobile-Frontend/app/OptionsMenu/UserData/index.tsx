@@ -1,11 +1,10 @@
 import React from 'react';
-import { XStack, YStack, View, ListItem, H4, Separator} from 'tamagui';
+import { XStack, YStack, View, ListItem, H4, Separator } from 'tamagui';
 import { ChevronLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 
 const UserData: React.FC = () => {
-
   const router = useRouter();
 
   const handleGoBack = () => router.push('/OptionsMenu');
@@ -25,7 +24,7 @@ const UserData: React.FC = () => {
 
         {/* Tamagui ListItem Group with 3 items */}
         <YStack style={{ borderWidth: 1, borderColor: '#e1e1e1' }} rounded={'$5'}>
-            <ListItem
+          <ListItem
             style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
             bg="white"
             hoverTheme
@@ -41,7 +40,6 @@ const UserData: React.FC = () => {
             size="$6"
           />
         </YStack>
-
       </View>
     </>
   );
