@@ -4,7 +4,16 @@ module.exports = {
 
   presets: [require('nativewind/preset')],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        'login-bg': '#F8F8F8',
+        'login-dark': '#1C1C1C',
+        'login-border': '#505050',
+        'login-gray': '#333333',
+        'login-light-gray': '#707070',
+        'login-orange': '#FFAD31',
+      },
+    },
   },
   plugins: [],
 };
