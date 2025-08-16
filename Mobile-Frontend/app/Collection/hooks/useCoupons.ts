@@ -19,25 +19,28 @@ export function useCoupons(isAuthenticated: boolean, authLoading: boolean) {
     setIsLoading(true);
     setError(null);
     try {
-
-      const response = await fetchAPI('/exclusive-coupons/', {method: 'GET', withCredentials: true});
-      devDebug("API response:", response.data);
+      const response = await fetchAPI('/exclusive-coupons/', {
+        method: 'GET',
+        withCredentials: true,
+      });
+      devDebug('API response:', response.data);
 
       if (!Array.isArray(response.data)) {
-        console.error("API response is not an array:", response.data);
-        throw new Error("Unexpected API response format.");
+        console.error('API response is not an array:', response.data);
+        throw new Error('Unexpected API response format.');
       }
-      
-      // Transform API data to frontend format
-      const transformedCoupons = response.data.map((coupon: ApiCoupon) => transformApiCoupon(coupon)); 
-      setCoupons(transformedCoupons);
 
+      // Transform API data to frontend format
+      const transformedCoupons = response.data.map((coupon: ApiCoupon) =>
+        transformApiCoupon(coupon)
+      );
+      setCoupons(transformedCoupons);
     } catch (err) {
-      console.error("Error fetching coupons:", err);
-      let errorMessage = "無法載入優惠券，請稍後再試。";
+      console.error('Error fetching coupons:', err);
+      let errorMessage = '無法載入優惠券，請稍後再試。';
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 401) {
-          errorMessage = "請先登入或重新登入。";
+          errorMessage = '請先登入或重新登入。';
         } else if (err.message) {
           errorMessage = `無法載入優惠券: ${err.message}`;
         }
@@ -60,7 +63,7 @@ export function useCoupons(isAuthenticated: boolean, authLoading: boolean) {
     coupons,
     isLoading,
     error,
-    fetchCoupons
+    fetchCoupons,
   };
 }
 export default useCoupons;

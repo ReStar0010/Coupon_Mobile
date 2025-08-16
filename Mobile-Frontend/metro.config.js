@@ -16,7 +16,7 @@ config = withTamagui(config, {
 });
 
 // 你的 web 版地圖（先做其中一個：1 用套件；2 用 stub）
-const webMapsEntry = require.resolve('react-native-web-maps'); 
+const webMapsEntry = require.resolve('react-native-web-maps');
 // 如果你選擇 stub，改成：
 // const webMapsEntry = path.resolve(__dirname, 'app/shims/react-native-maps.web.tsx');
 

@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { View, Text, ViewStyle } from "react-native";
+import React, { useMemo } from 'react';
+import { View, Text, ViewStyle } from 'react-native';
 
 type UserInfoElementType = {
   className?: string;
@@ -7,13 +7,13 @@ type UserInfoElementType = {
   content?: string;
   contentGap?: number;
   userIconsMinWidth?: number;
-  userAvatarsDisplay?: "flex" | "none";
+  userAvatarsDisplay?: 'flex' | 'none';
   userAvatarsMinWidth?: number;
   lastElement?: boolean;
 };
 
 const UserInfoElement: React.FC<UserInfoElementType> = ({
-  className = "",
+  className = '',
   prop,
   content,
   contentGap,
@@ -43,30 +43,24 @@ const UserInfoElement: React.FC<UserInfoElementType> = ({
 
   return (
     <View
-      className={`self-stretch flex flex-col items-start justify-start gap-[18px] ${className}`}
-    >
+      className={`flex flex-col items-start justify-start gap-[18px] self-stretch ${className}`}>
       <View
-        className="self-stretch flex flex-row items-start justify-start gap-[25px]"
-        style={contentStyle}
-      >
+        className="flex flex-row items-start justify-start gap-[25px] self-stretch"
+        style={contentStyle}>
         <View
-          className="w-[60px] relative tracking-[-0.01em] leading-[150%] inline-block whitespace-nowrap shrink-0"
-          style={userIconsStyle}
-        >
-          <Text className="text-sec-black text-base tracking-[-0.01em] leading-[150%]">
-            {prop}
-          </Text>
+          className="relative inline-block w-[60px] shrink-0 whitespace-nowrap leading-[150%] tracking-[-0.01em]"
+          style={userIconsStyle}>
+          <Text className="text-sec-black text-base leading-[150%] tracking-[-0.01em]">{prop}</Text>
         </View>
         <View
-          className="flex-1 relative tracking-[-0.01em] leading-[150%] inline-block text-right"
-          style={userAvatarsStyle}
-        >
-          <Text className="text-sec-black text-base tracking-[-0.01em] leading-[150%] text-right">
+          className="relative inline-block flex-1 text-right leading-[150%] tracking-[-0.01em]"
+          style={userAvatarsStyle}>
+          <Text className="text-sec-black text-right text-base leading-[150%] tracking-[-0.01em]">
             {content}
           </Text>
         </View>
       </View>
-      {!lastElement && <View className="self-stretch h-px relative bg-mid" />}
+      {!lastElement && <View className="bg-mid relative h-px self-stretch" />}
     </View>
   );
 };

@@ -1,6 +1,6 @@
-import {View} from "react-native";
+import { View } from 'react-native';
 
 const Topbar = () => {
-  return <View className="w-full bg-black items-center h-12"></View>;
+  return <View className="h-12 w-full items-center bg-black"></View>;
 };
 export default Topbar;

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
-import UserInfoElement from "../../components/UserInfoElement";
-import { fetchAPI } from "../../utils/authAPI";
+import React, { useState, useEffect } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
+import UserInfoElement from '../../components/UserInfoElement';
+import { fetchAPI } from '../../utils/authAPI';
 
 export type UserDataPanelType = {
   className?: string;
@@ -16,9 +16,7 @@ interface UserData {
   is_merchant: boolean;
 }
 
-const UserDataPanel: React.FC<UserDataPanelType> = ({
-  className = "",
-}) => {
+const UserDataPanel: React.FC<UserDataPanelType> = ({ className = '' }) => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,16 +26,16 @@ const UserDataPanel: React.FC<UserDataPanelType> = ({
       try {
         setIsLoading(true);
 
-        const response = await fetchAPI("/user-info/", {
-          method: "GET",
-          withCredentials: true
+        const response = await fetchAPI('/user-info/', {
+          method: 'GET',
+          withCredentials: true,
         });
 
         setUserData(response.data);
         setError(null);
       } catch (err) {
-        console.error("Error fetching user data:", err);
-        setError("無法載入用戶資料，請稍後再試。");
+        console.error('Error fetching user data:', err);
+        setError('無法載入用戶資料，請稍後再試。');
       } finally {
         setIsLoading(false);
       }
@@ -48,38 +46,37 @@ const UserDataPanel: React.FC<UserDataPanelType> = ({
 
   // Format date for display
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "無日期資料";
+    if (!dateString) return '無日期資料';
     try {
       // Parse the ISO date string
       const date = new Date(dateString);
-      
+
       // Check if date is valid
-      if (isNaN(date.getTime())) return "無效日期";
-      
+      if (isNaN(date.getTime())) return '無效日期';
+
       // Get UTC components to avoid timezone issues
       const year = date.getUTCFullYear();
-      const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-      const day = date.getUTCDate().toString().padStart(2, "0");
-      
+      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+      const day = date.getUTCDate().toString().padStart(2, '0');
+
       return `${year}/${month}/${day}`;
     } catch (e) {
-      return "無日期資料";
+      return '無日期資料';
     }
   };
 
   return (
     <View
-      className={`self-stretch ml-[27px] shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)] rounded-xl bg-bg-white flex flex-row items-start justify-start pt-[31px] pb-[29px] pl-[30px] pr-[29px] box-border max-w-full ${className}`}
-    >
-      <View className="flex-1 flex flex-col items-start justify-start" style={{ gap: 16 }}>
+      className={`bg-bg-white ml-[27px] box-border flex max-w-full flex-row items-start justify-start self-stretch rounded-xl pb-[29px] pl-[30px] pr-[29px] pt-[31px] shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)] ${className}`}>
+      <View className="flex flex-1 flex-col items-start justify-start" style={{ gap: 16 }}>
         {isLoading ? (
-          <View className="py-4 flex flex-row items-center justify-center w-full">
+          <View className="flex w-full flex-row items-center justify-center py-4">
             <ActivityIndicator size="large" color="#FFAD31" />
-            <Text className="text-gray-500 ml-3">載入中...</Text>
+            <Text className="ml-3 text-gray-500">載入中...</Text>
           </View>
         ) : error ? (
-          <View className="py-4 w-full">
-            <Text className="text-red-500 text-center">{error}</Text>
+          <View className="w-full py-4">
+            <Text className="text-center text-red-500">{error}</Text>
           </View>
         ) : (
           <>
@@ -87,7 +84,7 @@ const UserDataPanel: React.FC<UserDataPanelType> = ({
               contentGap={23}
               prop="帳號"
               userIconsMinWidth={32}
-              content={userData?.email || "無資料"}
+              content={userData?.email || '無資料'}
               userAvatarsDisplay="none"
             />
             <UserInfoElement

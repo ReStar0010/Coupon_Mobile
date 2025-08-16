@@ -1,17 +1,17 @@
-import "../../global.css"
-import React, { useState, useEffect } from "react";
-import { View, Text, SafeAreaView, ScrollView } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { Header } from "./components/Header";
-import { LoginForm } from "./components/LoginForm";
-import { RegisterForm } from "./components/RegisterForm";
-import { ForgotPasswordForm } from "./components/ForgotPasswordForm";
+import '../../global.css';
+import React, { useState, useEffect } from 'react';
+import { View, Text, SafeAreaView, ScrollView } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Header } from './components/Header';
+import { LoginForm } from './components/LoginForm';
+import { RegisterForm } from './components/RegisterForm';
+import { ForgotPasswordForm } from './components/ForgotPasswordForm';
 
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const router = useRouter();
   const params = useLocalSearchParams();
 
@@ -24,26 +24,20 @@ export default function Login() {
 
     if (urlEmail) setEmail(urlEmail);
     if (urlPassword) setPassword(urlPassword);
-    if (
-      params.registered === "true" ||
-      params.verified === "true"
-    ) {
+    if (params.registered === 'true' || params.verified === 'true') {
       setIsRegistering(false);
       setIsForgotPassword(false);
     }
 
     // Log if returnUrl is present
     if (returnUrl) {
-      console.log("Login page loaded with returnUrl:", returnUrl);
+      console.log('Login page loaded with returnUrl:', returnUrl);
     }
   }, [params]);
 
   return (
     <SafeAreaView className="flex-1 bg-stone-50">
-      <ScrollView 
-        contentContainerStyle={{ flexGrow: 1 }}
-        className="flex-1 px-8 py-16"
-      >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="flex-1 px-8 py-16">
         <View className="flex-1 items-center justify-center">
           <Header />
 
@@ -56,13 +50,10 @@ export default function Login() {
                 setPassword={setPassword}
               />
               <View className="mt-10 items-center">
-                <Text className="text-base text-sec-black">
-                  已經有帳號了 ? 
-                </Text>
+                <Text className="text-sec-black text-base">已經有帳號了 ?</Text>
                 <Text
                   onPress={() => setIsRegistering(false)}
-                  className="text-act-yellow text-base font-medium"
-                >
+                  className="text-act-yellow text-base font-medium">
                   登入
                 </Text>
               </View>
@@ -71,13 +62,10 @@ export default function Login() {
             <>
               <ForgotPasswordForm email={email} setEmail={setEmail} />
               <View className="mt-10 items-center">
-                <Text className="text-base text-sec-black">
-                  想記起密碼了 ? 
-                </Text>
+                <Text className="text-sec-black text-base">想記起密碼了 ?</Text>
                 <Text
                   onPress={() => setIsForgotPassword(false)}
-                  className="text-act-yellow text-base font-medium"
-                >
+                  className="text-act-yellow text-base font-medium">
                   返回登入
                 </Text>
               </View>
@@ -92,20 +80,18 @@ export default function Login() {
               />
               <View className="mt-6 items-center gap-4">
                 <View className="flex-row items-center">
-                  <Text className="text-base text-sec-black">還沒有帳號嗎 ? </Text>
+                  <Text className="text-sec-black text-base">還沒有帳號嗎 ? </Text>
                   <Text
                     onPress={() => setIsRegistering(true)}
-                    className="text-act-yellow text-base font-medium"
-                  >
+                    className="text-act-yellow text-base font-medium">
                     註冊
                   </Text>
                 </View>
                 <View className="flex-row items-center">
-                  <Text className="text-base text-sec-black">忘記密碼 ? </Text>
+                  <Text className="text-sec-black text-base">忘記密碼 ? </Text>
                   <Text
                     onPress={() => setIsForgotPassword(true)}
-                    className="text-act-yellow text-base font-medium"
-                  >
+                    className="text-act-yellow text-base font-medium">
                     重設
                   </Text>
                 </View>

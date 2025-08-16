@@ -1,7 +1,7 @@
-"use client";
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { isUserLoggedIn, getUserId } from "../../utils/authAPI";
-import { devDebug } from "../../utils/devLogger";
+'use client';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { isUserLoggedIn, getUserId } from '../../utils/authAPI';
+import { devDebug } from '../../utils/devLogger';
 
 // Create an authentication context
 type AuthContextType = {
@@ -39,10 +39,10 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       const authenticated = await isUserLoggedIn();
       const userId = await getUserId();
 
-      devDebug("Auth check:", {
+      devDebug('Auth check:', {
         authenticated,
         userId,
-        platform: "React Native",
+        platform: 'React Native',
       });
 
       setAuthState((prevState) => ({
@@ -52,7 +52,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
         loading: false,
       }));
     } catch (error) {
-      console.error("Error checking auth status:", error);
+      console.error('Error checking auth status:', error);
       setAuthState((prevState) => ({
         ...prevState,
         isAuthenticated: false,
@@ -102,11 +102,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     refreshAuth,
   };
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
 export default AuthProvider;

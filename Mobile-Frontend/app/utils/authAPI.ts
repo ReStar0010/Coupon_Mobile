@@ -3,12 +3,12 @@
  * Combines functionality from api.ts and auth.ts into a single, cohesive module
  */
 
-import { useEffect } from "react";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { useAuth } from "../components/providers/SessionProvider";
-import { devLog, devDebug } from "./devLogger";
-import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useAuth } from '../components/providers/SessionProvider';
+import { devLog, devDebug } from './devLogger';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api` || 'http://localhost:8000/api';
 
@@ -29,7 +29,7 @@ const subscribeToRefresh = (callback: (token: boolean) => void): void => {
  * @param token Success status of the refresh
  */
 const onRefreshComplete = (token: boolean): void => {
-  refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers.forEach((callback) => callback(token));
   refreshSubscribers = [];
 };
 
@@ -50,8 +50,8 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     'coupons/<int:id>/',
     'coupon/share/<str:token>/',
   ];
-  
-  return publicEndpoints.some(publicPath => endpoint.startsWith(publicPath));
+
+  return publicEndpoints.some((publicPath) => endpoint.startsWith(publicPath));
 };
 
 /**
@@ -63,13 +63,13 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     // Only allow one refresh at a time, queue all others
     if (isRefreshing) {
       devLog('Token refresh already in progress, queueing request');
-      return new Promise<boolean>(resolve => {
+      return new Promise<boolean>((resolve) => {
         subscribeToRefresh(resolve);
       });
     }
-    
+
     isRefreshing = true;
-    
+
     // Get refresh token from AsyncStorage
     const refreshToken = await AsyncStorage.getItem('refresh_token');
     if (!refreshToken) {
@@ -77,26 +77,26 @@ export const refreshAccessToken = async (): Promise<boolean> => {
       onRefreshComplete(false);
       return false;
     }
-    
+
     const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${refreshToken}`,
+        Authorization: `Bearer ${refreshToken}`,
       },
       body: JSON.stringify({ refresh: refreshToken }),
     });
-    
+
     const success = response.ok;
-    
+
     // Notify subscribers and reset state
     isRefreshing = false;
     onRefreshComplete(success);
-    
+
     if (!success) {
       return false;
     }
-    
+
     // Store the new tokens in AsyncStorage
     const data = await response.json();
     if (data.access) {
@@ -105,7 +105,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     if (data.refresh) {
       await AsyncStorage.setItem('refresh_token', data.refresh);
     }
-    
+
     return true;
   } catch (error) {
     console.error('Token refresh error:', error);
@@ -122,18 +122,18 @@ export const refreshAccessToken = async (): Promise<boolean> => {
  * @returns Promise with the axios response
  */
 export const fetchAPI = async (
-  endpoint: string, 
+  endpoint: string,
   options: AxiosRequestConfig = {}
 ): Promise<AxiosResponse> => {
   // Get access token from AsyncStorage
   const accessToken = await AsyncStorage.getItem('access_token');
-  
+
   // Ensure each request includes the access token
   const axiosOptions: AxiosRequestConfig = {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+      ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       ...options.headers,
     },
   };
@@ -149,14 +149,14 @@ export const fetchAPI = async (
       if (isPublicEndpoint(endpoint)) {
         throw error; // Re-throw the error for public endpoints
       }
-      
+
       // Check if the error is due to authentication issues
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         devLog('Access token expired, attempting to refresh...');
-        
+
         // Try to refresh the token
         const refreshSuccessful = await refreshAccessToken();
-        
+
         if (refreshSuccessful) {
           // If refresh successful, retry the original request
           devLog('Token refresh successful, retrying original request');
@@ -167,23 +167,25 @@ export const fetchAPI = async (
               ...axiosOptions,
               headers: {
                 ...axiosOptions.headers,
-                'Authorization': `Bearer ${newAccessToken}`,
+                Authorization: `Bearer ${newAccessToken}`,
               },
             };
-            
+
             const retryResponse = await axios(`${API_BASE_URL}${endpoint}`, retryOptions);
             return retryResponse;
           } catch (retryError) {
             // If we still have auth issues after refresh, redirect to login
             if (axios.isAxiosError(retryError) && retryError.response?.status === 401) {
               devLog('Authentication failed after token refresh, redirecting to login');
-              
+
               // Clear all stored tokens
               await clearStoredTokens();
-              
+
               const errorData = retryError.response?.data || {};
               const error = new Error(
-                errorData.error || errorData.message || `Authentication failed: ${retryError.response?.status}`
+                errorData.error ||
+                  errorData.message ||
+                  `Authentication failed: ${retryError.response?.status}`
               );
               throw error;
             }
@@ -193,19 +195,23 @@ export const fetchAPI = async (
           // If refresh failed, redirect to login
           devLog('Token refresh failed, redirecting to login');
           await clearStoredTokens();
-          
+
           const errorData = error.response?.data || {};
           const authError = new Error(
-            errorData.error || errorData.message || `Authentication failed: ${error.response?.status}`
+            errorData.error ||
+              errorData.message ||
+              `Authentication failed: ${error.response?.status}`
           );
           throw authError;
         }
       }
-      
+
       // Handle other error responses
-      const errorData = axios.isAxiosError(error) ? (error.response?.data || {}) : {};
+      const errorData = axios.isAxiosError(error) ? error.response?.data || {} : {};
       const apiError = new Error(
-        errorData.error || errorData.message || `API request failed: ${axios.isAxiosError(error) ? error.response?.status : 'Unknown error'}`
+        errorData.error ||
+          errorData.message ||
+          `API request failed: ${axios.isAxiosError(error) ? error.response?.status : 'Unknown error'}`
       );
       throw apiError;
     }
@@ -219,12 +225,7 @@ export const fetchAPI = async (
  * Clear all stored tokens from AsyncStorage
  */
 const clearStoredTokens = async (): Promise<void> => {
-  await AsyncStorage.multiRemove([
-    'access_token',
-    'refresh_token',
-    'is_logged_in',
-    'user_id',
-  ]);
+  await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'is_logged_in', 'user_id']);
 };
 
 /**
@@ -234,7 +235,7 @@ const clearStoredTokens = async (): Promise<void> => {
 export const storeLoginData = async (loginResponse: any): Promise<void> => {
   try {
     devLog('📦 Storing login data:', loginResponse);
-    
+
     // Store tokens if they exist
     if (loginResponse.access_token || loginResponse.access) {
       const accessToken = loginResponse.access_token || loginResponse.access;
@@ -243,7 +244,7 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
     } else {
       devLog('⚠️ No access_token in response - this might cause auth issues');
     }
-    // 
+    //
     if (loginResponse.refresh_token || loginResponse.refresh) {
       const refreshToken = loginResponse.refresh_token || loginResponse.refresh;
       await AsyncStorage.setItem('refresh_token', refreshToken);
@@ -251,17 +252,17 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
     } else {
       devLog('⚠️ No refresh_token in response - this might cause auth issues');
     }
-    
+
     // Store user ID
     if (loginResponse.user_id) {
       await AsyncStorage.setItem('user_id', loginResponse.user_id.toString());
       devLog('✅ Stored user_id:', loginResponse.user_id);
     }
-    
+
     // Mark user as logged in (this is crucial for isUserLoggedIn to work)
     await AsyncStorage.setItem('is_logged_in', 'true');
     devLog('✅ Marked user as logged in');
-    
+
     // Debug: Verify what was stored
     const storedData = {
       access_token: await AsyncStorage.getItem('access_token'),
@@ -270,11 +271,10 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
       is_logged_in: await AsyncStorage.getItem('is_logged_in'),
     };
     devDebug('📦 Verification - Stored data:', storedData);
-    
+
     // Check login status after storing
     const loginCheck = await isUserLoggedIn();
     devLog('🔍 Login status check after storing:', loginCheck);
-    
   } catch (error) {
     console.error('Error storing login data:', error);
     throw error;
@@ -315,7 +315,7 @@ export const isUserLoggedIn = async (): Promise<boolean> => {
   try {
     const isLoggedIn = await AsyncStorage.getItem('is_logged_in');
     const refreshToken = await AsyncStorage.getItem('refresh_token');
-    
+
     return isLoggedIn === 'true' || refreshToken !== null;
   } catch (error) {
     console.error('Error checking login status:', error);
@@ -354,28 +354,28 @@ export const useRequireAuth = () => {
       // Check if we have tokens directly as a failsafe
       const hasRefreshToken = (await getRefreshToken()) !== null;
       const hasAuth = isAuthenticated || hasRefreshToken;
-      
-      devDebug('Route protection check:', { 
-        isAuthenticated, 
-        loading, 
+
+      devDebug('Route protection check:', {
+        isAuthenticated,
+        loading,
         userId,
         hasRefreshToken,
-        shareToken
+        shareToken,
       });
-      
+
       // If there's a share token, we don't redirect immediately
       // Gift component will handle the redirect after they click "領取"
       if (shareToken) {
         devLog('Share token detected, allowing access for gift viewing');
         return;
       }
-      
+
       // Only redirect if authentication check is complete and user is not authenticated
       // Add a small delay to ensure all auth checks are complete
       setTimeout(() => {
         if (isMounted && !loading && !hasAuth) {
           devLog('Redirecting to login due to failed auth');
-          router.push("/Login");
+          router.push('/Login');
         }
       }, 500); // Small delay to ensure all auth checks complete
     };
@@ -393,7 +393,7 @@ export const useRequireAuth = () => {
 /**
  * Logs out the user by calling the logout API and clearing tokens
  */
-export const logout = async (): Promise<void> => {  
+export const logout = async (): Promise<void> => {
   try {
     await fetchAPI('/logout/', { method: 'POST' });
   } catch (error) {
@@ -401,10 +401,10 @@ export const logout = async (): Promise<void> => {
     // Manually clear tokens on client side as fallback
     await clearStoredTokens();
   }
-  
+
   // Clear all stored tokens
   await clearStoredTokens();
-  
+
   // Note: In React Native, we don't use window.location.href
   // The router navigation should be handled by the calling component
 };

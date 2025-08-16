@@ -1,27 +1,27 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { 
-  View, 
-  Text, 
-  SafeAreaView, 
-  TouchableOpacity, 
-  TextInput, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  SafeAreaView,
+  TouchableOpacity,
+  TextInput,
   ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
-  Platform
-} from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import SuccessPopup from "./SuccessPopup";
-import { devLog } from "../../../utils/devLogger";
-import { fetchAPI } from "../../../utils/authAPI";
+  Platform,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import SuccessPopup from './SuccessPopup';
+import { devLog } from '../../../utils/devLogger';
+import { fetchAPI } from '../../../utils/authAPI';
 
 // Define the coupon interface
 interface Coupon {
   id: number;
   store_name: string;
   coupon_detail: string;
-  coupon_type: "store" | "exclusive";
+  coupon_type: 'store' | 'exclusive';
   // Add other properties as needed
 }
 
@@ -29,8 +29,8 @@ export default function RedeemPage() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
-  const [redeemCode, setRedeemCode] = useState("");
-  const [message, setMessage] = useState("");
+  const [redeemCode, setRedeemCode] = useState('');
+  const [message, setMessage] = useState('');
   const [inputError, setInputError] = useState(false);
   const [showSuccessConfirmation, setShowSuccessConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,30 +42,30 @@ export default function RedeemPage() {
   const handleCloseSuccessPopup = useCallback(() => {
     setShowSuccessConfirmation(false);
     // Redirect to main EasyUse page after successful redemption
-    router.push("/EasyUse");
+    router.push('/EasyUse');
   }, [router]);
 
   useEffect(() => {
     const fetchCoupon = async () => {
-      setMessage("");
+      setMessage('');
       try {
-        const response = await fetchAPI(`/coupons/${id}/`, { 
-          method: "GET" 
-        }); 
+        const response = await fetchAPI(`/coupons/${id}/`, {
+          method: 'GET',
+        });
 
-        if (response.data.coupon_type === "store") {
+        if (response.data.coupon_type === 'store') {
           router.push(`/EasyUse/${id}`);
           return;
         }
 
         setCoupon(response.data);
       } catch (error) {
-        console.error("Failed to fetch coupon:", error);
-        setMessage("無法載入優惠券資料");
+        console.error('Failed to fetch coupon:', error);
+        setMessage('無法載入優惠券資料');
         setCoupon(null);
       }
     };
-    
+
     if (id) {
       fetchCoupon();
     }
@@ -73,38 +73,35 @@ export default function RedeemPage() {
 
   const handleSubmitCode = async () => {
     setInputError(false);
-    setMessage("");
+    setMessage('');
     setIsLoading(true);
 
     try {
-      const response = await fetchAPI(
-        `/redeem/${id}/`,
-        {
-          method: "POST",
-          data: { redeem_code: redeemCode },
-        }
-      );
+      const response = await fetchAPI(`/redeem/${id}/`, {
+        method: 'POST',
+        data: { redeem_code: redeemCode },
+      });
 
       // Process the successful response
-      devLog("兌換成功", response.data);
+      devLog('兌換成功', response.data);
       setInputError(false);
       setShowSuccessConfirmation(true);
-      setRedeemCode("");
+      setRedeemCode('');
     } catch (error) {
-      console.error("處理錯誤:", error);
+      console.error('處理錯誤:', error);
 
-      let errorMessage = "發生錯誤，請稍後再試";
-      
+      let errorMessage = '發生錯誤，請稍後再試';
+
       if (error instanceof Error) {
-        if (error.message.includes("401")) {
-          errorMessage = "登入已過期或未登入，請重新登入";
+        if (error.message.includes('401')) {
+          errorMessage = '登入已過期或未登入，請重新登入';
           setTimeout(() => {
-            router.push("/Login");
+            router.push('/Login');
           }, 2000);
-        } else if (error.message.includes("400")) {
-          errorMessage = "兌換碼錯誤或已使用";
-        } else if (error.message.includes("404")) {
-          errorMessage = "找不到此優惠券";
+        } else if (error.message.includes('400')) {
+          errorMessage = '兌換碼錯誤或已使用';
+        } else if (error.message.includes('404')) {
+          errorMessage = '找不到此優惠券';
         } else {
           errorMessage = error.message;
         }
@@ -123,12 +120,12 @@ export default function RedeemPage() {
     if (inputError) {
       setInputError(false);
     }
-    setMessage("");
+    setMessage('');
   };
 
   if (!coupon && !message) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-100 justify-center items-center">
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-100">
         <ActivityIndicator size="large" color="#FFAD31" />
         <Text className="text-sec-black mt-4">載入中...</Text>
       </SafeAreaView>
@@ -137,13 +134,12 @@ export default function RedeemPage() {
 
   if (!coupon && message) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-100 justify-center items-center px-4">
-        <Text className="text-red-500 text-center text-lg">{message}</Text>
-        <TouchableOpacity 
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-100 px-4">
+        <Text className="text-center text-lg text-red-500">{message}</Text>
+        <TouchableOpacity
           onPress={onGoBackContainerClick}
-          className="mt-4 bg-gray-300 px-4 py-2 rounded-lg"
-        >
-          <Text className="text-gray-700 font-semibold">返回</Text>
+          className="mt-4 rounded-lg bg-gray-300 px-4 py-2">
+          <Text className="font-semibold text-gray-700">返回</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -151,37 +147,33 @@ export default function RedeemPage() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <View className="flex-1 justify-start pt-[35px] px-4">
+        className="flex-1">
+        <View className="flex-1 justify-start px-4 pt-[35px]">
           {/* Back Button */}
           <TouchableOpacity
             onPress={onGoBackContainerClick}
-            className="flex flex-row items-center gap-2 mb-10 self-start"
-            activeOpacity={0.7}
-          >
+            className="mb-10 flex flex-row items-center gap-2 self-start"
+            activeOpacity={0.7}>
             <Image
-              source={require("../../../../assets/forward.png")}
+              source={require('../../../../assets/forward.png')}
               style={{ width: 16, height: 16 }}
-              className="w-4 h-4"
+              className="h-4 w-4"
             />
             <Text className="text-sec-black text-sm">返回</Text>
           </TouchableOpacity>
 
           {/* Redeem Code Input Card */}
-          <View className="flex-1 justify-center items-center">
-            <View className="bg-white shadow-md rounded-xl w-full max-w-md p-6 items-center justify-center">
-              <Text className="text-2xl font-bold text-sec-black mb-6 text-center">
-                輸入兌換碼
-              </Text>
-              
-              <Text className="text-lg font-semibold text-sec-black mb-2 text-center">
+          <View className="flex-1 items-center justify-center">
+            <View className="w-full max-w-md items-center justify-center rounded-xl bg-white p-6 shadow-md">
+              <Text className="text-sec-black mb-6 text-center text-2xl font-bold">輸入兌換碼</Text>
+
+              <Text className="text-sec-black mb-2 text-center text-lg font-semibold">
                 {coupon?.store_name}
               </Text>
-              
-              <Text className="text-sm text-gray-600 mb-6 text-center">
+
+              <Text className="mb-6 text-center text-sm text-gray-600">
                 {coupon?.coupon_detail}
               </Text>
 
@@ -194,8 +186,8 @@ export default function RedeemPage() {
                   autoCapitalize="characters"
                   autoCorrect={false}
                   editable={!isLoading}
-                  className={`w-full border rounded-lg py-3 px-4 text-center text-lg bg-gray-100 text-sec-black ${
-                    inputError ? "border-red-500" : "border-gray-300"
+                  className={`text-sec-black w-full rounded-lg border bg-gray-100 px-4 py-3 text-center text-lg ${
+                    inputError ? 'border-red-500' : 'border-gray-300'
                   }`}
                   style={{
                     fontSize: 18,
@@ -203,37 +195,28 @@ export default function RedeemPage() {
                     letterSpacing: 2,
                   }}
                 />
-                
+
                 {/* Error message */}
                 {inputError && message && (
-                  <Text className="text-red-500 text-sm mt-2 text-center">
-                    {message}
-                  </Text>
+                  <Text className="mt-2 text-center text-sm text-red-500">{message}</Text>
                 )}
-                
+
                 <TouchableOpacity
                   onPress={handleSubmitCode}
-                  disabled={
-                    redeemCode.length !== 6 || showSuccessConfirmation || isLoading
-                  }
-                  className={`py-3 px-6 rounded-lg shadow mt-4 w-full items-center justify-center ${
+                  disabled={redeemCode.length !== 6 || showSuccessConfirmation || isLoading}
+                  className={`mt-4 w-full items-center justify-center rounded-lg px-6 py-3 shadow ${
                     redeemCode.length === 6 && !showSuccessConfirmation && !isLoading
-                      ? "bg-act-yellow"
-                      : "bg-gray-400"
+                      ? 'bg-act-yellow'
+                      : 'bg-gray-400'
                   }`}
-                  activeOpacity={0.8}
-                >
+                  activeOpacity={0.8}>
                   {isLoading ? (
                     <View className="flex-row items-center">
-                      <ActivityIndicator 
-                        size="small" 
-                        color="#000" 
-                        className="mr-2"
-                      />
+                      <ActivityIndicator size="small" color="#000" className="mr-2" />
                       <Text className="text-sec-black font-bold">處理中...</Text>
                     </View>
                   ) : (
-                    <Text className="text-sec-black font-bold text-lg">確認</Text>
+                    <Text className="text-sec-black text-lg font-bold">確認</Text>
                   )}
                 </TouchableOpacity>
               </View>

@@ -21,7 +21,7 @@ module.exports = function (api) {
           // Web 端先不要關掉抽取（很多錯誤都是抽取被關掉造成）
           // 若要在 iOS/Android 開發期關掉，也請對 web 強制開啟
           disableExtraction: isWeb ? false : isDev,
-          platform: 'web',          // 這行是重點，避免去 require 到 *.native.ts / src
+          platform: 'web', // 這行是重點，避免去 require 到 *.native.ts / src
         },
       ],
       'react-native-reanimated/plugin',
@@ -31,10 +31,10 @@ module.exports = function (api) {
 
 // module.exports = function (api) {
 //   api.cache(true);
-  
+
 //   return {
 //     presets: [
-//       ['babel-preset-expo', { jsxImportSource: 'nativewind' }], 
+//       ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
 //       'nativewind/babel'
 //     ],
 //     plugins: [

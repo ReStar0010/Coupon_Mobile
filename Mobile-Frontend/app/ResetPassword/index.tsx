@@ -1,24 +1,24 @@
-import React, { useState, useEffect, useRef } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  SafeAreaView, 
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  SafeAreaView,
   ScrollView,
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
-} from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Stack } from "expo-router";
-import { Header } from "../Login/components/Header";
-import axios from "axios";
+  Platform,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
+import { Header } from '../Login/components/Header';
+import axios from 'axios';
 
 const ResetPasswordPage: React.FC = () => {
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -31,18 +31,18 @@ const ResetPasswordPage: React.FC = () => {
 
   useEffect(() => {
     if (!token || !email) {
-      setError("無效的密碼重設連結。請重新嘗試忘記密碼流程。");
+      setError('無效的密碼重設連結。請重新嘗試忘記密碼流程。');
     }
   }, [token, email]);
 
   const handleSubmit = async () => {
     if (password !== confirmPassword) {
-      setError("兩次輸入的密碼不一致");
+      setError('兩次輸入的密碼不一致');
       return;
     }
 
     if (password.length < 8) {
-      setError("密碼長度至少需要8個字元");
+      setError('密碼長度至少需要8個字元');
       return;
     }
 
@@ -59,7 +59,7 @@ const ResetPasswordPage: React.FC = () => {
         },
         {
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           withCredentials: true,
         }
@@ -67,20 +67,16 @@ const ResetPasswordPage: React.FC = () => {
 
       // Handle successful reset
       setSuccess(true);
-      
+
       // Show success alert and redirect after user confirms
-      Alert.alert(
-        "密碼重設成功",
-        "您的密碼已成功重設，現在可以使用新密碼登入。",
-        [
-          {
-            text: "前往登入",
-            onPress: () => {
-              router.replace(`/Login?email=${encodeURIComponent(email || "")}`);
-            }
-          }
-        ]
-      );
+      Alert.alert('密碼重設成功', '您的密碼已成功重設，現在可以使用新密碼登入。', [
+        {
+          text: '前往登入',
+          onPress: () => {
+            router.replace(`/Login?email=${encodeURIComponent(email || '')}`);
+          },
+        },
+      ]);
     } catch (err) {
       // Handle axios errors
       if (axios.isAxiosError(err)) {
@@ -91,13 +87,13 @@ const ResetPasswordPage: React.FC = () => {
           } else if (errorData.message) {
             setError(errorData.message);
           } else {
-            setError("密碼重設失敗。請稍後再試。");
+            setError('密碼重設失敗。請稍後再試。');
           }
         } else {
-          setError("無法連接到伺服器，請稍後再試。");
+          setError('無法連接到伺服器，請稍後再試。');
         }
       } else {
-        setError(err instanceof Error ? err.message : "發生錯誤");
+        setError(err instanceof Error ? err.message : '發生錯誤');
       }
     } finally {
       setIsLoading(false);
@@ -105,55 +101,48 @@ const ResetPasswordPage: React.FC = () => {
   };
 
   const handleBackToLogin = () => {
-    router.replace("/Login");
+    router.replace('/Login');
   };
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView className="flex-1 bg-bg-grey">
-        <KeyboardAvoidingView 
+      <SafeAreaView className="bg-bg-grey flex-1">
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1"
-        >
-          <ScrollView 
+          className="flex-1">
+          <ScrollView
             className="flex-1"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ 
+            contentContainerStyle={{
               flexGrow: 1,
               justifyContent: 'center',
               alignItems: 'center',
               paddingHorizontal: 40,
               paddingVertical: 20,
-            }}
-          >
+            }}>
             <Header />
 
-            <View className="flex flex-col items-center w-full max-w-[400px]" style={{ gap: 20 }}>
-              <Text className="text-xl text-sec-black mb-2 font-bold text-center">
+            <View className="flex w-full max-w-[400px] flex-col items-center" style={{ gap: 20 }}>
+              <Text className="text-sec-black mb-2 text-center text-xl font-bold">
                 重設您的密碼
               </Text>
 
               {success ? (
-                <View className="bg-green-100 p-4 rounded-md w-full">
-                  <Text className="text-green-600 text-sm font-medium text-center">
+                <View className="w-full rounded-md bg-green-100 p-4">
+                  <Text className="text-center text-sm font-medium text-green-600">
                     密碼已成功重設！請點擊確認按鈕前往登入頁面。
                   </Text>
                 </View>
               ) : error && (!token || !email) ? (
-                <View className="bg-red-100 p-4 rounded-md w-full">
-                  <Text className="text-red-600 text-sm font-medium text-center mb-4">
-                    {error}
-                  </Text>
-                  <TouchableOpacity 
-                    onPress={handleBackToLogin} 
+                <View className="w-full rounded-md bg-red-100 p-4">
+                  <Text className="mb-4 text-center text-sm font-medium text-red-600">{error}</Text>
+                  <TouchableOpacity
+                    onPress={handleBackToLogin}
                     className="w-full"
-                    activeOpacity={0.7}
-                  >
-                    <View className="bg-act-yellow rounded-3xl h-[54px] items-center justify-center">
-                      <Text className="text-sec-black font-bold text-base">
-                        返回登入頁面
-                      </Text>
+                    activeOpacity={0.7}>
+                    <View className="bg-act-yellow h-[54px] items-center justify-center rounded-3xl">
+                      <Text className="text-sec-black text-base font-bold">返回登入頁面</Text>
                     </View>
                   </TouchableOpacity>
                 </View>
@@ -165,7 +154,7 @@ const ResetPasswordPage: React.FC = () => {
                       onChangeText={setPassword}
                       placeholder="輸入新密碼"
                       secureTextEntry
-                      className="bg-bg-white text-base border-[none] text-sec-black rounded-3xl h-[54px] px-4"
+                      className="bg-bg-white text-sec-black h-[54px] rounded-3xl border-[none] px-4 text-base"
                       autoCapitalize="none"
                       returnKeyType="next"
                       onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
@@ -180,7 +169,7 @@ const ResetPasswordPage: React.FC = () => {
                       onChangeText={setConfirmPassword}
                       placeholder="確認新密碼"
                       secureTextEntry
-                      className="bg-bg-white text-base border-[none] text-sec-black rounded-3xl h-[54px] px-4"
+                      className="bg-bg-white text-sec-black h-[54px] rounded-3xl border-[none] px-4 text-base"
                       autoCapitalize="none"
                       returnKeyType="done"
                       onSubmitEditing={handleSubmit}
@@ -188,27 +177,22 @@ const ResetPasswordPage: React.FC = () => {
                   </View>
 
                   {error && (
-                    <View className="bg-red-100 p-3 rounded-md w-full">
-                      <Text className="text-red-600 text-sm font-medium text-center">
-                        {error}
-                      </Text>
+                    <View className="w-full rounded-md bg-red-100 p-3">
+                      <Text className="text-center text-sm font-medium text-red-600">{error}</Text>
                     </View>
                   )}
 
                   <TouchableOpacity
                     onPress={handleSubmit}
                     disabled={isLoading || !token || !email}
-                    className={`w-full rounded-3xl h-[54px] items-center justify-center ${
-                      isLoading || !token || !email ? "bg-act-yellow opacity-70" : "bg-act-yellow"
+                    className={`h-[54px] w-full items-center justify-center rounded-3xl ${
+                      isLoading || !token || !email ? 'bg-act-yellow opacity-70' : 'bg-act-yellow'
                     }`}
-                    activeOpacity={0.7}
-                  >
+                    activeOpacity={0.7}>
                     {isLoading ? (
                       <ActivityIndicator size="small" color="#000" />
                     ) : (
-                      <Text className="text-sec-black font-bold text-base">
-                        重設密碼
-                      </Text>
+                      <Text className="text-sec-black text-base font-bold">重設密碼</Text>
                     )}
                   </TouchableOpacity>
                 </>

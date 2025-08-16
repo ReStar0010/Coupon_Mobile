@@ -1,6 +1,6 @@
-"use client";
-import * as React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+'use client';
+import * as React from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 
 interface ConfirmationCardProps {
   title: string;
@@ -14,17 +14,17 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   onConfirm,
 }) => {
   return (
-    <View className="flex flex-col items-center px-5 pt-16 pb-6 mt-12 w-full bg-white rounded-3xl shadow-sm">
-      <Text className="mb-4 text-3xl font-bold tracking-tight leading-10 text-sec-black">
+    <View className="mt-12 flex w-full flex-col items-center rounded-3xl bg-white px-5 pb-6 pt-16 shadow-sm">
+      <Text className="text-sec-black mb-4 text-3xl font-bold leading-10 tracking-tight">
         {title}
       </Text>
 
-      <View className="mb-8 text-base leading-5 text-center text-sec-black">
-        <Text className="text-base leading-5 text-center text-sec-black">
+      <View className="text-sec-black mb-8 text-center text-base leading-5">
+        <Text className="text-sec-black text-center text-base leading-5">
           {message.map((line, index) => (
             <React.Fragment key={index}>
               {line}
-              {index < message.length - 1 && "\n"}
+              {index < message.length - 1 && '\n'}
             </React.Fragment>
           ))}
         </Text>
@@ -32,12 +32,9 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
 
       <TouchableOpacity
         onPress={onConfirm}
-        className="text-base font-bold tracking-normal leading-6 text-white bg-act-yellow rounded-3xl h-[37px] w-[231px] justify-center items-center"
-        activeOpacity={0.8}
-      >
-        <Text className="text-base font-bold tracking-normal leading-6 text-white">
-          OK
-        </Text>
+        className="bg-act-yellow h-[37px] w-[231px] items-center justify-center rounded-3xl text-base font-bold leading-6 tracking-normal text-white"
+        activeOpacity={0.8}>
+        <Text className="text-base font-bold leading-6 tracking-normal text-white">OK</Text>
       </TouchableOpacity>
     </View>
   );

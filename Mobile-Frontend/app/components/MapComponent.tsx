@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions } from "react-native";
-import MapView, { Marker, Callout, Region } from "react-native-maps";
-import * as Location from "expo-location";
-import { useRouter } from "expo-router";
-import { devLog } from "../utils/devLogger";
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions } from 'react-native';
+import MapView, { Marker, Callout, Region } from 'react-native-maps';
+import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
+import { devLog } from '../utils/devLogger';
 
 // Define types for the props and store data
 type MapComponentProps = {
@@ -38,7 +38,7 @@ const { width, height } = Dimensions.get('window');
 const MapComponent: React.FC<MapComponentProps> = ({
   stores = [],
   onStoreSelect,
-  className = "",
+  className = '',
   setStoreSearch,
 }) => {
   const router = useRouter();
@@ -57,11 +57,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert(
-            '位置權限',
-            '無法獲取位置權限，請在設定中開啟位置服務',
-            [{ text: '確定' }]
-          );
+          Alert.alert('位置權限', '無法獲取位置權限，請在設定中開啟位置服務', [{ text: '確定' }]);
           return;
         }
 
@@ -70,7 +66,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
         };
-        
+
         setUserLocation(userPos);
         setMapRegion({
           ...userPos,
@@ -78,12 +74,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
           longitudeDelta: 0.0421,
         });
       } catch (error) {
-        console.error("Error getting location:", error);
-        Alert.alert(
-          '定位錯誤',
-          '無法獲取當前位置，請手動選擇商店',
-          [{ text: '確定' }]
-        );
+        console.error('Error getting location:', error);
+        Alert.alert('定位錯誤', '無法獲取當前位置，請手動選擇商店', [{ text: '確定' }]);
       }
     })();
   }, []);
@@ -110,12 +102,15 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
   const goToUserLocation = async () => {
     if (userLocation && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      }, 1000);
+      mapRef.current.animateToRegion(
+        {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        },
+        1000
+      );
     } else {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
@@ -129,55 +124,48 @@ const MapComponent: React.FC<MapComponentProps> = ({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
         };
-        
+
         setUserLocation(userPos);
-        
+
         if (mapRef.current) {
-          mapRef.current.animateToRegion({
-            ...userPos,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          }, 1000);
+          mapRef.current.animateToRegion(
+            {
+              ...userPos,
+              latitudeDelta: 0.0922,
+              longitudeDelta: 0.0421,
+            },
+            1000
+          );
         }
       } catch (error) {
-        console.error("Error getting location:", error);
+        console.error('Error getting location:', error);
         Alert.alert('定位錯誤', '無法獲取當前位置');
       }
     }
   };
 
   const CustomCallout = ({ store }: { store: Store }) => (
-    <Callout
-      tooltip={true}
-      onPress={() => navigateToCoupons(store.id, store.name)}
-    >
+    <Callout tooltip={true} onPress={() => navigateToCoupons(store.id, store.name)}>
       <View style={styles.calloutContainer}>
         {/* Coupon count badge */}
         <View style={styles.couponBadge}>
-          <Text style={styles.couponBadgeText}>
-            {store.active_coupon_count || 0}
-          </Text>
+          <Text style={styles.couponBadgeText}>{store.active_coupon_count || 0}</Text>
         </View>
 
-        <Text style={styles.calloutTitle}>
-          {store.name}
-        </Text>
+        <Text style={styles.calloutTitle}>{store.name}</Text>
 
         <TouchableOpacity
           style={styles.calloutButton}
           onPress={() => navigateToCoupons(store.id, store.name)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.calloutButtonText}>
-            查看優惠券
-          </Text>
+          activeOpacity={0.8}>
+          <Text style={styles.calloutButtonText}>查看優惠券</Text>
         </TouchableOpacity>
       </View>
     </Callout>
   );
 
   return (
-    <View className={`w-full h-full relative rounded-xl overflow-hidden ${className}`}>
+    <View className={`relative h-full w-full overflow-hidden rounded-xl ${className}`}>
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -194,16 +182,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
         showsTraffic={false}
         showsIndoors={true}
         loadingEnabled={true}
-        mapType="standard"
-      >
+        mapType="standard">
         {/* User location marker (custom) */}
         {userLocation && (
-          <Marker
-            coordinate={userLocation}
-            title="您的位置"
-            pinColor="blue"
-            zIndex={1000}
-          />
+          <Marker coordinate={userLocation} title="您的位置" pinColor="blue" zIndex={1000} />
         )}
 
         {/* Store markers */}
@@ -217,11 +199,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
             title={store.name}
             description={store.address}
             pinColor="#FFAD31"
-            onPress={() => onMarkerPress(store)}
-          >
-            {selectedStore?.id === store.id && (
-              <CustomCallout store={store} />
-            )}
+            onPress={() => onMarkerPress(store)}>
+            {selectedStore?.id === store.id && <CustomCallout store={store} />}
           </Marker>
         ))}
       </MapView>
@@ -231,8 +210,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         <TouchableOpacity
           style={styles.locationButton}
           onPress={goToUserLocation}
-          activeOpacity={0.8}
-        >
+          activeOpacity={0.8}>
           <Text style={styles.locationButtonText}>📍</Text>
         </TouchableOpacity>
       </View>

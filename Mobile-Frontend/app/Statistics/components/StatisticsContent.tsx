@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
-import SmallWidget from "./SmallWidget";
-import LargeWidget from "./LargeWidget";
-import CouponHistoryList from "./CouponHistoryList";
-import SavingsGoalModal from "./SavingsGoalModal";
-import { StatisticsData, CompletedGoal } from "../hooks/useStatisticsData";
+import React, { useState } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
+import SmallWidget from './SmallWidget';
+import LargeWidget from './LargeWidget';
+import CouponHistoryList from './CouponHistoryList';
+import SavingsGoalModal from './SavingsGoalModal';
+import { StatisticsData, CompletedGoal } from '../hooks/useStatisticsData';
 
 interface StatisticsContentProps {
   stats: StatisticsData;
@@ -32,28 +32,24 @@ const StatisticsContent: React.FC<StatisticsContentProps> = ({
   };
 
   // Function to save goal from modal
-  const handleSaveGoal = (
-    goalName: string,
-    goalAmount: number,
-    goalImage: string
-  ) => {
+  const handleSaveGoal = (goalName: string, goalAmount: number, goalImage: string) => {
     onGoalSave(goalName, goalAmount, goalImage);
     setShowGoalModal(false);
   };
 
   if (isLoading) {
     return (
-      <View className="w-full flex justify-center py-8">
+      <View className="flex w-full justify-center py-8">
         <ActivityIndicator size="large" color="#FFAD31" />
-        <Text className="text-lg text-gray-500 mt-2 text-center">載入中...</Text>
+        <Text className="mt-2 text-center text-lg text-gray-500">載入中...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View className="w-full flex justify-center py-8">
-        <Text className="text-red-500 text-center">{error}</Text>
+      <View className="flex w-full justify-center py-8">
+        <Text className="text-center text-red-500">{error}</Text>
       </View>
     );
   }
@@ -74,17 +70,9 @@ const StatisticsContent: React.FC<StatisticsContentProps> = ({
 
       <CouponHistoryList />
 
-      <View className="w-full flex flex-row justify-between gap-[15px]">
-        <SmallWidget
-          description="已使用"
-          usage={stats.couponsUsedCount}
-          metric="張優惠券"
-        />
-        <SmallWidget
-          description="總共省下"
-          usage={stats.totalSavings}
-          metric="元"
-        />
+      <View className="flex w-full flex-row justify-between gap-[15px]">
+        <SmallWidget description="已使用" usage={stats.couponsUsedCount} metric="張優惠券" />
+        <SmallWidget description="總共省下" usage={stats.totalSavings} metric="元" />
       </View>
 
       {/* Savings Goal Modal */}
