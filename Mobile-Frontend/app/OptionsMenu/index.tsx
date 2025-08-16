@@ -11,7 +11,6 @@ import {
   Phone,
   ScrollText,
   LogOut,
-  Bold,
 } from 'lucide-react-native';
 
 const OptionsMenu: React.FC = () => {
