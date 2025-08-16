@@ -25,6 +25,7 @@
     "expo-router": "~5.1.2",
     "expo-sharing": "~13.1.5",
     "expo-status-bar": "~2.2.3",
+    "lucide-react-native": "^0.539.0",
     "nativewind": "latest",
     "react": "19.0.0",
     "react-dom": "19.0.0",

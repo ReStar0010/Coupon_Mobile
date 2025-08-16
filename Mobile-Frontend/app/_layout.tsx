@@ -13,7 +13,7 @@ import ToastProvider from './components/providers/ToastProvider';
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <TamaguiProvider config={tamaguiConfig}>
+      <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>

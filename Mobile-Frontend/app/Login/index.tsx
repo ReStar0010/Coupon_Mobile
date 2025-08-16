@@ -1,5 +1,6 @@
 import '../../global.css';
 import React, { useState, useEffect } from 'react';
+import { Stack } from 'expo-router';
 import { View, Text, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Header } from './components/Header';
@@ -36,70 +37,76 @@ export default function Login() {
   }, [params]);
 
   return (
-    <SafeAreaView className="flex-1 bg-stone-50">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="flex-1 px-8 py-16">
-        <View className="flex-1 items-center justify-center">
-          <Header />
+    <>
+      <Stack.Screen options={{ headerShown: true }} />
+      <SafeAreaView className="flex-1 bg-stone-50">
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="flex-1 px-8 py-16">
+          <View className="flex-1 items-center justify-center">
+            <Header />
 
-          {isRegistering ? (
-            <>
-              <RegisterForm
-                email={email}
-                setEmail={setEmail}
-                password={password}
-                setPassword={setPassword}
-              />
-              <View className="mt-10 items-center">
-                <Text className="text-sec-black text-base">已經有帳號了 ?</Text>
-                <Text
-                  onPress={() => setIsRegistering(false)}
-                  className="text-act-yellow text-base font-medium">
-                  登入
-                </Text>
-              </View>
-            </>
-          ) : isForgotPassword ? (
-            <>
-              <ForgotPasswordForm email={email} setEmail={setEmail} />
-              <View className="mt-10 items-center">
-                <Text className="text-sec-black text-base">想記起密碼了 ?</Text>
-                <Text
-                  onPress={() => setIsForgotPassword(false)}
-                  className="text-act-yellow text-base font-medium">
-                  返回登入
-                </Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <LoginForm
-                email={email}
-                setEmail={setEmail}
-                password={password}
-                setPassword={setPassword}
-              />
-              <View className="mt-6 items-center gap-4">
-                <View className="flex-row items-center">
-                  <Text className="text-sec-black text-base">還沒有帳號嗎 ? </Text>
+            {isRegistering ? (
+              <>
+                <RegisterForm
+                  email={email}
+                  setEmail={setEmail}
+                  password={password}
+                  setPassword={setPassword}
+                />
+                <View className="mt-10 items-center">
+                  <Text className="text-sec-black text-base">已經有帳號了 ?</Text>
                   <Text
-                    onPress={() => setIsRegistering(true)}
+                    onPress={() => setIsRegistering(false)}
                     className="text-act-yellow text-base font-medium">
-                    註冊
+                    登入
                   </Text>
                 </View>
-                <View className="flex-row items-center">
-                  <Text className="text-sec-black text-base">忘記密碼 ? </Text>
+              </>
+            ) : isForgotPassword ? (
+              <>
+                <ForgotPasswordForm email={email} setEmail={setEmail} />
+                <View className="mt-10 items-center">
+                  <Text className="text-sec-black text-base">想記起密碼了 ?</Text>
                   <Text
-                    onPress={() => setIsForgotPassword(true)}
+                    onPress={() => setIsForgotPassword(false)}
                     className="text-act-yellow text-base font-medium">
-                    重設
+                    返回登入
                   </Text>
                 </View>
-              </View>
-            </>
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+              </>
+            ) : (
+              <>
+                <LoginForm
+                  email={email}
+                  setEmail={setEmail}
+                  password={password}
+                  setPassword={setPassword}
+                />
+                <View className="mt-6 items-center gap-4">
+                  <View className="flex-row items-center">
+                    <Text className="text-sec-black text-base">還沒有帳號嗎 ? </Text>
+                    <Text
+                      onPress={() => setIsRegistering(true)}
+                      className="text-act-yellow text-base font-medium">
+                      註冊
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Text className="text-sec-black text-base">忘記密碼 ? </Text>
+                    <Text
+                      // onPress={() => setIsForgotPassword(true)}
+                      onPress={() => {
+                        router.push('/OptionsMenu');
+                      }}
+                      className="text-act-yellow text-base font-medium">
+                      重設
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 }
