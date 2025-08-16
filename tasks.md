@@ -1,0 +1,1 @@
+1. add react navigation's safe area provider to prevent overlays from the notches.
