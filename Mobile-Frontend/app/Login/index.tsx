@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import Toast from "react-native-toast-message";
+import { useRouter } from "expo-router";
 import { View, ScrollView, SafeAreaView, Text } from "react-native";
 import { LoginFormContainer } from "./components/LoginFormContainer";
 import { storeLoginData } from "app/utils/authAPI";
@@ -9,6 +10,7 @@ import { devDebug, devLog, devError } from "app/utils/devLogger";
 export default function Index() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
   const [mode, setMode] = useState<'login' | 'register' | 'forgotPassword'>('login');
   const toastConfig = {
     successGreen: ({ text1 }: any) => (
@@ -37,7 +39,7 @@ export default function Index() {
       devLog("Login successful", response.data);
       await storeLoginData(response.data);
       devLog("Store login data successfully");
-
+      router.replace("/EasyUse");
     }catch (err) {
       devError("Login error:", err);
       Toast.show({
@@ -82,6 +84,7 @@ export default function Index() {
         autoHide: true,
       });
     }
+    router.replace("/Login");
   }
 
   const handleForgotPassword = async () => {
