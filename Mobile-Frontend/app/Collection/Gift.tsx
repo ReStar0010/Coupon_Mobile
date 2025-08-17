@@ -1,9 +1,9 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions } from "react-native";
-import { useRouter } from "expo-router";
-import SuccessPopup from "../EasyUse/[id]/redeem/SuccessPopup";
-import { isUserLoggedIn, fetchAPI } from "../utils/authAPI";
-import { devLog } from "../utils/devLogger";
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { useRouter } from 'expo-router';
+import SuccessPopup from '../EasyUse/[id]/redeem/SuccessPopup';
+import { isUserLoggedIn, fetchAPI } from '../utils/authAPI';
+import { devLog } from '../utils/devLogger';
 
 export type GiftType = {
   className?: string;
@@ -22,7 +22,7 @@ export type GiftType = {
 const { width } = Dimensions.get('window');
 
 const Gift: React.FC<GiftType> = ({
-  className = "",
+  className = '',
   description,
   GiftType,
   ReceiveType,
@@ -42,7 +42,7 @@ const Gift: React.FC<GiftType> = ({
 
     // Check if the user is logged in before accepting the gift
     if (!isUserLoggedIn()) {
-      devLog("User not logged in. Redirecting to login page with token");
+      devLog('User not logged in. Redirecting to login page with token');
       const returnUrl = `/Collection?token=${token}`;
       router.push(`/Login?returnUrl=${encodeURIComponent(returnUrl)}`);
       return;
@@ -52,19 +52,16 @@ const Gift: React.FC<GiftType> = ({
     setError(null);
 
     try {
-      const response = await fetchAPI(
-        `/coupon/share/${token}/accept/`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetchAPI(`/coupon/share/${token}/accept/`, {
+        method: 'POST',
+      });
 
-      devLog("Gift accepted:", response.data);
+      devLog('Gift accepted:', response.data);
       setAcceptSuccess(true);
       setShowSuccessPopup(true);
     } catch (err: any) {
-      console.error("Error accepting gift:", err);
-      setError(err?.response?.data?.error || "領取失敗，請稍後再試。");
+      console.error('Error accepting gift:', err);
+      setError(err?.response?.data?.error || '領取失敗，請稍後再試。');
     } finally {
       setIsAccepting(false);
     }
@@ -78,7 +75,7 @@ const Gift: React.FC<GiftType> = ({
       onAccepted();
     }
 
-    router.push("/Collection");
+    router.push('/Collection');
   };
 
   // Don't render if already accepted
@@ -89,56 +86,44 @@ const Gift: React.FC<GiftType> = ({
   return (
     <>
       <View
-        className={`self-stretch shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)] rounded-xl ${className}`}
+        className={`self-stretch rounded-xl shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)] ${className}`}
         style={{
           minHeight: 120,
           backgroundColor: '#fff',
           marginVertical: 5,
-        }}
-      >
+        }}>
         <View className="flex-1 flex-row items-center justify-between px-6 py-4">
           {/* Left side - Gift info */}
-          <View className="flex-1 mr-4">
-            <Text 
-              className="text-lg font-bold text-sec-black mb-1"
-              numberOfLines={2}
-            >
-              {GiftType || (couponInfo ? `來自 ${couponInfo.fromUser} 的優惠券` : "")}
+          <View className="mr-4 flex-1">
+            <Text className="text-sec-black mb-1 text-lg font-bold" numberOfLines={2}>
+              {GiftType || (couponInfo ? `來自 ${couponInfo.fromUser} 的優惠券` : '')}
             </Text>
 
             {couponInfo && (
-              <Text 
-                className="text-sm text-gray-600"
-                numberOfLines={2}
-              >
+              <Text className="text-sm text-gray-600" numberOfLines={2}>
                 {couponInfo.name}
               </Text>
             )}
 
-            {error && (
-              <Text className="text-red-500 text-xs mt-2">{error}</Text>
-            )}
+            {error && <Text className="mt-2 text-xs text-red-500">{error}</Text>}
           </View>
 
           {/* Right side - Action button */}
           <TouchableOpacity
-            className="bg-act-yellow rounded-xl px-6 py-3 min-w-[80px] items-center justify-center"
+            className="bg-act-yellow min-w-[80px] items-center justify-center rounded-xl px-6 py-3"
             onPress={token ? handleAccept : undefined}
             disabled={isAccepting || !token}
             activeOpacity={0.7}
             style={{
               opacity: isAccepting ? 0.7 : 1,
-            }}
-          >
+            }}>
             {isAccepting ? (
               <View className="flex-row items-center">
                 <ActivityIndicator size="small" color="#000" />
-                <Text className="text-sm font-bold text-sec-black ml-2">處理中</Text>
+                <Text className="text-sec-black ml-2 text-sm font-bold">處理中</Text>
               </View>
             ) : (
-              <Text className="text-base font-bold text-sec-black">
-                {ReceiveType || "領取"}
-              </Text>
+              <Text className="text-sec-black text-base font-bold">{ReceiveType || '領取'}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -148,8 +133,8 @@ const Gift: React.FC<GiftType> = ({
       <SuccessPopup
         isOpen={showSuccessPopup}
         onClose={handleCloseSuccessPopup}
-        storeName={couponInfo?.fromUser || "好友"}
-        couponDetail={couponInfo?.name || "優惠券"}
+        storeName={couponInfo?.fromUser || '好友'}
+        couponDetail={couponInfo?.name || '優惠券'}
         titleType="領取成功"
       />
     </>

@@ -9,7 +9,7 @@ export type CouponType = {
   importantNotes?: string; // 注意事項
   startDate: Date; // 有效期限開始
   expiryDate: Date; // 有效期限結束
-  couponType: "store" | "exclusive"; // 優惠類型: 隨取及用 or 專屬優惠
+  couponType: 'store' | 'exclusive'; // 優惠類型: 隨取及用 or 專屬優惠
   sourceUser?: string; // 來源用戶 (如果是朋友贈送的專屬優惠)
   imageUrl?: string; // 店家圖片或優惠券圖片的URL
 };
@@ -23,14 +23,14 @@ export interface ApiCoupon {
   important_notes?: string;
   start_date: string;
   expiry_date: string;
-  coupon_type: "store" | "exclusive";
+  coupon_type: 'store' | 'exclusive';
   estimated_savings: number | null;
   redeem_code?: string;
   image_url?: string;
   original_owner?: string; // User email or ID
   current_holder?: string; // User email or ID
   template_id?: number;
-  is_redeemed: boolean;  // This is a computed property
+  is_redeemed: boolean; // This is a computed property
 }
 
 // Interface for shared coupons

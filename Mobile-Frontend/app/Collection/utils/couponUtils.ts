@@ -27,12 +27,14 @@ export const transformApiCoupon = (coupon: ApiCoupon): CouponType => {
  */
 export const generateShareLink = async (couponId: number): Promise<string | null> => {
   try {
-
-    const response = await fetchAPI(`/coupon/${couponId}/share/`, {method: 'POST', withCredentials: true}); 
+    const response = await fetchAPI(`/coupon/${couponId}/share/`, {
+      method: 'POST',
+      withCredentials: true,
+    });
 
     return response.data.share_link;
   } catch (err: any) {
-    console.error("Error sharing coupon:", err);
+    console.error('Error sharing coupon:', err);
     throw err;
   }
 };
@@ -46,7 +48,7 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
     await navigator.share({ text });
     return true;
   } catch (err) {
-    console.error("Failed to copy to clipboard:", err);
+    console.error('Failed to copy to clipboard:', err);
     return false;
   }
 };
@@ -56,18 +58,17 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
  */
 export const checkLastDrawDate = async (): Promise<boolean> => {
   try {
-
     const response = await fetchAPI('/last-draw/', { method: 'GET', withCredentials: true });
 
     const lastDrawDate = response.data?.last_draw_date;
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
-    
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
     return lastDrawDate === today;
   } catch (err) {
-    console.error("Error fetching last draw date:", err);
+    console.error('Error fetching last draw date:', err);
     // Fallback to localStorage if API fails
-    const localLastDrawDate = localStorage.getItem("lastDrawDate");
-    const today = new Date().toISOString().split("T")[0];
+    const localLastDrawDate = localStorage.getItem('lastDrawDate');
+    const today = new Date().toISOString().split('T')[0];
     return localLastDrawDate === today;
   }
 };
@@ -77,7 +78,7 @@ export const checkLastDrawDate = async (): Promise<boolean> => {
  */
 export const filterCoupons = (coupons: CouponType[], searchQuery: string): CouponType[] => {
   if (!searchQuery) return coupons;
-  
+
   const query = searchQuery.toLowerCase();
   return coupons.filter(
     (coupon) =>

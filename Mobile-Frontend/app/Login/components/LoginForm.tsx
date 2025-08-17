@@ -1,9 +1,9 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import axios from "axios";
-import { devDebug, devLog, devError } from "../../utils/devLogger";
-import { storeLoginData } from "../../utils/authAPI";
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import axios from 'axios';
+import { devDebug, devLog, devError } from '../../utils/devLogger';
+import { storeLoginData } from '../../utils/authAPI';
 
 interface LoginFormProps {
   email: string;
@@ -12,12 +12,7 @@ interface LoginFormProps {
   setPassword: (password: string) => void;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({
-  email,
-  setEmail,
-  password,
-  setPassword,
-}) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ email, setEmail, password, setPassword }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -36,35 +31,34 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         { email, password },
         {
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           withCredentials: true, // This ensures cookies are sent with the request
         }
       );
 
       // Handle successful login
-      devDebug("Login successful", response.data);
+      devDebug('Login successful', response.data);
 
       // 🔥 NEW: Store login data in AsyncStorage
       await storeLoginData(response.data);
-      devLog("✅ Login data stored successfully");
+      devLog('✅ Login data stored successfully');
 
       // Add a longer delay to ensure storage is complete and auth state updates
       setTimeout(() => {
         // If returnUrl is set, redirect there, otherwise go to EasyUse
         if (returnUrl) {
-          devLog("Redirecting to:", returnUrl);
+          devLog('Redirecting to:', returnUrl);
           router.push(returnUrl as any);
         } else {
-          devLog("Redirecting to: /EasyUse");
-          router.replace("/EasyUse");
+          devLog('Redirecting to: /EasyUse');
+          router.replace('/EasyUse');
         }
       }, 500); // Increased delay to 500ms
-
     } catch (err) {
       // Handle axios errors
-      devError("❌ Login error:", err);
-      
+      devError('❌ Login error:', err);
+
       if (axios.isAxiosError(err)) {
         if (err.response?.data) {
           const errorData = err.response.data;
@@ -73,13 +67,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           } else if (errorData.message) {
             setError(errorData.message);
           } else {
-            setError("Login failed. Please check your credentials.");
+            setError('Login failed. Please check your credentials.');
           }
         } else {
-          setError("Unable to connect to the server. Please try again later.");
+          setError('Unable to connect to the server. Please try again later.');
         }
       } else {
-        setError(err instanceof Error ? err.message : "Something went wrong");
+        setError(err instanceof Error ? err.message : 'Something went wrong');
       }
     } finally {
       setIsLoading(false);
@@ -87,45 +81,44 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   return (
-    <View className="flex flex-col gap-5 w-[80%] max-w-[400px] max-sm:max-w-full">
-      <View className="px-8 py-5 bg-bg-white rounded-3xl h-[71px] flex items-center">
+    <View className="flex w-[80%] max-w-[400px] flex-col gap-5 max-sm:max-w-full">
+      <View className="bg-bg-white flex h-[71px] items-center rounded-3xl px-8 py-5">
         <TextInput
           value={email}
           onChangeText={setEmail}
           placeholder="輸入 Email"
-          className="w-full bg-bg-white text-base text-sec-black"
+          className="bg-bg-white text-sec-black w-full text-base"
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
         />
       </View>
 
-      <View className="px-8 py-5 bg-bg-white rounded-3xl h-[71px] flex items-center">
+      <View className="bg-bg-white flex h-[71px] items-center rounded-3xl px-8 py-5">
         <TextInput
           value={password}
           onChangeText={setPassword}
           placeholder="輸入密碼"
-          className="w-full bg-bg-white text-base text-sec-black"
+          className="bg-bg-white text-sec-black w-full text-base"
           secureTextEntry
           autoComplete="password"
         />
       </View>
 
       {error && (
-        <View className="bg-red-100 p-3 rounded-md">
-          <Text className="text-red-600 text-sm font-medium">{error}</Text>
+        <View className="rounded-md bg-red-100 p-3">
+          <Text className="text-sm font-medium text-red-600">{error}</Text>
         </View>
       )}
 
       <TouchableOpacity
         onPress={handleSubmit}
         disabled={isLoading}
-        className={`bg-act-yellow rounded-3xl h-[71px] justify-center items-center ${
-          isLoading ? "opacity-70" : ""
-        }`}
-      >
-        <Text className="text-base font-bold text-sec-black">
-          {isLoading ? "登入中..." : "登入"}
+        className={`bg-act-yellow h-[71px] items-center justify-center rounded-3xl ${
+          isLoading ? 'opacity-70' : ''
+        }`}>
+        <Text className="text-sec-black text-base font-bold">
+          {isLoading ? '登入中...' : '登入'}
         </Text>
       </TouchableOpacity>
     </View>

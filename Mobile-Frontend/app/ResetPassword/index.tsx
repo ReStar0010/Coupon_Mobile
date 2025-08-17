@@ -67,7 +67,7 @@ export default function Index() {
         },
         {
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           withCredentials: true,
         }

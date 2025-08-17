@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useRef } from "react";
-import { View, Text, Animated, Dimensions, Platform } from "react-native";
+import React, { createContext, useContext, useState, useRef } from 'react';
+import { View, Text, Animated, Dimensions, Platform } from 'react-native';
 
 // Define the context type
 interface ToastContextType {
@@ -22,9 +22,7 @@ const TOAST_DURATION = 3000;
 const { width: screenWidth } = Dimensions.get('window');
 
 // Toast provider component
-export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
   const [visible, setVisible] = useState(false);
@@ -92,7 +90,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     ]).start(() => {
       setVisible(false);
     });
-    
+
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -123,13 +121,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
             zIndex: 1000,
             transform: [{ translateY }],
             opacity,
-          }}
-        >
+          }}>
           <View className="flex-row items-center">
-            <Text className="text-white text-base mr-2 font-bold">
-              {toastStyle.icon}
-            </Text>
-            <Text className="text-white text-base flex-1" numberOfLines={2}>
+            <Text className="mr-2 text-base font-bold text-white">{toastStyle.icon}</Text>
+            <Text className="flex-1 text-base text-white" numberOfLines={2}>
               {message}
             </Text>
           </View>

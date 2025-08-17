@@ -1,12 +1,11 @@
-import { defaultConfig } from '@tamagui/config/v4'
-import { createTamagui } from 'tamagui'
+import { defaultConfig } from '@tamagui/config/v4';
+import { createTamagui, createTokens } from 'tamagui';
+import { tokens } from './token';
 
-export const tamaguiConfig = createTamagui(defaultConfig)
+export const tamaguiConfig = createTamagui(defaultConfig);
 
-export default tamaguiConfig
-
-export type Conf = typeof tamaguiConfig
+export type MyConf = typeof tamaguiConfig;
 
 declare module 'tamagui' {
-  interface TamaguiCustomConfig extends Conf {}
+  interface TamaguiCustomConfig extends MyConf {}
 }

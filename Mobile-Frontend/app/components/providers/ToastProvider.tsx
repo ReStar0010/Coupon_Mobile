@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useRef } from "react";
-import { View, Text, Animated, Dimensions } from "react-native";
+import React, { createContext, useContext, useState, useRef } from 'react';
+import { View, Text, Animated, Dimensions } from 'react-native';
 
 // Define context type
 export interface ToastContextType {
-  showToast: (message: string, type?: "success" | "error" | "info") => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   hideToast: () => void;
 }
 
@@ -19,22 +19,15 @@ export const useToast = () => useContext(ToastContext);
 // Toast duration in milliseconds
 const TOAST_DURATION = 3000;
 
-const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
-  const [toastType, setToastType] = useState<"success" | "error" | "info">(
-    "info"
-  );
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const timerRef = useRef<number | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  const showToast = (
-    text: string,
-    type: "success" | "error" | "info" = "success"
-  ) => {
+  const showToast = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
     // Clear any existing timer
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -91,53 +84,47 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   // Determine background color based on toast type
   const getBackgroundColor = () => {
     switch (toastType) {
-      case "success":
-        return "bg-green-500";
-      case "error":
-        return "bg-red-500";
-      case "info":
-        return "bg-blue-500";
+      case 'success':
+        return 'bg-green-500';
+      case 'error':
+        return 'bg-red-500';
+      case 'info':
+        return 'bg-blue-500';
       default:
-        return "bg-green-500";
+        return 'bg-green-500';
     }
   };
 
   // Get icon for toast type
   const getIcon = () => {
     switch (toastType) {
-      case "success":
-        return "✓";
-      case "error":
-        return "✗";
-      case "info":
-        return "ℹ";
+      case 'success':
+        return '✓';
+      case 'error':
+        return '✗';
+      case 'info':
+        return 'ℹ';
       default:
-        return "✓";
+        return '✓';
     }
   };
 
-  const screenWidth = Dimensions.get("window").width;
+  const screenWidth = Dimensions.get('window').width;
 
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>
       {children}
       {visible && message && (
-        <View className="absolute bottom-16 left-0 right-0 items-center z-50 px-4">
+        <View className="absolute bottom-16 left-0 right-0 z-50 items-center px-4">
           <Animated.View
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
               maxWidth: screenWidth * 0.9,
             }}
-            className={`${getBackgroundColor()} rounded-lg shadow-lg px-4 py-3 flex-row items-center`}
-          >
-            <Text className="text-white text-base mr-2 font-medium">
-              {getIcon()}
-            </Text>
-            <Text
-              className="text-white text-base flex-1 text-center"
-              numberOfLines={3}
-            >
+            className={`${getBackgroundColor()} flex-row items-center rounded-lg px-4 py-3 shadow-lg`}>
+            <Text className="mr-2 text-base font-medium text-white">{getIcon()}</Text>
+            <Text className="flex-1 text-center text-base text-white" numberOfLines={3}>
               {message}
             </Text>
           </Animated.View>

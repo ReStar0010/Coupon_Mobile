@@ -6,7 +6,11 @@ import { checkLastDrawDate } from '../utils/couponUtils';
 import { devDebug } from '../../utils/devLogger';
 import { fetchAPI } from '../../utils/authAPI';
 
-export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onDrawSuccess: () => void) {
+export function useDailyDraw(
+  isAuthenticated: boolean,
+  authLoading: boolean,
+  onDrawSuccess: () => void
+) {
   const [showDailyDraw, setShowDailyDraw] = useState(false);
   const [dailyDrawResult, setDailyDrawResult] = useState<DailyDrawResult | null>(null);
   const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
@@ -21,20 +25,22 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
         setHasDailyDrawn(hasDrawn);
       }
     };
-    
+
     checkDrawStatus();
   }, [isAuthenticated, authLoading]);
 
   // Fetch available draw templates when the daily draw modal opens
   const fetchAvailableTemplates = async () => {
     try {
-
-      const response = await fetchAPI('/daily-draw-templates/',{method: 'GET', withCredentials: true})
+      const response = await fetchAPI('/daily-draw-templates/', {
+        method: 'GET',
+        withCredentials: true,
+      });
 
       setAvailableTemplates(response.data.active_templates);
-      devDebug("Available templates:", response.data.active_templates);
+      devDebug('Available templates:', response.data.active_templates);
     } catch (err) {
-      console.error("Error fetching available templates:", err);
+      console.error('Error fetching available templates:', err);
     }
   };
 
@@ -51,22 +57,22 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
     try {
       // Check if templates are available
       if (!availableTemplates || availableTemplates.length === 0) {
-        throw new Error("沒有可用的優惠券模板");
+        throw new Error('沒有可用的優惠券模板');
       }
 
       // Select a random template from available ones
       const randomIndex = Math.floor(Math.random() * availableTemplates.length);
       const selectedTemplate = availableTemplates[randomIndex];
 
-      devDebug("Selected template for draw:", selectedTemplate);
- 
+      devDebug('Selected template for draw:', selectedTemplate);
+
       const response = await fetchAPI('/coupon/daily-draw/', {
-        method: 'POST', 
+        method: 'POST',
         withCredentials: true,
-        data: { template_id: selectedTemplate.id }
+        data: { template_id: selectedTemplate.id },
       });
 
-      devDebug("Daily draw result:", response.data);
+      devDebug('Daily draw result:', response.data);
 
       setDailyDrawResult({
         success: response.data.success,
@@ -81,8 +87,8 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
 
       setHasDailyDrawn(true);
     } catch (err) {
-      console.error("Error during daily draw:", err);
-      let errorMessage = "抽獎失敗，請稍後再試。";
+      console.error('Error during daily draw:', err);
+      let errorMessage = '抽獎失敗，請稍後再試。';
 
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 400) {
@@ -127,7 +133,7 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
     availableTemplates,
     handleDailyDraw,
     resetDailyDrawUI,
-    closeDailyDrawWithSuccess
+    closeDailyDrawWithSuccess,
   };
 }
 export default useDailyDraw;

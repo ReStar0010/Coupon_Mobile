@@ -3,9 +3,9 @@
  * @param args - Arguments to log, same as console.log
  */
 export const devLog = (...args: any[]): void => {
-    if (process.env.NODE_ENV === 'development') {
-        console.log('[DEV]:', ...args);
-    }
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[DEV]:', ...args);
+  }
 };
 
 /**
@@ -14,9 +14,9 @@ export const devLog = (...args: any[]): void => {
  * @param args - Arguments to log, same as console.log
  */
 export const devDebug = (...args: any[]): void => {
-    if (process.env.NODE_ENV === 'development') {
-        console.debug('[DEV DEBUG]:', ...args);
-    }
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('[DEV DEBUG]:', ...args);
+  }
 };
 
 /**
@@ -24,12 +24,12 @@ export const devDebug = (...args: any[]): void => {
  * @param args - Arguments to log, same as console.error
  */
 export const devError = (...args: any[]): void => {
-    if (process.env.NODE_ENV === 'development') {
-        console.error('[DEV ERROR]:', ...args);
-    }
+  if (process.env.NODE_ENV === 'development') {
+    console.error('[DEV ERROR]:', ...args);
+  }
 };
 export default {
-    devLog,
-    devDebug,
-    devError,
-};  
+  devLog,
+  devDebug,
+  devError,
+};

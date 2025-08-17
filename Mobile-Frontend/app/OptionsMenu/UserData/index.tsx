@@ -1,82 +1,158 @@
-import React, { useCallback } from "react";
-import { View, Text, TouchableOpacity, Image, SafeAreaView, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
-import { Stack } from "expo-router";
-import UserDataPanel from "./UserDataPanel";
+import React from 'react';
+import { 
+  Select, 
+  TooltipSimple, 
+  Paragraph, 
+  Sheet, 
+  Text, 
+  Button, 
+  XStack, YStack, View, ListItem, H4, Separator, Dialog, Fieldset, Label, Input, Unspaced, Adapt } from 'tamagui';
+import { X, Pencil, ChevronLeft, ChevronDown } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
 
 const UserData: React.FC = () => {
+
   const router = useRouter();
 
-  const onGoBackContainerClick = useCallback(() => {
-    router.push("/OptionsMenu");
-  }, [router]);
+  const handleGoBack = () => router.push('/OptionsMenu');
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView className="flex-1 bg-bg-grey">
-        <ScrollView 
-          className="flex-1"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ 
-            paddingTop: 35,
-            paddingBottom: 28,
-            paddingLeft: 4,
-            paddingRight: 0,
-            gap: 71,
-            minHeight: '100%'
-          }}
-        >
-          <View className="self-stretch flex flex-col items-end justify-start py-0 pl-0 pr-[31px] box-border max-w-full" style={{ gap: 35 }}>
-            <View className="self-stretch flex flex-col items-start justify-start pt-0 pb-[5px] pl-[27px] pr-0" style={{ gap: 22 }}>
-              {/* Back Button */}
-              <TouchableOpacity
-                className="flex flex-row items-start justify-start"
-                style={{ gap: 9 }}
-                onPress={onGoBackContainerClick}
-                activeOpacity={0.7}
-              >
-                <View className="flex flex-col items-start justify-start pt-[4.5px]">
-                  <Image
-                    className="w-[15px] h-[15px] relative object-contain"
-                    source={require("../../../assets/forward.png")}
-                    style={{ width: 15, height: 15 }}
-                  />
-                </View>
-                <Text 
-                  className="text-base text-sec-black font-jost"
-                  style={{ 
-                    letterSpacing: -0.01,
-                    lineHeight: 24,
-                    minWidth: 32
-                  }}
-                >
-                  返回
-                </Text>
-              </TouchableOpacity>
+      <Stack.Screen options={{ headerShown: true }} />
 
-              {/* Title Section */}
-              <View className="self-stretch flex flex-col items-start justify-start" style={{ gap: 29 }}>
-                <Text 
-                  className="text-[32px] font-bold text-sec-black font-jost text-left"
-                  style={{ 
-                    letterSpacing: -0.01,
-                    lineHeight: 48,
-                    minWidth: 64
-                  }}
-                >
-                  用戶資料
-                </Text>
-              </View>
-            </View>
+      <View flex="1" px="$4" py="$6" gap={13}>
+        {/* Header with back button and title */}
+        <XStack gap={13} items="center">
+          <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />
+          <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
+            個人資料
+          </H4>
+        </XStack>
 
-            {/* User Data Panel */}
-            <UserDataPanel />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+        {/* Tamagui ListItem Group with 3 items */}
+        <YStack style={{ borderWidth: 1, borderColor: '#e1e1e1' }} rounded={'$5'}>
+
+          <ListItem
+            style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
+            bg="white"
+            size="$6"
+          >
+            <ListItem.Text>名稱</ListItem.Text>
+            <ListItem.Text text='right'>RickyLu</ListItem.Text>
+          </ListItem>
+
+          <Separator borderColor="#e1e1e1" />
+
+          <ListItem
+            style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
+            bg="white"
+            size="$6"
+          >
+            <ListItem.Text>Email</ListItem.Text>
+            <ListItem.Text text='right'>rickylu@gmail.com</ListItem.Text>
+          </ListItem>
+
+        </YStack>
+
+        <DialogInstance></DialogInstance>
+
+      </View>
     </>
   );
 };
+
+function DialogInstance({ disableAdapt }: { disableAdapt?: boolean }) {
+  return (
+
+    <Dialog modal>
+      <Dialog.Trigger asChild>
+        <Button bg='#FFAD31'>
+          <Button.Text>編輯{disableAdapt ? ` (No Sheet)` : ''}</Button.Text>
+        </Button>
+      </Dialog.Trigger>
+
+      {!disableAdapt && (
+        <Adapt when="maxMd" platform="touch">
+          <Sheet
+            animation="medium"
+            zIndex={200000}
+            modal
+            dismissOnSnapToBottom
+            unmountChildrenWhenHidden // we're nesting infinitely so need this
+          >
+            <Sheet.Overlay backgroundColor="$shadow6" animation="lazy" enterStyle={{ opacity: 0 }} exitStyle={{ opacity: 0 }} />
+            <Sheet.Handle></Sheet.Handle>
+            <Sheet.Frame padding="$4" gap="$4">
+              <Adapt.Contents />
+            </Sheet.Frame>
+          </Sheet>
+        </Adapt>
+      )}
+
+      <Dialog.Portal>
+        <Dialog.Overlay
+          key="overlay"
+          backgroundColor="$shadow6"
+          animateOnly={['transform', 'opacity']}
+          animation={[
+            'quicker',
+            {
+              opacity: {
+                overshootClamping: true,
+              },
+            },
+          ]}
+          enterStyle={{ opacity: 0 }}
+          exitStyle={{ opacity: 0 }}
+        />
+
+        <Dialog.Content
+          bordered
+          paddingVertical="$4"
+          paddingHorizontal="$6"
+          elevate
+          borderRadius="$6"
+          key="content"
+          animateOnly={['transform', 'opacity']}
+          animation={[
+            'quicker',
+            {
+              opacity: {
+                overshootClamping: true,
+              },
+            },
+          ]}
+          enterStyle={{ x: 0, y: 20, opacity: 0 }}
+          exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
+          gap="$4"
+        >
+          <Dialog.Title>
+            編輯
+          </Dialog.Title>
+          <Dialog.Description>
+            在這裡更改您的個人資料，完成後點擊儲存。
+          </Dialog.Description>
+
+          <Fieldset gap="$4" horizontal>
+            <Label width={64} htmlFor="name">
+              名稱
+            </Label>
+            <Input flex={1} id="name" defaultValue="User Name" />
+          </Fieldset>
+
+          <XStack alignSelf="flex-end" gap="$4">
+            <Dialog.Close displayWhenAdapted asChild>
+              <Button bg='#FFAD31' aria-label="Close">
+                儲存
+              </Button>
+            </Dialog.Close>
+          </XStack>
+
+        </Dialog.Content>
+
+      </Dialog.Portal>
+    </Dialog>
+  )
+}
 
 export default UserData;

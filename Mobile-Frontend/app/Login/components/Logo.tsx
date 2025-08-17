@@ -1,15 +1,9 @@
-import React from "react";
-import Svg, { Path } from "react-native-svg";
+import React from 'react';
+import Svg, { Path } from 'react-native-svg';
 
 export const Logo: React.FC = () => {
   return (
-    <Svg
-      width="73"
-      height="73"
-      viewBox="0 0 73 73"
-      fill="none"
-      className="logo"
-    >
+    <Svg width="73" height="73" viewBox="0 0 73 73" fill="none" className="logo">
       <Path
         d="M72.9679 51.2757C72.9679 63.2566 63.2556 72.969 51.2747 72.969C39.2939 72.969 29.5815 63.2566 29.5815 51.2757C29.5815 39.2948 39.2939 29.5824 51.2747 29.5824C63.2556 29.5824 72.9679 39.2948 72.9679 51.2757Z"
         fill="#000000"
