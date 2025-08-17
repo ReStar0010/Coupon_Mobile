@@ -2,9 +2,9 @@ import React from 'react';
 import { View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { LoginHeader } from './LoginHeader';
-import { LoginInput } from '../LoginInput';
-import { LoginButton } from '../LoginButton';
-import { LinkText } from '../LinkText';
+import { LoginInput } from 'app/Login/components/LoginInput';
+import { LoginButton } from './LoginButton';
+import { LinkText } from './LinkText';
 
 interface LoginFormContainerProps {
   email: string;
