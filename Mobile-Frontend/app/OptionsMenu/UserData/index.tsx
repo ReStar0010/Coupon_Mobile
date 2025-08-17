@@ -1,28 +1,17 @@
 import React from 'react';
-import {
-  Select,
-  TooltipSimple,
-  Paragraph,
-  Sheet,
-  Text,
-  Button,
-  XStack,
-  YStack,
-  View,
-  ListItem,
-  H4,
-  Separator,
-  Dialog,
-  Fieldset,
-  Label,
-  Input,
-  Unspaced,
-  Adapt,
-} from 'tamagui';
+import { 
+  Select, 
+  TooltipSimple, 
+  Paragraph, 
+  Sheet, 
+  Text, 
+  Button, 
+  XStack, YStack, View, ListItem, H4, Separator, Dialog, Fieldset, Label, Input, Unspaced, Adapt } from 'tamagui';
 import { X, Pencil, ChevronLeft, ChevronDown } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
 
 const UserData: React.FC = () => {
+
   const router = useRouter();
 
   const handleGoBack = () => router.push('/OptionsMenu');
@@ -42,12 +31,14 @@ const UserData: React.FC = () => {
 
         {/* Tamagui ListItem Group with 3 items */}
         <YStack style={{ borderWidth: 1, borderColor: '#e1e1e1' }} rounded={'$5'}>
+
           <ListItem
             style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
             bg="white"
-            size="$6">
+            size="$6"
+          >
             <ListItem.Text>名稱</ListItem.Text>
-            <ListItem.Text text="right">RickyLu</ListItem.Text>
+            <ListItem.Text text='right'>RickyLu</ListItem.Text>
           </ListItem>
 
           <Separator borderColor="#e1e1e1" />
@@ -55,13 +46,16 @@ const UserData: React.FC = () => {
           <ListItem
             style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
             bg="white"
-            size="$6">
+            size="$6"
+          >
             <ListItem.Text>Email</ListItem.Text>
-            <ListItem.Text text="right">rickylu@gmail.com</ListItem.Text>
+            <ListItem.Text text='right'>rickylu@gmail.com</ListItem.Text>
           </ListItem>
+
         </YStack>
 
         <DialogInstance></DialogInstance>
+
       </View>
     </>
   );
@@ -69,9 +63,10 @@ const UserData: React.FC = () => {
 
 function DialogInstance({ disableAdapt }: { disableAdapt?: boolean }) {
   return (
+
     <Dialog modal>
       <Dialog.Trigger asChild>
-        <Button>
+        <Button bg='#FFAD31'>
           <Button.Text>編輯{disableAdapt ? ` (No Sheet)` : ''}</Button.Text>
         </Button>
       </Dialog.Trigger>
@@ -85,12 +80,7 @@ function DialogInstance({ disableAdapt }: { disableAdapt?: boolean }) {
             dismissOnSnapToBottom
             unmountChildrenWhenHidden // we're nesting infinitely so need this
           >
-            <Sheet.Overlay
-              backgroundColor="$shadow6"
-              animation="lazy"
-              enterStyle={{ opacity: 0 }}
-              exitStyle={{ opacity: 0 }}
-            />
+            <Sheet.Overlay backgroundColor="$shadow6" animation="lazy" enterStyle={{ opacity: 0 }} exitStyle={{ opacity: 0 }} />
             <Sheet.Handle></Sheet.Handle>
             <Sheet.Frame padding="$4" gap="$4">
               <Adapt.Contents />
@@ -134,9 +124,14 @@ function DialogInstance({ disableAdapt }: { disableAdapt?: boolean }) {
           ]}
           enterStyle={{ x: 0, y: 20, opacity: 0 }}
           exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
-          gap="$4">
-          <Dialog.Title>編輯</Dialog.Title>
-          <Dialog.Description>在這裡更改您的個人資料，完成後點擊儲存。</Dialog.Description>
+          gap="$4"
+        >
+          <Dialog.Title>
+            編輯
+          </Dialog.Title>
+          <Dialog.Description>
+            在這裡更改您的個人資料，完成後點擊儲存。
+          </Dialog.Description>
 
           <Fieldset gap="$4" horizontal>
             <Label width={64} htmlFor="name">
@@ -147,15 +142,17 @@ function DialogInstance({ disableAdapt }: { disableAdapt?: boolean }) {
 
           <XStack alignSelf="flex-end" gap="$4">
             <Dialog.Close displayWhenAdapted asChild>
-              <Button theme="accent" aria-label="Close">
+              <Button bg='#FFAD31' aria-label="Close">
                 儲存
               </Button>
             </Dialog.Close>
           </XStack>
+
         </Dialog.Content>
+
       </Dialog.Portal>
     </Dialog>
-  );
+  )
 }
 
 export default UserData;
