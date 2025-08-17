@@ -12,6 +12,8 @@ module.exports = {
         'login-gray': '#333333',
         'login-light-gray': '#707070',
         'login-orange': '#FFAD31',
+        'toast-green': '#4CC38A',
+        'toast-red': '#FF6369',
       },
     },
   },
