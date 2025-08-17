@@ -1,5 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { LoginHeader } from './LoginHeader';
 import { LoginInput } from '../LoginInput';
 import { LoginButton } from '../LoginButton';
