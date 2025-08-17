@@ -12,7 +12,7 @@ export const LoginInput: React.FC<LoginInputProps> = ({
   ...props
 }) => {
   return (
-    <View className="flex h-[41px] px-4 items-center border border-login-border bg-login-dark rounded-[9px]">
+    <View className="flex h-[41px] px-4 items-center border border-login-border bg-login-bg rounded-[9px]">
       <TextInput
         secureTextEntry={secureTextEntry}
         placeholder={placeholder}

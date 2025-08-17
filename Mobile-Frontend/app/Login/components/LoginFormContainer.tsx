@@ -11,8 +11,13 @@ interface LoginFormContainerProps {
   password: string;
   setPassword: (password: string) => void;
   handleLogin: () => void;
+  handleRegister: () => void;
+  handleForgotPassword: () => void;
+  onLoginPress?: () => void;
   onRegisterPress?: () => void;
   onForgotPasswordPress?: () => void;
+  mode?: 'login' | 'register' | 'forgotPassword';
+  setMode?: (mode: 'login' | 'register' | 'forgotPassword') => void;
 }
 
 export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
@@ -21,47 +26,104 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
   password,
   setPassword,
   handleLogin,
+  handleRegister,
+  handleForgotPassword,
+  onLoginPress,
   onRegisterPress,
   onForgotPasswordPress,
+  mode,
+  setMode,
 }) => {
+    
   return (
     <View className="bg-login-bg px-5 py-8 flex flex-col gap-[13px]">
       {/* Header */}
-      <LoginHeader />
+      {mode === 'login' && (
+          <LoginHeader title="登入"/>
+      )}
+      {mode === 'register' && (
+          <LoginHeader title="註冊"/>
+      )}
+      {mode === 'forgotPassword' && (
+          <LoginHeader title="忘記密碼"/>
+      )}
 
       {/* Email Input */}
-      <LoginInput
-        placeholder="輸入 Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-
-      {/* Password Input */}
-      <LoginInput
-        placeholder="輸入密碼"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry={true}
-      />
+      {(mode === 'login' || mode === 'register') && (
+        <>
+          <LoginInput
+            placeholder="輸入 Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+    
+          <LoginInput
+            placeholder="輸入密碼"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={true}
+          />
+        </>
+      )} 
+      {mode === 'forgotPassword' && (
+        <LoginInput
+          placeholder="輸入 Email"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+      )}
 
       {/* Login Button */}
-      <LoginButton title="登入" onPress={handleLogin} />
+      {mode === 'login' && (
+        <LoginButton title="登入" onPress={handleLogin} />
+      )}
+      {mode === 'register' && (
+        <LoginButton title="註冊" onPress={handleRegister} />
+      )}
+      {mode === 'forgotPassword' && (
+        <LoginButton title="寄送重設密碼信件" onPress={handleForgotPassword} />
+      )}
 
+      {/* Links */}
       {/* Registration Link */}
-      <LinkText
-        normalText="還沒有帳號嗎 ? "
-        linkText="註冊"
-        onLinkPress={onRegisterPress}
-      />
+      {mode === 'login' && (
+        <>
+            <LinkText
+                normalText="還沒有帳號嗎 ? "
+                linkText="註冊"
+                onLinkPress={onRegisterPress}
+            />
 
-      {/* Password Reset Link */}
-      <LinkText
-        normalText="忘記密碼 ? "
-        linkText="重設"
-        onLinkPress={onForgotPasswordPress}
-      />
+            {/* Password Reset Link */}
+            <LinkText
+                normalText="忘記密碼 ? "
+                linkText="重設"
+                onLinkPress={onForgotPasswordPress}
+            />
+        </>
+      )}
+      {mode === 'register' && (
+        <>
+            <LinkText
+                normalText="已經有帳號了嗎 ? "
+                linkText="登入"
+                onLinkPress={onLoginPress}
+            />
+        </>
+      )}
+      {mode === 'forgotPassword' && (
+        <>
+            <LinkText
+                normalText="還沒有帳號嗎 ? "
+                linkText="註冊"
+                onLinkPress={onRegisterPress}
+            />
+        </>
+      )}
     </View>
   );
 };
