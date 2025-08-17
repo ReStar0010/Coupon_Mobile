@@ -17,7 +17,7 @@ export default function App() {
          if (false) {
           router.replace('/EasyUse');
         } else {
-          router.replace('/Login');
+          router.replace('/(tabs)/tab1');
         }
       } catch (error) {
         console.error('Error checking login status:', error);
