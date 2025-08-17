@@ -16,6 +16,7 @@
     "@tamagui/babel-plugin": "^1.132.16",
     "@tamagui/config": "^1.132.16",
     "@tamagui/metro-plugin": "^1.132.16",
+    "@tamagui/portal": "^1.132.16",
     "axios": "^1.10.0",
     "expo": "^53.0.16",
     "expo-clipboard": "~7.1.5",

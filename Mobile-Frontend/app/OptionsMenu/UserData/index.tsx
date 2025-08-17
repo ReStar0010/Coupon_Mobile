@@ -1,8 +1,26 @@
 import React from 'react';
-import { XStack, YStack, View, ListItem, H4, Separator } from 'tamagui';
-import { ChevronLeft } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import { Stack } from 'expo-router';
+import {
+  Select,
+  TooltipSimple,
+  Paragraph,
+  Sheet,
+  Text,
+  Button,
+  XStack,
+  YStack,
+  View,
+  ListItem,
+  H4,
+  Separator,
+  Dialog,
+  Fieldset,
+  Label,
+  Input,
+  Unspaced,
+  Adapt,
+} from 'tamagui';
+import { X, Pencil, ChevronLeft, ChevronDown } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
 
 const UserData: React.FC = () => {
   const router = useRouter();
@@ -27,22 +45,117 @@ const UserData: React.FC = () => {
           <ListItem
             style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
             bg="white"
-            hoverTheme
-            pressTheme
-            size="$6"
-          />
-          <Separator />
+            size="$6">
+            <ListItem.Text>名稱</ListItem.Text>
+            <ListItem.Text text="right">RickyLu</ListItem.Text>
+          </ListItem>
+
+          <Separator borderColor="#e1e1e1" />
+
           <ListItem
             style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
             bg="white"
-            hoverTheme
-            pressTheme
-            size="$6"
-          />
+            size="$6">
+            <ListItem.Text>Email</ListItem.Text>
+            <ListItem.Text text="right">rickylu@gmail.com</ListItem.Text>
+          </ListItem>
         </YStack>
+
+        <DialogInstance></DialogInstance>
       </View>
     </>
   );
 };
+
+function DialogInstance({ disableAdapt }: { disableAdapt?: boolean }) {
+  return (
+    <Dialog modal>
+      <Dialog.Trigger asChild>
+        <Button>
+          <Button.Text>編輯{disableAdapt ? ` (No Sheet)` : ''}</Button.Text>
+        </Button>
+      </Dialog.Trigger>
+
+      {!disableAdapt && (
+        <Adapt when="maxMd" platform="touch">
+          <Sheet
+            animation="medium"
+            zIndex={200000}
+            modal
+            dismissOnSnapToBottom
+            unmountChildrenWhenHidden // we're nesting infinitely so need this
+          >
+            <Sheet.Overlay
+              backgroundColor="$shadow6"
+              animation="lazy"
+              enterStyle={{ opacity: 0 }}
+              exitStyle={{ opacity: 0 }}
+            />
+            <Sheet.Handle></Sheet.Handle>
+            <Sheet.Frame padding="$4" gap="$4">
+              <Adapt.Contents />
+            </Sheet.Frame>
+          </Sheet>
+        </Adapt>
+      )}
+
+      <Dialog.Portal>
+        <Dialog.Overlay
+          key="overlay"
+          backgroundColor="$shadow6"
+          animateOnly={['transform', 'opacity']}
+          animation={[
+            'quicker',
+            {
+              opacity: {
+                overshootClamping: true,
+              },
+            },
+          ]}
+          enterStyle={{ opacity: 0 }}
+          exitStyle={{ opacity: 0 }}
+        />
+
+        <Dialog.Content
+          bordered
+          paddingVertical="$4"
+          paddingHorizontal="$6"
+          elevate
+          borderRadius="$6"
+          key="content"
+          animateOnly={['transform', 'opacity']}
+          animation={[
+            'quicker',
+            {
+              opacity: {
+                overshootClamping: true,
+              },
+            },
+          ]}
+          enterStyle={{ x: 0, y: 20, opacity: 0 }}
+          exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
+          gap="$4">
+          <Dialog.Title>編輯</Dialog.Title>
+          <Dialog.Description>在這裡更改您的個人資料，完成後點擊儲存。</Dialog.Description>
+
+          <Fieldset gap="$4" horizontal>
+            <Label width={64} htmlFor="name">
+              名稱
+            </Label>
+            <Input flex={1} id="name" defaultValue="User Name" />
+          </Fieldset>
+
+          <XStack alignSelf="flex-end" gap="$4">
+            <Dialog.Close displayWhenAdapted asChild>
+              <Button theme="accent" aria-label="Close">
+                儲存
+              </Button>
+            </Dialog.Close>
+          </XStack>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog>
+  );
+}
 
 export default UserData;

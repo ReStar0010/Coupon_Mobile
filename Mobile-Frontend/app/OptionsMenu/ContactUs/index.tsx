@@ -44,7 +44,7 @@ const ContactUsPage: React.FC = () => {
             onPress={handleInstagramPress}>
             <ListItem.Text>CouPro</ListItem.Text>
           </ListItem>
-          <Separator />
+          <Separator borderColor="#e1e1e1" />
           <ListItem
             icon={Mail}
             style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}

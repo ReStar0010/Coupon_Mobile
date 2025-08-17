@@ -103,12 +103,12 @@ const OptionsMenu: React.FC = () => {
         </XStack>
 
         {/* Tamagui Card */}
-        <Card bg={'$white1'} padded bordered>
+        <Card bg={'$white1'} bordered>
           <Card.Header>
             <H4 fontWeight={'bold'}>Ricky Lu</H4>
             <Text color="#a0a0a0">rickylu@gmail.com</Text>
           </Card.Header>
-          <Card.Footer>
+          <Card.Footer pr={'$4'} pb={'$3'}>
             <XStack flex={1}></XStack>
             <Button borderRadius="$10" bg={'#ffad31'} onPress={handleUserDataEdit}>
               編輯
