@@ -1,15 +1,34 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { View, ScrollView, SafeAreaView } from "react-native";
 import { LoginFormContainer } from "./components/LoginFormContainer";
+import { storeLoginData } from "app/utils/authAPI";
+import { devDebug, devLog, devError } from "app/utils/devLogger";
 
 export default function Index() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<'login' | 'register' | 'forgotPassword'>('login');
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     // Login logic would go here
     console.log("Login attempted", { email, password });
+    try{
+      const response = await axios.post(`${process.env.EXPO_PUBLIC_API_URL}/api/login/`,
+         {email, password},
+        {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            withCredentials: true, // This ensures cookies are sent with the request
+        });
+      devDebug("Login successful", response.data);
+      await storeLoginData(response.data);
+      devLog("Store login data successfully");
+
+    }catch (err) {
+      devError("Login error:", err);
+    }
   };
   const handleRegister = () => {
     console.log("Register attempted", {email, password});
