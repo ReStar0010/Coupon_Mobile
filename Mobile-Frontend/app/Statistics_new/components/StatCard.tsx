@@ -8,11 +8,11 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ title, value }) => {
   return (
-    <View className="h-[104px] flex-1 rounded-[10px] border border-white bg-login-bg p-[18px] shadow-md">
+    <View className="h-[104px] flex-1 rounded-[10px] border border-bar-gray bg-login-bg p-[18px]">
       <View className="flex-1 justify-between">
         {/* Header */}
         <View className="gap-[5px]">
-          <Text className="text-center text-[14px] font-normal leading-normal text-login-light-gray">
+          <Text className="text-left text-[14px] font-normal leading-normal text-login-light-gray">
             {title}
           </Text>
         </View>

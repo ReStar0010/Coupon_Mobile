@@ -25,7 +25,7 @@ const ListItem: React.FC<ListItemProps> = ({
     <Wrapper
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
-      className={`flex-row items-center justify-between border border-login-border bg-login-bg p-[13px] ${!isLast ? 'border-b-0' : ''}`}
+      className={`flex-row items-center justify-between border border-bar-gray bg-login-bg p-[13px] ${!isLast ? 'border-b-0' : ''}`}
     >
       <View className="flex-1 flex-row items-center gap-[5px]">
         {icon === 'list' && (

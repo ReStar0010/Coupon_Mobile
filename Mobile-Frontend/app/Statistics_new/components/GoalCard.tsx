@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'react-native';
+import { StatisticsData } from '../hooks/useStatisticsData';
 
 interface Goal {
   id: string;
@@ -8,14 +9,19 @@ interface Goal {
   targetAmount: number;
   currentAmount: number;
 }
+interface StatisticsContentProps {
+  stats: StatisticsData;
+  onSetGoal: () => void;
+}
+
 
 interface GoalCardProps {
   goal: Goal | null;
   onSetGoal: () => void;
 }
 
-const GoalCard: React.FC<GoalCardProps> = ({ goal, onSetGoal }) => {
-  if (!goal) {
+const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
+  if (stats.savingsGoalAmount === 0) {
     // Empty state - show placeholder with set goal button
     return (
       <View className="rounded-[10px] border border-white bg-login-bg p-[18px] shadow-md">
@@ -27,7 +33,7 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onSetGoal }) => {
           <View className="mb-4 h-[100px] w-[100px] items-center justify-center rounded-[13px] border border-white bg-white">
             <View className="h-12 w-12 items-center justify-center rounded bg-[#8F8F8F]">
               <Image
-                source={require('../../../assets/next.svg')}
+                source={require('../../../assets/battery.svg')}
                 className="h-6 w-6"
                 style={{ tintColor: '#FFFFFF' }}
               />
@@ -49,17 +55,18 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onSetGoal }) => {
   }
 
   // Calculate progress percentage
-  const progressPercentage = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
-  const isCompleted = goal.currentAmount >= goal.targetAmount;
-  const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
+  const progressPercentage = Math.min((stats.monthlySavings / stats.savingsGoalAmount) * 100, 100);
+  const isCompleted = stats.monthlySavings >= stats.savingsGoalAmount;
+  const remaining = Math.max(stats.savingsGoalAmount- stats.monthlySavings, 0);
+
 
   return (
-    <View className="rounded-[10px] border border-white bg-login-bg p-[18px] shadow-md">
+    <View className="rounded-[10px] border border-bar-gray bg-login-bg p-[18px]">
       {/* Progress Bar */}
       <View className="mb-3">
-        <View className="h-4 w-full rounded-full bg-login-light-gray">
+        <View className="h-4 w-full rounded-full bg-bar-gray">
           <View
-            className={`h-4 rounded-full ${isCompleted ? 'bg-login-orange' : 'bg-login-gray'}`}
+            className={`h-4 rounded-full bg-login-orange`}
             style={{
               width: `${progressPercentage}%`,
               borderTopLeftRadius: 999,
@@ -79,7 +86,7 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onSetGoal }) => {
           </Text>
         </View>
         <Text className="text-[10px] font-normal leading-normal text-login-light-gray">
-          {goal.name}
+          {stats.savingsGoalName}
         </Text>
       </View>
     </View>

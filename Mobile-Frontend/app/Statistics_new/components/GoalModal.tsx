@@ -124,7 +124,7 @@ const GoalModal: React.FC<GoalModalProps> = ({
                 <TextInput
                   value={goalName}
                   onChangeText={setGoalName}
-                  placeholder={isConfirmMode ? "Spotify" : "輸入目���名稱"}
+                  placeholder={isConfirmMode ? "Spotify" : "輸入目標名稱"}
                   placeholderTextColor="#707070"
                   className="h-[33px] rounded-[13px] border border-white bg-white px-[10px] text-[13px] font-normal leading-normal text-login-gray"
                   editable={!isConfirmMode}
