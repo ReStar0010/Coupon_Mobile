@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { YStack, Text } from 'tamagui';
 
 interface StatCardProps {
   title: string;
@@ -8,23 +8,35 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ title, value }) => {
   return (
-    <View className="h-[104px] flex-1 rounded-[10px] border border-bar-gray bg-login-bg p-[18px]">
-      <View className="flex-1 justify-between">
+    <YStack 
+      height={104} 
+      flex={1} 
+      rounded="$3" 
+      style={{ borderWidth: 1, borderColor: '#e0e0e0' }} 
+      bg="#f5f5f5" 
+      p="$4"
+    >
+      <YStack flex={1} style={{ justifyContent: 'space-between' }}>
         {/* Header */}
-        <View className="gap-[5px]">
-          <Text className="text-left text-[14px] font-normal leading-normal text-login-light-gray">
+        <YStack gap="$1">
+          <Text 
+            style={{ textAlign: 'left' }} 
+            fontSize={14} 
+            fontWeight="normal" 
+            color="#707070"
+          >
             {title}
           </Text>
-        </View>
+        </YStack>
 
         {/* Value */}
-        <View className="items-start justify-center" style={{ paddingRight: 35 }}>
-          <Text className="text-[23px] font-bold leading-[35px] text-login-gray">
+        <YStack items="flex-start" style={{ justifyContent: 'center', paddingRight: 35 }}>
+          <Text fontSize={23} fontWeight="bold" lineHeight={35} color="#333333">
             {value}
           </Text>
-        </View>
-      </View>
-    </View>
+        </YStack>
+      </YStack>
+    </YStack>
   );
 };
 

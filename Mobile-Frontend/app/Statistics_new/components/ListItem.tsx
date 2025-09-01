@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { List, ChevronRight } from 'lucide-react-native';
+import { YStack, XStack, Text } from 'tamagui';
 
 interface ListItemProps {
   store?: string;
@@ -19,36 +20,50 @@ const ListItem: React.FC<ListItemProps> = ({
   isLast = false,
   onPress 
 }) => {
-  const Wrapper = onPress ? TouchableOpacity : View;
-
-  return (
-    <Wrapper
-      onPress={onPress}
-      activeOpacity={onPress ? 0.7 : 1}
-      className={`flex-row items-center justify-between border border-bar-gray bg-login-bg p-[13px] ${!isLast ? 'border-b-0' : ''}`}
+  const content = (
+    <XStack
+      items="center"
+      style={{ 
+        justifyContent: 'space-between',
+        borderWidth: 1, 
+        borderColor: '#e0e0e0', 
+        borderBottomWidth: !isLast ? 0 : 1 
+      }}
+      bg="#f5f5f5"
+      p="$3"
     >
-      <View className="flex-1 flex-row items-center gap-[5px]">
+      <XStack flex={1} items="center" gap="$1">
         {icon === 'list' && (
           <List size={24} color="#333333" />
         )}
 
-        <View className="flex-1 gap-[5px]">
-          <Text className="text-[13px] font-normal leading-normal text-login-gray">
+        <YStack flex={1} gap="$1">
+          <Text fontSize={13} fontWeight="normal" color="#333333">
             {store}
           </Text>
           {date && (
-            <Text className="text-[12px] font-normal leading-normal text-login-light-gray">
+            <Text fontSize={12} fontWeight="normal" color="#707070">
               {date}
             </Text>
           )}
-        </View>
-      </View>
+        </YStack>
+      </XStack>
 
       {hasChevron && (
         <ChevronRight size={20} color="#333333" />
       )}
-    </Wrapper>
+    </XStack>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
 };
 
 export default ListItem;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated } from 'react-native';
+import { Animated } from 'react-native';
+import { YStack, Text } from 'tamagui';
 
 interface ToastProps {
   visible: boolean;
@@ -61,25 +62,41 @@ const Toast: React.FC<ToastProps> = ({
     });
   };
 
-  if (!visible && fadeAnim._value === 0) {
+  if (!visible && (fadeAnim as any)._value === 0) {
     return null;
   }
 
   return (
-    <View className="absolute bottom-20 left-0 right-0 items-center px-5">
+    <YStack 
+      style={{ 
+        position: 'absolute', 
+        bottom: 80, 
+        left: 0, 
+        right: 0 
+      }} 
+      items="center" 
+      px="$5"
+    >
       <Animated.View
-        className="rounded-full bg-toast-green px-6 py-4"
         style={{
+          borderRadius: 999,
+          backgroundColor: 'rgba(76, 195, 138, 0.8)',
+          paddingHorizontal: 24,
+          paddingVertical: 16,
           opacity: fadeAnim,
           transform: [{ translateY: translateYAnim }],
-          backgroundColor: 'rgba(76, 195, 138, 0.8)',
         }}
       >
-        <Text className="text-center text-[14px] font-normal leading-normal text-white">
+        <Text 
+          style={{ textAlign: 'center' }} 
+          fontSize={14} 
+          fontWeight="normal" 
+          color="white"
+        >
           {message}
         </Text>
       </Animated.View>
-    </View>
+    </YStack>
   );
 };
 

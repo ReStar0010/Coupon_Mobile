@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'react-native';
 import { StatisticsData } from '../hooks/useStatisticsData';
+import { YStack, XStack, Button, Text } from 'tamagui';
 
 interface Goal {
   id: string;
@@ -24,33 +24,50 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
   if (stats.savingsGoalAmount === 0) {
     // Empty state - show placeholder with set goal button
     return (
-      <View className="rounded-[10px] border border-white bg-login-bg p-[18px] shadow-md">
+      <YStack rounded="$3" style={{ borderWidth: 1, borderColor: 'white' }} bg="#f5f5f5" p="$4" elevation="$1">
         {/* Progress Bar Background */}
-        <View className="mb-3 h-4 w-full rounded-full bg-login-light-gray" />
+        <YStack mb="$3" height={16} width="100%" rounded="$6" bg="#e0e0e0" />
 
         {/* Empty state content with image placeholder */}
-        <View className="items-center">
-          <View className="mb-4 h-[100px] w-[100px] items-center justify-center rounded-[13px] border border-white bg-white">
-            <View className="h-12 w-12 items-center justify-center rounded bg-[#8F8F8F]">
+        <YStack items="center">
+          <YStack 
+            mb="$4" 
+            height={100} 
+            width={100} 
+            items="center" 
+            rounded="$3" 
+            style={{ borderWidth: 1, borderColor: 'white', justifyContent: 'center' }} 
+            bg="white"
+          >
+            <YStack 
+              height={48} 
+              width={48} 
+              items="center" 
+              style={{ justifyContent: 'center' }}
+              rounded="$2" 
+              bg="#8F8F8F"
+            >
               <Image
                 source={require('../../../assets/battery.svg')}
-                className="h-6 w-6"
-                style={{ tintColor: '#FFFFFF' }}
+                style={{ height: 24, width: 24, tintColor: '#FFFFFF' }}
               />
-            </View>
-          </View>
+            </YStack>
+          </YStack>
 
-          <TouchableOpacity
+          <Button
             onPress={onSetGoal}
-            className="rounded-full bg-login-orange px-3 py-[6.5px]"
-            activeOpacity={0.8}
+            rounded="$6"
+            bg="#FFAD31"
+            px="$3"
+            py="$2"
+            pressStyle={{ opacity: 0.8 }}
           >
-            <Text className="text-[13px] font-normal leading-normal text-login-gray">
+            <Text fontSize={13} fontWeight="normal" color="#333333">
               設定目標
             </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+          </Button>
+        </YStack>
+      </YStack>
     );
   }
 
@@ -61,12 +78,14 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
 
 
   return (
-    <View className="rounded-[10px] border border-bar-gray bg-login-bg p-[18px]">
+    <YStack rounded="$3" style={{ borderWidth: 1, borderColor: '#e0e0e0' }} bg="#f5f5f5" p="$4">
       {/* Progress Bar */}
-      <View className="mb-3">
-        <View className="h-4 w-full rounded-full bg-bar-gray">
-          <View
-            className={`h-4 rounded-full bg-login-orange`}
+      <YStack mb="$3">
+        <YStack height={16} width="100%" rounded="$6" bg="#e0e0e0">
+          <YStack
+            height={16}
+            rounded="$6"
+            bg="#FFAD31"
             style={{
               width: `${progressPercentage}%`,
               borderTopLeftRadius: 999,
@@ -75,21 +94,21 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
               borderBottomRightRadius: progressPercentage === 100 ? 999 : 0,
             }}
           />
-        </View>
-      </View>
+        </YStack>
+      </YStack>
 
       {/* Goal Info */}
-      <View className="items-center">
-        <View className="mb-1">
-          <Text className="text-center text-[14px] font-bold leading-[17.5px] text-login-gray">
+      <YStack items="center">
+        <YStack mb="$1">
+          <Text style={{ textAlign: 'center' }} fontSize={14} fontWeight="bold" lineHeight={17.5} color="#333333">
             {isCompleted ? '目標達成！' : `剩下 ${remaining} 塊，加油！`}
           </Text>
-        </View>
-        <Text className="text-[10px] font-normal leading-normal text-login-light-gray">
+        </YStack>
+        <Text fontSize={10} fontWeight="normal" color="#707070">
           {stats.savingsGoalName}
         </Text>
-      </View>
-    </View>
+      </YStack>
+    </YStack>
   );
 };
 
