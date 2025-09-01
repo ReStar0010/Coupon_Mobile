@@ -1,13 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth } from '../../utils/authAPI';
 import { useAuthCheck } from '../hooks/useAuthCheck';
 import { useTransactionHistory } from '../hooks/useTransactionHistory';
-import ListItem from '../components/ListItem';
-import { XStack, YStack, H4, Button, ScrollView, View, Text } from 'tamagui';
+import { XStack, YStack, H4, Button, ScrollView, View, Text, ListItem, Separator } from 'tamagui';
 
 const HistoryPage: React.FC = () => {
   const router = useRouter();
@@ -127,16 +126,34 @@ const HistoryPage: React.FC = () => {
               <Text mt="$2" fontSize={14} color="#707070">請下拉重新整理</Text>
             </YStack>
           ) : transactionHistory.length > 0 ? (
-            transactionHistory.map((item, index) => (
-              <ListItem
-                key={item.redemption_id}
-                store={item.store_name}
-                date={formatDate(item.used_date)}
-                isLast={index === transactionHistory.length - 1}
-                hasChevron={true}
-                onPress={() => handleHistoryItemClick(item.coupon_id, item)}
-              />
-            ))
+            <YStack
+              bg="white"
+              rounded="$4"
+              overflow="hidden"
+              borderWidth={1}
+              borderColor="#e0e0e0"
+            >
+              {transactionHistory.map((item, index) => (
+                <React.Fragment key={item.redemption_id}>
+                  <ListItem
+                    bg="white"
+                    hoverTheme
+                    pressTheme
+                    p="$3"
+                    onPress={() => handleHistoryItemClick(item.coupon_id, item)}
+                  >
+                    <ListItem.Text fontSize={13} color="#333333">
+                      {item.store_name}
+                    </ListItem.Text>
+                    <ListItem.Subtitle fontSize={12} color="#707070">
+                      {formatDate(item.used_date)}
+                    </ListItem.Subtitle>
+                    <ChevronRight size={16} color="#333333" />
+                  </ListItem>
+                  {index < transactionHistory.length - 1 && <Separator />}
+                </React.Fragment>
+              ))}
+            </YStack>
           ) : (
             <YStack p="$6" items="center">
               <Text fontSize={16} color="#707070" style={{ textAlign: 'center' }}>

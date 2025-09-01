@@ -5,13 +5,12 @@ import { useRouter } from 'expo-router';
 import { useStatisticsData } from './hooks/useStatisticsData';
 import { useTransactionHistory } from './hooks/useTransactionHistory';
 import { useAuthCheck } from './hooks/useAuthCheck';
-import { AlignJustify } from 'lucide-react-native';
-import GoalCard from './components/GoalCard';
+import { AlignJustify, List, ChevronRight } from 'lucide-react-native';
+import StatisticsChart from './components/StatisticsChart';
 import StatCard from './components/StatCard';
-import ListItem from './components/ListItem';
 import GoalModal from './components/GoalModal';
 import Toast from './components/Toast';
-import { XStack, YStack, H4, Button, ScrollView, View, Text } from 'tamagui';
+import { XStack, YStack, H4, Button, ScrollView, View, Text, ListItem, Separator } from 'tamagui';
 
 interface Goal {
   id: string;
@@ -144,64 +143,17 @@ const Statistics_new: React.FC = () => {
           />
         }
       >
-        {/* Goal Card */}
-        <GoalCard
-          stats={stats}
+        {/* Statistics Chart */}
+        <StatisticsChart
+          currentAmount={stats.totalSavings}
+          targetAmount={stats.savingsGoalAmount}
+          goalName={stats.savingsGoalName}
+          goalImage={stats.savingsGoalImage}
           onSetGoal={openModal}
         />
 
-        {/* List Items */}
-        <YStack mt="$3">
-          <YStack 
-            rounded="$2" 
-            style={{ borderWidth: 1, borderColor: 'white' }} 
-            bg="#f5f5f5"
-          >
-            {historyLoading ? (
-              <YStack p="$4" items="center">
-                <Text fontSize={14} color="#707070">載入中...</Text>
-              </YStack>
-            ) : historyError ? (
-              <YStack p="$4" items="center">
-                <Text fontSize={14} color="#707070">載入失敗</Text>
-              </YStack>
-            ) : transactionHistory.length > 0 ? (
-              <>
-                {transactionHistory.map((item, index) => (
-                  <ListItem
-                    key={item.redemption_id}
-                    store={item.store_name}
-                    date={formatDate(item.used_date)}
-                    isLast={index === transactionHistory.length - 1}
-                  />
-                ))}
-                <ListItem
-                  store="使用紀錄"
-                  icon="list"
-                  hasChevron
-                  isLast={true}
-                  onPress={handleViewHistory}
-                />
-              </>
-            ) : (
-              <>
-                <YStack p="$4" items="center">
-                  <Text fontSize={14} color="#707070">尚無使用紀錄</Text>
-                </YStack>
-                <ListItem
-                  store="使用紀錄"
-                  icon="list"
-                  hasChevron
-                  isLast={true}
-                  onPress={handleViewHistory}
-                />
-              </>
-            )}
-          </YStack>
-        </YStack>
-
         {/* Statistics Cards */}
-        <XStack mt="$3" gap="$3">
+        <XStack mt="$4" gap="$4">
           <StatCard
             title="酷胖使用張數"
             value={stats.couponsUsedCount.toString()}
@@ -211,6 +163,101 @@ const Statistics_new: React.FC = () => {
             value={stats.totalSavings.toString()}
           />
         </XStack>
+
+        {/* List Items */}
+        <YStack mt="$3">
+          {historyLoading ? (
+            <YStack 
+              bg="white"
+              rounded="$4"
+              p="$4" 
+              items="center"
+              borderWidth={1}
+              borderColor="#e0e0e0"
+            >
+              <Text fontSize={14} color="#707070">載入中...</Text>
+            </YStack>
+          ) : historyError ? (
+            <YStack 
+              bg="white"
+              rounded="$4"
+              p="$4" 
+              items="center"
+              borderWidth={1}
+              borderColor="#e0e0e0"
+            >
+              <Text fontSize={14} color="#707070">載入失敗</Text>
+            </YStack>
+            ) : transactionHistory.length > 0 ? (
+              <YStack
+                bg="white"
+                rounded="$4"
+                overflow="hidden"
+                borderWidth={1}
+                borderColor="#e0e0e0"
+              >
+                {transactionHistory.map((item, index) => (
+                  <React.Fragment key={item.redemption_id}>
+                    <ListItem
+                      bg="white"
+                      hoverTheme
+                      pressTheme
+                      p="$3"
+                    >
+                      <ListItem.Text fontSize={13} color="#333333">
+                        {item.store_name}
+                      </ListItem.Text>
+                      <ListItem.Subtitle fontSize={12} color="#707070">
+                        {formatDate(item.used_date)}
+                      </ListItem.Subtitle>
+                    </ListItem>
+                    {index < transactionHistory.length - 1 && <Separator />}
+                  </React.Fragment>
+                ))}
+                <Separator />
+                <ListItem
+                  bg="white"
+                  hoverTheme
+                  pressTheme
+                  p="$3"
+                  onPress={handleViewHistory}
+                  icon={<List size={20} color="#333333" />}
+                >
+                  <ListItem.Text fontSize={13} color="#333333">
+                    使用紀錄
+                  </ListItem.Text>
+                  <ChevronRight size={16} color="#333333" />
+                </ListItem>
+              </YStack>
+            ) : (
+              <YStack
+                bg="white"
+                rounded="$4"
+                overflow="hidden"
+                borderWidth={1}
+                borderColor="#e0e0e0"
+              >
+                <YStack p="$4" items="center">
+                  <Text fontSize={14} color="#707070">尚無使用紀錄</Text>
+                </YStack>
+                <Separator />
+                <ListItem
+                  bg="white"
+                  hoverTheme
+                  pressTheme
+                  p="$3"
+                  onPress={handleViewHistory}
+                  icon={<List size={20} color="#333333" />}
+                >
+                  <ListItem.Text fontSize={13} color="#333333">
+                    使用紀錄
+                  </ListItem.Text>
+                  <ChevronRight size={16} color="#333333" />
+                </ListItem>
+              </YStack>
+            )}
+        </YStack>
+
       </ScrollView> 
 
       {/* Goal Modal */}
