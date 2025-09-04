@@ -98,7 +98,7 @@ const StatisticsChart: React.FC<StatisticsChartProps> = ({
         pressStyle={{ bg: "#FF9500" }}
         onPress={onSetGoal}
       >
-        設定目標
+        {hasGoal ? "更改目標" : "設定目標"}
       </Button>
 
       {/* Progress Text */}
