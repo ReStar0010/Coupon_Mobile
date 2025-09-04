@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, TextInput, TextInputProps } from 'react-native';
+import { TextInputProps } from 'react-native';
+import { Input } from 'tamagui';
 
 interface LoginInputProps extends TextInputProps {
   placeholder: string;
@@ -12,16 +13,23 @@ export const LoginInput: React.FC<LoginInputProps> = ({
   ...props
 }) => {
   return (
-    <View className="flex h-[41px] px-4 items-center border border-login-border bg-login-bg rounded-[9px]">
-      <TextInput
-        secureTextEntry={secureTextEntry}
-        placeholder={placeholder}
-        placeholderTextColor="#9CA3AF"
-        className="flex-1 bg-transparent text-login-light-gray text-base font-normal outline-none"
-        style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
-        autoCapitalize="none"
-        {...props}
-      />
-    </View>
+    <Input
+      secureTextEntry={secureTextEntry}
+      placeholder={placeholder}
+      placeholderTextColor="#9CA3AF"
+      bg="#f5f5f5"
+      borderColor="#e0e0e0"
+      borderWidth={1}
+      height={41}
+      px="$3"
+      fontSize={16}
+      color="#374151"
+      autoCapitalize="none"
+      style={{ 
+        fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif',
+        borderRadius: 9
+      }}
+      {...props}
+    />
   );
 };

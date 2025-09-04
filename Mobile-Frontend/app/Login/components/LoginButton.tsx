@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text } from 'react-native';
+import { Button, Text } from 'tamagui';
 
 interface LoginButtonProps {
   title: string;
@@ -8,17 +8,23 @@ interface LoginButtonProps {
 
 export const LoginButton: React.FC<LoginButtonProps> = ({ title, onPress }) => {
   return (
-    <TouchableOpacity
+    <Button
       onPress={onPress}
-      className="flex h-[41px] px-[9px] justify-center items-center bg-login-orange rounded-[9px] active:opacity-90"
-      activeOpacity={0.9}
+      height={41}
+      bg="#FFAD31"
+      style={{ borderRadius: 9 }}
+      borderWidth={0}
+      pressStyle={{ bg: "#FF9500" }}
+      hoverStyle={{ bg: "#FF9500" }}
     >
       <Text 
-        className="text-base font-normal text-login-gray text-center"
+        fontSize={16}
+        fontWeight="normal"
+        color="#374151"
         style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
       >
         {title}
       </Text>
-    </TouchableOpacity>
+    </Button>
   );
 };

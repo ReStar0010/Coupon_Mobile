@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import axios from "axios";
 import Toast from "react-native-toast-message";
 import { useRouter } from "expo-router";
-import { View, ScrollView, SafeAreaView, Text } from "react-native";
 import { LoginFormContainer } from "./components/LoginFormContainer";
 import { storeLoginData } from "app/utils/authAPI";
 import { devDebug, devLog, devError } from "app/utils/devLogger";
+import { YStack, ScrollView, View, Text } from 'tamagui';
 
 export default function Index() {
   const [email, setEmail] = useState("");
@@ -14,12 +14,44 @@ export default function Index() {
   const [mode, setMode] = useState<'login' | 'register' | 'forgotPassword'>('login');
   const toastConfig = {
     successGreen: ({ text1 }: any) => (
-      <View className="absolute self-center bottom-[20%] px-7 h-14 rounded-full bg-toast-green justify-center shadow-lg">
-        <Text className="text-white font-bold text-base">{text1}</Text>
+      <View 
+        position="absolute" 
+        px="$4" 
+        height={56} 
+        style={{ 
+          alignSelf: 'center',
+          bottom: '20%',
+          justifyContent: 'center',
+          borderRadius: 40,
+          backgroundColor: '#4ADE80',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          elevation: 6
+        }}
+      >
+        <Text color="white" fontWeight="bold" fontSize={16}>{text1}</Text>
       </View> ),
     failRed: ({ text1 }: any) => (
-      <View className="absolute self-center bottom-[20%] px-7 h-14 rounded-full bg-toast-red justify-center shadow-lg">
-        <Text className="text-white font-bold text-base">{text1}</Text>
+      <View 
+        position="absolute" 
+        px="$4" 
+        height={56} 
+        style={{ 
+          alignSelf: 'center',
+          bottom: '20%',
+          justifyContent: 'center',
+          borderRadius: 40,
+          backgroundColor: '#EF4444',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          elevation: 6
+        }}
+      >
+        <Text color="white" fontWeight="bold" fontSize={16}>{text1}</Text>
       </View>
     )
 };
@@ -137,28 +169,31 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView className="min-h-screen bg-login-bg">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 items-center justify-center p-4">
-          <View className="w-full max-w-[320px] mx-auto">
-            <LoginFormContainer
-              email={email}
-              setEmail={setEmail}
-              password={password}
-              setPassword={setPassword}
-              handleLogin={handleLogin}
-              handleForgotPassword={handleForgotPassword}
-              handleRegister={handleRegister}
-              onLoginPress={handleLoginPress}
-              onRegisterPress={handleRegisterPress}
-              onForgotPasswordPress={handleForgotPasswordPress}
-              mode = {mode}
-              setMode={setMode}
-            />
-          </View>
-          <Toast config={toastConfig} />
+    <YStack flex={1} bg="#f5f5f5">
+      <YStack 
+        flex={1}
+        items="center" 
+        style={{ justifyContent: 'center' }}
+        p="$4"
+      >
+        <View width="100%" style={{ maxWidth: 320 }} mx="auto">
+          <LoginFormContainer
+            email={email}
+            setEmail={setEmail}
+            password={password}
+            setPassword={setPassword}
+            handleLogin={handleLogin}
+            handleForgotPassword={handleForgotPassword}
+            handleRegister={handleRegister}
+            onLoginPress={handleLoginPress}
+            onRegisterPress={handleRegisterPress}
+            onForgotPasswordPress={handleForgotPasswordPress}
+            mode = {mode}
+            setMode={setMode}
+          />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+        <Toast config={toastConfig} />
+      </YStack>
+    </YStack>
   );
 }

@@ -1,10 +1,10 @@
 import React from 'react';
-import { View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { LoginHeader } from './LoginHeader';
 import { LoginInput } from 'app/Login/components/LoginInput';
 import { LoginButton } from './LoginButton';
 import { LinkText } from './LinkText';
+import { YStack } from 'tamagui';
 
 interface LoginFormContainerProps {
   email: string;
@@ -37,7 +37,7 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
 }) => {
     
   return (
-    <View className="bg-login-bg px-5 py-8 flex flex-col gap-[13px]">
+    <YStack bg="#f5f5f5" px="$5" py="$6" gap="$3">
       {/* Header */}
       {mode === 'login' && (
           <LoginHeader title="登入"/>
@@ -125,7 +125,7 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
             />
         </>
       )}
-    </View>
+    </YStack>
   );
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { YStack, XStack, Text } from 'tamagui';
 
 interface LinkTextProps {
   normalText: string;
@@ -13,24 +13,28 @@ export const LinkText: React.FC<LinkTextProps> = ({
   onLinkPress,
 }) => {
   return (
-    <View className="flex justify-center items-center gap-[10px]">
-      <View className="w-[146px]">
+    <YStack items="center" gap="$2">
+      <XStack width={146} style={{ justifyContent: 'center' }}>
         <Text 
-          className="text-center text-sm font-normal leading-normal"
-          style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
+          fontSize={14}
+          fontWeight="normal"
+          style={{ 
+            fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif',
+            textAlign: 'center'
+          }}
         >
-          <Text className="text-login-gray">
+          <Text color="#374151">
             {normalText}
           </Text>
           <Text 
-            className="text-login-orange"
+            color="#FFAD31"
             onPress={onLinkPress}
             style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
           >
             {linkText}
           </Text>
         </Text>
-      </View>
-    </View>
+      </XStack>
+    </YStack>
   );
 };
