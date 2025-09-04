@@ -1,17 +1,25 @@
-import '../../../global.css';
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Image,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, Share2 } from 'lucide-react-native';
+import * as Sharing from 'expo-sharing';
+import * as Clipboard from 'expo-clipboard';
+import { 
+  YStack, 
+  XStack, 
+  ScrollView, 
+  Card, 
+  Text, 
+  Button, 
+  Spinner,
+  View,
+  H1,
+  H2,
+  H3,
+  Paragraph
+} from 'tamagui';
 import SuccessPopup from './redeem/SuccessPopup';
+import ShareModal from './components/ShareModal';
 import { isUserLoggedIn, fetchAPI } from '../../utils/authAPI';
 import { devLog } from '../../utils/devLogger';
 
@@ -48,6 +56,8 @@ const CouponDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -55,14 +65,17 @@ const CouponDetailPage: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
+          devLog('Fetching coupon with ID:', id);
           const response = await fetchAPI(`/coupons/${id}/`, {
             method: 'GET',
           });
 
           devLog('Fetched coupon details:', response.data);
+          console.log('Coupon API Response:', response.data); // Additional console log
           setCoupon(response.data);
         } catch (err) {
           console.error('Error fetching coupon details:', err);
+          devLog('Error fetching coupon:', err);
           let errorMessage = '無法載入優惠券詳情。';
           if (err instanceof Error) {
             if (err.message.includes('404')) {
@@ -143,193 +156,354 @@ const CouponDetailPage: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     try {
+      console.log('Formatting date string:', dateString);
+      if (!dateString) return '2024\n07/13';
+      
       const date = new Date(dateString);
+      console.log('Parsed date:', date);
+      
+      if (isNaN(date.getTime())) {
+        console.log('Invalid date, using fallback');
+        return '2024\n07/13';
+      }
+      
       const year = date.getFullYear();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const day = date.getDate().toString().padStart(2, '0');
-      return `${year}\n${month}/${day}`;
+      const formatted = `${year}\n${month}/${day}`;
+      console.log('Formatted date result:', formatted);
+      return formatted;
     } catch (e) {
-      return '無效日期';
+      console.log('Date formatting error:', e);
+      return '2024\n07/13';
     }
+  };
+
+  const handleShare = () => {
+    setShowShareModal(true);
+    devLog("Share modal opened");
+  };
+
+  const handleCouProShare = async () => {
+    try {
+      devLog("CouPro share initiated for coupon:", coupon?.id);
+      // Implement CouPro sharing logic here
+      // This might involve API call to move coupon to public pool
+      setShowShareModal(false);
+      // You might want to show a success message or redirect
+      Alert.alert('分享成功', '優惠券已分享至 CouPro 隨取即用區域(此功能還未實作)');
+    } catch (err) {
+      console.error('Error sharing to CouPro:', err);
+      Alert.alert('分享失敗', '無法分享至 CouPro，請稍後再試');
+    }
+  };
+
+  const handleLinkShare = async () => {
+    try {
+      devLog("Link share initiated for coupon:", coupon?.id);
+      // Implement link sharing logic here
+      // This might involve generating a share link and opening native share dialog
+      setShowShareModal(false);
+      // You might want to show native share dialog or copy link to clipboard
+      Alert.alert('分享連結', '分享連結功能尚未實現');
+    } catch (err) {
+      console.error('Error sharing link:', err);
+      Alert.alert('分享失敗', '無法生成分享連結，請稍後再試');
+    }
+  };
+
+  const handleCloseShareModal = () => {
+    setShowShareModal(false);
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView className="bg-bg-grey flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#FFAD31" />
-        <Text className="text-sec-black mt-4 text-lg">載入中...</Text>
-      </SafeAreaView>
+      <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <Spinner size="large" color="#FFAD31" />
+        <Text mt="$4" fontSize="$6" color="#333">載入中...</Text>
+      </YStack>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView className="bg-bg-grey flex-1 items-center justify-center px-4">
-        <Text className="mb-4 text-center text-lg text-red-500">{error}</Text>
-        <TouchableOpacity
+      <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }} px="$4">
+        <Text mb="$4" style={{ textAlign: 'center' }} fontSize="$6" color="#ef4444">{error}</Text>
+        <Button
           onPress={onGoBackContainerClick}
-          className="rounded-lg bg-gray-300 px-4 py-2">
-          <Text className="font-semibold text-gray-700">返回</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+          bg="#d1d5db"
+          color="#374151"
+          fontWeight="600"
+        >
+          返回
+        </Button>
+      </YStack>
     );
   }
 
   if (!coupon) {
     return (
-      <SafeAreaView className="bg-bg-grey flex-1 items-center justify-center">
-        <Text className="text-sec-black text-lg">找不到優惠券資料。</Text>
-      </SafeAreaView>
+      <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <Text fontSize="$6" color="#333">找不到優惠券資料。</Text>
+      </YStack>
     );
   }
 
+  // Debug logging
+  console.log('Rendering coupon with data:', coupon);
+  devLog('Current coupon state:', coupon);
+
   return (
-    <SafeAreaView className="bg-bg-grey flex-1">
-      <ScrollView className="flex-1 px-8 pt-9">
-        {/* Back Button */}
-        <View className="mb-6 flex flex-col items-start justify-start gap-[22px]">
-          <TouchableOpacity
+    <YStack flex={1} bg="#f0f0f0">
+      <ScrollView flex={1}>
+        {/* Header with Back and Share buttons */}
+        <XStack 
+          px="$5" 
+          pt="$8" 
+          pb="$4" 
+          style={{ 
+            justifyContent: 'space-between', 
+            alignItems: 'center' 
+          }}
+        >
+          <Button
             onPress={onGoBackContainerClick}
-            className="flex flex-row items-center gap-[9px]"
-            activeOpacity={0.7}>
-            <View className="flex flex-col items-start justify-start pt-[4.5px]">
-              <Image
-                className="relative h-[15px] w-[15px]"
-                style={{ width: 15, height: 15 }}
-                source={require('../../../assets/forward.png')}
-              />
-            </View>
-            <Text className="text-sec-black font-jost min-w-[32px] text-base leading-[150%] tracking-[-0.01em]">
-              返回
+            bg="transparent"
+            p="$0"
+          >
+            <ArrowLeft size={24} color="#333" />
+          </Button>
+          
+          <Button
+            onPress={handleShare}
+            bg="#FFAD31"
+            px="$4"
+            py="$2"
+            style={{
+              borderRadius: 12,
+            }}
+          >
+            <Text color="#333" fontWeight="600" fontSize="$4">
+              分享
             </Text>
-          </TouchableOpacity>
-        </View>
+          </Button>
+        </XStack>
 
         {/* Main Content */}
-        <View className="flex-1 gap-[25px] pb-32">
-          {/* Store Info Card */}
-          <View className="bg-bg-white h-[208px] w-full items-center justify-center rounded-xl drop-shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)]">
-            <View className="flex w-full flex-col items-center justify-center gap-[10px] px-[10%]">
+        <YStack px="$5" gap="$5" pb={130}>
+          {/* Store Info Card - Main coupon display */}
+          <Card 
+            bg="#fff" 
+            p="$6"
+            style={{
+              borderRadius: 20,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 4
+            }}
+          >
+            <YStack gap="$4" style={{ alignItems: 'center' }}>
               <Text
-                className="font-jost text-sec-black w-[80%] text-center text-3xl font-bold leading-tight tracking-[-0.43px]"
-                numberOfLines={2}>
-                {coupon.store_name}
+                color="#333"
+                fontSize="$9"
+                fontWeight="bold"
+                style={{ 
+                  textAlign: 'center',
+                }}
+              >
+                {coupon?.store_name || '魚樂鮮魷魚羹'}
               </Text>
               <Text
-                className="font-jost text-sec-black w-[80%] text-center text-base font-bold leading-snug tracking-[-0.43px]"
-                numberOfLines={2}>
-                {coupon.coupon_name}
+                color="#333"
+                fontSize="$5"
+                fontWeight="500"
+                style={{ 
+                  textAlign: 'center',
+                }}
+                numberOfLines={2}
+              >
+                {coupon?.coupon_name || '來店消費滿120送 滷蛋一顆'}
               </Text>
-            </View>
-          </View>
+            </YStack>
+          </Card>
 
           {/* Info Cards Row */}
-          <View className="w-full flex-row justify-between gap-[15px]">
+          <XStack gap="$4">
             {/* Expiry Date Card */}
-            <View className="bg-bg-white aspect-square w-[48%] items-center justify-center rounded-xl drop-shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)]">
-              <View className="flex w-full flex-col items-center justify-center gap-[10px] p-[10%]">
-                <Text className="font-jost text-sec-black text-sm leading-[22px] tracking-[-0.43px]">
-                  到期日期
+            <Card 
+              bg="#fff" 
+              flex={1}
+              p="$4"
+              style={{ 
+                borderRadius: 16,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 6,
+                elevation: 3
+              }}
+            >
+              <YStack gap="$3" style={{ alignItems: 'flex-start' }}>
+                <Text color="#666" fontSize="$3" fontWeight="500">
+                  有效日期
                 </Text>
-                <Text className="font-jost text-sec-black text-center text-2xl font-bold leading-normal tracking-[-0.43px]">
-                  {formatDate(coupon.expiry_date)}
+                <Text 
+                  color="#333" 
+                  fontSize="$8" 
+                  fontWeight="bold" 
+                >
+                  {coupon?.expiry_date ? formatDate(coupon.expiry_date) : '2024\n07/13'}
                 </Text>
-              </View>
-            </View>
+              </YStack>
+            </Card>
 
             {/* Source Card */}
-            <View className="bg-bg-white aspect-square w-[48%] items-center justify-center rounded-xl drop-shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)]">
-              <View className="flex w-full flex-col items-center justify-center gap-[10px] p-[10%]">
-                <Text className="font-jost text-sec-black text-sm leading-[22px] tracking-[-0.43px]">
+            <Card 
+              bg="#fff" 
+              flex={1}
+              p="$4"
+              style={{ 
+                borderRadius: 16,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 6,
+                elevation: 3
+              }}
+            >
+              <YStack gap="$3" style={{ alignItems: 'flex-start' }}>
+                <Text color="#666" fontSize="$3" fontWeight="500">
                   來自
                 </Text>
                 <Text
-                  className="font-jost text-sec-black text-center text-lg text-xs font-bold leading-normal tracking-[-0.43px]"
-                  numberOfLines={3}>
-                  {coupon.coupon_type === 'store'
-                    ? coupon.store_name
-                    : coupon.coupon_type === 'exclusive' && coupon.last_holder_email
+                  color="#333"
+                  fontSize="$6"
+                  fontWeight="bold"
+                  numberOfLines={2}
+                >
+                  {coupon?.coupon_type === 'store'
+                    ? coupon?.store_name
+                    : coupon?.coupon_type === 'exclusive' && coupon?.last_holder_email
                       ? coupon.last_holder_email
                       : 'CouPro'}
                 </Text>
-              </View>
-            </View>
-          </View>
+              </YStack>
+            </Card>
+          </XStack>
 
           {/* Detail Card */}
-          <View className="bg-bg-white min-h-[256px] w-full items-center justify-center rounded-xl drop-shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)]">
-            <View className="my-[10%] flex w-[80%] flex-col items-start justify-center gap-[30px]">
-              <Text className="font-jost text-sec-black text-left text-xl font-bold">
-                {coupon.coupon_detail.split('\n').map((line, index) => (
-                  <Text key={index}>
-                    {line}
-                    {index < coupon.coupon_detail.split('\n').length - 1 && '\n'}
-                  </Text>
-                ))}
+          <Card 
+            bg="#fff" 
+            p="$6"
+            style={{
+              borderRadius: 20,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 4
+            }}
+          >
+            <YStack gap="$6" style={{ alignItems: 'flex-start' }}>
+              <Text color="#333" fontSize="$6" fontWeight="600" > 
+                {coupon?.coupon_detail ? 
+                  coupon.coupon_detail.split('\n').map((line, index) => (
+                    <Text key={index}>
+                      {line}
+                      {index < coupon.coupon_detail.split('\n').length - 1 && '\n'}
+                    </Text>
+                  )) : 
+                  '活動期間至「魚樂鮮魷魚羹」，\n來店消費滿120元即送滷蛋一顆。'
+                }
               </Text>
 
-              {coupon.important_notes && (
-                <View>
-                  <Text className="font-jost text-sec-black mb-4 text-lg font-bold">
+              {(coupon?.important_notes || !coupon) && (
+                <YStack gap="$3" width="100%">
+                  <Text color="#666" fontSize="$4" fontWeight="500">
                     注意事項：
                   </Text>
-                  <Text className="font-jost text-sec-black text-base leading-6">
-                    {coupon.important_notes.split(/\r?\n/).map((rawLine, index) => {
-                      const line = rawLine.trim();
-                      const match = line.match(/^(\d+)\.\s*(.*)$/);
+                  <YStack gap="$2">
+                    {coupon?.important_notes ? 
+                      coupon.important_notes.split(/\r?\n/).map((rawLine, index) => {
+                        const line = rawLine.trim();
+                        const match = line.match(/^(\d+)\.\s*(.*)$/);
 
-                      if (!match) {
+                        if (!match) {
+                          return (
+                            <Text key={index} color="#666" fontSize="$3">
+                              {line}
+                            </Text>
+                          );
+                        }
+
+                        const [, number, text] = match;
                         return (
-                          <Text key={index} className="pl-8">
-                            {line}
-                            {'\n'}
-                          </Text>
+                          <XStack key={index} gap="$2">
+                            <Text color="#666" fontSize="$3" fontWeight="500">
+                              {number}.
+                            </Text>
+                            <Text color="#666" fontSize="$3" flex={1} >
+                              {text || ''}
+                            </Text>
+                          </XStack>
                         );
-                      }
-
-                      const [, number, text] = match;
-                      return (
-                        <Text key={index} className="mb-1">
-                          {number}. {text}
-                          {'\n'}
-                        </Text>
-                      );
-                    })}
-                  </Text>
-                </View>
+                      }) :
+                      [
+                        <XStack key="1" gap="$2">
+                          <Text color="#666" fontSize="$3" fontWeight="500">1.</Text>
+                          <Text color="#666" fontSize="$3" flex={1}>測試用</Text>
+                        </XStack>
+                      ]
+                    }
+                  </YStack>
+                </YStack>
               )}
-            </View>
-          </View>
-        </View>
+            </YStack>
+          </Card>
+        </YStack>
       </ScrollView>
 
       {/* Fixed Bottom Button */}
       {!coupon.is_redeemed && (
-        <View className="absolute bottom-8 left-12 right-12">
-          <TouchableOpacity
+        <YStack style={{ position: 'absolute', bottom: 30, left: 20, right: 20 }}>
+          <Button
             onPress={isRedeeming || !coupon.can_use_today ? undefined : onRedeemClick}
-            className={`bg-act-yellow h-20 items-center justify-center rounded-xl drop-shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)] ${
-              isRedeeming || !coupon.can_use_today ? 'opacity-50' : ''
-            }`}
+            bg="#FFAD31"
+            height={60}
+            style={{
+              borderRadius: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
+              elevation: 5,
+              opacity: isRedeeming || !coupon.can_use_today ? 0.5 : 1
+            }}
             disabled={isRedeeming || !coupon.can_use_today}
-            activeOpacity={0.8}>
-            <Text className="font-jost text-sec-black text-[32px] font-bold leading-[22px] tracking-[-0.43px]">
+          >
+            <Text 
+              color="#333" 
+              fontSize="$6" 
+              fontWeight="bold"
+            >
               {isRedeeming
                 ? '處理中...'
                 : !coupon.can_use_today
                   ? '今日已使用'
-                  : coupon.coupon_type === 'store'
-                    ? '使用'
-                    : '核銷'}
+                  : '使用'}
             </Text>
-          </TouchableOpacity>
-        </View>
+          </Button>
+        </YStack>
       )}
 
       {coupon.is_redeemed && coupon.coupon_type === 'exclusive' && (
-        <View className="absolute bottom-8 left-12 right-12">
-          <Text className="text-center text-lg text-red-500">此優惠券已被兌換</Text>
-        </View>
+        <YStack style={{ position: 'absolute', bottom: 30, left: 20, right: 20 }}>
+          <Text style={{ textAlign: 'center' }} fontSize="$5" color="#ef4444">
+            此優惠券已被兌換
+          </Text>
+        </YStack>
       )}
 
       {/* Success Popup */}
@@ -340,7 +514,15 @@ const CouponDetailPage: React.FC = () => {
         couponDetail={coupon?.coupon_detail}
         titleType="使用成功"
       />
-    </SafeAreaView>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={handleCloseShareModal}
+        onCouProShare={handleCouProShare}
+        onLinkShare={handleLinkShare}
+      />
+    </YStack>
   );
 };
 

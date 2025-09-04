@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, TouchableWithoutFeedback } from 'react-native';
+import { Modal, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
 import { X, Share2 } from 'lucide-react-native';
 import { 
   YStack, 
@@ -15,13 +15,15 @@ interface ShareModalProps {
   onClose: () => void;
   onCouProShare: () => void;
   onLinkShare: () => void;
+  isSharing?: boolean;
 }
 
 const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
   onClose,
   onCouProShare,
-  onLinkShare
+  onLinkShare,
+  isSharing = false
 }) => {
   return (
     <Modal
@@ -30,7 +32,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={isSharing ? undefined : onClose}>
         <View style={{
           flex: 1,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -64,7 +66,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     分享
                   </Text>
                   <Button
-                    onPress={onClose}
+                    onPress={isSharing ? undefined : onClose}
                     bg="transparent"
                     p="$0"
                     style={{
@@ -73,8 +75,10 @@ const ShareModal: React.FC<ShareModalProps> = ({
                       borderRadius: 16,
                       backgroundColor: '#f5f5f5',
                       justifyContent: 'center',
-                      alignItems: 'center'
+                      alignItems: 'center',
+                      opacity: isSharing ? 0.5 : 1,
                     }}
+                    disabled={isSharing}
                   >
                     <X size={20} color="#666" />
                   </Button>
@@ -101,16 +105,19 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     style={{
                       borderRadius: 12,
                       justifyContent: 'center',
-                      alignItems: 'center'
+                      alignItems: 'center',
+                      opacity: isSharing ? 0.7 : 1,
                     }}
+                    disabled={isSharing}
                   >
                     <XStack gap="$2" style={{ alignItems: 'center' }}> 
+                      {isSharing && <ActivityIndicator size="small" color="#333" />}
                       <Text 
                         color="#333" 
                         fontSize="$5" 
                         fontWeight="600"
                       >
-                        CouPro
+                        {isSharing ? '分享中...' : 'CouPro'}
                       </Text>
                     </XStack>
                   </Button>
@@ -125,18 +132,21 @@ const ShareModal: React.FC<ShareModalProps> = ({
                       justifyContent: 'center',
                       alignItems: 'center',
                       borderWidth: 2,
-                      borderColor: '#6366f1'
+                      borderColor: '#6366f1',
+                      opacity: isSharing ? 0.7 : 1,
                     }}
+                    disabled={isSharing}
                   >
                     <XStack gap="$2" style={{ alignItems: 'center' }}>
+                      {isSharing && <ActivityIndicator size="small" color="#333" />}
                       <Text 
                         color="#333" 
                         fontSize="$5" 
                         fontWeight="600"
                       >
-                        分享連結
+                        {isSharing ? '生成中...' : '分享連結'}
                       </Text>
-                      <Share2 size={16} color="#fff" />
+                      {!isSharing && <Share2 size={16} color="#333" />}
                     </XStack>
                   </Button>
                 </XStack>
