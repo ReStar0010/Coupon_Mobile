@@ -13,8 +13,8 @@ export default function App() {
     const checkLoginStatus = async () => {
       try {
         const loggedIn = await isUserLoggedIn();
-        if (false) {
-          router.replace('/EasyUse');
+        if (true) {
+          router.replace('/Login');
         } else {
           router.replace('/(tabs)/tab1');
         }

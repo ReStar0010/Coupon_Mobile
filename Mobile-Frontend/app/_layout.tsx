@@ -19,7 +19,7 @@ export default function RootLayout() {
         <PortalProvider shouldAddRootHost>
           <ThemeProvider>
             <AuthProvider>
-              <ToastProvider>
+              <ToastProvider> 
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
                   <Stack.Screen name="Login" />

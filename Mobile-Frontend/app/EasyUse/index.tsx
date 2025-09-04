@@ -1,19 +1,11 @@
-import '../../global.css';
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-  Image,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
+import { Image, Text, View, ScrollView, Input, Button, XStack, H4, YStack, Card } from 'tamagui';
 import { fetchAPI } from '../utils/authAPI';
-import PageHeader from '../components/PageHeader';
-import MapComponent from '../components/MapComponent';
+import { TouchableOpacity } from 'react-native';
+import { AlignJustify, Search, MoreHorizontalIcon, X, Home, StretchHorizontal, BarChart2 } from 'lucide-react-native';
+import MapComponent from 'app/components/MapComponent';
 
 export type CouponType = {
   className?: string;
@@ -37,134 +29,115 @@ export type CouponType = {
   imageUrl?: string;
 };
 
-interface Store {
-  id: number;
-  name: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-  address?: string;
-  active_coupon_count?: number;
-  has_active_coupons?: boolean;
-}
+// Removed Store typing while using placeholders
+// Removed ApiCoupon in placeholders mode
 
-interface ApiCoupon {
-  id: number;
-  store_name: string;
-  coupon_name: string;
-  coupon_detail: string;
-  important_notes?: string;
-  start_date: string;
-  expiry_date: string;
-  coupon_type: 'store' | 'exclusive';
-  source_user?: string;
-  is_redeemed: boolean;
-  store_id?: number;
-  store_location?: {
-    lat: number;
-    lng: number;
-  };
-  address?: string;
-  active_coupon_count?: number;
-  has_active_coupons?: boolean;
-  image_url?: string;
-}
+// Logo Icon Component
+const LogoIcon = () => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M23.9895 16.8578C23.9895 20.7967 20.7963 23.9898 16.8574 23.9898C12.9185 23.9898 9.72544 20.7967 9.72544 16.8578C9.72544 12.9188 12.9185 9.72571 16.8574 9.72571C20.7963 9.72571 23.9895 12.9188 23.9895 16.8578Z"
+      fill="#333333"
+    />
+    <Path
+      d="M2.08892 12.1754C0.751406 10.8378 2.85613e-07 9.02378 0 7.13224C-2.85612e-07 5.2407 0.751405 3.42664 2.08892 2.08912C3.42643 0.751602 5.24048 0.000191455 7.13201 0.000190575C9.02353 0.000189696 10.8376 0.751599 12.1751 2.08912L9.65355 4.61068C8.9848 3.94192 8.07777 3.56621 7.13201 3.56621C6.18624 3.56621 5.27922 3.94192 4.61046 4.61068C3.94171 5.27944 3.566 6.18647 3.566 7.13224C3.566 8.07801 3.94171 8.98504 4.61046 9.6538L2.08892 12.1754Z"
+      fill="#FFAD31"
+    />
+    <Path
+      d="M0.691765 23.3084C-0.219762 22.3968 -0.235644 20.9031 0.675883 19.9915L19.9915 0.67576C20.9031 -0.235772 22.3968 -0.21989 23.3084 0.691642C24.2199 1.60317 24.2358 3.09694 23.3242 4.00847L4.00858 23.3242C3.09705 24.2358 1.60329 24.2199 0.691765 23.3084Z"
+      fill="#333333"
+    />
+    <Path
+      d="M20.3586 16.7929C20.3586 18.7624 18.7621 20.3589 16.7926 20.3589C14.8232 20.3589 13.2266 18.7624 13.2266 16.7929C13.2266 14.8235 14.8232 13.2269 16.7926 13.2269C18.7621 13.2269 20.3586 14.8235 20.3586 16.7929Z"
+      fill="#FFAD31"
+    />
+  </Svg>
+);
 
-interface CouponProps {
-  className?: string;
-  description?: string;
-  couponName?: string;
-  storeName?: string;
-  id?: number;
+// Coupon Card Component
+interface CouponCardProps {
+  storeName: string;
+  description: string;
   imageUrl?: string;
+  id?: number;
+  onPress: () => void;
 }
 
-const Coupon: React.FC<CouponProps> = ({
-  className = '',
-  description,
-  couponName,
-  storeName,
-  id,
-  imageUrl,
-}) => {
-  const router = useRouter();
+const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUrl, onPress }) => (
+  <Card
+    elevate
+    bordered
+    borderRadius="$5"
+    padding="$4"
+    onPress={onPress}
+    pressStyle={{ opacity: 0.9 }}
+    borderColor="#f8f8f8"
+    borderWidth={1}
+    bg="white"
+  >
+    <XStack gap={15} style={{ alignItems: 'center' }}>
 
-  const onCouponClick = () => {
-    if (id) {
-      router.push(`/EasyUse/${id}`);
-    } else {
-      console.error('Coupon ID is undefined, cannot navigate.');
-    }
-  };
+      <Image
+        source={{
+          uri: imageUrl || 'https://api.iconify.design/material-symbols:storefront-rounded.svg?color=%23ffad31',
+          width: 64,
+          height: 64,
+        }}
+        style={{ borderRadius: 8 }}
+      />
 
-  return (
-    <TouchableOpacity
-      className="flex max-w-full shrink-0 flex-row items-start justify-start self-stretch drop-shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)]"
-      onPress={onCouponClick}
-      activeOpacity={0.7}>
-      <View className="relative box-border flex max-w-full flex-1 flex-row items-start justify-start px-2 pb-5 pt-[73px]">
-        <View className="bg-bg-white absolute bottom-[0px] left-[0px] right-[0px] top-[0px] !m-[0] h-full w-full rounded-xl" />
-
-        <Text className="font-jost text-sec-black absolute left-[119px] top-[32px] z-[2] text-xl font-bold leading-[22px] tracking-[-0.43px]">
-          {storeName || '店家名稱'}
+      <YStack gap={8}>
+        <Text fontSize={24} fontWeight="700" color="#000000">
+          {storeName}
         </Text>
 
-        <Text className="text-sec-black font-jost relative bottom-[5px] left-[111px] z-[1] w-[204px] text-xs leading-[23px] tracking-[-0.43px]">
-          {couponName || '優惠詳情'}
+        <Text color="#6b7280">
+          {description}
         </Text>
+      </YStack>
 
-        <View className="absolute left-[22px] top-[50%] z-[2] !m-[0] h-[70px] w-[70px] translate-y-[-50%]">
-          <Image
-            className="absolute bottom-[0%] left-[0%] right-[0%] top-[0%] h-full max-h-full w-full max-w-full overflow-hidden rounded-[8px] object-cover"
-            style={{ width: 70, height: 70 }}
-            source={{ uri: imageUrl || '/Info.png' }}
-            defaultSource={require('../../assets/Info.png')} // 提供本地預設圖片
-          />
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
+    </XStack>
+  </Card>
+);
 
-const EasyUse = () => {
+const CouPro = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
+  // Skipping backend state in placeholders mode
+  const [searchQuery, setSearchQuery] = useState('');
   const [coupons, setCoupons] = useState<CouponType[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategories, setActiveCategories] = useState<string[]>(['飲料', '麵']);
+
+  const categories = ['飲料', '中式', '麵', '衣服', '晚餐'];
+
   useEffect(() => {
     const searchParam = params.search as string;
     if (searchParam) {
       setSearchQuery(searchParam);
     }
-  }, []);
+  }, [params.search]);
 
-  // 拿優惠資料
+  // Fetch coupons from backend
   useEffect(() => {
     const fetchCoupons = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetchAPI('/store-coupons/', {
-          method: 'GET',
-        });
-
-        if (!Array.isArray(response.data)) {
-          console.error('API response is not an array:', response.data);
-          throw new Error('Unexpected API response format.');
+        const response = await fetchAPI('/store-coupons/', { method: 'GET' });
+        const data = response?.data ?? [];
+        if (!Array.isArray(data)) {
+          throw new Error('Unexpected API response format');
         }
-
-        const transformedCoupons = response.data.map((coupon: ApiCoupon) => ({
+        const transformed: CouponType[] = data.map((coupon: any) => ({
           id: coupon.id,
           storeName: coupon.store_name,
           couponName: coupon.coupon_name,
           description: coupon.coupon_detail,
           importantNotes: coupon.important_notes,
-          startDate: new Date(coupon.start_date),
-          expiryDate: new Date(coupon.expiry_date),
+          startDate: coupon.start_date ? new Date(coupon.start_date) : new Date(),
+          expiryDate: coupon.expiry_date ? new Date(coupon.expiry_date) : new Date(),
           couponType: coupon.coupon_type,
           sourceUser: coupon.source_user,
           storeId: coupon.store_id,
@@ -174,142 +147,210 @@ const EasyUse = () => {
           has_active_coupons: coupon.has_active_coupons,
           imageUrl: coupon.image_url,
         }));
-        setCoupons(transformedCoupons);
-
-        // Process store information
-        const storeDataMap = new Map<number, Store>();
-
-        transformedCoupons.forEach((coupon) => {
-          if (coupon.storeId && coupon.storeLocation) {
-            if (!storeDataMap.has(coupon.storeId)) {
-              storeDataMap.set(coupon.storeId, {
-                id: coupon.storeId,
-                name: coupon.storeName,
-                location: coupon.storeLocation,
-                address: coupon.address,
-                active_coupon_count: coupon.active_coupon_count,
-                has_active_coupons: coupon.has_active_coupons,
-              });
-            }
-          }
-        });
-
-        const storeList = Array.from(storeDataMap.values());
-        setStores(storeList);
-      } catch (err) {
+        setCoupons(transformed);
+      } catch (err: any) {
         console.error('Error fetching coupons:', err);
-        let errorMessage = '無法載入優惠券，請稍後再試。';
-
-        if (err instanceof Error) {
-          if (err.message.includes('401')) {
-            errorMessage = '請先登入或重新登入。';
-          } else {
-            errorMessage = `無法載入優惠券: ${err.message}`;
-          }
-        }
-
-        setError(errorMessage);
+        setError(err?.message || '載入失敗');
         setCoupons([]);
-        setStores([]);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchCoupons();
   }, [router]);
 
   const filteredCoupons = coupons.filter((coupon) => {
     return searchQuery
       ? coupon.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          coupon.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      coupon.description?.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
   });
 
-  const setStoreSearch = useCallback((storeName: string) => {
-    setSearchQuery(storeName);
-  }, []);
+  const toggleCategory = (category: string) => {
+    setActiveCategories(prev =>
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
 
   const onMenuIconClick = () => {
-    // In React Native, we don't have sessionStorage, use AsyncStorage instead
-    // For now, just navigate directly
     router.push('/OptionsMenu');
   };
 
-  const clearSearch = () => {
-    setSearchQuery('');
+  const onCouponPress = (couponId?: number) => {
+    if (couponId) {
+      router.push(`/EasyUse/${couponId}`);
+    } else {
+      console.error('Coupon ID is undefined, cannot navigate.');
+    }
   };
 
   return (
-    <SafeAreaView className="bg-bg-grey flex-1">
-      <ScrollView className="flex-1">
-        <View className="flex w-full flex-col items-end justify-start gap-[10px] px-[11px] pt-[35px]">
-          <PageHeader
-            title="隨取即用"
-            infoPopupTitle="什麼是隨取即用？"
-            infoPopupContent={
-              <View>
-                <Text className="mb-2 text-xs text-gray-700">
-                  「隨取即用」是 CouPro
-                  上的基本優惠類型，由店家提供，平台整理後讓所有用戶都能更快速方便的得知優惠資訊並直接使用。
-                </Text>
-              </View>
-            }
-            navbarProps={{ atCollection: true }}
-            sourcePage="/EasyUse"
-          />
+    <>
+      <Stack.Screen options={{ headerShown: true }} />
 
-          {/* Map section */}
-          <View className="box-border h-[300px] max-w-full shrink-0 self-stretch px-[19px] pb-2 pt-2">
-            {isLoading ? (
-              <View className="flex h-full w-full items-center justify-center rounded-xl bg-gray-100 p-4">
-                <ActivityIndicator size="large" color="#3B82F6" />
-                <Text className="mt-4 text-lg text-gray-500">載入地圖中...</Text>
-              </View>
-            ) : error ? (
-              <View className="flex h-full w-full items-center justify-center rounded-xl bg-gray-100 p-4">
-                <Text className="text-center text-red-500">{error}</Text>
-              </View>
-            ) : (
-              <MapComponent
-                stores={stores}
-                className="h-full w-full rounded-xl shadow-md"
-                setStoreSearch={setStoreSearch}
-              />
-            )}
-          </View>
+      <YStack flex={1}>
 
-          {/* Coupon list section */}
-          <View className="box-border flex max-w-full flex-col gap-[15px] self-stretch px-[19px] pb-2 pt-2">
-            {isLoading ? (
-              <View className="flex w-full items-center justify-center p-4">
-                <ActivityIndicator size="large" color="#3B82F6" />
-                <Text className="mt-4 text-lg text-gray-500">載入中...</Text>
-              </View>
-            ) : error ? (
-              <View className="flex w-full items-center justify-center p-4">
-                <Text className="text-center text-red-500">{error}</Text>
-              </View>
-            ) : filteredCoupons.length === 0 ? (
-              <View className="flex w-full items-center justify-center p-4">
-                <Text className="text-gray-500">目前沒有可用的優惠券。</Text>
-              </View>
-            ) : (
-              filteredCoupons.map((coupon) => (
-                <Coupon
-                  key={coupon.id}
-                  couponName={coupon.couponName}
-                  storeName={coupon.storeName}
-                  id={coupon.id}
-                  imageUrl={coupon.imageUrl}
-                />
-              ))
+        {/* Header */}
+        <YStack gap={15} style={{
+          backgroundColor: 'white',
+          paddingHorizontal: 15,
+          paddingVertical: 10,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 18,
+          elevation: 6, // for Android
+        }}>
+          <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <XStack gap={13} style={{ alignItems: 'center' }}>
+              <LogoIcon />
+              <H4 color="#000000" fontSize={24} fontWeight={'bold'}>
+                CouPro
+              </H4>
+            </XStack>
+
+            <TouchableOpacity onPress={onMenuIconClick} activeOpacity={0.7}>
+              <AlignJustify color='black' />
+            </TouchableOpacity>
+          </XStack>
+
+          {/* Search Bar */}
+          <XStack gap={12} style={{
+            backgroundColor: 'white',
+            borderColor: '#a8a8a8',
+            borderWidth: 1,
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            alignItems: 'center'
+          }}>
+            {/* <SearchIcon /> */}
+            <Search color='#a8a8a8' />
+            <Input
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder=""
+              style={{ flex: 1 }}
+              unstyled
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                <X color='#a8a8a8'></X>
+              </TouchableOpacity>
             )}
-          </View>
+          </XStack>
+
+          {/* Category Buttons */}
+          <XStack style={{ width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
+            {categories.map((category) => {
+              const isActive = activeCategories.includes(category);
+              return (
+                <Button
+                  key={category}
+                  size="$2"
+                  color='#1C1C1C'
+                  borderColor={isActive ? 'transparent' : '#a9a9a9'}
+                  style={{
+                    backgroundColor: isActive ? '#ffad31' : 'transparent',
+                    borderWidth: 1,
+                    height: 28,
+                    paddingHorizontal: 12,
+                    borderRadius: 5,
+                  }}
+                  onPress={() => toggleCategory(category)}
+                // pressStyle={{ opacity: 0.85 }}
+                >
+                  {category}
+                </Button>
+              );
+            })}
+            <Button
+              size="$2"
+              borderColor='#a9a9a9'
+              color="#9ca3af"
+              style={{
+                backgroundColor: 'transparent',
+                borderWidth: 1,
+                height: 28,
+                paddingHorizontal: 12,
+                borderRadius: 5,
+              }}
+              onPress={() => { /* TODO: add more handler if needed */ }}
+              pressStyle={{ opacity: 0.85 }}
+            >
+              <MoreHorizontalIcon />
+            </Button>
+          </XStack>
+
+        </YStack>
+
+        <View flex={1} gap={13}>
+          {/* Main Content */}
+          <ScrollView style={{ flex: 1 }}>
+
+            <YStack gap={13} style={{ paddingHorizontal: 13, paddingVertical: 30 }}>
+              {/* Feature Image */}
+              <MapComponent className='h-[200px]' />
+
+              {/* Coupon Cards */}
+              {isLoading ? (
+                <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                  <Text color="#6b7280">載入中…</Text>
+                </View>
+              ) : error ? (
+                <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                  <Text color="#ef4444">{error}</Text>
+                </View>
+              ) : filteredCoupons.length === 0 ? (
+                <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                  <Text color="#6b7280">目前沒有可用的優惠券。</Text>
+                </View>
+              ) : (
+                filteredCoupons.map((coupon) => (
+                  <CouponCard
+                    key={coupon.id}
+                    storeName={coupon.storeName}
+                    description={coupon.description}
+                    imageUrl={coupon.imageUrl}
+                    id={coupon.id}
+                    onPress={() => onCouponPress(coupon.id)}
+                  />
+                ))
+              )}
+            </YStack>
+          </ScrollView>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+
+        {/* Bottom Navigation */}
+        <XStack style={{
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 20,
+          paddingHorizontal: 30,
+          shadowColor: '#000000',
+          shadowOpacity: 0.08,
+          shadowRadius: 18,
+        }}
+          bg='white'
+
+        >
+          <TouchableOpacity activeOpacity={0.7}>
+            <Home color='#ffad31' />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7}>
+            <StretchHorizontal color='#a8a8a8' />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7}>
+            <BarChart2 color='#a8a8a8' />
+          </TouchableOpacity>
+        </XStack>
+
+      </YStack >
+
+    </>
   );
 };
 
-export default EasyUse;
+export default CouPro;
