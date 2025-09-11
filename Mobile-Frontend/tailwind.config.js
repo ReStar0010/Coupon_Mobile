@@ -11,6 +11,7 @@ module.exports = {
         'login-border': '#505050',
         'login-gray': '#333333',
         'login-light-gray': '#707070',
+        'bar-gray': '#E2E2E2',
         'login-orange': '#FFAD31',
         'toast-green': '#4CC38A',
         'toast-red': '#FF6369',

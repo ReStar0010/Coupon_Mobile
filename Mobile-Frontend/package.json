@@ -19,6 +19,8 @@
     "@tamagui/portal": "^1.132.16",
     "axios": "^1.10.0",
     "expo": "^53.0.16",
+    "expo-barcode-scanner": "^13.0.1",
+    "expo-camera": "~16.1.11",
     "expo-clipboard": "~7.1.5",
     "expo-constants": "~17.1.6",
     "expo-linking": "~7.1.6",
@@ -37,6 +39,7 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-svg": "^15.11.2",
+    "react-native-toast-message": "^2.3.3",
     "react-native-web": "^0.20.0",
     "react-native-web-maps": "^0.3.0",
     "tamagui": "^1.132.16"
