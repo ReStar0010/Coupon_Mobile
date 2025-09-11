@@ -32,6 +32,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 
 // node_modules/@babel/runtime/helpers/interopRequireDefault.js
 var require_interopRequireDefault = __commonJS({
+  "node_modules/@babel/runtime/helpers/interopRequireDefault.js"(exports2, module2) {
     function _interopRequireDefault(e) {
       return e && e.__esModule ? e : {
         "default": e
@@ -40,6 +41,190 @@ var require_interopRequireDefault = __commonJS({
     __name(_interopRequireDefault, "_interopRequireDefault");
     module2.exports = _interopRequireDefault, module2.exports.__esModule = true, module2.exports["default"] = module2.exports;
   }
+});
+
+// node_modules/react-native-web/dist/cjs/modules/AccessibilityUtil/isDisabled.js
+var require_isDisabled = __commonJS({
+  "node_modules/react-native-web/dist/cjs/modules/AccessibilityUtil/isDisabled.js"(exports2, module2) {
+    "use strict";
+    exports2.__esModule = true;
+    exports2.default = void 0;
+    var isDisabled = /* @__PURE__ */ __name((props) => props.disabled || Array.isArray(props.accessibilityStates) && props.accessibilityStates.indexOf("disabled") > -1, "isDisabled");
+    var _default = exports2.default = isDisabled;
+    module2.exports = exports2.default;
+  }
+});
+
+// node_modules/react-native-web/dist/cjs/modules/AccessibilityUtil/propsToAriaRole.js
+var require_propsToAriaRole = __commonJS({
+  "node_modules/react-native-web/dist/cjs/modules/AccessibilityUtil/propsToAriaRole.js"(exports2, module2) {
+    "use strict";
+    exports2.__esModule = true;
+    exports2.default = void 0;
+    var accessibilityRoleToWebRole = {
+      adjustable: "slider",
+      button: "button",
+      header: "heading",
+      image: "img",
+      imagebutton: null,
+      keyboardkey: null,
+      label: null,
+      link: "link",
+      none: "presentation",
+      search: "search",
+      summary: "region",
+      text: null
+    };
+    var propsToAriaRole = /* @__PURE__ */ __name((_ref) => {
+      var accessibilityRole = _ref.accessibilityRole, role = _ref.role;
+      var _role = role || accessibilityRole;
+      if (_role) {
+        var inferredRole = accessibilityRoleToWebRole[_role];
+        if (inferredRole !== null) {
+          return inferredRole || _role;
+        }
+      }
+    }, "propsToAriaRole");
+    var _default = exports2.default = propsToAriaRole;
+    module2.exports = exports2.default;
+  }
+});
+
+// node_modules/react-native-web/dist/cjs/modules/AccessibilityUtil/propsToAccessibilityComponent.js
+var require_propsToAccessibilityComponent = __commonJS({
+  "node_modules/react-native-web/dist/cjs/modules/AccessibilityUtil/propsToAccessibilityComponent.js"(exports2, module2) {
+    "use strict";
+    var _interopRequireDefault = require_interopRequireDefault().default;
+    exports2.__esModule = true;
+    exports2.default = void 0;
+    var _propsToAriaRole = _interopRequireDefault(require_propsToAriaRole());
+    var roleComponents = {
+      article: "article",
+      banner: "header",
+      blockquote: "blockquote",
+      button: "button",
+      code: "code",
+      complementary: "aside",
+      contentinfo: "footer",
+      deletion: "del",
+      emphasis: "em",
+      figure: "figure",
+      insertion: "ins",
+      form: "form",
+      list: "ul",
+      listitem: "li",
+      main: "main",
+      navigation: "nav",
+      paragraph: "p",
+      region: "section",
+      strong: "strong"
+    };
+    var emptyObject = {};
+    var propsToAccessibilityComponent = /* @__PURE__ */ __name(function propsToAccessibilityComponent2(props) {
+      if (props === void 0) {
+        props = emptyObject;
+      }
+      var roleProp = props.role || props.accessibilityRole;
+      if (roleProp === "label") {
+        return "label";
+      }
+      var role = (0, _propsToAriaRole.default)(props);
+      if (role) {
+        if (role === "heading") {
+          var level = props.accessibilityLevel || props["aria-level"];
+          if (level != null) {
+            return "h" + level;
+          }
+          return "h1";
+        }
+        return roleComponents[role];
+      }
+    }, "propsToAccessibilityComponent");
+    var _default = exports2.default = propsToAccessibilityComponent;
+    module2.exports = exports2.default;
+  }
+});
+
+// node_modules/react-native-web/dist/cjs/modules/AccessibilityUtil/index.js
+var require_AccessibilityUtil = __commonJS({
+  "node_modules/react-native-web/dist/cjs/modules/AccessibilityUtil/index.js"(exports2, module2) {
+    "use strict";
+    var _interopRequireDefault = require_interopRequireDefault().default;
+    exports2.__esModule = true;
+    exports2.default = void 0;
+    var _isDisabled = _interopRequireDefault(require_isDisabled());
+    var _propsToAccessibilityComponent = _interopRequireDefault(require_propsToAccessibilityComponent());
+    var _propsToAriaRole = _interopRequireDefault(require_propsToAriaRole());
+    var AccessibilityUtil = {
+      isDisabled: _isDisabled.default,
+      propsToAccessibilityComponent: _propsToAccessibilityComponent.default,
+      propsToAriaRole: _propsToAriaRole.default
+    };
+    var _default = exports2.default = AccessibilityUtil;
+    module2.exports = exports2.default;
+  }
+});
+
+// node_modules/@babel/runtime/helpers/typeof.js
+var require_typeof = __commonJS({
+  "node_modules/@babel/runtime/helpers/typeof.js"(exports2, module2) {
+    function _typeof(o) {
+      "@babel/helpers - typeof";
+      return module2.exports = _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o2) {
+        return typeof o2;
+      } : function(o2) {
+        return o2 && "function" == typeof Symbol && o2.constructor === Symbol && o2 !== Symbol.prototype ? "symbol" : typeof o2;
+      }, module2.exports.__esModule = true, module2.exports["default"] = module2.exports, _typeof(o);
+    }
+    __name(_typeof, "_typeof");
+    module2.exports = _typeof, module2.exports.__esModule = true, module2.exports["default"] = module2.exports;
+  }
+});
+
+// node_modules/@babel/runtime/helpers/toPrimitive.js
+var require_toPrimitive = __commonJS({
+  "node_modules/@babel/runtime/helpers/toPrimitive.js"(exports2, module2) {
+    var _typeof = require_typeof()["default"];
+    function toPrimitive(t2, r2) {
+      if ("object" != _typeof(t2) || !t2) return t2;
+      var e = t2[Symbol.toPrimitive];
+      if (void 0 !== e) {
+        var i = e.call(t2, r2 || "default");
+        if ("object" != _typeof(i)) return i;
+        throw new TypeError("@@toPrimitive must return a primitive value.");
+      }
+      return ("string" === r2 ? String : Number)(t2);
+    }
+    __name(toPrimitive, "toPrimitive");
+    module2.exports = toPrimitive, module2.exports.__esModule = true, module2.exports["default"] = module2.exports;
+  }
+});
+
+// node_modules/@babel/runtime/helpers/toPropertyKey.js
+var require_toPropertyKey = __commonJS({
+  "node_modules/@babel/runtime/helpers/toPropertyKey.js"(exports2, module2) {
+    var _typeof = require_typeof()["default"];
+    var toPrimitive = require_toPrimitive();
+    function toPropertyKey(t2) {
+      var i = toPrimitive(t2, "string");
+      return "symbol" == _typeof(i) ? i : i + "";
+    }
+    __name(toPropertyKey, "toPropertyKey");
+    module2.exports = toPropertyKey, module2.exports.__esModule = true, module2.exports["default"] = module2.exports;
+  }
+});
+
+// node_modules/@babel/runtime/helpers/defineProperty.js
+var require_defineProperty = __commonJS({
+  "node_modules/@babel/runtime/helpers/defineProperty.js"(exports2, module2) {
+    var toPropertyKey = require_toPropertyKey();
+    function _defineProperty(e, r2, t2) {
+      return (r2 = toPropertyKey(r2)) in e ? Object.defineProperty(e, r2, {
+        value: t2,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      }) : e[r2] = t2, e;
     }
     __name(_defineProperty, "_defineProperty");
     module2.exports = _defineProperty, module2.exports.__esModule = true, module2.exports["default"] = module2.exports;
@@ -174,7 +359,6 @@ var require_isWebColor = __commonJS({
     var _default = exports2.default = isWebColor;
     module2.exports = exports2.default;
   }
-<<<<<<< HEAD
 });
 
 // node_modules/react-native-web/node_modules/@react-native/normalize-colors/index.js
@@ -768,29 +952,6 @@ var require_normalizeColor = __commonJS({
     }, "normalizeColor");
     var _default = exports2.default = normalizeColor;
     module2.exports = exports2.default;
-=======
-};
-var ColorError$1 = ColorError;
-function parseToRgba(color) {
-  if (typeof color !== "string") throw new ColorError$1(color);
-  if (color.trim().toLowerCase() === "transparent") return [0, 0, 0, 0];
-  let normalizedColor = color.trim();
-  normalizedColor = namedColorRegex.test(color) ? nameToHex(color) : color;
-  const reducedHexMatch = reducedHexRegex.exec(normalizedColor);
-  if (reducedHexMatch) {
-    const arr = Array.from(reducedHexMatch).slice(1);
-    return [...arr.slice(0, 3).map((x) => parseInt(r(x, 2), 16)), parseInt(r(arr[3] || "f", 2), 16) / 255];
-  }
-  const hexMatch = hexRegex.exec(normalizedColor);
-  if (hexMatch) {
-    const arr = Array.from(hexMatch).slice(1);
-    return [...arr.slice(0, 3).map((x) => parseInt(x, 16)), parseInt(arr[3] || "ff", 16) / 255];
-  }
-  const rgbaMatch = rgbaRegex.exec(normalizedColor);
-  if (rgbaMatch) {
-    const arr = Array.from(rgbaMatch).slice(1);
-    return [...arr.slice(0, 3).map((x) => parseInt(x, 10)), parseFloat(arr[3] || "1")];
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e
   }
 });
 
@@ -827,7 +988,6 @@ var require_normalizeValueWithProperty = __commonJS({
     __name(normalizeValueWithProperty, "normalizeValueWithProperty");
     module2.exports = exports2.default;
   }
-<<<<<<< HEAD
 });
 
 // node_modules/react-native-web/dist/cjs/modules/canUseDom/index.js
@@ -1104,245 +1264,9 @@ var require_prefixProperty = __commonJS({
             style[prefixedProperty] = style[property];
           }
         }
-=======
-  throw new ColorError$1(color);
-}
-__name(parseToRgba, "parseToRgba");
-function hash(str) {
-  let hash2 = 5381;
-  let i = str.length;
-  while (i) {
-    hash2 = hash2 * 33 ^ str.charCodeAt(--i);
-  }
-  return (hash2 >>> 0) % 2341;
-}
-__name(hash, "hash");
-var colorToInt = /* @__PURE__ */ __name((x) => parseInt(x.replace(/_/g, ""), 36), "colorToInt");
-var compressedColorMap = "1q29ehhb 1n09sgk7 1kl1ekf_ _yl4zsno 16z9eiv3 1p29lhp8 _bd9zg04 17u0____ _iw9zhe5 _to73___ _r45e31e _7l6g016 _jh8ouiv _zn3qba8 1jy4zshs 11u87k0u 1ro9yvyo 1aj3xael 1gz9zjz0 _3w8l4xo 1bf1ekf_ _ke3v___ _4rrkb__ 13j776yz _646mbhl _nrjr4__ _le6mbhl 1n37ehkb _m75f91n _qj3bzfz 1939yygw 11i5z6x8 _1k5f8xs 1509441m 15t5lwgf _ae2th1n _tg1ugcv 1lp1ugcv 16e14up_ _h55rw7n _ny9yavn _7a11xb_ 1ih442g9 _pv442g9 1mv16xof 14e6y7tu 1oo9zkds 17d1cisi _4v9y70f _y98m8kc 1019pq0v 12o9zda8 _348j4f4 1et50i2o _8epa8__ _ts6senj 1o350i2o 1mi9eiuo 1259yrp0 1ln80gnw _632xcoy 1cn9zldc _f29edu4 1n490c8q _9f9ziet 1b94vk74 _m49zkct 1kz6s73a 1eu9dtog _q58s1rz 1dy9sjiq __u89jo3 _aj5nkwg _ld89jo3 13h9z6wx _qa9z2ii _l119xgq _bs5arju 1hj4nwk9 1qt4nwk9 1ge6wau6 14j9zlcw 11p1edc_ _ms1zcxe _439shk6 _jt9y70f _754zsow 1la40eju _oq5p___ _x279qkz 1fa5r3rv _yd2d9ip _424tcku _8y1di2_ _zi2uabw _yy7rn9h 12yz980_ __39ljp6 1b59zg0x _n39zfzp 1fy9zest _b33k___ _hp9wq92 1il50hz4 _io472ub _lj9z3eo 19z9ykg0 _8t8iu3a 12b9bl4a 1ak5yw0o _896v4ku _tb8k8lv _s59zi6t _c09ze0p 1lg80oqn 1id9z8wb _238nba5 1kq6wgdi _154zssg _tn3zk49 _da9y6tc 1sg7cv4f _r12jvtt 1gq5fmkz 1cs9rvci _lp9jn1c _xw1tdnb 13f9zje6 16f6973h _vo7ir40 _bt5arjf _rc45e4t _hr4e100 10v4e100 _hc9zke2 _w91egv_ _sj2r1kk 13c87yx8 _vqpds__ _ni8ggk8 _tj9yqfb 1ia2j4r4 _7x9b10u 1fc9ld4j 1eq9zldr _5j9lhpx _ez9zl6o _md61fzm".split(" ").reduce((acc, next) => {
-  const key = colorToInt(next.substring(0, 3));
-  const hex = colorToInt(next.substring(3)).toString(16);
-  let prefix = "";
-  for (let i = 0; i < 6 - hex.length; i++) {
-    prefix += "0";
-  }
-  acc[key] = `${prefix}${hex}`;
-  return acc;
-}, {});
-function nameToHex(color) {
-  const normalizedColorName = color.toLowerCase().trim();
-  const result = compressedColorMap[hash(normalizedColorName)];
-  if (!result) throw new ColorError$1(color);
-  return `#${result}`;
-}
-__name(nameToHex, "nameToHex");
-var r = /* @__PURE__ */ __name((str, amount) => Array.from(Array(amount)).map(() => str).join(""), "r");
-var reducedHexRegex = new RegExp(`^#${r("([a-f0-9])", 3)}([a-f0-9])?$`, "i");
-var hexRegex = new RegExp(`^#${r("([a-f0-9]{2})", 3)}([a-f0-9]{2})?$`, "i");
-var rgbaRegex = new RegExp(`^rgba?\\(\\s*(\\d+)\\s*${r(",\\s*(\\d+)\\s*", 2)}(?:,\\s*([\\d.]+))?\\s*\\)$`, "i");
-var hslaRegex = /^hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%(?:\s*,\s*([\d.]+))?\s*\)$/i;
-var namedColorRegex = /^[a-z]+$/i;
-var roundColor = /* @__PURE__ */ __name((color) => {
-  return Math.round(color * 255);
-}, "roundColor");
-var hslToRgb = /* @__PURE__ */ __name((hue, saturation, lightness) => {
-  let l = lightness / 100;
-  if (saturation === 0) {
-    return [l, l, l].map(roundColor);
-  }
-  const huePrime = (hue % 360 + 360) % 360 / 60;
-  const chroma = (1 - Math.abs(2 * l - 1)) * (saturation / 100);
-  const secondComponent = chroma * (1 - Math.abs(huePrime % 2 - 1));
-  let red = 0;
-  let green = 0;
-  let blue = 0;
-  if (huePrime >= 0 && huePrime < 1) {
-    red = chroma;
-    green = secondComponent;
-  } else if (huePrime >= 1 && huePrime < 2) {
-    red = secondComponent;
-    green = chroma;
-  } else if (huePrime >= 2 && huePrime < 3) {
-    green = chroma;
-    blue = secondComponent;
-  } else if (huePrime >= 3 && huePrime < 4) {
-    green = secondComponent;
-    blue = chroma;
-  } else if (huePrime >= 4 && huePrime < 5) {
-    red = secondComponent;
-    blue = chroma;
-  } else if (huePrime >= 5 && huePrime < 6) {
-    red = chroma;
-    blue = secondComponent;
-  }
-  const lightnessModification = l - chroma / 2;
-  const finalRed = red + lightnessModification;
-  const finalGreen = green + lightnessModification;
-  const finalBlue = blue + lightnessModification;
-  return [finalRed, finalGreen, finalBlue].map(roundColor);
-}, "hslToRgb");
-function parseToHsla(color) {
-  const [red, green, blue, alpha] = parseToRgba(color).map((value, index) => (
-    // 3rd index is alpha channel which is already normalized
-    index === 3 ? value : value / 255
-  ));
-  const max = Math.max(red, green, blue);
-  const min = Math.min(red, green, blue);
-  const lightness = (max + min) / 2;
-  if (max === min) return [0, 0, lightness, alpha];
-  const delta = max - min;
-  const saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-  const hue = 60 * (red === max ? (green - blue) / delta + (green < blue ? 6 : 0) : green === max ? (blue - red) / delta + 2 : (red - green) / delta + 4);
-  return [hue, saturation, lightness, alpha];
-}
-__name(parseToHsla, "parseToHsla");
-function hsla(hue, saturation, lightness, alpha) {
-  return `hsla(${(hue % 360).toFixed()}, ${guard(0, 100, saturation * 100).toFixed()}%, ${guard(0, 100, lightness * 100).toFixed()}%, ${parseFloat(guard(0, 1, alpha).toFixed(3))})`;
-}
-__name(hsla, "hsla");
-
-// node_modules/@tamagui/theme-builder/dist/esm/helpers.mjs
-var objectKeys = /* @__PURE__ */ __name((obj) => Object.keys(obj), "objectKeys");
-function objectFromEntries2(arr) {
-  return Object.fromEntries(arr);
-}
-__name(objectFromEntries2, "objectFromEntries");
-
-// node_modules/@tamagui/theme-builder/dist/esm/defaultTemplates.mjs
-var getTemplates = /* @__PURE__ */ __name(() => {
-  const lightTemplates = getBaseTemplates("light"), darkTemplates = getBaseTemplates("dark");
-  return {
-    ...objectFromEntries2(objectKeys(lightTemplates).map((name) => [`light_${name}`, lightTemplates[name]])),
-    ...objectFromEntries2(objectKeys(darkTemplates).map((name) => [`dark_${name}`, darkTemplates[name]]))
-  };
-}, "getTemplates");
-var getBaseTemplates = /* @__PURE__ */ __name((scheme) => {
-  const isLight = scheme === "light", bgIndex = 6, lighten = isLight ? -1 : 1, darken = -lighten, borderColor = bgIndex + 3, baseColors = {
-    color: -bgIndex,
-    colorHover: -bgIndex - 1,
-    colorPress: -bgIndex,
-    colorFocus: -bgIndex - 1,
-    placeholderColor: -bgIndex - 3,
-    outlineColor: -2
-  }, base = {
-    accentBackground: 0,
-    accentColor: -0,
-    background0: 1,
-    background02: 2,
-    background04: 3,
-    background06: 4,
-    background08: 5,
-    color1: bgIndex,
-    color2: bgIndex + 1,
-    color3: bgIndex + 2,
-    color4: bgIndex + 3,
-    color5: bgIndex + 4,
-    color6: bgIndex + 5,
-    color7: bgIndex + 6,
-    color8: bgIndex + 7,
-    color9: bgIndex + 8,
-    color10: bgIndex + 9,
-    color11: bgIndex + 10,
-    color12: bgIndex + 11,
-    color0: -1,
-    color02: -2,
-    color04: -3,
-    color06: -4,
-    color08: -5,
-    // the background, color, etc keys here work like generics - they make it so you
-    // can publish components for others to use without mandating a specific color scale
-    // the @tamagui/button Button component looks for `$background`, so you set the
-    // dark_red_Button theme to have a stronger background than the dark_red theme.
-    background: bgIndex,
-    backgroundHover: bgIndex + lighten,
-    // always lighten on hover no matter the scheme
-    backgroundPress: bgIndex + darken,
-    // always darken on press no matter the theme
-    backgroundFocus: bgIndex + darken,
-    borderColor,
-    borderColorHover: borderColor + lighten,
-    borderColorPress: borderColor + darken,
-    borderColorFocus: borderColor,
-    ...baseColors,
-    colorTransparent: -1
-  }, surface1 = {
-    ...baseColors,
-    background: base.background + 1,
-    backgroundHover: base.backgroundHover + 1,
-    backgroundPress: base.backgroundPress + 1,
-    backgroundFocus: base.backgroundFocus + 1,
-    borderColor: base.borderColor + 1,
-    borderColorHover: base.borderColorHover + 1,
-    borderColorFocus: base.borderColorFocus + 1,
-    borderColorPress: base.borderColorPress + 1
-  }, surface2 = {
-    ...baseColors,
-    background: base.background + 2,
-    backgroundHover: base.backgroundHover + 2,
-    backgroundPress: base.backgroundPress + 2,
-    backgroundFocus: base.backgroundFocus + 2,
-    borderColor: base.borderColor + 2,
-    borderColorHover: base.borderColorHover + 2,
-    borderColorFocus: base.borderColorFocus + 2,
-    borderColorPress: base.borderColorPress + 2
-  }, surface3 = {
-    ...baseColors,
-    background: base.background + 3,
-    backgroundHover: base.backgroundHover + 3,
-    backgroundPress: base.backgroundPress + 3,
-    backgroundFocus: base.backgroundFocus + 3,
-    borderColor: base.borderColor + 3,
-    borderColorHover: base.borderColorHover + 3,
-    borderColorFocus: base.borderColorFocus + 3,
-    borderColorPress: base.borderColorPress + 3
-  }, alt1 = {
-    color: base.color - 1,
-    colorHover: base.colorHover - 1,
-    colorPress: base.colorPress - 1,
-    colorFocus: base.colorFocus - 1
-  }, alt2 = {
-    color: base.color - 2,
-    colorHover: base.colorHover - 2,
-    colorPress: base.colorPress - 2,
-    colorFocus: base.colorFocus - 2
-  }, inverse = Object.fromEntries(Object.entries(base).map(([key, index]) => [key, -index]));
-  return {
-    base,
-    surface1,
-    surface2,
-    surface3,
-    alt1,
-    alt2,
-    inverse
-  };
-}, "getBaseTemplates");
-var defaultTemplates = getTemplates();
-
-// node_modules/@tamagui/theme-builder/dist/esm/getThemeSuitePalettes.mjs
-var paletteSize = 12;
-var generateColorPalette = /* @__PURE__ */ __name(({
-  palette: buildPalette,
-  scheme
-}) => {
-  if (!buildPalette) return [];
-  const {
-    anchors
-  } = buildPalette;
-  let palette = [];
-  const add = /* @__PURE__ */ __name((h, s, l) => {
-    palette.push(hsla(h, s, l, 1));
-  }, "add"), numAnchors = Object.keys(anchors).length;
-  for (const [anchorIndex, anchor] of anchors.entries()) {
-    const [h, s, l] = [anchor.hue[scheme], anchor.sat[scheme], anchor.lum[scheme]];
-    if (anchorIndex !== 0) {
-      const lastAnchor = anchors[anchorIndex - 1], steps = anchor.index - lastAnchor.index, lastHue = lastAnchor.hue[scheme], lastSat = lastAnchor.sat[scheme], lastLum = lastAnchor.lum[scheme], stepHue = (lastHue - h) / steps, stepSat = (lastSat - s) / steps, stepLum = (lastLum - l) / steps;
-      for (let step = lastAnchor.index + 1; step < anchor.index; step++) {
-        const str = anchor.index - step;
-        add(h + stepHue * str, s + stepSat * str, l + stepLum * str);
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e
       }
       return style;
     }
-<<<<<<< HEAD
     __name(prefixProperty, "prefixProperty");
   }
 });
@@ -22291,418 +22215,6 @@ var masks = {
   })
 };
 
-=======
-    if (add(h, s, l), anchorIndex === numAnchors - 1 && palette.length < paletteSize) for (let step = anchor.index + 1; step < paletteSize; step++) add(h, s, l);
-  }
-  const background = palette[0], foreground = palette[palette.length - 1], transparentValues = [background, foreground].map((color) => {
-    const [h, s, l] = parseToHsla(color);
-    return [hsla(h, s, l, 0), hsla(h, s, l, 0.2), hsla(h, s, l, 0.4), hsla(h, s, l, 0.6), hsla(h, s, l, 0.8)];
-  }), reverseForeground = [...transparentValues[1]].reverse();
-  return palette = [...transparentValues[0], ...palette, ...reverseForeground], palette;
-}, "generateColorPalette");
-function getThemeSuitePalettes(palette) {
-  return {
-    light: generateColorPalette({
-      palette,
-      scheme: "light"
-    }),
-    dark: generateColorPalette({
-      palette,
-      scheme: "dark"
-    })
-  };
-}
-__name(getThemeSuitePalettes, "getThemeSuitePalettes");
-
-// node_modules/@tamagui/theme-builder/dist/esm/createThemes.mjs
-var defaultPalettes = createPalettes(getThemesPalettes({
-  base: {
-    palette: ["#fff", "#000"]
-  },
-  accent: {
-    palette: ["#ff0000", "#ff9999"]
-  }
-}));
-function getSchemePalette(colors2) {
-  return {
-    light: colors2,
-    dark: [...colors2].reverse()
-  };
-}
-__name(getSchemePalette, "getSchemePalette");
-function getAnchors(palette) {
-  const numItems = palette.light.length;
-  return palette.light.map((lcolor, index) => {
-    const dcolor = palette.dark[index], [lhue, lsat, llum] = parseToHsla(lcolor), [dhue, dsat, dlum] = parseToHsla(dcolor);
-    return {
-      index: spreadIndex(11, numItems, index),
-      hue: {
-        light: lhue,
-        dark: dhue
-      },
-      sat: {
-        light: lsat,
-        dark: dsat
-      },
-      lum: {
-        light: llum,
-        dark: dlum
-      }
-    };
-  });
-}
-__name(getAnchors, "getAnchors");
-function spreadIndex(maxIndex, numItems, index) {
-  return Math.round(index / (numItems - 1) * maxIndex);
-}
-__name(spreadIndex, "spreadIndex");
-function coerceSimplePaletteToSchemePalette(def) {
-  return Array.isArray(def) ? getSchemePalette(def) : def;
-}
-__name(coerceSimplePaletteToSchemePalette, "coerceSimplePaletteToSchemePalette");
-function getThemesPalettes(props) {
-  const base = coerceSimplePaletteToSchemePalette(props.base.palette), accent = props.accent ? coerceSimplePaletteToSchemePalette(props.accent.palette) : null, baseAnchors = getAnchors(base);
-  function getSubThemesPalettes(defs) {
-    return Object.fromEntries(Object.entries(defs).map(([key, value]) => [key, {
-      name: key,
-      anchors: value.palette ? getAnchors(coerceSimplePaletteToSchemePalette(value.palette)) : baseAnchors
-    }]));
-  }
-  __name(getSubThemesPalettes, "getSubThemesPalettes");
-  return {
-    base: {
-      name: "base",
-      anchors: baseAnchors
-    },
-    ...accent && {
-      accent: {
-        name: "accent",
-        anchors: getAnchors(accent)
-      }
-    },
-    ...props.childrenThemes && getSubThemesPalettes(props.childrenThemes),
-    ...props.grandChildrenThemes && getSubThemesPalettes(props.grandChildrenThemes)
-  };
-}
-__name(getThemesPalettes, "getThemesPalettes");
-function createPalettes(palettes) {
-  const accentPalettes = palettes.accent ? getThemeSuitePalettes(palettes.accent) : null, basePalettes = getThemeSuitePalettes(palettes.base);
-  return Object.fromEntries(Object.entries(palettes).flatMap(([name, palette]) => {
-    const palettes2 = getThemeSuitePalettes(palette), oppositePalettes = name.startsWith("accent") ? basePalettes : accentPalettes || basePalettes;
-    if (!oppositePalettes) return [];
-    const oppositeLight = oppositePalettes.light, oppositeDark = oppositePalettes.dark, bgOffset = 7;
-    return [[name === "base" ? "light" : `light_${name}`, [oppositeLight[bgOffset], ...palettes2.light, oppositeLight[oppositeLight.length - bgOffset - 1]]], [name === "base" ? "dark" : `dark_${name}`, [oppositeDark[oppositeDark.length - bgOffset - 1], ...palettes2.dark, oppositeDark[bgOffset]]]];
-  }));
-}
-__name(createPalettes, "createPalettes");
-
-// node_modules/@tamagui/theme-builder/dist/esm/defaultTemplatesStronger.mjs
-var getTemplates2 = /* @__PURE__ */ __name(() => {
-  const lightTemplates = getBaseTemplates2("light"), darkTemplates = getBaseTemplates2("dark");
-  return {
-    ...objectFromEntries2(objectKeys(lightTemplates).map((name) => [`light_${name}`, lightTemplates[name]])),
-    ...objectFromEntries2(objectKeys(darkTemplates).map((name) => [`dark_${name}`, darkTemplates[name]]))
-  };
-}, "getTemplates");
-var getBaseTemplates2 = /* @__PURE__ */ __name((scheme) => {
-  const isLight = scheme === "light", bgIndex = 6, lighten = isLight ? -1 : 1, darken = -lighten, borderColor = bgIndex + 3, baseColors = {
-    color: -bgIndex,
-    colorHover: -bgIndex - 1,
-    colorPress: -bgIndex,
-    colorFocus: -bgIndex - 1,
-    placeholderColor: -bgIndex - 3,
-    outlineColor: -2
-  }, base = {
-    accentBackground: 0,
-    accentColor: -0,
-    background0: 1,
-    background02: 2,
-    background04: 3,
-    background06: 4,
-    background08: 5,
-    color1: bgIndex,
-    color2: bgIndex + 1,
-    color3: bgIndex + 2,
-    color4: bgIndex + 3,
-    color5: bgIndex + 4,
-    color6: bgIndex + 5,
-    color7: bgIndex + 6,
-    color8: bgIndex + 7,
-    color9: bgIndex + 8,
-    color10: bgIndex + 9,
-    color11: bgIndex + 10,
-    color12: bgIndex + 11,
-    color0: -1,
-    color02: -2,
-    color04: -3,
-    color06: -4,
-    color08: -5,
-    // the background, color, etc keys here work like generics - they make it so you
-    // can publish components for others to use without mandating a specific color scale
-    // the @tamagui/button Button component looks for `$background`, so you set the
-    // dark_red_Button theme to have a stronger background than the dark_red theme.
-    background: bgIndex,
-    backgroundHover: bgIndex + lighten,
-    // always lighten on hover no matter the scheme
-    backgroundPress: bgIndex + darken,
-    // always darken on press no matter the theme
-    backgroundFocus: bgIndex + darken,
-    borderColor,
-    borderColorHover: borderColor + lighten,
-    borderColorPress: borderColor + darken,
-    borderColorFocus: borderColor,
-    ...baseColors,
-    colorTransparent: -1
-  }, surface1 = {
-    ...baseColors,
-    background: base.background + 2,
-    backgroundHover: base.backgroundHover + 2,
-    backgroundPress: base.backgroundPress + 2,
-    backgroundFocus: base.backgroundFocus + 2,
-    borderColor: base.borderColor + 2,
-    borderColorHover: base.borderColorHover + 2,
-    borderColorFocus: base.borderColorFocus + 2,
-    borderColorPress: base.borderColorPress + 2
-  }, surface2 = {
-    ...baseColors,
-    background: base.background + 3,
-    backgroundHover: base.backgroundHover + 3,
-    backgroundPress: base.backgroundPress + 3,
-    backgroundFocus: base.backgroundFocus + 3,
-    borderColor: base.borderColor + 3,
-    borderColorHover: base.borderColorHover + 3,
-    borderColorFocus: base.borderColorFocus + 3,
-    borderColorPress: base.borderColorPress + 3
-  }, surface3 = {
-    ...baseColors,
-    background: base.background + 4,
-    backgroundHover: base.backgroundHover + 4,
-    backgroundPress: base.backgroundPress + 4,
-    backgroundFocus: base.backgroundFocus + 4,
-    borderColor: base.borderColor + 4,
-    borderColorHover: base.borderColorHover + 4,
-    borderColorFocus: base.borderColorFocus + 4,
-    borderColorPress: base.borderColorPress + 4
-  }, alt1 = {
-    color: base.color - 1,
-    colorHover: base.colorHover - 1,
-    colorPress: base.colorPress - 1,
-    colorFocus: base.colorFocus - 1
-  }, alt2 = {
-    color: base.color - 2,
-    colorHover: base.colorHover - 2,
-    colorPress: base.colorPress - 2,
-    colorFocus: base.colorFocus - 2
-  }, inverse = Object.fromEntries(Object.entries(base).map(([key, index]) => [key, -index]));
-  return {
-    base,
-    surface1,
-    surface2,
-    surface3,
-    alt1,
-    alt2,
-    inverse
-  };
-}, "getBaseTemplates");
-var defaultTemplatesStronger = getTemplates2();
-
-// node_modules/@tamagui/theme-builder/dist/esm/defaultTemplatesStrongest.mjs
-var getTemplates3 = /* @__PURE__ */ __name(() => {
-  const lightTemplates = getBaseTemplates3("light"), darkTemplates = getBaseTemplates3("dark");
-  return {
-    ...objectFromEntries2(objectKeys(lightTemplates).map((name) => [`light_${name}`, lightTemplates[name]])),
-    ...objectFromEntries2(objectKeys(darkTemplates).map((name) => [`dark_${name}`, darkTemplates[name]]))
-  };
-}, "getTemplates");
-var getBaseTemplates3 = /* @__PURE__ */ __name((scheme) => {
-  const isLight = scheme === "light", bgIndex = 6, lighten = isLight ? -1 : 1, darken = -lighten, borderColor = bgIndex + 3, baseColors = {
-    color: -bgIndex,
-    colorHover: -bgIndex - 1,
-    colorPress: -bgIndex,
-    colorFocus: -bgIndex - 1,
-    placeholderColor: -bgIndex - 3,
-    outlineColor: -2
-  }, base = {
-    accentBackground: 0,
-    accentColor: -0,
-    background0: 1,
-    background02: 2,
-    background04: 3,
-    background06: 4,
-    background08: 5,
-    color1: bgIndex,
-    color2: bgIndex + 1,
-    color3: bgIndex + 2,
-    color4: bgIndex + 3,
-    color5: bgIndex + 4,
-    color6: bgIndex + 5,
-    color7: bgIndex + 6,
-    color8: bgIndex + 7,
-    color9: bgIndex + 8,
-    color10: bgIndex + 9,
-    color11: bgIndex + 10,
-    color12: bgIndex + 11,
-    color0: -1,
-    color02: -2,
-    color04: -3,
-    color06: -4,
-    color08: -5,
-    // the background, color, etc keys here work like generics - they make it so you
-    // can publish components for others to use without mandating a specific color scale
-    // the @tamagui/button Button component looks for `$background`, so you set the
-    // dark_red_Button theme to have a stronger background than the dark_red theme.
-    background: bgIndex,
-    backgroundHover: bgIndex + lighten,
-    // always lighten on hover no matter the scheme
-    backgroundPress: bgIndex + darken,
-    // always darken on press no matter the theme
-    backgroundFocus: bgIndex + darken,
-    borderColor,
-    borderColorHover: borderColor + lighten,
-    borderColorPress: borderColor + darken,
-    borderColorFocus: borderColor,
-    ...baseColors,
-    colorTransparent: -1
-  }, surface1 = {
-    ...baseColors,
-    background: base.background + 3,
-    backgroundHover: base.backgroundHover + 3,
-    backgroundPress: base.backgroundPress + 3,
-    backgroundFocus: base.backgroundFocus + 3,
-    borderColor: base.borderColor + 3,
-    borderColorHover: base.borderColorHover + 3,
-    borderColorFocus: base.borderColorFocus + 3,
-    borderColorPress: base.borderColorPress + 3
-  }, surface2 = {
-    ...baseColors,
-    background: base.background + 4,
-    backgroundHover: base.backgroundHover + 4,
-    backgroundPress: base.backgroundPress + 4,
-    backgroundFocus: base.backgroundFocus + 4,
-    borderColor: base.borderColor + 4,
-    borderColorHover: base.borderColorHover + 4,
-    borderColorFocus: base.borderColorFocus + 4,
-    borderColorPress: base.borderColorPress + 4
-  }, surface3 = {
-    ...baseColors,
-    background: base.background + 5,
-    backgroundHover: base.backgroundHover + 5,
-    backgroundPress: base.backgroundPress + 5,
-    backgroundFocus: base.backgroundFocus + 5,
-    borderColor: base.borderColor + 5,
-    borderColorHover: base.borderColorHover + 5,
-    borderColorFocus: base.borderColorFocus + 5,
-    borderColorPress: base.borderColorPress + 5
-  }, alt1 = {
-    color: base.color - 1,
-    colorHover: base.colorHover - 1,
-    colorPress: base.colorPress - 1,
-    colorFocus: base.colorFocus - 1
-  }, alt2 = {
-    color: base.color - 2,
-    colorHover: base.colorHover - 2,
-    colorPress: base.colorPress - 2,
-    colorFocus: base.colorFocus - 2
-  }, inverse = Object.fromEntries(Object.entries(base).map(([key, index]) => [key, -index]));
-  return {
-    base,
-    surface1,
-    surface2,
-    surface3,
-    alt1,
-    alt2,
-    inverse
-  };
-}, "getBaseTemplates");
-var defaultTemplatesStrongest = getTemplates3();
-
-// node_modules/@tamagui/theme-builder/dist/esm/masks.mjs
-var masks = {
-  identity: createIdentityMask(),
-  soften: createSoftenMask(),
-  soften2: createSoftenMask({
-    strength: 2
-  }),
-  soften3: createSoftenMask({
-    strength: 3
-  }),
-  strengthen: createStrengthenMask(),
-  inverse: createInverseMask(),
-  inverseSoften: combineMasks(createInverseMask(), createSoftenMask({
-    strength: 2
-  })),
-  inverseSoften2: combineMasks(createInverseMask(), createSoftenMask({
-    strength: 3
-  })),
-  inverseSoften3: combineMasks(createInverseMask(), createSoftenMask({
-    strength: 4
-  })),
-  inverseStrengthen2: combineMasks(createInverseMask(), createStrengthenMask({
-    strength: 2
-  })),
-  strengthenButSoftenBorder: createMask((template, options) => {
-    const stronger = createStrengthenMask().mask(template, options), softer = createSoftenMask().mask(template, options);
-    return {
-      ...stronger,
-      borderColor: softer.borderColor,
-      borderColorHover: softer.borderColorHover,
-      borderColorPress: softer.borderColorPress,
-      borderColorFocus: softer.borderColorFocus
-    };
-  }),
-  soften2Border1: createMask((template, options) => {
-    const softer2 = createSoftenMask({
-      strength: 2
-    }).mask(template, options), softer1 = createSoftenMask({
-      strength: 1
-    }).mask(template, options);
-    return {
-      ...softer2,
-      borderColor: softer1.borderColor,
-      borderColorHover: softer1.borderColorHover,
-      borderColorPress: softer1.borderColorPress,
-      borderColorFocus: softer1.borderColorFocus
-    };
-  }),
-  soften3FlatBorder: createMask((template, options) => {
-    const borderMask = createSoftenMask({
-      strength: 2
-    }).mask(template, options);
-    return {
-      ...createSoftenMask({
-        strength: 3
-      }).mask(template, options),
-      borderColor: borderMask.borderColor,
-      borderColorHover: borderMask.borderColorHover,
-      borderColorPress: borderMask.borderColorPress,
-      borderColorFocus: borderMask.borderColorFocus
-    };
-  }),
-  softenBorder: createMask((template, options) => {
-    const plain = skipMask.mask(template, options), softer = createSoftenMask().mask(template, options);
-    return {
-      ...plain,
-      borderColor: softer.borderColor,
-      borderColorHover: softer.borderColorHover,
-      borderColorPress: softer.borderColorPress,
-      borderColorFocus: softer.borderColorFocus
-    };
-  }),
-  softenBorder2: createMask((template, options) => {
-    const plain = skipMask.mask(template, options), softer = createSoftenMask({
-      strength: 2
-    }).mask(template, options);
-    return {
-      ...plain,
-      borderColor: softer.borderColor,
-      borderColorHover: softer.borderColorHover,
-      borderColorPress: softer.borderColorPress,
-      borderColorFocus: softer.borderColorFocus
-    };
-  })
-};
-
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e
 // node_modules/@tamagui/themes/dist/esm/generated-v4.mjs
 function t(a) {
   let res = {};
@@ -23083,7 +22595,6 @@ var themes = {
   dark_green_SliderThumb: n66,
   dark_green_Tooltip: n66,
   dark_green_ProgressIndicator: n66
-<<<<<<< HEAD
 };
 
 // node_modules/@tamagui/constants/dist/esm/constants.mjs
@@ -30805,8 +30316,6 @@ function debounce(func, wait, leading) {
 __name(debounce, "debounce");
 var defaultOpts = {
   leading: false
-=======
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e
 };
 function useDebounce(fn, wait, options = defaultOpts, mountArgs = [fn]) {
   const dbEffect = React30.useRef(null);
@@ -30816,7 +30325,6 @@ function useDebounce(fn, wait, options = defaultOpts, mountArgs = [fn]) {
 }
 __name(useDebounce, "useDebounce");
 
-<<<<<<< HEAD
 // node_modules/@tamagui/select/dist/esm/Select.mjs
 var React37 = __toESM(require("react"), 1);
 
@@ -31386,96 +30894,6 @@ var SelectTrigger = React36.forwardRef(function(props, forwardedRef) {
       },
       borderWidth: 1,
       size: itemParentContext.size
-=======
-// node_modules/@tamagui/constants/dist/esm/constants.mjs
-var import_react = require("react");
-var import_react2 = require("react");
-var isWeb = true;
-var isWindowDefined = typeof window < "u";
-var isServer = isWeb && !isWindowDefined;
-var isClient = isWeb && isWindowDefined;
-var useIsomorphicLayoutEffect = isServer ? import_react.useEffect : import_react.useLayoutEffect;
-var isChrome = typeof navigator < "u" && /Chrome/.test(navigator.userAgent || "");
-var isWebTouchable = isClient && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
-var isIos = process.env.TEST_NATIVE_PLATFORM === "ios";
-
-// node_modules/@tamagui/use-presence/dist/esm/PresenceContext.mjs
-var React = __toESM(require("react"), 1);
-var import_jsx_runtime = require("react/jsx-runtime");
-var PresenceContext = React.createContext(null);
-var ResetPresence = /* @__PURE__ */ __name((props) => {
-  const parent = React.useContext(PresenceContext);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PresenceContext.Provider, {
-    value: props.disable ? parent : null,
-    children: props.children
-  });
-}, "ResetPresence");
-
-// node_modules/@tamagui/use-presence/dist/esm/usePresence.mjs
-var React2 = __toESM(require("react"), 1);
-function usePresence() {
-  const context = React2.useContext(PresenceContext);
-  if (!context) return [true, null, context];
-  const {
-    id,
-    isPresent: isPresent2,
-    onExitComplete,
-    register
-  } = context;
-  return React2.useEffect(() => register(id), []), !isPresent2 && onExitComplete ? [false, () => onExitComplete?.(id), context] : [true, void 0, context];
-}
-__name(usePresence, "usePresence");
-
-// node_modules/@tamagui/animations-css/dist/esm/createAnimations.mjs
-var import_web = require("@tamagui/core");
-var import_react3 = __toESM(require("react"), 1);
-function extractDuration(animation) {
-  const msMatch = animation.match(/(\d+(?:\.\d+)?)\s*ms/);
-  if (msMatch) return Number.parseInt(msMatch[1], 10);
-  const sMatch = animation.match(/(\d+(?:\.\d+)?)\s*s/);
-  return sMatch ? Math.round(Number.parseFloat(sMatch[1]) * 1e3) : 300;
-}
-__name(extractDuration, "extractDuration");
-function createAnimations(animations) {
-  const reactionListeners = /* @__PURE__ */ new WeakMap();
-  return {
-    animations,
-    usePresence,
-    ResetPresence,
-    supportsCSS: true,
-    useAnimatedNumber(initial) {
-      const [val, setVal] = import_react3.default.useState(initial), [onFinish, setOnFinish] = (0, import_react3.useState)();
-      return useIsomorphicLayoutEffect(() => {
-        onFinish && (onFinish?.(), setOnFinish(void 0));
-      }, [onFinish]), {
-        getInstance() {
-          return setVal;
-        },
-        getValue() {
-          return val;
-        },
-        setValue(next, config, onFinish2) {
-          setVal(next), setOnFinish(onFinish2);
-        },
-        stop() {
-        }
-      };
-    },
-    useAnimatedNumberReaction({
-      value
-    }, onValue) {
-      import_react3.default.useEffect(() => {
-        const instance = value.getInstance();
-        let queue = reactionListeners.get(instance);
-        if (!queue) {
-          const next = /* @__PURE__ */ new Set();
-          reactionListeners.set(instance, next), queue = next;
-        }
-        return queue.add(onValue), () => {
-          queue?.delete(onValue);
-        };
-      }, []);
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e
     },
     "aria-expanded": context.open,
     "aria-autocomplete": "none",
@@ -31519,7 +30937,6 @@ var SelectViewportFrame = (0, import_core21.styled)(ThemeableStack, {
         outlineWidth: 0
       }
     },
-<<<<<<< HEAD
     size: {
       "...size": /* @__PURE__ */ __name((val, {
         tokens: tokens3
@@ -31929,205 +31346,6 @@ var initialValue = {
   height: 600,
   scale: 1,
   fontScale: 1
-=======
-    useAnimations: /* @__PURE__ */ __name(({
-      props,
-      presence,
-      style,
-      componentState,
-      stateRef
-    }) => {
-      const isEntering = !!componentState.unmounted, isExiting = presence?.[0] === false, sendExitComplete = presence?.[1], [animationKey, animationConfig] = Array.isArray(props.animation) ? props.animation : [props.animation], animation = animations[animationKey], keys = props.animateOnly ?? ["all"];
-      return useIsomorphicLayoutEffect(() => {
-        const host = stateRef.current.host;
-        if (!sendExitComplete || !isExiting || !host) return;
-        const node = host, fallbackTimeout = animation ? extractDuration(animation) : 200, timeoutId = setTimeout(() => {
-          sendExitComplete?.();
-        }, fallbackTimeout), onFinishAnimation = /* @__PURE__ */ __name(() => {
-          clearTimeout(timeoutId), sendExitComplete?.();
-        }, "onFinishAnimation");
-        return node.addEventListener("transitionend", onFinishAnimation), node.addEventListener("transitioncancel", onFinishAnimation), () => {
-          clearTimeout(timeoutId), node.removeEventListener("transitionend", onFinishAnimation), node.removeEventListener("transitioncancel", onFinishAnimation);
-        };
-      }, [sendExitComplete, isExiting]), animation && (Array.isArray(style.transform) && (style.transform = (0, import_web.transformsToString)(style.transform)), style.transition = keys.map((key) => {
-        const override = animations[animationConfig?.[key]] ?? animation;
-        return `${key} ${override}`;
-      }).join(", ")), process.env.NODE_ENV === "development" && props.debug === "verbose" && console.info("CSS animation", {
-        props,
-        animations,
-        animation,
-        animationKey,
-        style,
-        isEntering,
-        isExiting
-      }), animation ? {
-        style,
-        className: isEntering ? "t_unmounted" : ""
-      } : null;
-    }, "useAnimations")
-  };
-}
-__name(createAnimations, "createAnimations");
-
-// node_modules/@tamagui/config/dist/esm/animationsCSS.mjs
-var smoothBezier = "cubic-bezier(0.215, 0.610, 0.355, 1.000)";
-var animationsCSS = createAnimations({
-  "75ms": "ease-in 75ms",
-  "100ms": "ease-in 100ms",
-  "200ms": "ease-in 200ms",
-  bouncy: "ease-in 200ms",
-  superBouncy: "ease-in 500ms",
-  lazy: "ease-in 1000ms",
-  medium: "ease-in 300ms",
-  slow: "ease-in 500ms",
-  quick: `${smoothBezier} 400ms`,
-  quicker: `${smoothBezier} 300ms`,
-  quickest: `${smoothBezier} 200ms`,
-  tooltip: "ease-in 400ms"
-});
-
-// node_modules/@tamagui/config/dist/esm/v4-fonts.mjs
-var import_core = require("@tamagui/core");
-var createSystemFont = /* @__PURE__ */ __name(({
-  font = {},
-  sizeLineHeight = /* @__PURE__ */ __name((size2) => size2 + 10, "sizeLineHeight"),
-  sizeSize = /* @__PURE__ */ __name((size2) => size2 * 1, "sizeSize")
-} = {}) => {
-  const size2 = Object.fromEntries(Object.entries({
-    ...defaultSizes,
-    ...font.size
-  }).map(([k, v]) => [k, sizeSize(+v)]));
-  return (0, import_core.createFont)({
-    family: import_core.isWeb ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' : "System",
-    lineHeight: Object.fromEntries(Object.entries(size2).map(([k, v]) => [k, sizeLineHeight((0, import_core.getVariableValue)(v))])),
-    weight: {
-      4: "300"
-    },
-    letterSpacing: {
-      4: 0
-    },
-    ...font,
-    size: size2
-  });
-}, "createSystemFont");
-var defaultSizes = {
-  1: 11,
-  2: 12,
-  3: 13,
-  4: 14,
-  true: 14,
-  5: 16,
-  6: 18,
-  7: 20,
-  8: 23,
-  9: 30,
-  10: 46,
-  11: 55,
-  12: 62,
-  13: 72,
-  14: 92,
-  15: 114,
-  16: 134
-};
-var fonts = {
-  body: createSystemFont(),
-  heading: createSystemFont({
-    sizeSize: /* @__PURE__ */ __name((n) => n * 1.4, "sizeSize")
-  })
-};
-
-// node_modules/@tamagui/config/dist/esm/v4-media.mjs
-var breakpoints = {
-  "2xl": 1536,
-  xl: 1280,
-  lg: 1024,
-  md: 768,
-  sm: 640,
-  xs: 460,
-  "2xs": 340
-};
-var media = {
-  maxXs: {
-    maxWidth: breakpoints.xs
-  },
-  max2xs: {
-    maxWidth: breakpoints["2xs"]
-  },
-  maxSm: {
-    maxWidth: breakpoints.sm
-  },
-  maxMd: {
-    maxWidth: breakpoints.md
-  },
-  maxLg: {
-    maxWidth: breakpoints.lg
-  },
-  maxXl: {
-    maxWidth: breakpoints.xl
-  },
-  max2Xl: {
-    maxWidth: breakpoints["2xl"]
-  },
-  // for site
-  "2xl": {
-    minWidth: breakpoints["2xl"]
-  },
-  xl: {
-    minWidth: breakpoints.xl
-  },
-  lg: {
-    minWidth: breakpoints.lg
-  },
-  md: {
-    minWidth: breakpoints.md
-  },
-  sm: {
-    minWidth: breakpoints.sm
-  },
-  xs: {
-    minWidth: breakpoints.xs
-  },
-  "2xs": {
-    minWidth: breakpoints["2xs"]
-  }
-};
-var mediaQueryDefaultActive = {
-  "2xl": false,
-  xl: false,
-  lg: false,
-  md: false,
-  sm: false,
-  xs: true,
-  "2xs": true
-};
-
-// node_modules/@tamagui/config/dist/esm/v4.mjs
-var selectionStyles = /* @__PURE__ */ __name((theme) => theme.color5 ? {
-  backgroundColor: theme.color5,
-  color: theme.color11
-} : null, "selectionStyles");
-var settings = {
-  mediaQueryDefaultActive,
-  defaultFont: "body",
-  fastSchemeChange: true,
-  shouldAddPrefersColorThemes: true,
-  allowedStyleValues: "somewhat-strict-web",
-  themeClassNameOnRoot: true,
-  onlyAllowShorthands: true,
-  // allow two inverses (tooltips, etc)
-  // TODO on inverse theme changes
-  maxDarkLightNesting: 2
-};
-var defaultConfig = {
-  animations: animationsCSS,
-  media,
-  shorthands,
-  themes,
-  tokens,
-  fonts,
-  selectionStyles,
-  settings
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e
 };
 
 // node_modules/@tamagui/use-window-dimensions/dist/esm/helpers.mjs
@@ -32161,21 +31379,12 @@ if (isClient) {
 }
 
 // node_modules/tamagui/dist/esm/createTamagui.mjs
-<<<<<<< HEAD
 var import_core23 = require("@tamagui/core");
 var createTamagui = process.env.NODE_ENV !== "development" ? import_core23.createTamagui : (conf) => {
   const sizeTokenKeys = ["$true"], hasKeys = /* @__PURE__ */ __name((expectedKeys, obj) => expectedKeys.every((k) => typeof obj[k] < "u"), "hasKeys"), tamaguiConfig = (0, import_core23.createTamagui)(conf);
   for (const name of ["size", "space"]) {
     const tokenSet = tamaguiConfig.tokensParsed[name];
     if (!tokenSet) throw new Error(`Expected tokens for "${name}" in ${Object.keys(tamaguiConfig.tokensParsed).join(", ")}`);
-=======
-var import_core2 = require("@tamagui/core");
-var createTamagui = process.env.NODE_ENV !== "development" ? import_core2.createTamagui : (conf) => {
-  const sizeTokenKeys = ["$true"], hasKeys = /* @__PURE__ */ __name((expectedKeys, obj) => expectedKeys.every((k) => typeof obj[k] < "u"), "hasKeys"), tamaguiConfig2 = (0, import_core2.createTamagui)(conf);
-  for (const name of ["size", "space"]) {
-    const tokenSet = tamaguiConfig2.tokensParsed[name];
-    if (!tokenSet) throw new Error(`Expected tokens for "${name}" in ${Object.keys(tamaguiConfig2.tokensParsed).join(", ")}`);
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e
     if (!hasKeys(sizeTokenKeys, tokenSet)) throw new Error(`
 createTamagui() missing expected tokens.${name}:
 
@@ -32197,15 +31406,9 @@ size: {
 
 `);
   }
-<<<<<<< HEAD
   const expected = Object.keys(tamaguiConfig.tokensParsed.size);
   for (const name of ["radius", "zIndex"]) {
     const tokenSet = tamaguiConfig.tokensParsed[name], received = Object.keys(tokenSet);
-=======
-  const expected = Object.keys(tamaguiConfig2.tokensParsed.size);
-  for (const name of ["radius", "zIndex"]) {
-    const tokenSet = tamaguiConfig2.tokensParsed[name], received = Object.keys(tokenSet);
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e
     if (!received.some((rk) => expected.includes(rk))) throw new Error(`
 createTamagui() invalid tokens.${name}:
 
@@ -32215,7 +31418,6 @@ Expected a subset of: ${expected.join(", ")}
 
 `);
   }
-<<<<<<< HEAD
   return tamaguiConfig;
 };
 
@@ -32252,14 +31454,3 @@ tabbable/dist/index.js:
   * @license MIT, https://github.com/focus-trap/tabbable/blob/master/LICENSE
   *)
 */
-=======
-  return tamaguiConfig2;
-};
-
-// tamagui.config.ts
-var tamaguiConfig = createTamagui(defaultConfig);
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  tamaguiConfig
-});
->>>>>>> 70b9d3dec682e3941458065981d64e00e24f5e8e

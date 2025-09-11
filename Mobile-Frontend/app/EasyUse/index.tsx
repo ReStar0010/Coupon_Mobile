@@ -4,8 +4,9 @@ import Svg, { Path } from 'react-native-svg';
 import { Image, Text, View, ScrollView, Input, Button, XStack, H4, YStack, Card } from 'tamagui';
 import { fetchAPI } from '../utils/authAPI';
 import { TouchableOpacity } from 'react-native';
-import { AlignJustify, Search, MoreHorizontalIcon, X, Home, StretchHorizontal, BarChart2 } from 'lucide-react-native';
-import MapComponent from 'app/components/MapComponent';
+import { AlignJustify, Search, MoreHorizontalIcon, X } from 'lucide-react-native';
+import TabsFooter from '../components/TabsFooter';
+// import MapComponent from 'app/components/MapComponent';
 
 export type CouponType = {
   className?: string;
@@ -292,7 +293,7 @@ const CouPro = () => {
 
             <YStack gap={13} style={{ paddingHorizontal: 13, paddingVertical: 30 }}>
               {/* Feature Image */}
-              <MapComponent className='h-[200px]' />
+              {/* <MapComponent className='h-[200px]' /> */}
 
               {/* Coupon Cards */}
               {isLoading ? (
@@ -324,28 +325,12 @@ const CouPro = () => {
         </View>
 
         {/* Bottom Navigation */}
-        <XStack style={{
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingVertical: 20,
-          paddingHorizontal: 30,
-          shadowColor: '#000000',
-          shadowOpacity: 0.08,
-          shadowRadius: 18,
-        }}
-          bg='white'
-
-        >
-          <TouchableOpacity activeOpacity={0.7}>
-            <Home color='#ffad31' />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7}>
-            <StretchHorizontal color='#a8a8a8' />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7}>
-            <BarChart2 color='#a8a8a8' />
-          </TouchableOpacity>
-        </XStack>
+        <TabsFooter
+          activeTab="home"
+          onHomePress={() => router.push('/EasyUse')}
+          onCollectionPress={() => router.push('/Collection')}
+          onStatisticsPress={() => router.push('/Statistics')}
+        />
 
       </YStack >
 
