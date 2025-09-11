@@ -3,8 +3,10 @@
     "name": "Mobile-Frontend",
     "slug": "Mobile-Frontend",
     "version": "1.0.0",
+    "scheme": "CouPro",
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "experiments": {
       "tsconfigPaths": true
