@@ -6,7 +6,7 @@ import { fetchAPI } from '../utils/authAPI';
 import { TouchableOpacity } from 'react-native';
 import { AlignJustify, Search, MoreHorizontalIcon, X } from 'lucide-react-native';
 import TabsFooter from '../components/TabsFooter';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 // import MapComponent from 'app/components/MapComponent';
 
 export type CouponType = {
@@ -105,6 +105,7 @@ const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUr
 const CouPro = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   // Skipping backend state in placeholders mode
   const [searchQuery, setSearchQuery] = useState('');
   const [coupons, setCoupons] = useState<CouponType[]>([]);
@@ -197,7 +198,8 @@ const CouPro = () => {
         <YStack gap={15} style={{
           backgroundColor: 'white',
           paddingHorizontal: 15,
-          paddingVertical: 10,
+          paddingTop: insets.top + 10,
+          paddingBottom: 10,
           shadowColor: '#000000',
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.08,
