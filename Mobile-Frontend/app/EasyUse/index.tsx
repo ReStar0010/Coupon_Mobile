@@ -6,6 +6,7 @@ import { fetchAPI } from '../utils/authAPI';
 import { TouchableOpacity } from 'react-native';
 import { AlignJustify, Search, MoreHorizontalIcon, X } from 'lucide-react-native';
 import TabsFooter from '../components/TabsFooter';
+import { SafeAreaView } from 'react-native-safe-area-context';
 // import MapComponent from 'app/components/MapComponent';
 
 export type CouponType = {
@@ -189,10 +190,9 @@ const CouPro = () => {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true }} />
-
+      <Stack.Screen options={{ headerShown: false }} />
+      
       <YStack flex={1}>
-
         {/* Header */}
         <YStack gap={15} style={{
           backgroundColor: 'white',
@@ -323,7 +323,6 @@ const CouPro = () => {
             </YStack>
           </ScrollView>
         </View>
-
         {/* Bottom Navigation */}
         <TabsFooter
           activeTab="home"
@@ -331,7 +330,6 @@ const CouPro = () => {
           onCollectionPress={() => router.push('/Collection')}
           onStatisticsPress={() => router.push('/Statistics')}
         />
-
       </YStack >
 
     </>

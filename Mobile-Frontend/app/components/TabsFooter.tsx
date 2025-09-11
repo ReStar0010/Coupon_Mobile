@@ -23,7 +23,7 @@ const TabsFooter: React.FC<TabsFooterProps> = ({
   };
 
   return (
-    <SafeAreaView edges={['bottom']} style={{ backgroundColor: "#ffffffff"}}>
+    // <SafeAreaView edges={['bottom']} style={{ backgroundColor: "#ffffffff"}}>
         <XStack
         style={{
             alignItems: 'center',
@@ -45,7 +45,7 @@ const TabsFooter: React.FC<TabsFooterProps> = ({
             <BarChart2 color={getIconColor('statistics')} size={24} />
         </TouchableOpacity>
         </XStack>
-    </SafeAreaView>
+    // </SafeAreaView>
   );
 };
 
