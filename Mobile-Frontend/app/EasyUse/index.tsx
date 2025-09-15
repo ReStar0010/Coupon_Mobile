@@ -7,7 +7,7 @@ import { TouchableOpacity } from 'react-native';
 import { AlignJustify, Search, MoreHorizontalIcon, X } from 'lucide-react-native';
 import TabsFooter from '../components/TabsFooter';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-// import MapComponent from 'app/components/MapComponent';
+import MapComponent, { type Store } from '../components/MapComponent';
 
 export type CouponType = {
   className?: string;
@@ -112,8 +112,7 @@ const CouPro = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategories, setActiveCategories] = useState<string[]>(['飲料', '麵']);
-
-  const categories = ['飲料', '中式', '麵', '衣服', '晚餐'];
+  const [stores, setStores] = useState<Store[]>([]);
 
   useEffect(() => {
     const searchParam = params.search as string;
@@ -161,6 +160,24 @@ const CouPro = () => {
     };
     fetchCoupons();
   }, [router]);
+
+  useEffect(() => {
+    if (coupons) {
+      const uniqueStores = new Map<number, Store>();
+      coupons.forEach(coupon => {
+        if (coupon.storeId && coupon.storeLocation) {
+          if (!uniqueStores.has(coupon.storeId)) {
+            uniqueStores.set(coupon.storeId, {
+              id: coupon.storeId,
+              name: coupon.storeName,
+              location: coupon.storeLocation,
+            });
+          }
+        }
+      });
+      setStores(Array.from(uniqueStores.values()));
+    }
+  }, [coupons]);
 
   const filteredCoupons = coupons.filter((coupon) => {
     return searchQuery
@@ -244,19 +261,17 @@ const CouPro = () => {
               </TouchableOpacity>
             )}
           </XStack>
-
-          
-
         </YStack>
+
+        <View style={{ height: 200 }}>
+          <MapComponent stores={stores} />
+        </View>
 
         <View flex={1} gap={13}>
           {/* Main Content */}
           <ScrollView style={{ flex: 1 }}>
 
             <YStack gap={13} style={{ paddingHorizontal: 13, paddingVertical: 30 }}>
-              {/* Feature Image */}
-              {/* <MapComponent className='h-[200px]' /> */}
-
               {/* Coupon Cards */}
               {isLoading ? (
                 <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 16 }}>

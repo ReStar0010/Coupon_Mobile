@@ -14,7 +14,7 @@ export default function App() {
       try {
         const loggedIn = await isUserLoggedIn();
         if (true) {
-          router.replace('/EasyUse');
+          router.replace('/Login');
         } else {
           router.replace('/Login');
         }
