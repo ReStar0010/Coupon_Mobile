@@ -245,47 +245,7 @@ const CouPro = () => {
             )}
           </XStack>
 
-          {/* Category Buttons */}
-          <XStack style={{ width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
-            {categories.map((category) => {
-              const isActive = activeCategories.includes(category);
-              return (
-                <Button
-                  key={category}
-                  size="$2"
-                  color='#1C1C1C'
-                  borderColor={isActive ? 'transparent' : '#a9a9a9'}
-                  style={{
-                    backgroundColor: isActive ? '#ffad31' : 'transparent',
-                    borderWidth: 1,
-                    height: 28,
-                    paddingHorizontal: 12,
-                    borderRadius: 5,
-                  }}
-                  onPress={() => toggleCategory(category)}
-                // pressStyle={{ opacity: 0.85 }}
-                >
-                  {category}
-                </Button>
-              );
-            })}
-            <Button
-              size="$2"
-              borderColor='#a9a9a9'
-              color="#9ca3af"
-              style={{
-                backgroundColor: 'transparent',
-                borderWidth: 1,
-                height: 28,
-                paddingHorizontal: 12,
-                borderRadius: 5,
-              }}
-              onPress={() => { /* TODO: add more handler if needed */ }}
-              pressStyle={{ opacity: 0.85 }}
-            >
-              <MoreHorizontalIcon />
-            </Button>
-          </XStack>
+          
 
         </YStack>
 

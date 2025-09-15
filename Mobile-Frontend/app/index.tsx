@@ -14,9 +14,9 @@ export default function App() {
       try {
         const loggedIn = await isUserLoggedIn();
         if (true) {
-          router.replace('/Login');
+          router.replace('/EasyUse');
         } else {
-          router.replace('/(tabs)/tab1');
+          router.replace('/Login');
         }
       } catch (error) {
         console.error('Error checking login status:', error);

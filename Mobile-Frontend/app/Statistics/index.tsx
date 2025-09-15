@@ -71,7 +71,7 @@ const Statistics: React.FC = () => {
 
   // Navigation handlers for TabsFooter
   const handleHomePress = () => {
-    router.push('/');
+    router.push('/EasyUse');
   };
 
   const handleCollectionPress = () => {
