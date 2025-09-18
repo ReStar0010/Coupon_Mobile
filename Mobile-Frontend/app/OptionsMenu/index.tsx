@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,33 +12,15 @@ import {
   ScrollText,
   LogOut,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const OptionsMenu: React.FC = () => {
   const router = useRouter();
-  const [sourcePage, setSourcePage] = useState<string>('/EasyUse');
+  const insets = useSafeAreaInsets();
 
   const handleGoBack = useCallback(() => {
-    router.push(sourcePage);
-  }, [router, sourcePage]);
-
-  // Detect the source page when the component mounts
-  useEffect(() => {
-    const getSourcePage = async () => {
-      try {
-        const storedSourcePage = await AsyncStorage.getItem('optionsMenuSource');
-        if (storedSourcePage) {
-          setSourcePage(storedSourcePage);
-        } else {
-          setSourcePage('/EasyUse');
-        }
-      } catch (error) {
-        console.error('Error getting source page:', error);
-        setSourcePage('/EasyUse');
-      }
-    };
-
-    getSourcePage();
-  }, []);
+    router.push('/EasyUse'); // Always go back to EasyUse
+  }, [router]);
 
   const handleUserDataEdit = useCallback(() => {
     router.push('/OptionsMenu/UserData');
@@ -91,11 +73,11 @@ const OptionsMenu: React.FC = () => {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true }} />
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <View flex="1" px="$4" py="$6" gap={13}>
+      <YStack flex="1" px="$4" py="$6" gap={13} style={{ paddingTop: insets.top + 10 }}>
         {/* Header with back button and title */}
-        <XStack gap={13} items="center">
+        <XStack gap={13} items="center" >
           <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />
           <H4 fontWeight={'bold'}>
             選單
@@ -174,7 +156,7 @@ const OptionsMenu: React.FC = () => {
         <Text text="center" color="#a0a0a0">
           Version 1.0.0
         </Text>
-      </View>
+      </YStack>
     </>
   );
 };

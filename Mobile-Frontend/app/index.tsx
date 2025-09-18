@@ -13,10 +13,10 @@ export default function App() {
     const checkLoginStatus = async () => {
       try {
         const loggedIn = await isUserLoggedIn();
-        if (true) {
+        if (loggedIn) {
           router.replace('/Login');
         } else {
-          router.replace('/Login');
+          router.replace('/EasyUse');
         }
       } catch (error) {
         console.error('Error checking login status:', error);
@@ -29,21 +29,4 @@ export default function App() {
 
     checkLoginStatus();
   }, []);
-
-  // 顯示載入畫面
-  if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="mb-4 text-xl font-bold text-blue-500">載入中...</Text>
-        <View className="h-8 w-8 animate-pulse rounded-full bg-blue-500" />
-      </View>
-    );
-  }
-
-  // 這個 return 通常不會被執行，因為會先跳轉
-  return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Text className="text-xl font-bold text-red-500">路由跳轉中...</Text>
-    </View>
-  );
 }
