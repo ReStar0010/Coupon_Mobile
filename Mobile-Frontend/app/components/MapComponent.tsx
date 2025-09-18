@@ -11,6 +11,7 @@ type MapComponentProps = {
   onStoreSelect?: (storeId: number) => void;
   className?: string;
   setStoreSearch?: (storeName: string) => void;
+  searchQuery?: string; // Add search query prop
 };
 
 export type Store = {
@@ -29,8 +30,8 @@ export type Store = {
 const defaultRegion: Region = {
   latitude: 25.033,
   longitude: 121.5654,
-  latitudeDelta: 0.0922,
-  longitudeDelta: 0.0421,
+  latitudeDelta: 0.02, // More zoomed in (smaller value = closer zoom)
+  longitudeDelta: 0.02, // More zoomed in (smaller value = closer zoom)
 };
 
 const { width, height } = Dimensions.get('window');
@@ -40,6 +41,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
   onStoreSelect,
   className = '',
   setStoreSearch,
+  searchQuery = '', // Add searchQuery with default empty string
 }) => {
   const router = useRouter();
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -70,8 +72,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
         setUserLocation(userPos);
         setMapRegion({
           ...userPos,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
+          latitudeDelta: 0.004, // More zoomed in for user location
+          longitudeDelta: 0.004, // More zoomed in for user location
         });
       } catch (error) {
         console.error('Error getting location:', error);
@@ -80,8 +82,33 @@ const MapComponent: React.FC<MapComponentProps> = ({
     })();
   }, []);
 
+  // Search functionality - center map on searched store
+  useEffect(() => {
+    if (searchQuery && stores.length > 0 && mapRef.current) {
+      const foundStore = stores.find(store => 
+        store.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
+      );
+      
+      if (foundStore) {
+        devLog('Found store for search:', foundStore.name);
+        const newRegion = {
+          latitude: foundStore.location.lat,
+          longitude: foundStore.location.lng,
+          latitudeDelta: 0.01, // Zoom in closer for search results
+          longitudeDelta: 0.01,
+        };
+        
+        mapRef.current.animateToRegion(newRegion, 1000);
+        setMapRegion(newRegion);
+        setSelectedStore(foundStore); // Automatically select the found store
+      }
+    }
+  }, [searchQuery, stores]);
+
   const onMarkerPress = (store: Store) => {
     setSelectedStore(store);
+    // Also show an alert with the store name for immediate feedback
+    // Alert.alert('店家資訊', store.name);
   };
 
   const onMapPress = () => {
@@ -106,8 +133,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
         {
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
+          latitudeDelta: 0.02, // More zoomed in when going to user location
+          longitudeDelta: 0.02, // More zoomed in when going to user location
         },
         1000
       );
@@ -131,8 +158,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
           mapRef.current.animateToRegion(
             {
               ...userPos,
-              latitudeDelta: 0.0922,
-              longitudeDelta: 0.0421,
+              latitudeDelta: 0.02, // More zoomed in when getting new location
+              longitudeDelta: 0.02, // More zoomed in when getting new location
             },
             1000
           );
@@ -152,7 +179,13 @@ const MapComponent: React.FC<MapComponentProps> = ({
           <Text style={styles.couponBadgeText}>{store.active_coupon_count || 0}</Text>
         </View>
 
+        {/* Store name - made more prominent */}
         <Text style={styles.calloutTitle}>{store.name}</Text>
+        
+        {/* Store address if available */}
+        {store.address && (
+          <Text style={styles.calloutAddress}>{store.address}</Text>
+        )}
 
         <TouchableOpacity
           style={styles.calloutButton}
@@ -165,7 +198,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
   );
 
   return (
-    <View className={`relative w-full overflow-hidden rounded-xl ${className}`}>
+    <View style={[styles.container, { borderRadius: 12, overflow: 'hidden' }]}>
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -225,6 +258,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
 };
 
 const styles = StyleSheet.create({
+  container: {
+    position: 'relative',
+    width: '100%',
+  },
   map: {
     width: '100%',
     height: '100%',
@@ -272,8 +309,15 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
     color: '#000',
+    paddingRight: 12,
+  },
+  calloutAddress: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 12,
     paddingRight: 12,
   },
   calloutButton: {

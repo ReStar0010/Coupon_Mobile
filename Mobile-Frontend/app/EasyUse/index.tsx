@@ -264,7 +264,7 @@ const CouPro = () => {
         </YStack>
 
         <View style={{ height: 200 }}>
-          <MapComponent stores={stores} />
+          <MapComponent stores={stores} searchQuery={searchQuery} />
         </View>
 
         <View flex={1} gap={13}>
