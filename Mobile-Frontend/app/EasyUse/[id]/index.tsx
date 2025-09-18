@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Share2 } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
@@ -216,6 +216,37 @@ const CouponDetailPage: React.FC = () => {
     setShowShareModal(false);
   };
 
+  const openGoogleMaps = () => {
+    if (coupon?.store_location?.lat && coupon?.store_location?.lng) {
+      const { lat, lng } = coupon.store_location;
+      const label = encodeURIComponent(coupon.store_name || 'Store Location');
+      
+      // Create Google Maps URL
+      const url = Platform.select({
+        ios: `maps:0,0?q=${lat},${lng}(${label})`,
+        android: `geo:0,0?q=${lat},${lng}(${label})`,
+        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+      });
+
+      Linking.canOpenURL(url!)
+        .then((supported) => {
+          if (supported) {
+            return Linking.openURL(url!);
+          } else {
+            // Fallback to web version
+            const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+            return Linking.openURL(webUrl);
+          }
+        })
+        .catch((err) => {
+          console.error('Error opening maps:', err);
+          Alert.alert('錯誤', '無法開啟地圖應用程式');
+        });
+    } else {
+      Alert.alert('錯誤', '無法取得店家位置資訊');
+    }
+  };
+
   if (isLoading) {
     return (
       <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -262,7 +293,7 @@ const CouponDetailPage: React.FC = () => {
           pt="$8" 
           pb="$4" 
           style={{ 
-            justifyContent: 'space-between', 
+            justifyContent: sourceParam === 'collection' ? 'space-between' : 'flex-start', 
             alignItems: 'center' 
           }}
         >
@@ -274,19 +305,21 @@ const CouponDetailPage: React.FC = () => {
             <ArrowLeft size={24} color="#333" />
           </Button>
           
-          <Button
-            onPress={handleShare}
-            bg="#FFAD31"
-            px="$4"
-            py="$2"
-            style={{
-              borderRadius: 12,
-            }}
-          >
-            <Text color="#333" fontWeight="600" fontSize="$4">
-              分享
-            </Text>
-          </Button>
+          {sourceParam === 'collection' && (
+            <Button
+              onPress={handleShare}
+              bg="#FFAD31"
+              px="$4"
+              py="$2"
+              style={{
+                borderRadius: 12,
+              }}
+            >
+              <Text color="#333" fontWeight="600" fontSize="$4">
+                分享
+              </Text>
+            </Button>
+          )}
         </XStack>
 
         {/* Main Content */}
@@ -469,7 +502,11 @@ const CouponDetailPage: React.FC = () => {
       {!coupon.is_redeemed && (
         <YStack style={{ position: 'absolute', bottom: 30, left: 20, right: 20 }}>
           <Button
-            onPress={isRedeeming || !coupon.can_use_today ? undefined : onRedeemClick}
+            onPress={
+              sourceParam === 'collection' 
+                ? (isRedeeming || !coupon.can_use_today ? undefined : onRedeemClick)
+                : openGoogleMaps
+            }
             bg="#FFAD31"
             height={60}
             style={{
@@ -479,20 +516,26 @@ const CouponDetailPage: React.FC = () => {
               shadowOpacity: 0.15,
               shadowRadius: 8,
               elevation: 5,
-              opacity: isRedeeming || !coupon.can_use_today ? 0.5 : 1
+              opacity: 
+                sourceParam === 'collection' 
+                  ? (isRedeeming || !coupon.can_use_today ? 0.5 : 1)
+                  : 1
             }}
-            disabled={isRedeeming || !coupon.can_use_today}
+            disabled={sourceParam === 'collection' && (isRedeeming || !coupon.can_use_today)}
           >
             <Text 
               color="#333" 
               fontSize="$6" 
               fontWeight="bold"
             >
-              {isRedeeming
-                ? '處理中...'
-                : !coupon.can_use_today
-                  ? '今日已使用'
-                  : '使用'}
+              {sourceParam === 'collection' 
+                ? (isRedeeming
+                    ? '處理中...'
+                    : !coupon.can_use_today
+                      ? '今日已使用'
+                      : '使用')
+                : "Let's GOOOOO!"
+              }
             </Text>
           </Button>
         </YStack>
