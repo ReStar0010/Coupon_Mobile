@@ -1,12 +1,20 @@
 import React, { Suspense, useCallback } from 'react';
-import {
+import { RefreshControl, FlatList, TouchableOpacity } from 'react-native';
+import { useRouter, Stack } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
+import { 
+  YStack, 
+  XStack, 
+  ScrollView, 
+  Text, 
+  Spinner,
   View,
-  Text,
-  ActivityIndicator,
-  SafeAreaView,
-  RefreshControl,
-  FlatList,
-} from 'react-native';
+  Input,
+  H4
+} from 'tamagui';
+import { AlignJustify, Search, X } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import TabsFooter from '../components/TabsFooter';
 import { useRequireAuth } from '../utils/authAPI';
 import Gift from './Gift';
 import { filterCoupons } from './utils/couponUtils';
@@ -17,13 +25,37 @@ import { useDailyDraw } from './hooks/useDailyDraw';
 import { useSharedCoupon } from './hooks/useSharedCoupon';
 import { useSearch } from './hooks/useSearch';
 
+// Logo Icon Component
+const LogoIcon = () => (
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M23.9895 16.8578C23.9895 20.7967 20.7963 23.9898 16.8574 23.9898C12.9185 23.9898 9.72544 20.7967 9.72544 16.8578C9.72544 12.9188 12.9185 9.72571 16.8574 9.72571C20.7963 9.72571 23.9895 12.9188 23.9895 16.8578Z"
+      fill="#333333"
+    />
+    <Path
+      d="M2.08892 12.1754C0.751406 10.8378 2.85613e-07 9.02378 0 7.13224C-2.85612e-07 5.2407 0.751405 3.42664 2.08892 2.08912C3.42643 0.751602 5.24048 0.000191455 7.13201 0.000190575C9.02353 0.000189696 10.8376 0.751599 12.1751 2.08912L9.65355 4.61068C8.9848 3.94192 8.07777 3.56621 7.13201 3.56621C6.18624 3.56621 5.27922 3.94192 4.61046 4.61068C3.94171 5.27944 3.566 6.18647 3.566 7.13224C3.566 8.07801 3.94171 8.98504 4.61046 9.6538L2.08892 12.1754Z"
+      fill="#FFAD31"
+    />
+    <Path
+      d="M0.691765 23.3084C-0.219762 22.3968 -0.235644 20.9031 0.675883 19.9915L19.9915 0.67576C20.9031 -0.235772 22.3968 -0.21989 23.3084 0.691642C24.2199 1.60317 24.2358 3.09694 23.3242 4.00847L4.00858 23.3242C3.09705 24.2358 1.60329 24.2199 0.691765 23.3084Z"
+      fill="#333333"
+    />
+    <Path
+      d="M20.3586 16.7929C20.3586 18.7624 18.7621 20.3589 16.7926 20.3589C14.8232 20.3589 13.2266 18.7624 13.2266 16.7929C13.2266 14.8235 14.8232 13.2269 16.7926 13.2269C18.7621 13.2269 20.3586 14.8235 20.3586 16.7929Z"
+      fill="#FFAD31"
+    />
+  </Svg>
+);
+
 // Import components
 import Coupon from './components/Coupon';
 import DailyDrawBanner from './components/DailyDrawBanner';
 import DailyDrawModal from './components/DailyDrawModal';
-import PageHeader from '../components/PageHeader';
 
 const Collection = () => {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  
   // Use our auth hook to protect this route
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
 
@@ -51,6 +83,11 @@ const Collection = () => {
     fetchCoupons();
   }, [fetchCoupons]);
 
+  // Menu handler
+  const onMenuIconClick = () => {
+    router.push('/OptionsMenu');
+  };
+
   // Render coupon item
   const renderCouponItem = useCallback(
     ({ item }: { item: any }) => (
@@ -69,61 +106,78 @@ const Collection = () => {
   // Show loading state if auth is still loading
   if (authLoading) {
     return (
-      <SafeAreaView className="bg-bg-grey flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#FFAD31" />
-        <Text className="mt-4 text-lg text-gray-500">驗證身份中...</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+        <YStack flex={1} alignItems="center" justifyContent="center">
+          <Spinner size="large" color="#FFAD31" />
+          <Text marginTop="$4" fontSize="$6" color="#6b7280">驗證身份中...</Text>
+        </YStack>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="bg-bg-grey flex-1">
-      <View className="flex-1 gap-[10px] px-[11px] pt-[35px]">
-        <PageHeader
-          title="專屬酷胖"
-          infoPopupTitle="什麼是專屬酷胖？"
-          infoPopupContent={
-            <View>
-              <Text className="mb-2 text-xs text-gray-700">
-                「專屬酷胖」是屬於你個人帳號的優惠券，內容特別、折扣力度更大，還能分享給朋友！
-              </Text>
-              <View className="mb-2">
-                <Text className="mb-1 text-xs text-gray-700">
-                  • <Text className="font-bold">專屬帳號：</Text>
-                  每人每天限抽一次，有機會獲得專屬酷胖
-                </Text>
-                <Text className="mb-1 text-xs text-gray-700">
-                  • <Text className="font-bold">限時限量：</Text>
-                  有效期限較短，必須把握時間使用
-                </Text>
-                <Text className="mb-1 text-xs text-gray-700">
-                  • <Text className="font-bold">分享轉讓：</Text>
-                  中獎後如果想要，可直接一鍵分享給朋友
-                </Text>
-                <Text className="mb-1 text-xs text-gray-700">
-                  • <Text className="font-bold">內容特別：</Text>
-                  大多比「隨取即用」折扣更大，優惠設計也更有趣
-                </Text>
-              </View>
-              <Text className="text-xs text-gray-700">
-                簡單來說，專屬酷胖是我們為你精心設計的「每日驚喜券」，讓你可以和朋友一起享受發掘優惠的樂趣並參與、分享，增添生活樂趣。
-              </Text>
-            </View>
-          }
-          showSearch={true}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          onClearSearch={clearSearch}
-          navbarProps={{ atCollection: true }}
-          sourcePage="/Collection"
-        />
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      <YStack flex={1}>
+        {/* Header */}
+        <YStack gap={15} style={{
+          backgroundColor: 'white',
+          paddingHorizontal: 15,
+          paddingTop: insets.top + 10,
+          paddingBottom: 10,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 18,
+          elevation: 6, // for Android
+        }}>
+          <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <XStack gap={13} style={{ alignItems: 'center' }}>
+              <LogoIcon />
+              <H4 color="#000000" fontSize={24} fontWeight={'bold'}>
+                專屬酷胖
+              </H4>
+            </XStack>
 
-        <FlatList
-          data={filteredCoupons}
-          renderItem={renderCouponItem}
-          keyExtractor={(item) => item.id?.toString() || `item-${Math.random()}`}
-          contentContainerStyle={{ padding: 19, gap: 25 }}
-          showsVerticalScrollIndicator={false}
+            <TouchableOpacity onPress={onMenuIconClick} activeOpacity={0.7}>
+              <AlignJustify color='black' />
+            </TouchableOpacity>
+          </XStack>
+
+          {/* Search Bar */}
+          <XStack gap={12} style={{
+            backgroundColor: 'white',
+            borderColor: '#a8a8a8',
+            borderWidth: 1,
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            alignItems: 'center'
+          }}>
+            <Search color='#a8a8a8' />
+            <Input
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              placeholder="搜尋優惠券..."
+              style={{ flex: 1 }}
+              unstyled
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={clearSearch} activeOpacity={0.7}>
+                <X color='#a8a8a8'></X>
+              </TouchableOpacity>
+            )}
+          </XStack>
+        </YStack>
+
+        <View flex={1} style={{ backgroundColor: '#f0f0f0' }}>
+          <FlatList
+            data={filteredCoupons}
+            renderItem={renderCouponItem}
+            keyExtractor={(item) => item.id?.toString() || `item-${Math.random()}`}
+            contentContainerStyle={{ paddingHorizontal: 13, paddingVertical: 30, gap: 13 }}
+            showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={isLoading}
@@ -133,7 +187,7 @@ const Collection = () => {
             />
           }
           ListHeaderComponent={
-            <View style={{ gap: 25 }}>
+            <YStack gap={25}>
               {/* Daily Draw Banner */}
               {!hasDailyDrawn && !showSharedGift && (
                 <DailyDrawBanner onClick={() => setShowDailyDraw(true)} />
@@ -152,23 +206,24 @@ const Collection = () => {
                   onAccepted={handleGiftAccepted}
                 />
               )}
-            </View>
+            </YStack>
           }
           ListEmptyComponent={
-            <View className="flex w-full items-center justify-center p-10">
+            <YStack width="100%" alignItems="center" justifyContent="center" padding="$6">
               {isLoading ? (
                 <>
-                  <ActivityIndicator size="large" color="#FFAD31" />
-                  <Text className="mt-4 text-lg text-gray-500">載入中...</Text>
+                  <Spinner size="large" color="#FFAD31" />
+                  <Text marginTop="$4" fontSize="$6" color="#6b7280">載入中...</Text>
                 </>
               ) : error ? (
-                <Text className="text-center text-red-500">{error}</Text>
+                <Text textAlign="center" color="#ef4444">{error}</Text>
               ) : (
-                <Text className="text-center text-gray-500">目前沒有可用的專屬優惠券。</Text>
+                <Text textAlign="center" color="#6b7280">目前沒有可用的專屬優惠券。</Text>
               )}
-            </View>
+            </YStack>
           }
-        />
+          />
+        </View>
 
         {/* Daily Draw Modal */}
         <DailyDrawModal
@@ -180,8 +235,16 @@ const Collection = () => {
           isLoading={isDailyDrawLoading}
           templatesAvailable={availableTemplates.length}
         />
-      </View>
-    </SafeAreaView>
+
+        {/* Bottom Navigation */}
+        <TabsFooter
+          activeTab="collection"
+          onHomePress={() => router.push('/EasyUse')}
+          onCollectionPress={() => router.push('/Collection')}
+          onStatisticsPress={() => router.push('/Statistics')}
+        />
+      </YStack>
+    </>
   );
 };
 

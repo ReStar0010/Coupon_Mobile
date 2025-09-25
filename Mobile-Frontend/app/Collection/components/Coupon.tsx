@@ -1,5 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { Image } from 'react-native';
+import { 
+  YStack, 
+  XStack, 
+  Text, 
+  Button, 
+  Card,
+  Spinner
+} from 'tamagui';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
@@ -86,86 +94,75 @@ const Coupon: React.FC<CouponProps> = ({
   };
 
   return (
-    <TouchableOpacity
-      className={`flex max-w-full shrink-0 flex-row items-start justify-start self-stretch shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)] ${className}`}
+    <Card
+      elevate
+      bordered
+      borderRadius="$5"
+      padding="$4"
       onPress={onCouponClick}
-      activeOpacity={0.7}>
-      <View className="relative box-border flex max-w-full flex-1 flex-col items-start justify-start px-2 pb-5 pt-[65px]">
-        <View className="bg-bg-white absolute bottom-0 left-0 right-0 top-0 h-full w-full rounded-xl" />
-
-        <Text
-          className="text-sec-black absolute left-[119px] top-[32px] z-[2] text-xl font-bold"
-          style={{
-            letterSpacing: -0.43,
-            lineHeight: 22,
+      pressStyle={{ opacity: 0.9 }}
+      borderColor="#f8f8f8"
+      borderWidth={1}
+      backgroundColor="white"
+      marginBottom="$4"
+    >
+      <XStack gap={15} style={{ alignItems: 'center' }}>
+        {/* Store Image */}
+        <Image
+          source={{
+            uri: imageUrl || 'https://api.iconify.design/material-symbols:storefront-rounded.svg?color=%23ffad31',
+            width: 64,
+            height: 64,
           }}
-          numberOfLines={1}>
-          {storeName}
-        </Text>
+          style={{ borderRadius: 8 }}
+        />
 
-        <View className="absolute bottom-[25px] left-[111px] z-[1] w-[204px]">
-          <Text
-            className="text-sec-black mb-1 text-xs"
-            style={{
-              letterSpacing: -0.43,
-              lineHeight: 23,
-            }}
-            numberOfLines={2}>
+        {/* Content */}
+        <YStack gap={8} flex={1}>
+          <Text fontSize={24} fontWeight="700" color="#000000" numberOfLines={1}>
+            {storeName}
+          </Text>
+          
+          <Text color="#6b7280" numberOfLines={2}>
             {couponName}
           </Text>
-          <Text
-            className="text-sec-black text-xs"
-            style={{
-              letterSpacing: -0.43,
-              lineHeight: 23,
-            }}
-            numberOfLines={1}>
+          
+          <Text fontSize="$3" color="#6b7280" numberOfLines={1}>
             有效期限 : {expiryDate ? expiryDate.toLocaleDateString() : ''}
           </Text>
-        </View>
-
-        <View
-          className="absolute left-[22px] z-[2] h-[70px] w-[70px]"
-          style={{
-            top: '50%',
-            transform: [{ translateY: -35 }], // 70px / 2 = 35px
-          }}>
-          <Image
-            className="h-full w-full rounded-[8px]"
-            style={{ width: 70, height: 70 }}
-            source={imageUrl ? { uri: imageUrl } : require('../../../assets/Info.png')}
-            resizeMode="cover"
-          />
-        </View>
+        </YStack>
 
         {/* Share button */}
-        <TouchableOpacity
+        <Button
           onPress={handleShare}
           disabled={isSharing}
-          className="bg-act-yellow absolute right-4 z-10 rounded-[10px] p-2"
-          style={{
-            top: '50%',
-            transform: [{ translateY: -18 }], // Approximate center
-            opacity: isSharing ? 0.7 : 1,
-          }}
-          activeOpacity={0.7}>
+          backgroundColor="#FFAD31"
+          borderRadius="$3"
+          padding="$2"
+          opacity={isSharing ? 0.7 : 1}
+          pressStyle={{ opacity: 0.7 }}
+        >
           {isSharing ? (
-            <ActivityIndicator size="small" color="#000" />
+            <Spinner size="small" color="#000" />
           ) : (
-            <View className="h-5 w-5 items-center justify-center">
-              <Text className="text-lg text-black">📤</Text>
-            </View>
+            <Text fontSize="$5" color="#000">📤</Text>
           )}
-        </TouchableOpacity>
+        </Button>
+      </XStack>
 
-        {/* Error message */}
-        {shareError && (
-          <View className="absolute bottom-[5px] right-[15px]">
-            <Text className="text-xs text-red-500">{shareError}</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
+      {/* Error message */}
+      {shareError && (
+        <Text 
+          position="absolute" 
+          bottom="$1" 
+          right="$3"
+          fontSize="$2" 
+          color="#ef4444"
+        >
+          {shareError}
+        </Text>
+      )}
+    </Card>
   );
 };
 

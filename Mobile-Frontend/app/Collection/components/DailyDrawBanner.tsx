@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { YStack, Text, Card } from 'tamagui';
 
 interface DailyDrawBannerProps {
   onClick: () => void;
@@ -7,15 +7,36 @@ interface DailyDrawBannerProps {
 
 const DailyDrawBanner: React.FC<DailyDrawBannerProps> = ({ onClick }) => {
   return (
-    <View className="mb-4 w-full">
-      <TouchableOpacity
-        className="bg-act-yellow w-full items-center justify-center rounded-xl p-4 shadow-md"
+    <YStack width="100%">
+      <Card
+        elevate
+        bordered
+        borderRadius="$5"
+        padding="$4"
         onPress={onClick}
-        activeOpacity={0.7}>
-        <Text className="mb-2 text-center text-xl font-bold">每日抽獎</Text>
-        <Text className="text-center text-sm">點擊這裡抽取今日專屬優惠！</Text>
-      </TouchableOpacity>
-    </View>
+        pressStyle={{ opacity: 0.9 }}
+        borderColor="#f8f8f8"
+        borderWidth={1}
+        backgroundColor="#FFAD31"
+      >
+        <YStack alignItems="center" justifyContent="center" gap={8}>
+          <Text 
+            textAlign="center" 
+            fontSize={24} 
+            fontWeight="700"
+            color="#000000"
+          >
+            每日抽獎
+          </Text>
+          <Text 
+            textAlign="center" 
+            color="#000000"
+          >
+            點擊這裡抽取今日專屬優惠！
+          </Text>
+        </YStack>
+      </Card>
+    </YStack>
   );
 };
 

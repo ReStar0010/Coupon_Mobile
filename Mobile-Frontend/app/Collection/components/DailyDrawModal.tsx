@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ActivityIndicator, Dimensions } from 'react-native';
+import { Modal, Dimensions } from 'react-native';
+import { 
+  YStack, 
+  Text, 
+  Button, 
+  Card,
+  Spinner
+} from 'tamagui';
 import SuccessPopup from '../../EasyUse/[id]/redeem/SuccessPopup';
 import { DailyDrawResult } from '../utils/types';
 
@@ -39,54 +46,80 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
 
   return (
     <Modal visible={isOpen} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 items-center justify-center bg-black/50">
-        <View
-          className="items-center rounded-xl bg-white p-6"
-          style={{
-            maxWidth: width * 0.9,
-            width: Math.min(350, width * 0.9),
-          }}>
+      <YStack 
+        flex={1} 
+        alignItems="center" 
+        justifyContent="center" 
+        backgroundColor="rgba(0,0,0,0.5)"
+      >
+        <Card
+          alignItems="center"
+          borderRadius="$4"
+          backgroundColor="$background"
+          padding="$6"
+          maxWidth={width * 0.9}
+          width={Math.min(350, width * 0.9)}
+        >
           {!result ? (
             <>
-              <Text className="text-sec-black mb-4 text-xl font-bold">每日抽獎</Text>
+              <Text 
+                color="$color" 
+                marginBottom="$4" 
+                fontSize="$7" 
+                fontWeight="bold"
+              >
+                每日抽獎
+              </Text>
 
               {isLoading ? (
-                <View className="mb-4 items-center">
-                  <ActivityIndicator size="large" color="#FFAD31" />
-                  <Text className="text-sec-black mt-2">抽獎中，請稍候...</Text>
-                </View>
+                <YStack marginBottom="$4" alignItems="center">
+                  <Spinner size="large" color="#FFAD31" />
+                  <Text color="$color" marginTop="$2">抽獎中，請稍候...</Text>
+                </YStack>
               ) : templatesAvailable === 0 && isLoadingTemplates ? (
-                <View className="mb-4 items-center">
-                  <ActivityIndicator size="large" color="#FFAD31" />
-                  <Text className="text-sec-black mt-2">正在載入可用優惠，請稍候...</Text>
-                </View>
+                <YStack marginBottom="$4" alignItems="center">
+                  <Spinner size="large" color="#FFAD31" />
+                  <Text color="$color" marginTop="$2">正在載入可用優惠，請稍候...</Text>
+                </YStack>
               ) : templatesAvailable === 0 ? (
-                <Text className="text-sec-black mb-4">目前沒有可用的優惠券</Text>
+                <Text color="$color" marginBottom="$4">目前沒有可用的優惠券</Text>
               ) : (
-                <Text className="mb-4 text-sm text-gray-600">
+                <Text marginBottom="$4" fontSize="$4" color="$gray10">
                   目前有 {templatesAvailable} 個優惠可抽
                 </Text>
               )}
 
-              <TouchableOpacity
+              <Button
                 onPress={onDraw}
                 disabled={isLoading || templatesAvailable === 0}
-                className={`w-full items-center justify-center rounded-lg px-6 py-3 ${
-                  isLoading || templatesAvailable === 0 ? 'bg-gray-300' : 'bg-act-yellow'
-                }`}
-                activeOpacity={0.7}>
-                <Text className="text-sec-black text-lg font-semibold">
+                width="100%"
+                backgroundColor={isLoading || templatesAvailable === 0 ? '$gray8' : '#FFAD31'}
+                borderRadius="$3"
+                paddingHorizontal="$6"
+                paddingVertical="$3"
+                pressStyle={{ opacity: 0.7 }}
+              >
+                <Text 
+                  color={isLoading || templatesAvailable === 0 ? '$gray11' : '#000'} 
+                  fontSize="$6" 
+                  fontWeight="600"
+                >
                   {isLoading
                     ? '抽獎中...'
                     : templatesAvailable === 0 && !isLoadingTemplates
                       ? '無可用優惠'
                       : '立即抽獎'}
                 </Text>
-              </TouchableOpacity>
+              </Button>
 
-              <TouchableOpacity onPress={onClose} className="mt-4">
-                <Text className="text-sm text-gray-500">下次再抽</Text>
-              </TouchableOpacity>
+              <Button 
+                onPress={onClose} 
+                marginTop="$4"
+                backgroundColor="transparent"
+                pressStyle={{ opacity: 0.7 }}
+              >
+                <Text fontSize="$4" color="$gray10">下次再抽</Text>
+              </Button>
             </>
           ) : (
             <SuccessPopup
@@ -99,8 +132,8 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
               titleType={result.success ? '抽獎成功' : '抽獎結果'}
             />
           )}
-        </View>
-      </View>
+        </Card>
+      </YStack>
     </Modal>
   );
 };
