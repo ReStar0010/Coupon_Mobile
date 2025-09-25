@@ -199,16 +199,53 @@ const CouponDetailPage: React.FC = () => {
   };
 
   const handleLinkShare = async () => {
+    if (!coupon?.id) {
+      Alert.alert('錯誤', '無法分享：優惠券ID不存在');
+      return;
+    }
+
+    setIsSharing(true);
+
     try {
-      devLog("Link share initiated for coupon:", coupon?.id);
-      // Implement link sharing logic here
-      // This might involve generating a share link and opening native share dialog
-      setShowShareModal(false);
-      // You might want to show native share dialog or copy link to clipboard
-      Alert.alert('分享連結', '分享連結功能尚未實現');
-    } catch (err) {
+      devLog("Link share initiated for coupon:", coupon.id);
+      
+      // Call the share_coupon API
+      const response = await fetchAPI(`/coupon/${coupon.id}/share/`, {
+        method: 'POST',
+      });
+
+      if (response.data.share_link) {
+        // Copy the share link to clipboard
+        await Clipboard.setStringAsync(response.data.share_link);
+        
+        setShowShareModal(false);
+        Alert.alert('分享成功', '分享連結已複製到剪貼簿，可以傳送給朋友了！');
+        
+        devLog("Share link generated and copied:", response.data.share_link);
+      } else {
+        throw new Error('Failed to generate share link');
+      }
+    } catch (err: any) {
       console.error('Error sharing link:', err);
-      Alert.alert('分享失敗', '無法生成分享連結，請稍後再試');
+      
+      let errorMessage = '無法生成分享連結，請稍後再試';
+      
+      if (err?.response?.data?.error) {
+        const backendError = err.response.data.error;
+        if (backendError === 'You do not own this coupon.') {
+          errorMessage = '您不是此優惠券的持有者';
+        } else if (err?.response?.status === 404) {
+          errorMessage = '找不到此優惠券';
+        } else if (err?.response?.status === 403) {
+          errorMessage = '您沒有權限分享此優惠券';
+        } else {
+          errorMessage = backendError;
+        }
+      }
+      
+      Alert.alert('分享失敗', errorMessage);
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -564,6 +601,7 @@ const CouponDetailPage: React.FC = () => {
         onClose={handleCloseShareModal}
         onCouProShare={handleCouProShare}
         onLinkShare={handleLinkShare}
+        isSharing={isSharing}
       />
     </YStack>
   );

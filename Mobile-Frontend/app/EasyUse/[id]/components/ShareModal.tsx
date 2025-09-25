@@ -117,7 +117,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                         fontSize="$5" 
                         fontWeight="600"
                       >
-                        {isSharing ? '分享中...' : 'CouPro'}
+                        {isSharing ? '分享中...' : '分享到隨取即用'}
                       </Text>
                     </XStack>
                   </Button>

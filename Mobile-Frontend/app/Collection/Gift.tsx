@@ -69,7 +69,23 @@ const Gift: React.FC<GiftType> = ({
       setShowSuccessPopup(true);
     } catch (err: any) {
       console.error('Error accepting gift:', err);
-      setError(err?.response?.data?.error || '領取失敗，請稍後再試。');
+      
+      const errorMessage = err?.response?.data?.error;
+      let displayError = '領取失敗，請稍後再試';
+      
+      if (errorMessage === 'This request has already been processed.') {
+        displayError = '此優惠券已被領取';
+      } else if (errorMessage === 'This coupon has already been redeemed.') {
+        displayError = '此優惠券已被使用';
+      } else if (err?.response?.status === 404) {
+        displayError = '找不到此分享邀請';
+      } else if (err?.response?.status === 403) {
+        displayError = '無效的分享邀請';
+      } else if (errorMessage) {
+        displayError = errorMessage;
+      }
+      
+      setError(displayError);
     } finally {
       setIsAccepting(false);
     }
@@ -116,18 +132,23 @@ const Gift: React.FC<GiftType> = ({
           <YStack marginRight="$4" flex={1}>
             <Text 
               color="$color" 
-              marginBottom="$1" 
+              marginBottom="$2" 
               fontSize="$6" 
               fontWeight="bold" 
               numberOfLines={2}
             >
-              {GiftType || (couponInfo ? `來自 ${couponInfo.fromUser} 的優惠券` : '')}
+              🎁 {GiftType || (couponInfo ? `來自好友的優惠券` : '優惠券禮物')}
             </Text>
 
             {couponInfo && (
-              <Text fontSize="$4" color="$gray10" numberOfLines={2}>
-                {couponInfo.name}
-              </Text>
+              <>
+                <Text fontSize="$4" color="$gray10" numberOfLines={2} marginBottom="$1">
+                  {couponInfo.name}
+                </Text>
+                <Text fontSize="$3" color="$gray8" numberOfLines={1}>
+                  分享者：{couponInfo.fromUser}
+                </Text>
+              </>
             )}
 
             {error && (
