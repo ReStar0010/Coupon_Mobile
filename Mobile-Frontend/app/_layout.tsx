@@ -10,6 +10,7 @@ import ThemeProvider from './components/providers/ThemeProvider';
 import AuthProvider from './components/providers/SessionProvider';
 import ToastProvider from './components/providers/ToastProvider';
 
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>

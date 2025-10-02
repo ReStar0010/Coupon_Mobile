@@ -32,11 +32,11 @@ def share_coupon(request, coupon_id):
     # Log the share action
     Log.objects.create(action="share", user=request.user, coupon=coupon)
     
-    # Build the share link (adjust FRONTEND_URL as needed)
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-
-    # Update the URL to point to Collection page instead of Login/share
-    share_link = f"{frontend_url}/Collection?token={token}"
+    # Build the deep link for mobile app
+    # Uses the app's custom URL scheme defined in app.json (scheme: "CouPro")
+    # This will open the app directly to the Collection page with the share token
+    share_link = f"CouPro://Collection?token={token}"
+    
     return Response({'share_link': share_link, 'token': token})
 
 @api_view(['GET'])

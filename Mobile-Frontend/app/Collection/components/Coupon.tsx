@@ -133,7 +133,7 @@ const Coupon: React.FC<CouponProps> = ({
         </YStack>
 
         {/* Share button */}
-        <Button
+        {/* <Button
           onPress={handleShare}
           disabled={isSharing}
           backgroundColor="#FFAD31"
@@ -147,7 +147,7 @@ const Coupon: React.FC<CouponProps> = ({
           ) : (
             <Text fontSize="$5" color="#000">📤</Text>
           )}
-        </Button>
+        </Button> */}
       </XStack>
 
       {/* Error message */}
