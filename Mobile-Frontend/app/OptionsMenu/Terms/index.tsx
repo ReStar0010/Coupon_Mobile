@@ -2,17 +2,20 @@ import React from 'react';
 import { XStack, View, Text, H4, ScrollView, H6 } from 'tamagui';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 const Terms: React.FC = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const handleGoBack = () => router.push('/OptionsMenu');
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true }} />
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView px="$4" py="$6">
+      <ScrollView px="$4" py="$6" style={{ paddingTop: insets.top + 10 }}>
         {/* Header with back button and title */}
         <XStack gap={'$3'} items="center">
           <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />

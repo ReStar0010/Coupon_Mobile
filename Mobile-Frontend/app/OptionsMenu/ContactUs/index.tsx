@@ -3,9 +3,11 @@ import { useRouter, Stack } from 'expo-router';
 import { XStack, View, H4, ListItem, YStack, Separator } from 'tamagui';
 import { ChevronLeft, Mail, ArrowUpRight } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ContactUsPage: React.FC = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const handleGoBack = () => router.push('/OptionsMenu');
 
@@ -21,9 +23,9 @@ const ContactUsPage: React.FC = () => {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true }} />
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <View flex="1" px="$4" py="$6" gap={13}>
+      <View flex="1" px="$4" py="$6" gap={13} style={{ paddingTop: insets.top + 10 }}>
         {/* Header with back button and title */}
         <XStack gap={13} items="center">
           <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />
