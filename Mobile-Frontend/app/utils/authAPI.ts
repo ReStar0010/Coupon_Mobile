@@ -232,7 +232,7 @@ const clearStoredTokens = async (): Promise<void> => {
  * Store login data in AsyncStorage after successful login
  * @param loginResponse The response data from login API
  */
-export const storeLoginData = async (loginResponse: any): Promise<void> => {
+export const storeLoginData = async (loginResponse: any, email: string): Promise<void> => {
   try {
     devLog('📦 Storing login data:', loginResponse);
 
@@ -263,12 +263,19 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
     await AsyncStorage.setItem('is_logged_in', 'true');
     devLog('✅ Marked user as logged in');
 
+    // Store email for reference
+    if(email){
+      await AsyncStorage.setItem('email', email);
+      devLog('✅ Stored user email:', email);
+    }
+
     // Debug: Verify what was stored
     const storedData = {
       access_token: await AsyncStorage.getItem('access_token'),
       refresh_token: await AsyncStorage.getItem('refresh_token'),
       user_id: await AsyncStorage.getItem('user_id'),
       is_logged_in: await AsyncStorage.getItem('is_logged_in'),
+      email: await AsyncStorage.getItem('email'),
     };
     devDebug('📦 Verification - Stored data:', storedData);
 

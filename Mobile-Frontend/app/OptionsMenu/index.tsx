@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,6 +17,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const OptionsMenu: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [email, setEmail] = React.useState<string>('');
+
+  useEffect(() => {
+    const loadEmail = async () => {
+      const storedEmail = await AsyncStorage.getItem('email');
+      setEmail(storedEmail || '');
+    };
+    loadEmail();
+  }, []);
 
   const handleGoBack = useCallback(() => {
     router.push('/EasyUse'); // Always go back to EasyUse
@@ -64,13 +73,12 @@ const OptionsMenu: React.FC = () => {
             } catch (storageError) {
               console.error('清除儲存失敗:', storageError);
             }
-            router.replace('/Login');
           }
+          router.replace('/Login');
         },
       },
     ]);
   };
-
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -87,20 +95,20 @@ const OptionsMenu: React.FC = () => {
         {/* Tamagui Card */}
         <Card bg={'$white1'} bordered>
           <Card.Header>
-            <H4 fontWeight={'bold'}>Ricky Lu</H4>
-            <Text color={'gray'}>rickylu@gmail.com</Text>
+            <H4 fontWeight={'bold'}>{email}</H4>
+            {/* <Text color={'gray'}>rickylu@gmail.com</Text> */}
           </Card.Header>
-          <Card.Footer pr={'$4'} pb={'$3'}>
-            <XStack flex={1}></XStack>
-            <Button borderRadius="$10" bg={'#ffad31'} onPress={handleUserDataEdit}>
-              編輯
-            </Button>
-          </Card.Footer>
+          {/* <Card.Footer pr={'$4'} pb={'$3'}> */}
+            {/* <XStack flex={1}></XStack> */}
+            {/* <Button borderRadius="$10" bg={'#ffad31'} onPress={handleUserDataEdit}> */}
+              {/* 編輯 */}
+            {/* </Button> */}
+          {/* </Card.Footer> */}
         </Card>
 
         {/* Tamagui ListItem Group with 3 items */}
         <YStack style={{ borderWidth: 1, borderColor: '#e1e1e1' }} rounded={'$5'}>
-          <ListItem
+          {/* <ListItem
             icon={MessageSquareText}
             iconAfter={ChevronRight}
             style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
@@ -110,7 +118,7 @@ const OptionsMenu: React.FC = () => {
             size="$6"
             onPress={handleFeedBack}>
             <ListItem.Text>意見回饋</ListItem.Text>
-          </ListItem>
+          </ListItem> */}
           <Separator />
           <ListItem
             icon={Phone}

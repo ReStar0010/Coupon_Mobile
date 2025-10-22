@@ -69,7 +69,7 @@ export default function Index() {
             withCredentials: true, // This ensures cookies are sent with the request
         });
       devLog("Login successful", response.data);
-      await storeLoginData(response.data);
+      await storeLoginData(response.data, email);
       devLog("Store login data successfully");
       router.replace("/EasyUse");
     }catch (err) {
