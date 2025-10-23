@@ -85,15 +85,15 @@ const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUr
           width: 64,
           height: 64,
         }}
-        style={{ borderRadius: 8 }}
+        style={{ borderRadius: 8, flexShrink: 0 }}
       />
 
-      <YStack gap={8}>
-        <Text fontSize={24} fontWeight="700" color="#000000">
+      <YStack gap={8} flex={1} style={{ flexShrink: 1 }}>
+        <Text fontSize={24} fontWeight="700" color="#000000" numberOfLines={1} ellipsizeMode="tail">
           {storeName}
         </Text>
 
-        <Text color="#6b7280">
+        <Text color="#6b7280" numberOfLines={2} ellipsizeMode="tail">
           {description}
         </Text>
       </YStack>
