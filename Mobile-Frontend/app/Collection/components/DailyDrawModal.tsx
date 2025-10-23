@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Dimensions } from 'react-native';
 import { 
   YStack, 
+  XStack,
   Text, 
   Button, 
   Card,
-  Spinner
+  Spinner,
+  Separator
 } from 'tamagui';
-import SuccessPopup from '../../EasyUse/[id]/redeem/SuccessPopup';
 import { DailyDrawResult } from '../utils/types';
 
 interface DailyDrawModalProps {
@@ -122,15 +123,65 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
               </Button>
             </>
           ) : (
-            <SuccessPopup
-              isOpen={true}
-              onClose={() => {
-                onDrawComplete();
-              }}
-              storeName={result.success ? '恭喜抽中' : '明天再加油'}
-              couponDetail={result.success && result.coupon ? result.coupon.name : '今天沒有抽中'}
-              titleType={result.success ? '抽獎成功' : '抽獎結果'}
-            />
+            <>
+              {/* Draw Result - Inline content instead of nested Modal */}
+              <Text 
+                fontSize="$8" 
+                fontWeight="bold" 
+                color="$color" 
+                marginBottom="$8"
+                textAlign="center"
+              >
+                {result.success ? '抽獎成功' : '抽獎結果'}
+              </Text>
+
+              <YStack marginBottom="$6" gap="$4">
+                {/* Usage Date Row */}
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="$5" color="$gray10" fontWeight="500">
+                    使用日期
+                  </Text>
+                  <Text fontSize="$5" color="$color" fontWeight="600">
+                    {new Date().toLocaleDateString('zh-TW')}
+                  </Text>
+                </XStack>
+
+                <Separator />
+
+                {/* Result Info Row */}
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="$5" color="$gray10" fontWeight="500">
+                    {result.success ? '獲得優惠券' : '結果'}
+                  </Text>
+                  <Text 
+                    fontSize="$5" 
+                    color="$color" 
+                    fontWeight="600"
+                    maxWidth={180}
+                    textAlign="right"
+                    numberOfLines={2}
+                  >
+                    {result.success && result.coupon 
+                      ? result.coupon.name 
+                      : '今天沒有抽中'}
+                  </Text>
+                </XStack>
+              </YStack>
+
+              {/* Complete Button */}
+              <Button
+                onPress={onDrawComplete}
+                width="100%"
+                backgroundColor="#FFAD31"
+                borderRadius="$4"
+                paddingVertical="$4"
+                pressStyle={{ opacity: 0.8 }}
+              >
+                <Text color="#000" fontSize="$6" fontWeight="bold">
+                  完成
+                </Text>
+              </Button>
+            </>
           )}
         </Card>
       </YStack>

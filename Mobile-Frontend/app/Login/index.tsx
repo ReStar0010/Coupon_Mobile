@@ -105,6 +105,7 @@ export default function Index() {
         visibilityTime: 2000,
         autoHide: true,
       });
+      router.replace("/Login");
     } catch (err) {
       // Handle axios errors
       devError("Registration error:", err);
@@ -116,7 +117,6 @@ export default function Index() {
         autoHide: true,
       });
     }
-    router.replace("/Login");
   }
 
   const handleForgotPassword = async () => {
@@ -140,6 +140,7 @@ export default function Index() {
         visibilityTime: 2000,
         autoHide: true,
       });
+      router.replace("/Login");
     } catch (err) {
       // Handle axios errors
       devError("Password reset error:", err);

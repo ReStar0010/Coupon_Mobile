@@ -10,7 +10,7 @@ import { devLog, devDebug } from './devLogger';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api` || 'http://localhost:8000/api';
+const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api`;
 
 // Token refresh state
 let isRefreshing = false;
