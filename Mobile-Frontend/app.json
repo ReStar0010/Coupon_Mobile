@@ -13,7 +13,6 @@
     },
     "plugins": [
       "expo-router",
-      "expo-barcode-scanner",
       [
         "expo-camera",
         {

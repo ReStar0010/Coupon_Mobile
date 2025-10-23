@@ -17,7 +17,6 @@
     "@tamagui/metro-plugin": "^1.132.23",
     "axios": "^1.11.0",
     "expo": "^53.0.22",
-    "expo-barcode-scanner": "^13.0.1",
     "expo-camera": "~16.1.11",
     "expo-clipboard": "~7.1.5",
     "expo-constants": "~17.1.7",
