@@ -1,1 +1,3 @@
 node_modules/
+.tamagui/
+tamagui-web.css
