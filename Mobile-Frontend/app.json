@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Mobile-Frontend",
-    "slug": "Mobile-Frontend",
+    "name": "CouPro",
+    "slug": "coupro",
     "version": "1.0.0",
-    "scheme": "CouPro",
+    "scheme": ["coupro"],
     "web": {
-      "favicon": "./assets/favicon.png",
+      "favicon": "./assets/favicon.ico",
       "bundler": "metro"
     },
     "experiments": {
@@ -32,7 +32,11 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cokayne.MobileFrontend",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -42,7 +46,19 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.cokayne.MobileFrontend",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCXBdaCHpBHbabUouRrQvLmeRXbnGhRNK4"
+        }
+      }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ba247e6a-3cfa-4285-99f6-5867b5257c0e"
+      }
     }
   }
 }
