@@ -7,9 +7,10 @@ import { Image as ExpoImage } from 'expo-image';
 
 interface HeaderProps {
   onLogoPress?: () => void;
+  onMenuPress?: () => void;
 }
 
-export function Header({ onLogoPress }: HeaderProps) {
+export function Header({ onLogoPress, onMenuPress }: HeaderProps) {
   return (
     <XStack
       paddingHorizontal="$4"
@@ -45,10 +46,10 @@ export function Header({ onLogoPress }: HeaderProps) {
 
       {/* Hamburger Menu */}
       <TouchableOpacity
-        onPress={() => {
+        onPress={onMenuPress || (() => {
           // TODO: Open navigation drawer
           console.log('Menu pressed');
-        }}
+        })}
         activeOpacity={0.7}
       >
         <MaterialIcons name="menu" size={24} color={colors.textPrimary} />

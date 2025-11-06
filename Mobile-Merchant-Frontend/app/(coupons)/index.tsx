@@ -37,7 +37,9 @@ export default function CouponsScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
       <YStack flex={1} backgroundColor={colors.white}>
-        <Header />
+        <Header 
+          onMenuPress={() => router.push('/(coupons)/profile')}
+        />
         <ScrollView
         flex={1}
         paddingHorizontal="$4"

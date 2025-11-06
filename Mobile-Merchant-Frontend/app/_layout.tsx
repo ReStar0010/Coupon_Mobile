@@ -19,6 +19,8 @@ export default function RootLayout() {
             <Stack.Screen name="(coupons)/index" />
             <Stack.Screen name="(coupons)/[id]" />
             <Stack.Screen name="(coupons)/edit" />
+            <Stack.Screen name="(coupons)/profile" />
+            <Stack.Screen name="(coupons)/profile-edit" />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
