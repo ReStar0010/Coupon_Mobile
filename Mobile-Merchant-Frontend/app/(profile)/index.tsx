@@ -3,7 +3,7 @@ import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
-import { Header } from './components/Header';
+import { Header } from '../(coupons)/components/Header';
 import { Button } from '@/components/ui';
 import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -81,7 +81,7 @@ export default function MerchantProfileScreen() {
                 政大茶亭
               </Text>
               <Button variant="primary" onPress={() => {
-                router.push('/(coupons)/profile-edit');
+                router.push('/(profile)/edit');
               }}>
                 編輯
               </Button>

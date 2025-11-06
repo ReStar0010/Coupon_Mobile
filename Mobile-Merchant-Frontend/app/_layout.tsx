@@ -15,12 +15,13 @@ export default function RootLayout() {
       <TamaguiProvider config={config} defaultTheme="light">
         <PortalProvider shouldAddRootHost>
           <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
             <Stack.Screen name="(auth)/login" />
             <Stack.Screen name="(coupons)/index" />
             <Stack.Screen name="(coupons)/[id]" />
             <Stack.Screen name="(coupons)/edit" />
-            <Stack.Screen name="(coupons)/profile" />
-            <Stack.Screen name="(coupons)/profile-edit" />
+            <Stack.Screen name="(profile)/index" />
+            <Stack.Screen name="(profile)/edit" />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
