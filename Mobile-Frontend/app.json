@@ -3,9 +3,11 @@
     "name": "CouPro",
     "slug": "Mobile-Frontend",
     "version": "1.0.0",
-    "scheme": ["coupro"],
+    "scheme": [
+      "coupro"
+    ],
     "web": {
-      "favicon": "./assets/favicon.ico",
+      "favicon": "./assets/icon.png",
       "bundler": "metro"
     },
     "experiments": {
@@ -45,6 +47,8 @@
       },
       "permissions": [
         "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
       "package": "com.cokayne.MobileFrontend",
@@ -59,6 +63,12 @@
       "eas": {
         "projectId": "ba247e6a-3cfa-4285-99f6-5867b5257c0e"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ba247e6a-3cfa-4285-99f6-5867b5257c0e"
     }
   }
 }

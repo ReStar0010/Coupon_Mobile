@@ -89,6 +89,8 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
         <LoginButton title="寄送重設密碼信件" onPress={handleForgotPassword} />
       )}
 
+      <LinkText normalText={process.env.EXPO_PUBLIC_API_URL} linkText="" onLinkPress={() => {}} />
+
       {/* Links */}
       {/* Registration Link */}
       {mode === 'login' && (

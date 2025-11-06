@@ -1,9 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions } from 'react-native';
-import MapView, { Marker, Callout, Region } from 'react-native-maps';
-import * as Location from 'expo-location';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { devLog } from '../utils/devLogger';
+
+// Conditionally import react-native-maps only for native platforms
+let MapView: any;
+let Marker: any;
+let Callout: any;
+let Region: any;
+let Location: any;
+
+if (Platform.OS !== 'web') {
+  MapView = require('react-native-maps').default;
+  Marker = require('react-native-maps').Marker;
+  Callout = require('react-native-maps').Callout;
+  Region = require('react-native-maps').Region;
+  Location = require('expo-location');
+}
 
 // Define types for the props and store data
 type MapComponentProps = {
@@ -27,7 +40,7 @@ export type Store = {
 };
 
 // Default center (Taipei city center)
-const defaultRegion: Region = {
+const defaultRegion = {
   latitude: 25.033,
   longitude: 121.5654,
   latitudeDelta: 0.02, // More zoomed in (smaller value = closer zoom)
@@ -44,14 +57,29 @@ const MapComponent: React.FC<MapComponentProps> = ({
   searchQuery = '', // Add searchQuery with default empty string
 }) => {
   const router = useRouter();
+  
+  // Return a placeholder for web platform
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.webPlaceholder}>
+        <Text style={styles.webPlaceholderText}>
+          地圖功能僅適用於移動設備
+        </Text>
+        <Text style={styles.webPlaceholderSubtext}>
+          請使用手機應用程式查看商店地圖
+        </Text>
+      </View>
+    );
+  }
+  
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [mapRegion, setMapRegion] = useState<Region>(defaultRegion);
+  const [mapRegion, setMapRegion] = useState<typeof defaultRegion>(defaultRegion);
   const [isMapReady, setIsMapReady] = useState(false);
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
 
   // Get user's current location
   useEffect(() => {
@@ -261,6 +289,26 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
     width: '100%',
+  },
+  webPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    padding: 20,
+  },
+  webPlaceholderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#374151',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  webPlaceholderSubtext: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
   },
   map: {
     width: '100%',
