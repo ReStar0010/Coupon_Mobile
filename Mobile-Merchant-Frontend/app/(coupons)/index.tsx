@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
@@ -17,6 +18,7 @@ export interface Coupon {
 }
 
 export default function CouponsScreen() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<string | null>(null);
@@ -69,8 +71,7 @@ export default function CouponsScreen() {
           <XStack flex={1} />
           <AddButton
             onPress={() => {
-              // TODO: Navigate to add coupon screen
-              console.log('Add coupon pressed');
+              router.push('/(coupons)/edit');
             }}
           />
         </XStack>
@@ -82,8 +83,7 @@ export default function CouponsScreen() {
               key={coupon.id}
               coupon={coupon}
               onEdit={() => {
-                // TODO: Navigate to edit coupon screen
-                console.log('Edit coupon:', coupon.id);
+                router.push(`/(coupons)/edit?id=${coupon.id}`);
               }}
             />
           ))}
