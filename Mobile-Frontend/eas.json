@@ -10,21 +10,24 @@
       "environment": "development",
       "env": {
         "EXPO_PUBLIC_API_URL": "EXPO_PUBLIC_API_URL"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "environment": "preview",
       "env": {
         "EXPO_PUBLIC_API_URL": "EXPO_PUBLIC_API_URL"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_API_URL": "EXPO_PUBLIC_API_URL"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
