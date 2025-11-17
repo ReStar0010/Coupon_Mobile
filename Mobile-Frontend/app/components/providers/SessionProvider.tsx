@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isUserLoggedIn, getUserId } from '../../utils/authAPI';
 import { devDebug } from '../../utils/devLogger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Create an authentication context
 type AuthContextType = {
@@ -36,19 +37,26 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
   // Function to check authentication status
   const checkAuth = async () => {
     try {
-      const authenticated = await isUserLoggedIn();
-      const userId = await getUserId();
+      // Optimize: Use multiGet to fetch all values in a single AsyncStorage call
+      const [isLoggedIn, refreshToken, userId] = await AsyncStorage.multiGet([
+        'is_logged_in',
+        'refresh_token',
+        'user_id',
+      ]);
+
+      const authenticated = isLoggedIn[1] === 'true' || refreshToken[1] !== null;
+      const userIdValue = userId[1];
 
       devDebug('Auth check:', {
         authenticated,
-        userId,
+        userId: userIdValue,
         platform: 'React Native',
       });
 
       setAuthState((prevState) => ({
         ...prevState,
         isAuthenticated: authenticated,
-        userId: userId,
+        userId: userIdValue,
         loading: false,
       }));
     } catch (error) {
