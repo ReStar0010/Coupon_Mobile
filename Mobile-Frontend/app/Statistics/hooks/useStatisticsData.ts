@@ -42,8 +42,8 @@ export const useStatisticsData = (isAuthenticated: boolean) => {
   // Completed goals state
   const [completedGoals, setCompletedGoals] = useState<CompletedGoal[]>([]);
 
-  // Loading states
-  const [isLoading, setIsLoading] = useState(true);
+  // Loading states - start as false to allow page to render immediately
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch completed goals

@@ -8,13 +8,16 @@ import { fetchAPI } from '../../utils/authAPI';
 
 export function useCoupons(isAuthenticated: boolean, authLoading: boolean) {
   const [coupons, setCoupons] = useState<CouponType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch coupons from API
   const fetchCoupons = useCallback(async () => {
     // Only fetch coupons if authenticated
-    if (authLoading || !isAuthenticated) return;
+    if (authLoading || !isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -56,8 +59,10 @@ export function useCoupons(isAuthenticated: boolean, authLoading: boolean) {
 
   // Load coupons when authenticated
   useEffect(() => {
-    fetchCoupons();
-  }, [fetchCoupons]);
+    if (isAuthenticated && !authLoading) {
+      fetchCoupons();
+    }
+  }, [isAuthenticated, authLoading]);
 
   return {
     coupons,

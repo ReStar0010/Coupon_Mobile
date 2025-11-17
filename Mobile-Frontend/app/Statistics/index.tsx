@@ -1,17 +1,18 @@
 import React, { useState, useCallback } from 'react';
 import { ActivityIndicator, RefreshControl } from 'react-native';
 import { useRequireAuth } from '../utils/authAPI';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStatisticsData } from './hooks/useStatisticsData';
 import { useTransactionHistory } from './hooks/useTransactionHistory';
-import { useAuthCheck } from './hooks/useAuthCheck';
 import { AlignJustify, List, ChevronRight } from 'lucide-react-native';
 import StatisticsChart from './components/StatisticsChart';
 import StatCard from './components/StatCard';
 import GoalModal from './components/GoalModal';
 import Toast from './components/Toast';
 import TabsFooter from '../components/TabsFooter';
-import { XStack, YStack, H4, Button, ScrollView, View, Text, ListItem, Separator } from 'tamagui';
+import ErrorBoundary from '../components/ErrorBoundary';
+import { XStack, YStack, H4, Button, ScrollView, View, Text, ListItem, Separator, Spinner } from 'tamagui';
 
 interface Goal {
   id: string;
@@ -21,9 +22,11 @@ interface Goal {
 }
 
 const Statistics: React.FC = () => {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  
   // Authentication hooks
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
-  useAuthCheck(isAuthenticated, authLoading);
 
   // Statistics data hook
   const { stats, completedGoals, isLoading, error, setSavingsGoal, resetGoal, fetchUserStats } =
@@ -43,7 +46,6 @@ const Statistics: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const defaultImage = '/Info.png'; // Default image URL
-  const router = useRouter();
 
   
   const handleSetGoal = (customGoalName: string, customGoalAmount: number) => {
@@ -98,36 +100,24 @@ const Statistics: React.FC = () => {
     }
   }, [fetchUserStats, refetchHistory]);
 
-  // Show loading indicator while authentication or initial data is loading
-  if (authLoading || isLoading) {
-    return (
-      <View flex={1} bg="#f5f5f5" items="center" style={{ justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#FFAD31" />
-        <Text mt="$4" fontSize={16} color="#707070">載入中...</Text>
-      </View>
-    );
-  }
-
-  // Show error state if there's an error loading statistics
-  if (error) {
-    return (
-      <View flex={1} bg="#f5f5f5" items="center" style={{ justifyContent: 'center' }}>
-        <Text fontSize={16} color="#ef4444" style={{ textAlign: 'center' }} px="$5">
-          {error}
-        </Text>
-        <Text mt="$2" fontSize={14} color="#707070">請稍後再試</Text>
-      </View>
-    );
-  }
-
   return (
-    <View flex={1} bg="#f5f5f5">
+    <ErrorBoundary>
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      {/* Show loading indicator only while authentication is loading */}
+      {authLoading ? (
+        <View flex={1} bg="#f5f5f5" items="center" style={{ justifyContent: 'center' }}>
+          <Spinner size="large" color="#FFAD31" />
+          <Text mt="$4" fontSize={16} color="#707070">驗證身份中...</Text>
+        </View>
+      ) : (
+      <View flex={1} bg="#f5f5f5">
       {/* Header */}
       <XStack 
         items="center" 
         style={{ justifyContent: 'space-between' }}
         px="$5" 
-        pt="$8"
+        pt={insets.top + 10}
       >
         <XStack gap="$3" items="center">
           <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
@@ -157,26 +147,59 @@ const Statistics: React.FC = () => {
           />
         }
       >
-        {/* Statistics Chart */}
-        <StatisticsChart
-          currentAmount={stats.totalSavings}
-          targetAmount={stats.savingsGoalAmount}
-          goalName={stats.savingsGoalName}
-          goalImage={stats.savingsGoalImage}
-          onSetGoal={openModal}
-        />
+        {/* Show error state inline if there's an error */}
+        {error ? (
+          <YStack 
+            bg="white"
+            rounded="$4"
+            p="$6" 
+            items="center"
+            borderWidth={1}
+            borderColor="#e0e0e0"
+            mt="$4"
+          >
+            <Text fontSize={16} color="#ef4444" style={{ textAlign: 'center' }}>
+              {error}
+            </Text>
+            <Text mt="$2" fontSize={14} color="#707070">請稍後再試</Text>
+          </YStack>
+        ) : isLoading ? (
+          <YStack 
+            bg="white"
+            rounded="$4"
+            p="$6" 
+            items="center"
+            borderWidth={1}
+            borderColor="#e0e0e0"
+            mt="$4"
+          >
+            <Spinner size="large" color="#FFAD31" />
+            <Text mt="$4" fontSize={16} color="#707070">載入統計資料中...</Text>
+          </YStack>
+        ) : (
+          <>
+            {/* Statistics Chart */}
+            <StatisticsChart
+              currentAmount={stats.totalSavings}
+              targetAmount={stats.savingsGoalAmount}
+              goalName={stats.savingsGoalName}
+              goalImage={stats.savingsGoalImage}
+              onSetGoal={openModal}
+            />
 
-        {/* Statistics Cards */}
-        <XStack mt="$4" gap="$4">
-          <StatCard
-            title="酷胖使用張數"
-            value={stats.couponsUsedCount.toString()}
-          />
-          <StatCard
-            title="節省總金額 (元)"
-            value={stats.totalSavings.toString()}
-          />
-        </XStack>
+            {/* Statistics Cards */}
+            <XStack mt="$4" gap="$4">
+              <StatCard
+                title="酷胖使用張數"
+                value={stats.couponsUsedCount.toString()}
+              />
+              <StatCard
+                title="節省總金額 (元)"
+                value={stats.totalSavings.toString()}
+              />
+            </XStack>
+          </>
+        )}
 
         {/* List Items */}
         <YStack mt="$3">
@@ -295,7 +318,9 @@ const Statistics: React.FC = () => {
         onCollectionPress={handleCollectionPress}
         onStatisticsPress={handleStatisticsPress}
       />
-    </View>
+      </View>
+      )}
+    </ErrorBoundary>
   );
 };
 

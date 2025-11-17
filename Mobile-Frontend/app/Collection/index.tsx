@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { RefreshControl, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -15,6 +15,7 @@ import {
 import { AlignJustify, Search, X } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import TabsFooter from '../components/TabsFooter';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { useRequireAuth } from '../utils/authAPI';
 import Gift from './Gift';
 import { filterCoupons } from './utils/couponUtils';
@@ -116,7 +117,7 @@ const Collection = () => {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <Stack.Screen options={{ headerShown: false }} />
       
       <YStack flex={1}>
@@ -244,17 +245,8 @@ const Collection = () => {
           onStatisticsPress={() => router.push('/Statistics')}
         />
       </YStack>
-    </>
+    </ErrorBoundary>
   );
 };
 
-// Wrap the client component with Suspense in the default page export
-const CollectionPage = () => {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <Collection />
-    </Suspense>
-  );
-};
-
-export default CollectionPage;
+export default Collection;
