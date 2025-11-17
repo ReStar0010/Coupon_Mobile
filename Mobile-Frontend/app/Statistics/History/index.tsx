@@ -1,15 +1,17 @@
 import React, { useState, useCallback } from 'react';
 import { ActivityIndicator, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth } from '../../utils/authAPI';
 import { useAuthCheck } from '../hooks/useAuthCheck';
 import { useTransactionHistory } from '../hooks/useTransactionHistory';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XStack, YStack, H4, Button, ScrollView, View, Text, ListItem, Separator } from 'tamagui';
 
 const HistoryPage: React.FC = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   
   // Authentication hooks
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
@@ -71,12 +73,13 @@ const HistoryPage: React.FC = () => {
 
   return (
     <View flex={1} bg="#f5f5f5">
+      <Stack.Screen options={{ headerShown: false }} />
       {/* Header */}
       <XStack 
         items="center" 
         style={{ justifyContent: 'space-between' }}
         px="$5" 
-        pt="$8"
+        pt={insets.top + 10}
         pb="$4"
       >
         <XStack gap="$3" items="center">
