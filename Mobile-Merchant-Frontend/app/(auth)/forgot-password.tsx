@@ -57,6 +57,10 @@ export default function ForgotPasswordScreen() {
     router.back();
   };
 
+  const handleBackToLogin = () => {
+    router.back();
+  };
+
   return (
     <YStack
       flex={1}
@@ -101,6 +105,20 @@ export default function ForgotPasswordScreen() {
       >
         寄送重設密碼信件
       </Button>
+
+      {/* Back to Login Link */}
+      <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
+        <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
+          <Text
+            fontSize="$sm"
+            color={colors.primary}
+            onPress={handleBackToLogin}
+            style={{ textDecorationLine: 'underline' }}
+          >
+            返回登入
+          </Text>
+        </Text>
+      </XStack>
 
       {/* Empty space at bottom (10px height as per design) */}
       <XStack height={10} width="100%" />
