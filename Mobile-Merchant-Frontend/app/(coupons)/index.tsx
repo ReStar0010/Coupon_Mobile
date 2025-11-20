@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
@@ -29,10 +29,6 @@ export default function CouponsScreen() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadCoupons();
-  }, []);
-
   const loadCoupons = async () => {
     try {
       setIsLoading(true);
@@ -44,6 +40,18 @@ export default function CouponsScreen() {
       setIsLoading(false);
     }
   };
+
+  // Load coupons on initial mount
+  useEffect(() => {
+    loadCoupons();
+  }, []);
+
+  // Refresh coupons when screen comes into focus (e.g., returning from edit page)
+  useFocusEffect(
+    useCallback(() => {
+      loadCoupons();
+    }, [])
+  );
 
   // Filter coupons based on search query
   const filteredCoupons = coupons.filter((coupon) => {

@@ -5,11 +5,13 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Input } from '@/components/ui';
 import { Button } from '@/components/ui';
-import { StyleSheet, TouchableOpacity, View, TextInput, Switch, Alert } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, Switch, Alert, Platform, Modal } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { DeleteModal } from './components/DeleteModal';
-import { merchantAPI } from '@/utils/api';
+import { merchantAPI, getAbsoluteImageUrl } from '@/utils/api';
 
 export default function CouponEditScreen() {
   const router = useRouter();
@@ -29,8 +31,12 @@ export default function CouponEditScreen() {
   const [notes, setNotes] = useState('');
   const [couponType, setCouponType] = useState<'一般' | '共享'>('共享');
   const [limitPerDay, setLimitPerDay] = useState(false);
-  const [tags, setTags] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
+
+  // Date time picker state
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
 
   // Load existing coupon data if in edit mode
   useEffect(() => {
@@ -42,18 +48,22 @@ export default function CouponEditScreen() {
   const loadCouponData = async (couponId: number) => {
     try {
       setIsLoading(true);
-      const data = await merchantAPI.getTemplate(couponId);
+      const data = await merchantAPI.getTemplate(couponId) as any;
       setCouponName(data.coupon_name || '');
       setCouponContent(data.coupon_detail || '');
       setNotes(data.important_notes || '');
-      setImage(data.image_url || null);
+      // Convert relative URL to absolute URL for image display
+      setImage(getAbsoluteImageUrl(data.image_url) || null);
       setQuantity(String(data.total_quantity || 1));
-      setVerificationCode(data.template_redeem_code || '');
       if (data.start_date) {
-        setStartTime(new Date(data.start_date).toISOString().slice(0, 16));
+        const start = new Date(data.start_date);
+        setStartTime(formatDateTime(start));
+        setStartDate(start);
       }
       if (data.end_date) {
-        setEndTime(new Date(data.end_date).toISOString().slice(0, 16));
+        const end = new Date(data.end_date);
+        setEndTime(formatDateTime(end));
+        setEndDate(end);
       }
     } catch (error) {
       console.error('Failed to load coupon:', error);
@@ -64,45 +74,92 @@ export default function CouponEditScreen() {
   };
 
   const handleImageUpload = async () => {
-    // TODO: Install expo-image-picker and implement image upload
-    // For now, this is a placeholder
     try {
-      // Uncomment when expo-image-picker is installed:
-      // const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      // if (status !== 'granted') {
-      //   alert('需要相機權限才能上傳圖片');
-      //   return;
-      // }
-      // const result = await ImagePicker.launchImageLibraryAsync({
-      //   mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      //   allowsEditing: true,
-      //   aspect: [1, 1],
-      //   quality: 1,
-      // });
-      // if (!result.canceled && result.assets[0]) {
-      //   setImage(result.assets[0].uri);
-      // }
-      alert('圖片上傳功能需要安裝 expo-image-picker');
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('需要權限', '需要相簿權限才能上傳圖片');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        
+        // Show loading state
+        setIsLoading(true);
+        
+        try {
+          // Upload image to server
+          const imageUrl = await merchantAPI.uploadImage(uri);
+          
+          // Update state with server URL
+          setImage(imageUrl);
+          
+          Alert.alert('成功', '圖片上傳成功');
+        } catch (uploadError: any) {
+          console.error('Image upload error:', uploadError);
+          Alert.alert('錯誤', uploadError?.message || '圖片上傳失敗，請稍後再試');
+        } finally {
+          setIsLoading(false);
+        }
+      }
     } catch (error) {
-      console.error('Image upload error:', error);
+      console.error('Image picker error:', error);
+      Alert.alert('錯誤', '選擇圖片時發生錯誤');
+      setIsLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!couponName || !couponContent || !startTime || !endTime || !quantity) {
+    // 驗證必填欄位：優惠數量只在共享類型時必填
+    if (!couponName || !couponContent || !startTime || !endTime) {
       Alert.alert('錯誤', '請填寫所有必填欄位');
+      return;
+    }
+    if (couponType === '共享' && !quantity) {
+      Alert.alert('錯誤', '請填寫優惠數量');
       return;
     }
 
     try {
       setIsSaving(true);
+      
+      // 生成隨機的六位數字核銷碼（使用更強的隨機性）
+      const generateVerificationCode = (): string => {
+        // 使用 crypto.getRandomValues 獲取更強的隨機數（如果可用）
+        // 否則使用 Math.random() 結合時間戳增加隨機性
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+          const array = new Uint32Array(1);
+          crypto.getRandomValues(array);
+          // 使用隨機數生成 100000-999999 之間的數字
+          return String(100000 + (array[0] % 900000));
+        } else {
+          // 後備方案：結合時間戳和隨機數增加隨機性
+          const timestamp = Date.now();
+          const random1 = Math.random();
+          const random2 = Math.random();
+          const combined = (timestamp * random1 * random2) % 900000;
+          return String(100000 + Math.floor(combined));
+        }
+      };
+      
       const couponData = {
         coupon_name: couponName,
         coupon_detail: couponContent,
         important_notes: notes,
         image_url: image || '',
-        total_quantity: parseInt(quantity) || 1,
-        template_redeem_code: verificationCode || undefined,
+        // 優惠數量：共享類型使用輸入的數量，一般類型設為 0 或 undefined（根據後端需求）
+        total_quantity: couponType === '共享' ? (parseInt(quantity) || 1) : 0,
+        // 核銷碼：自動生成隨機的六位數字
+        template_redeem_code: generateVerificationCode(),
         start_date: new Date(startTime).toISOString(),
         expiry_date: new Date(endTime).toISOString(),
         draw_probability: 0.5,
@@ -145,8 +202,37 @@ export default function CouponEditScreen() {
     }
   };
 
+  const formatDateTime = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  };
+
+  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartDatePicker(false);
+    }
+    if (selectedDate) {
+      setStartDate(selectedDate);
+      setStartTime(formatDateTime(selectedDate));
+    }
+  };
+
+  const handleEndDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndDatePicker(false);
+    }
+    if (selectedDate) {
+      setEndDate(selectedDate);
+      setEndTime(formatDateTime(selectedDate));
+    }
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
       <YStack flex={1} backgroundColor={colors.white}>
         {/* Header with Back and Delete */}
         <XStack
@@ -172,23 +258,24 @@ export default function CouponEditScreen() {
           flex={1}
           paddingHorizontal="$4"
           paddingTop="$4"
-          paddingBottom="$6"
+          paddingBottom="$4"
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
         >
           {/* Image Upload Section */}
           <YStack gap="$3" marginBottom="$4">
-            <View style={styles.imageContainer}>
-              {image ? (
-                <ExpoImage source={{ uri: image }} style={styles.image} contentFit="cover" />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Text style={styles.placeholderText}>政</Text>
-                  <Text style={styles.placeholderText}>大</Text>
-                  <Text style={styles.placeholderText}>茶</Text>
-                  <Text style={styles.placeholderText}>亭</Text>
-                </View>
-              )}
-            </View>
+            <TouchableOpacity onPress={handleImageUpload} activeOpacity={0.9}>
+              <View style={styles.imageContainer}>
+                {image ? (
+                  <ExpoImage source={{ uri: image }} style={styles.image} contentFit="cover" />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <MaterialIcons name="image" size={48} color={colors.textSecondary} />
+                    <Text style={styles.placeholderText}>點擊上傳圖片</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
             <Button variant="primary" onPress={handleImageUpload}>
               上傳圖片
             </Button>
@@ -205,19 +292,19 @@ export default function CouponEditScreen() {
             />
 
             {/* 開始時間 */}
-            <FormField
+            <DateTimeField
               label="開始時間"
               value={startTime}
-              onChangeText={setStartTime}
               placeholder="選擇開始時間"
+              onPress={() => setShowStartDatePicker(true)}
             />
 
             {/* 結束時間 */}
-            <FormField
+            <DateTimeField
               label="結束時間"
               value={endTime}
-              onChangeText={setEndTime}
               placeholder="選擇結束時間"
+              onPress={() => setShowEndDatePicker(true)}
             />
 
             {/* 優惠內容 */}
@@ -229,13 +316,20 @@ export default function CouponEditScreen() {
               multiline
             />
 
-            {/* 優惠數量 */}
-            <FormField
-              label="優惠數量"
-              value={quantity}
-              onChangeText={setQuantity}
-              placeholder="輸入數量或 unlimited"
-            />
+            {/* 優惠數量 - 只在共享類型時顯示 */}
+            {couponType === '共享' && (
+              <FormField
+                label="優惠數量"
+                value={quantity}
+                onChangeText={(text) => {
+                  // Only allow numbers
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  setQuantity(numericValue);
+                }}
+                placeholder="輸入數量"
+                keyboardType="numeric"
+              />
+            )}
 
             {/* 注意事項 */}
             <FormField
@@ -304,22 +398,6 @@ export default function CouponEditScreen() {
                 />
               </XStack>
             </XStack>
-
-            {/* 標籤 */}
-            <FormField
-              label="標籤"
-              value={tags}
-              onChangeText={setTags}
-              placeholder="輸入標籤"
-            />
-
-            {/* 核銷碼 */}
-            <FormField
-              label="核銷碼"
-              value={verificationCode}
-              onChangeText={setVerificationCode}
-              placeholder="輸入核銷碼"
-            />
           </YStack>
         </ScrollView>
 
@@ -342,6 +420,91 @@ export default function CouponEditScreen() {
           onClose={() => setShowDeleteModal(false)}
           onConfirm={handleDeleteConfirm}
         />
+
+        {/* Date Time Pickers */}
+        {Platform.OS === 'ios' ? (
+          <>
+            <Modal
+              visible={showStartDatePicker}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setShowStartDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <XStack justifyContent="space-between" alignItems="center" padding="$4" borderBottomWidth={1} borderBottomColor={colors.border}>
+                    <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                      <Text fontSize="$md" color={colors.textSecondary}>取消</Text>
+                    </TouchableOpacity>
+                    <Text fontSize="$lg" fontWeight="600" color={colors.textPrimary}>選擇開始時間</Text>
+                    <TouchableOpacity onPress={() => {
+                      setStartTime(formatDateTime(startDate));
+                      setShowStartDatePicker(false);
+                    }}>
+                      <Text fontSize="$md" color={colors.primary} fontWeight="600">完成</Text>
+                    </TouchableOpacity>
+                  </XStack>
+                  <DateTimePicker
+                    value={startDate}
+                    mode="datetime"
+                    display="spinner"
+                    onChange={handleStartDateChange}
+                    locale="zh-TW"
+                  />
+                </View>
+              </View>
+            </Modal>
+            <Modal
+              visible={showEndDatePicker}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setShowEndDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <XStack justifyContent="space-between" alignItems="center" padding="$4" borderBottomWidth={1} borderBottomColor={colors.border}>
+                    <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                      <Text fontSize="$md" color={colors.textSecondary}>取消</Text>
+                    </TouchableOpacity>
+                    <Text fontSize="$lg" fontWeight="600" color={colors.textPrimary}>選擇結束時間</Text>
+                    <TouchableOpacity onPress={() => {
+                      setEndTime(formatDateTime(endDate));
+                      setShowEndDatePicker(false);
+                    }}>
+                      <Text fontSize="$md" color={colors.primary} fontWeight="600">完成</Text>
+                    </TouchableOpacity>
+                  </XStack>
+                  <DateTimePicker
+                    value={endDate}
+                    mode="datetime"
+                    display="spinner"
+                    onChange={handleEndDateChange}
+                    locale="zh-TW"
+                  />
+                </View>
+              </View>
+            </Modal>
+          </>
+        ) : (
+          <>
+            {showStartDatePicker && (
+              <DateTimePicker
+                value={startDate}
+                mode="datetime"
+                display="default"
+                onChange={handleStartDateChange}
+              />
+            )}
+            {showEndDatePicker && (
+              <DateTimePicker
+                value={endDate}
+                mode="datetime"
+                display="default"
+                onChange={handleEndDateChange}
+              />
+            )}
+          </>
+        )}
       </YStack>
     </SafeAreaView>
   );
@@ -353,9 +516,10 @@ interface FormFieldProps {
   onChangeText: (text: string) => void;
   placeholder?: string;
   multiline?: boolean;
+  keyboardType?: 'default' | 'numeric' | 'email-address' | 'phone-pad';
 }
 
-function FormField({ label, value, onChangeText, placeholder, multiline }: FormFieldProps) {
+function FormField({ label, value, onChangeText, placeholder, multiline, keyboardType = 'default' }: FormFieldProps) {
   return (
     <YStack gap="$2">
       <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
@@ -372,7 +536,35 @@ function FormField({ label, value, onChangeText, placeholder, multiline }: FormF
         placeholderTextColor={colors.textSecondary}
         multiline={multiline}
         numberOfLines={multiline ? 4 : 1}
+        keyboardType={keyboardType}
       />
+    </YStack>
+  );
+}
+
+interface DateTimeFieldProps {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onPress: () => void;
+}
+
+function DateTimeField({ label, value, placeholder, onPress }: DateTimeFieldProps) {
+  return (
+    <YStack gap="$2">
+      <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
+        {label}
+      </Text>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        <View style={styles.input}>
+          <XStack alignItems="center" justifyContent="space-between">
+            <Text style={[styles.dateTimeText, !value && styles.placeholderText]}>
+              {value || placeholder}
+            </Text>
+            <MaterialIcons name="calendar-today" size={20} color={colors.textSecondary} />
+          </XStack>
+        </View>
+      </TouchableOpacity>
     </YStack>
   );
 }
@@ -381,10 +573,12 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: '#1E3A8A',
+    backgroundColor: colors.background,
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   image: {
     width: '100%',
@@ -393,15 +587,14 @@ const styles = StyleSheet.create({
   imagePlaceholder: {
     width: '100%',
     height: '100%',
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 20,
+    gap: 12,
+    backgroundColor: colors.background,
   },
   placeholderText: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: colors.white,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   input: {
     borderWidth: 1,
@@ -440,10 +633,26 @@ const styles = StyleSheet.create({
   },
   saveButtonContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.white,
+  },
+  dateTimeText: {
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '50%',
   },
 });
 
