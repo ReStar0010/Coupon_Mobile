@@ -436,45 +436,45 @@ export default function CouponEditScreen() {
 
             {/* 優惠類型 - 只在 Create 模式顯示 */}
             {!isEditMode && (
-              <YStack gap="$2">
-                <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
-                  優惠類型(一般、共享)
-                </Text>
-                <XStack gap="$3">
-                  <TouchableOpacity
-                    onPress={() => setCouponType('一般')}
+            <YStack gap="$2">
+              <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
+                優惠類型(一般、共享)
+              </Text>
+              <XStack gap="$3">
+                <TouchableOpacity
+                  onPress={() => setCouponType('一般')}
+                  style={[
+                    styles.radioButton,
+                    couponType === '一般' && styles.radioButtonActive,
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.radioButton,
-                      couponType === '一般' && styles.radioButtonActive,
+                      styles.radioText,
+                      couponType === '一般' && styles.radioTextActive,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.radioText,
-                        couponType === '一般' && styles.radioTextActive,
-                      ]}
-                    >
-                      一般
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setCouponType('共享')}
+                    一般
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setCouponType('共享')}
+                  style={[
+                    styles.radioButton,
+                    couponType === '共享' && styles.radioButtonActive,
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.radioButton,
-                      couponType === '共享' && styles.radioButtonActive,
+                      styles.radioText,
+                      couponType === '共享' && styles.radioTextActive,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.radioText,
-                        couponType === '共享' && styles.radioTextActive,
-                      ]}
-                    >
-                      共享
-                    </Text>
-                  </TouchableOpacity>
-                </XStack>
-              </YStack>
+                    共享
+                  </Text>
+                </TouchableOpacity>
+              </XStack>
+            </YStack>
             )}
 
             {/* 每天限用一次 */}
