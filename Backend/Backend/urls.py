@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from api.views.authentication import register, login, logout, user_info, verify_email, forgot_password, reset_password, refresh_token
 from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon
 from api.views.sharing_views import share_coupon, get_share_request, accept_share_request
@@ -9,7 +11,7 @@ from api.views.daily_draw import get_daily_draw_templates, draw_coupon, draw_his
 from api.views.merchant_coupon import (
     merchant_consolidate_coupon, refresh_redeem_code,
     list_coupon_templates, get_coupon_template, create_coupon_template,
-    update_coupon_template, delete_coupon_template, merchant_redeem
+    update_coupon_template, delete_coupon_template, merchant_redeem, upload_image
 )
 from api.views.merchant_profile import (
     get_merchant_profile, update_merchant_profile, get_merchant_statistics
@@ -101,7 +103,14 @@ urlpatterns = [
     path('api/merchant/profile/', get_merchant_profile, name='get_merchant_profile'),
     path('api/merchant/profile/update/', update_merchant_profile, name='update_merchant_profile'),
     path('api/merchant/statistics/', get_merchant_statistics, name='get_merchant_statistics'),
+    
+    # Merchant image upload
+    path('api/merchant/upload-image/', upload_image, name='upload_image'),
 
     # Ping from cron-job.org to keep the server alive
     path('api/ping/', lambda request: HttpResponse("Pong!")),  # Ping endpoint for cron-job.org
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

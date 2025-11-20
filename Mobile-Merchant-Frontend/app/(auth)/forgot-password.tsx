@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { YStack, Text, XStack } from 'tamagui';
 import { useRouter } from 'expo-router';
-import { Input, Button, AlertModal } from '@/components/ui';
+import { Input, Button } from '@/components/ui';
 import { colors } from '@/constants/colors';
 import { ForgotPasswordFormData } from '@/types';
+import { StyleSheet, View } from 'react-native';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -11,9 +12,7 @@ export default function ForgotPasswordScreen() {
     email: '',
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState<'success' | 'error' | null>(null);
 
   const handleEmailChange = (text: string) => {
     setFormData((prev) => ({ ...prev, email: text }));
@@ -21,37 +20,30 @@ export default function ForgotPasswordScreen() {
 
   const handleSendResetEmail = async () => {
     if (!formData.email) {
-      setErrorMessage('請輸入 Email');
-      setShowErrorModal(true);
+      setStatusMessage('error');
       return;
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setErrorMessage('請輸入有效的 Email 格式');
-      setShowErrorModal(true);
+      setStatusMessage('error');
       return;
     }
 
     setIsLoading(true);
+    setStatusMessage(null);
     try {
       const { authAPI } = await import('@/utils/api');
       await authAPI.forgotPassword(formData.email);
       
-      setShowSuccessModal(true);
+      setStatusMessage('success');
     } catch (error: any) {
       console.error('Send reset email error:', error);
-      setErrorMessage(error?.message || '發送失敗，請稍後再試');
-      setShowErrorModal(true);
+      setStatusMessage('error');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSuccessConfirm = () => {
-    setShowSuccessModal(false);
-    router.back();
   };
 
   const handleBackToLogin = () => {
@@ -118,30 +110,57 @@ export default function ForgotPasswordScreen() {
         </Text>
       </XStack>
 
-      {/* Empty space at bottom (10px height as per design) */}
-      <XStack height={10} width="100%" />
-
-      {/* Success Modal */}
-      <AlertModal
-        isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        title="發送成功"
-        message="重設密碼信件已發送至您的 Email，請查收。"
-        type="success"
-        confirmText="確定"
-        onConfirm={handleSuccessConfirm}
-      />
-
-      {/* Error Modal */}
-      <AlertModal
-        isOpen={showErrorModal}
-        onClose={() => setShowErrorModal(false)}
-        title="發送失敗"
-        message={errorMessage}
-        type="error"
-        confirmText="確定"
-      />
+      {/* Status Message Button */}
+      {statusMessage && (
+        <View style={styles.statusContainer}>
+          <View
+            style={[
+              styles.statusButton,
+              statusMessage === 'success' ? styles.successButton : styles.errorButton,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                statusMessage === 'success' ? styles.successText : styles.errorText,
+              ]}
+            >
+              {statusMessage === 'success' ? '信件寄送成功' : '信件寄送失敗'}
+            </Text>
+          </View>
+        </View>
+      )}
     </YStack>
   );
 }
+
+const styles = StyleSheet.create({
+  statusContainer: {
+    width: '100%',
+    marginTop: 10,
+  },
+  statusButton: {
+    width: '100%',
+    height: 54,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successButton: {
+    backgroundColor: '#4CAF50', // Green color for success
+  },
+  errorButton: {
+    backgroundColor: '#FFB6C1', // Pink color for error
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  successText: {
+    color: '#FFFFFF',
+  },
+  errorText: {
+    color: '#FFFFFF',
+  },
+});
 

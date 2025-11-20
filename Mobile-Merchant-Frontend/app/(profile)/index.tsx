@@ -7,7 +7,9 @@ import { Header } from '../(coupons)/components/Header';
 import { Button } from '@/components/ui';
 import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { merchantAPI } from '@/utils/api';
+import { merchantAPI, authAPI } from '@/utils/api';
+import { useAuth } from '../components/providers/AuthProvider';
+import { Alert } from 'react-native';
 
 interface MetricCardProps {
   label: string;
@@ -52,6 +54,7 @@ function InfoRow({ label, value }: InfoRowProps) {
 
 export default function MerchantProfileScreen() {
   const router = useRouter();
+  const { checkAuth } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
@@ -79,6 +82,33 @@ export default function MerchantProfileScreen() {
   const businessHours = profile?.store?.business_hours
     ? profile.store.business_hours.split('\n').filter((h: string) => h.trim())
     : [];
+
+  const handleLogout = async () => {
+    Alert.alert(
+      '確認登出',
+      '您確定要登出嗎？',
+      [
+        {
+          text: '取消',
+          style: 'cancel',
+        },
+        {
+          text: '登出',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authAPI.logout();
+              await checkAuth();
+              router.replace('/(auth)/login');
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('錯誤', '登出失敗，請稍後再試');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
@@ -143,6 +173,19 @@ export default function MerchantProfileScreen() {
                   </XStack>
                 )}
               </View>
+
+              {/* Logout Button */}
+              <YStack marginTop="$6" marginBottom="$4">
+                <Button 
+                  variant="outline" 
+                  fullWidth 
+                  onPress={handleLogout}
+                  borderColor="#FF6369"
+                  color="#FF6369"
+                >
+                  登出帳號
+                </Button>
+              </YStack>
             </>
           )}
         </ScrollView>

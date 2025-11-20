@@ -8,6 +8,7 @@ import { StyleSheet, TouchableOpacity, View, TextInput, Alert, Platform } from '
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { getAbsoluteImageUrl } from '@/utils/api';
 
 interface EditableFieldProps {
   label: string;
@@ -112,8 +113,10 @@ export default function ProfileEditScreen() {
         setAddress(data.store.address || '');
         setPhoneNumber(data.merchant?.phone || '');
         setBusinessHours(data.store.business_hours || '');
-        setImageUrl(data.store.image_url || '');
-        setImageUri(data.store.image_url || null);
+        // Convert relative URL to absolute URL for image display
+        const absoluteImageUrl = getAbsoluteImageUrl(data.store.image_url);
+        setImageUrl(absoluteImageUrl || '');
+        setImageUri(absoluteImageUrl || null);
         setType(data.store.store_type || '');
       }
     } catch (error) {
@@ -142,14 +145,37 @@ export default function ProfileEditScreen() {
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
+        
+        // Show local preview immediately
         setImageUri(uri);
-        // TODO: Upload image to server and get URL
-        // For now, we'll use the local URI
-        setImageUrl(uri);
+        
+        // Show loading state
+        setIsLoading(true);
+        
+        try {
+          // Upload image to server
+          const { merchantAPI } = await import('@/utils/api');
+          const uploadedUrl = await merchantAPI.uploadImage(uri);
+          
+          // Update state with server URL
+          setImageUrl(uploadedUrl);
+          
+          // Update preview to use server URL if available
+          setImageUri(uploadedUrl);
+          
+          Alert.alert('成功', '圖片上傳成功');
+        } catch (uploadError: any) {
+          console.error('Image upload error:', uploadError);
+          Alert.alert('錯誤', uploadError?.message || '圖片上傳失敗，請稍後再試');
+          // Keep local URI for preview even if upload fails
+        } finally {
+          setIsLoading(false);
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('錯誤', '選擇圖片時發生錯誤');
+      setIsLoading(false);
     }
   };
 

@@ -6,6 +6,9 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.conf import settings
 import secrets
+import os
+from pathlib import Path
+from datetime import datetime
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -315,6 +318,15 @@ def update_coupon_template(request, id):
         # Handle quantity update (adjust remaining_quantity accordingly)
         if 'total_quantity' in validated_data:
             new_total = validated_data['total_quantity']
+            # Calculate redeemed quantity (cannot be reduced)
+            redeemed_quantity = template.total_quantity - template.remaining_quantity
+            
+            # Validate: new total quantity cannot be less than redeemed quantity
+            if new_total < template.total_quantity:
+                return Response({
+                    'error': f'Total quantity cannot be reduced below the current total ({template.total_quantity}). Only increases are allowed.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             difference = new_total - template.total_quantity
             template.total_quantity = new_total
             template.remaining_quantity = max(0, template.remaining_quantity + difference)
@@ -347,6 +359,7 @@ def update_coupon_template(request, id):
 def delete_coupon_template(request, id):
     """
     Delete a coupon template. Only accessible by the owner merchant.
+    Also deletes the associated image file if it's stored locally.
     """
     store = get_merchant_store(request.user)
     if not store:
@@ -356,6 +369,50 @@ def delete_coupon_template(request, id):
     
     try:
         template = CouponTemplate.objects.get(id=id, store=store)
+        
+        # Delete associated image file if it exists and is stored locally
+        if template.image_url:
+            image_url = template.image_url
+            # Check if it's a local file
+            # Local files can be:
+            # 1. Starts with /media/ (relative path)
+            # 2. Contains the MEDIA_URL path (full URL with domain)
+            # 3. Just a filename (no http/https)
+            is_local_file = False
+            filename = None
+            
+            if image_url.startswith(settings.MEDIA_URL):
+                # Relative path like /media/filename.jpg
+                filename = image_url.replace(settings.MEDIA_URL, '')
+                is_local_file = True
+            elif settings.MEDIA_URL in image_url:
+                # Full URL like http://localhost:8000/media/filename.jpg
+                # Extract filename from URL
+                parts = image_url.split(settings.MEDIA_URL)
+                if len(parts) > 1:
+                    filename = parts[-1].split('?')[0]  # Remove query parameters if any
+                    is_local_file = True
+            elif not (image_url.startswith('http://') or image_url.startswith('https://')):
+                # Just a filename without path
+                filename = image_url.split('/')[-1].split('?')[0]
+                is_local_file = True
+            
+            if is_local_file and filename:
+                try:
+                    # Build full file path
+                    file_path = settings.MEDIA_ROOT / filename
+                    
+                    # Delete the file if it exists
+                    if file_path.exists() and file_path.is_file():
+                        os.remove(file_path)
+                        print(f'[Delete] Successfully deleted image file: {file_path}')
+                    else:
+                        print(f'[Delete] Image file not found: {file_path}')
+                except Exception as e:
+                    # Log error but don't fail the deletion
+                    print(f'[Delete] Failed to delete image file {filename}: {e}')
+        
+        # Delete the template
         template.delete()
         return Response({
             'message': 'Coupon template deleted successfully'
@@ -451,3 +508,92 @@ def merchant_redeem(request):
             }, status=status.HTTP_404_NOT_FOUND)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Upload an image file for merchant use (coupon or store)",
+    manual_parameters=[
+        openapi.Parameter(
+            'image',
+            openapi.IN_FORM,
+            description="Image file to upload",
+            type=openapi.TYPE_FILE,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="Image uploaded successfully",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'image_url': openapi.Schema(type=openapi.TYPE_STRING, description='URL of the uploaded image'),
+                }
+            )
+        ),
+        400: openapi.Response(description="Bad request - invalid file or missing file"),
+        413: openapi.Response(description="File too large"),
+    }
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_image(request):
+    """
+    Upload an image file for merchant use.
+    Accepts multipart/form-data with 'image' field.
+    Returns the URL of the uploaded image.
+    """
+    # Check if file is present
+    if 'image' not in request.FILES:
+        return Response({
+            'error': 'No image file provided. Please include an "image" field in the request.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    image_file = request.FILES['image']
+    
+    # Validate file type
+    allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+    file_name = image_file.name.lower()
+    file_extension = Path(file_name).suffix
+    
+    if file_extension not in allowed_extensions:
+        return Response({
+            'error': f'Invalid file type. Allowed types: {", ".join(allowed_extensions)}'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validate file size (5MB limit)
+    max_size = 5 * 1024 * 1024  # 5MB in bytes
+    if image_file.size > max_size:
+        return Response({
+            'error': 'File too large. Maximum size is 5MB.'
+        }, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+    
+    try:
+        # Ensure images directory exists
+        images_dir = settings.MEDIA_ROOT
+        os.makedirs(images_dir, exist_ok=True)
+        
+        # Generate unique filename: {timestamp}_{random}_{original_filename}
+        timestamp = int(datetime.now().timestamp())
+        random_str = secrets.token_hex(4)  # 8 character random string
+        original_filename = Path(file_name).stem
+        unique_filename = f"{timestamp}_{random_str}_{original_filename}{file_extension}"
+        
+        # Save file
+        file_path = images_dir / unique_filename
+        with open(file_path, 'wb+') as destination:
+            for chunk in image_file.chunks():
+                destination.write(chunk)
+        
+        # Return the URL
+        image_url = f"{settings.MEDIA_URL}{unique_filename}"
+        
+        return Response({
+            'image_url': image_url
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to upload image: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
