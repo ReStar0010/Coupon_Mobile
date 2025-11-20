@@ -16,7 +16,7 @@
 // ============================================
 
 // 選擇後端模式：'production' | 'local' | 'local-network'
-const BACKEND_MODE = 'local-network' as 'production' | 'local' | 'local-network';
+const BACKEND_MODE = 'production' as 'production' | 'local' | 'local-network';
 
 // 如果使用 'local-network'，請設置您的本地 IP 地址
 // Windows: 在 PowerShell 中運行 `ipconfig` 查看 IPv4 地址

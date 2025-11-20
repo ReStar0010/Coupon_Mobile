@@ -90,8 +90,6 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
         <LoginButton title="寄送重設密碼信件" onPress={handleForgotPassword} />
       )}
 
-      <Text>BACKEND_URL: {API_URL}</Text>
-
       {/* Links */}
       {/* Registration Link */}
       {mode === 'login' && (
