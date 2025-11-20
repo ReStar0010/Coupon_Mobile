@@ -15,9 +15,10 @@ import resend
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from ..serializers import LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
-from ..models import StudentProfile, PasswordResetProfile
+from ..serializers import LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, MerchantRegisterSerializer
+from ..models import StudentProfile, PasswordResetProfile, MerchantProfile, Store
 from ..auth import generate_password_reset_token, is_token_valid
+from django.contrib.auth.models import Group
 
 # Initialize the Resend client
 resend.api_key = settings.RESEND_API_KEY
@@ -197,16 +198,37 @@ def send_password_reset_email(user_email, token):
         return False
 @swagger_auto_schema(
         method='post',
-        operation_description="register a new account",
-        request_body=LoginSerializer,
+        operation_description="register a new account (student or merchant)",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL),
+                'password': openapi.Schema(type=openapi.TYPE_STRING),
+                'user_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['student', 'merchant'], description='Type of user to register'),
+                # Merchant-specific fields
+                'phone': openapi.Schema(type=openapi.TYPE_STRING),
+                'contact_person': openapi.Schema(type=openapi.TYPE_STRING),
+                'contact_info': openapi.Schema(type=openapi.TYPE_STRING),
+                'store_name': openapi.Schema(type=openapi.TYPE_STRING),
+                'store_address': openapi.Schema(type=openapi.TYPE_STRING),
+                'store_lat': openapi.Schema(type=openapi.TYPE_NUMBER),
+                'store_lng': openapi.Schema(type=openapi.TYPE_NUMBER),
+                'business_hours': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+            required=['email', 'password', 'user_type']
+        ),
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    # ... (data validation as before) ...
+    """
+    Register a new user account. Supports both student and merchant registration.
+    For merchant registration, additional fields are required.
+    """
     data = request.data
     email = data.get('email')
     password = data.get('password')
+    user_type = data.get('user_type', 'student')  # Default to student
 
     if not email or not password:
         return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -219,16 +241,62 @@ def register(request):
     user.set_password(password)
     user.save()
 
-    # Generate verification token
-    token = secrets.token_urlsafe(32)
+    if user_type == 'merchant':
+        # Validate merchant-specific fields BEFORE creating user
+        serializer = MerchantRegisterSerializer(data=data)
+        if not serializer.is_valid():
+            user.delete()  # Clean up user if validation fails
+            print(f"Merchant registration validation errors: {serializer.errors}")
+            return Response({
+                'error': 'Validation failed',
+                'details': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        validated_data = serializer.validated_data
+        
+        # Add user to Merchants group
+        try:
+            merchant_group = Group.objects.get(name='Merchants')
+            user.groups.add(merchant_group)
+        except Group.DoesNotExist:
+            # Create Merchants group if it doesn't exist
+            merchant_group = Group.objects.create(name='Merchants')
+            user.groups.add(merchant_group)
+        
+        # Create MerchantProfile
+        MerchantProfile.objects.create(
+            user=user,
+            phone=validated_data['phone'],
+            contact_person=validated_data['contact_person'],
+            contact_info=validated_data.get('contact_info') or ''
+        )
+        
+        # Create Store
+        Store.objects.create(
+            owner=user,
+            name=validated_data['store_name'],
+            address=validated_data['store_address'],
+            lat=validated_data['store_lat'],
+            lng=validated_data['store_lng'],
+            business_hours=validated_data.get('business_hours', '')
+        )
+        
+        return Response({
+            'message': 'Merchant registered successfully. You can now log in.',
+            'user_type': 'merchant'
+        }, status=status.HTTP_201_CREATED)
+    else:
+        # Student registration (existing logic)
+        # Generate verification token
+        token = secrets.token_urlsafe(32)
 
-    # Create StudentProfile with the token and verified=False
-    StudentProfile.objects.create(user=user, email_verification_token=token, verified=False)
+        # Create StudentProfile with the token and verified=False
+        StudentProfile.objects.create(user=user, email_verification_token=token, verified=False)
 
-    # Send verification email
-    send_verification_email(email, token)
+        # Send verification email
+        send_verification_email(email, token)
 
-    return Response({'message': 'User registered successfully. Please check your email to verify.'}, status=status.HTTP_201_CREATED)
+        return Response({'message': 'User registered successfully. Please check your email to verify.'}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -405,14 +473,39 @@ def user_info(request):
     elif is_merchant or user.is_superuser:
         verified_status = True # Assume merchants/admins are verified by default or through another process
 
-    return Response({
+    response_data = {
         "id": user.id,
         "email": user.email,
         "verified": verified_status, # Use status from profile or default
         "is_merchant": is_merchant,
         "message": "你已成功登入並通過身份驗證",
         "date_joined": user.date_joined
-    })    
+    }
+    
+    # Add merchant-specific information if user is a merchant
+    if is_merchant:
+        try:
+            merchant_profile = user.merchant_profile
+            stores = user.owned_stores.all()
+            response_data['merchant_profile'] = {
+                'phone': merchant_profile.phone,
+                'contact_person': merchant_profile.contact_person,
+                'contact_info': merchant_profile.contact_info,
+            }
+            if stores.exists():
+                store = stores.first()  # Get first store
+                response_data['store'] = {
+                    'id': store.id,
+                    'name': store.name,
+                    'address': store.address,
+                    'lat': store.lat,
+                    'lng': store.lng,
+                    'business_hours': store.business_hours,
+                }
+        except MerchantProfile.DoesNotExist:
+            pass
+
+    return Response(response_data)    
 
 @swagger_auto_schema(
         method='post',

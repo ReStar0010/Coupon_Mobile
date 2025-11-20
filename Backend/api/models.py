@@ -68,6 +68,17 @@ class MerchantProfile(models.Model):
         return f"{self.user.email} - Merchant Profile"
 
 class Store(models.Model):
+    STORE_TYPE_CHOICES = [
+        ('restaurant', '餐飲'),
+        ('retail', '零售'),
+        ('service', '服務'),
+        ('entertainment', '娛樂'),
+        ('beauty', '美容'),
+        ('education', '教育'),
+        ('medical', '醫療'),
+        ('other', '其他'),
+    ]
+    
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_stores', limit_choices_to={'groups__name': "Merchant"})
 
     # store information
@@ -76,6 +87,8 @@ class Store(models.Model):
     lng = models.FloatField()
     address = models.CharField(max_length=200)
     business_hours = models.TextField(blank=True, null=True)
+    image_url = models.CharField(max_length=255, blank=True, null=True)
+    store_type = models.CharField(max_length=20, choices=STORE_TYPE_CHOICES, blank=True, null=True)
 
     def __str__(self):
         return self.name

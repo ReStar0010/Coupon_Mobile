@@ -6,7 +6,14 @@ from api.views.sharing_views import share_coupon, get_share_request, accept_shar
 from api.views.user_profile import (user_statistics, set_savings_goal, reset_savings_goal, 
                                   coupon_history, coupon_history_detail, completed_goals, add_completed_goal)
 from api.views.daily_draw import get_daily_draw_templates, draw_coupon, draw_history, get_last_draw_time
-from api.views.merchant_coupon import merchant_consolidate_coupon, refresh_redeem_code
+from api.views.merchant_coupon import (
+    merchant_consolidate_coupon, refresh_redeem_code,
+    list_coupon_templates, get_coupon_template, create_coupon_template,
+    update_coupon_template, delete_coupon_template, merchant_redeem
+)
+from api.views.merchant_profile import (
+    get_merchant_profile, update_merchant_profile, get_merchant_statistics
+)
 
 from django.http import HttpResponse
 from django.urls import re_path
@@ -78,9 +85,22 @@ urlpatterns = [
     path('api/coupon-history/', coupon_history, name='coupon_history'),
     path('api/coupon-history/<int:id>/', coupon_history_detail, name='coupon_history_detail'),
 
-    # ADD:  Coupon operations for merchant
+    # Merchant coupon template operations
+    path('api/merchant/coupon-templates/', list_coupon_templates, name='list_coupon_templates'),
+    path('api/merchant/coupon-templates/<int:id>/', get_coupon_template, name='get_coupon_template'),
+    path('api/merchant/coupon-templates/create/', create_coupon_template, name='create_coupon_template'),
+    path('api/merchant/coupon-templates/<int:id>/update/', update_coupon_template, name='update_coupon_template'),
+    path('api/merchant/coupon-templates/<int:id>/delete/', delete_coupon_template, name='delete_coupon_template'),
+    
+    # Merchant coupon operations
     path('api/merchant/consolidate-coupon/', merchant_consolidate_coupon ,name='merchant_consolidate_coupon'),
     path('api/merchant/refresh_redeem_code/', refresh_redeem_code, name='refresh_redeem_code'),
+    path('api/merchant/redeem/', merchant_redeem, name='merchant_redeem'),
+    
+    # Merchant profile operations
+    path('api/merchant/profile/', get_merchant_profile, name='get_merchant_profile'),
+    path('api/merchant/profile/update/', update_merchant_profile, name='update_merchant_profile'),
+    path('api/merchant/statistics/', get_merchant_statistics, name='get_merchant_statistics'),
 
     # Ping from cron-job.org to keep the server alive
     path('api/ping/', lambda request: HttpResponse("Pong!")),  # Ping endpoint for cron-job.org
