@@ -83,7 +83,7 @@ export default function MerchantProfileScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
       <YStack flex={1} backgroundColor={colors.white}>
-        <Header onLogoPress={() => router.push('/(coupons)/')} />
+        <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
         
         <ScrollView
           flex={1}
@@ -124,18 +124,23 @@ export default function MerchantProfileScreen() {
                 <InfoRow label="地址" value={profile?.store?.address || '未設定'} />
                 <InfoRow label="電話號碼" value={profile?.merchant?.phone || '未設定'} />
                 {businessHours.length > 0 && (
-                  <YStack paddingVertical="$3">
-                    <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} marginBottom="$3">
+                  <XStack
+                    paddingVertical="$3"
+                    borderBottomWidth={1}
+                    borderBottomColor={colors.border}
+                    alignItems="flex-start"
+                  >
+                    <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} width={100}>
                       營業時間
                     </Text>
-                    <YStack gap="$2">
+                    <YStack flex={1} gap="$2">
                       {businessHours.map((hours: string, index: number) => (
                         <Text key={index} fontSize="$md" color={colors.textSecondary}>
                           {hours}
                         </Text>
                       ))}
                     </YStack>
-                  </YStack>
+                  </XStack>
                 )}
               </View>
             </>
