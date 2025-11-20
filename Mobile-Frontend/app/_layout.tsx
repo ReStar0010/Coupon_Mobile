@@ -9,6 +9,19 @@ import { config } from '../tamagui.config';
 import ThemeProvider from './components/providers/ThemeProvider';
 import AuthProvider from './components/providers/SessionProvider';
 import ToastProvider from './components/providers/ToastProvider';
+import { getApiConfig } from './config/api';
+
+// 在應用啟動時顯示後端配置
+if (__DEV__) {
+  const apiConfig = getApiConfig();
+  console.log('\n' + '='.repeat(50));
+  console.log('📱 應用啟動 - 後端配置');
+  console.log('='.repeat(50));
+  console.log(`模式: ${apiConfig.mode}`);
+  console.log(`Base URL: ${apiConfig.baseUrl}`);
+  console.log(`API URL: ${apiConfig.apiUrl}`);
+  console.log('='.repeat(50) + '\n');
+}
 
 
 export default function RootLayout() {

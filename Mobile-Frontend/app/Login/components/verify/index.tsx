@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Header } from '../Header';
-import { devDebug } from '../../../utils/devLogger';
+import { devDebug } from 'app/utils/devLogger';
+import { fetchAPI } from 'app/utils/authAPI';
 
 export default function VerifyEmailPage() {
   const params = useLocalSearchParams();
@@ -19,11 +19,11 @@ export default function VerifyEmailPage() {
     setMessage('驗證中...');
     setError(null);
 
-    fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/verify-email/?token=${token}`)
-      .then(async (res) => {
-        const data = await res.json();
+    fetchAPI(`/verify-email/?token=${token}`, { method: 'GET' })
+      .then((response) => {
+        const data = response.data;
         devDebug('verify-email API 回傳:', data);
-        if (res.ok) {
+        if (response.status >= 200 && response.status < 300) {
           setMessage(
             data.message
               ? data.message
@@ -68,7 +68,6 @@ export default function VerifyEmailPage() {
   return (
     <SafeAreaView className="flex-1 bg-stone-50">
       <View className="min-h-screen flex-1 items-center px-8 py-24 max-md:px-6 max-md:py-16 max-sm:px-4 max-sm:py-10">
-        <Header />
         <View className="mt-8 min-h-[200px] w-full max-w-[330px] flex-1 items-center justify-center rounded-3xl bg-white p-8 shadow-md">
           <View className="w-full flex-1 items-center justify-center">
             {!token ? (

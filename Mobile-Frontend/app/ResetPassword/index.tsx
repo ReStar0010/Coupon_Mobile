@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import axios from "axios";
 import Toast from "react-native-toast-message";
-import { View, ScrollView, SafeAreaView, Text } from "react-native";
+import { View, ScrollView, SafeAreaView } from "react-native";
 import { ResetFormContainer } from "./components/ResetFormContainer";
-import { storeLoginData } from "app/utils/authAPI";
-import { devDebug, devLog, devError } from "app/utils/devLogger";
+import { fetchAPI } from "app/utils/authAPI";
+import { devLog, devError } from "app/utils/devLogger";
+import { toastConfig } from "app/config/toastConfig";
 
 export default function Index() {
   const [password, setPassword] = useState("");
@@ -14,18 +14,6 @@ export default function Index() {
   const token = searchParams?.token as string;
   const email = searchParams?.email as string;  
   const router = useRouter();
-
-  const toastConfig = {
-    successGreen: ({ text1 }: any) => (
-      <View className="absolute self-center bottom-[20%] px-7 h-14 rounded-full bg-toast-green justify-center shadow-lg">
-        <Text className="text-white font-bold text-base">{text1}</Text>
-      </View> ),
-    failRed: ({ text1 }: any) => (
-      <View className="absolute self-center bottom-[20%] px-7 h-14 rounded-full bg-toast-red justify-center shadow-lg">
-        <Text className="text-white font-bold text-base">{text1}</Text>
-      </View>
-    )
-  };
 
   useEffect(() => {
     if (!token || !email) {
@@ -58,20 +46,14 @@ export default function Index() {
       return;
     }
     try {
-      const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/reset-password/`,
-        {
+      const response = await fetchAPI('/reset-password/', {
+        method: 'POST',
+        data: {
           email,
           token,
           new_password: password,
         },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          withCredentials: true,
-        }
-      );
+      });
       devLog("密碼重設成功", response.data);
       Toast.show({
         type: 'successGreen',
@@ -169,7 +151,7 @@ export default function Index() {
 
 //     try {
 //       const response = await axios.post(
-//         `${process.env.EXPO_PUBLIC_API_URL}/api/reset-password/`,
+//         `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000'}/api/reset-password/`,
 //         {
 //           email,
 //           token,

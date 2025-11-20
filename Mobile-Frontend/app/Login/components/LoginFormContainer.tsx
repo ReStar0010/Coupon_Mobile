@@ -1,10 +1,11 @@
 import React from 'react';
-import Toast from 'react-native-toast-message';
+import { Text } from 'tamagui';
 import { LoginHeader } from './LoginHeader';
 import { LoginInput } from 'app/Login/components/LoginInput';
 import { LoginButton } from './LoginButton';
 import { LinkText } from './LinkText';
 import { YStack } from 'tamagui';
+import { API_URL } from 'app/config/api';
 
 interface LoginFormContainerProps {
   email: string;
@@ -89,7 +90,7 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
         <LoginButton title="寄送重設密碼信件" onPress={handleForgotPassword} />
       )}
 
-      <LinkText normalText={process.env.EXPO_PUBLIC_API_URL} linkText="" onLinkPress={() => {}} />
+      <Text>BACKEND_URL: {API_URL}</Text>
 
       {/* Links */}
       {/* Registration Link */}

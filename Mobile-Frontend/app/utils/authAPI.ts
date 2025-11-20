@@ -9,8 +9,9 @@ import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../config/api';
 
-const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api`;
+const API_BASE_URL = API_URL;
 
 // Token refresh state
 let isRefreshing = false;

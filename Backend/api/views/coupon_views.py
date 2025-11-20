@@ -28,7 +28,7 @@ def get_store_coupons(request):
         coupon_type='store',
         expiry_date__gt=now,
         start_date__lte=now
-    ).select_related('store')  # Optimize DB query
+    ).select_related('store').prefetch_related('tags')  # Optimize DB query
     
     # 取得這些 coupon 關聯的所有 store IDs
     store_ids = store_coupons.values_list('store_id', flat=True).distinct()
@@ -67,7 +67,8 @@ def get_store_coupons(request):
             "coupon_type": c.coupon_type,
             "image_url": c.image_url,
             "total_redemptions": c.get_redemption_count(),
-            "unique_users": c.get_unique_users_count()
+            "unique_users": c.get_unique_users_count(),
+            "tags": [tag.display_name for tag in c.tags.all()]  # 返回標籤的顯示名稱
         })
     
     return Response(data)
@@ -92,7 +93,7 @@ def get_exclusive_coupons(request):
         expiry_date__gt=now,
         start_date__lte=now, 
         current_holder=request.user,  # 當前持有者是請求的用戶
-    ).select_related('store', 'template')  # Optimize DB query
+    ).select_related('store', 'template').prefetch_related('tags')  # Optimize DB query
     
     # Filter out redeemed coupons
     unredeemed_coupons = []
@@ -128,7 +129,8 @@ def get_exclusive_coupons(request):
             "is_redeemed": is_redeemed,
             "original_owner_email": c.original_owner.email if c.original_owner else None,
             "last_holder_email": c.last_holder.email if c.last_holder else None,
-            "estimated_savings": c.estimated_savings
+            "estimated_savings": c.estimated_savings,
+            "tags": [tag.display_name for tag in c.tags.all()]  # 返回標籤的顯示名稱
         })
     
     return Response(data)
@@ -138,7 +140,7 @@ def get_exclusive_coupons(request):
 def get_coupon_detail(request, id):
 
     now = timezone.now()
-    coupon = get_object_or_404(Coupon.objects.select_related('store'), id=id) 
+    coupon = get_object_or_404(Coupon.objects.select_related('store').prefetch_related('tags'), id=id) 
     
     if request.user.is_authenticated:
         Log.objects.create(action="view coupon", user=request.user, coupon=coupon)
@@ -190,6 +192,7 @@ def get_coupon_detail(request, id):
             "total_redemptions": coupon.get_redemption_count(),
             "unique_users": coupon.get_unique_users_count(),
             "can_use_today": can_use_today,
+            "tags": [tag.display_name for tag in coupon.tags.all()]  # 返回標籤的顯示名稱
         }
 
     else:
@@ -230,7 +233,8 @@ def get_coupon_detail(request, id):
             "original_owner_email": coupon.original_owner.email if coupon.original_owner else None,
             "last_holder_email": coupon.last_holder.email if coupon.last_holder else None,
             "estimated_savings": coupon.estimated_savings,
-            "can_use_today": True
+            "can_use_today": True,
+            "tags": [tag.display_name for tag in coupon.tags.all()]  # 返回標籤的顯示名稱
         }
     
     return Response(data)
