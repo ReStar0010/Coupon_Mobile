@@ -318,6 +318,15 @@ def update_coupon_template(request, id):
         # Handle quantity update (adjust remaining_quantity accordingly)
         if 'total_quantity' in validated_data:
             new_total = validated_data['total_quantity']
+            # Calculate redeemed quantity (cannot be reduced)
+            redeemed_quantity = template.total_quantity - template.remaining_quantity
+            
+            # Validate: new total quantity cannot be less than redeemed quantity
+            if new_total < template.total_quantity:
+                return Response({
+                    'error': f'Total quantity cannot be reduced below the current total ({template.total_quantity}). Only increases are allowed.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             difference = new_total - template.total_quantity
             template.total_quantity = new_total
             template.remaining_quantity = max(0, template.remaining_quantity + difference)
