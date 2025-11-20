@@ -48,29 +48,23 @@ export const AlertModal: React.FC<AlertModalProps> = ({
           activeOpacity={1}
           onPress={(e) => e.stopPropagation()}
         >
-          <YStack gap="$3" alignItems="center" width="100%">
+          <YStack gap={12} alignItems="center" width="100%">
             {/* Title */}
             <Text
-              fontSize="$lg"
-              fontWeight="bold"
-              color={colors.textPrimary}
-              textAlign="center"
+              style={styles.title}
             >
               {title}
             </Text>
 
             {/* Message */}
             <Text
-              fontSize="$md"
-              color={colors.textSecondary}
-              textAlign="center"
-              lineHeight="$md"
+              style={styles.message}
             >
               {message}
             </Text>
 
             {/* Confirm Button */}
-            <XStack width="100%" marginTop="$2">
+            <XStack width="100%" marginTop={8}>
               <Button
                 variant="primary"
                 fullWidth
@@ -100,6 +94,18 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '85%',
     maxWidth: 400,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

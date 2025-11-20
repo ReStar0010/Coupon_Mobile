@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Header } from '../(coupons)/components/Header';
 import { Button } from '@/components/ui';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { merchantAPI } from '@/utils/api';
 
 interface MetricCardProps {
   label: string;
@@ -51,16 +52,33 @@ function InfoRow({ label, value }: InfoRowProps) {
 
 export default function MerchantProfileScreen() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
+  const [statistics, setStatistics] = useState<any>(null);
 
-  const businessHours = [
-    '星期一 公休',
-    '星期二 10:00-21:30',
-    '星期三 10:00-21:30',
-    '星期四 10:00-21:30',
-    '星期五 10:00-21:30',
-    '星期六 12:00-18:00',
-    '星期日 12:00-18:00',
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const [profileData, statsData] = await Promise.all([
+        merchantAPI.getProfile(),
+        merchantAPI.getStatistics(),
+      ]);
+      setProfile(profileData);
+      setStatistics(statsData);
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const businessHours = profile?.store?.business_hours
+    ? profile.store.business_hours.split('\n').filter((h: string) => h.trim())
+    : [];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
@@ -74,44 +92,54 @@ export default function MerchantProfileScreen() {
           paddingBottom="$6"
           showsVerticalScrollIndicator={false}
         >
-          {/* Merchant Name Section */}
-          <View style={styles.merchantNameSection}>
-            <XStack alignItems="center" justifyContent="space-between" width="100%">
-              <Text fontSize={32} fontWeight="700" color={colors.textPrimary}>
-                政大茶亭
-              </Text>
-              <Button variant="primary" onPress={() => {
-                router.push('/(profile)/edit');
-              }}>
-                編輯
-              </Button>
-            </XStack>
-          </View>
-
-          {/* Metrics Cards */}
-          <XStack gap="$3" marginTop="$4" marginBottom="$4">
-            <MetricCard label="優惠數" value="4" />
-            <MetricCard label="總核銷" value="39" />
-            <MetricCard label="總曝光" value="157" />
-          </XStack>
-
-          {/* Merchant Information Card */}
-          <View style={styles.infoCard}>
-            <InfoRow label="地址" value="Ricky Lu" />
-            <InfoRow label="電話號碼" value="02 8661 0884" />
-            <YStack paddingVertical="$3">
-              <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} marginBottom="$3">
-                營業時間
-              </Text>
-              <YStack gap="$2">
-                {businessHours.map((hours, index) => (
-                  <Text key={index} fontSize="$md" color={colors.textSecondary}>
-                    {hours}
+          {isLoading ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <>
+              {/* Merchant Name Section */}
+              <View style={styles.merchantNameSection}>
+                <XStack alignItems="center" justifyContent="space-between" width="100%">
+                  <Text fontSize={32} fontWeight="700" color={colors.textPrimary}>
+                    {profile?.store?.name || '商家名稱'}
                   </Text>
-                ))}
-              </YStack>
-            </YStack>
-          </View>
+                  <Button variant="primary" onPress={() => {
+                    router.push('/(profile)/edit');
+                  }}>
+                    編輯
+                  </Button>
+                </XStack>
+              </View>
+
+              {/* Metrics Cards */}
+              <XStack gap="$3" marginTop="$4" marginBottom="$4">
+                <MetricCard label="優惠數" value={statistics?.active_coupons || 0} />
+                <MetricCard label="總核銷" value={statistics?.total_redemptions || 0} />
+                <MetricCard label="總曝光" value={statistics?.total_views || 0} />
+              </XStack>
+
+              {/* Merchant Information Card */}
+              <View style={styles.infoCard}>
+                <InfoRow label="地址" value={profile?.store?.address || '未設定'} />
+                <InfoRow label="電話號碼" value={profile?.merchant?.phone || '未設定'} />
+                {businessHours.length > 0 && (
+                  <YStack paddingVertical="$3">
+                    <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} marginBottom="$3">
+                      營業時間
+                    </Text>
+                    <YStack gap="$2">
+                      {businessHours.map((hours: string, index: number) => (
+                        <Text key={index} fontSize="$md" color={colors.textSecondary}>
+                          {hours}
+                        </Text>
+                      ))}
+                    </YStack>
+                  </YStack>
+                )}
+              </View>
+            </>
+          )}
         </ScrollView>
       </YStack>
     </SafeAreaView>

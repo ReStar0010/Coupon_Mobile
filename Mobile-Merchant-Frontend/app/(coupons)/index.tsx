@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,13 +8,17 @@ import { SearchBar } from './components/SearchBar';
 import { FilterButton } from './components/FilterButton';
 import { CouponCard } from './components/CouponCard';
 import { AddButton } from './components/AddButton';
+import { merchantAPI } from '@/utils/api';
 
 export interface Coupon {
-  id: string;
-  title: string;
-  startDate: string;
-  endDate: string;
-  redemptionCount: number;
+  id: number;
+  coupon_name: string;
+  start_date: string;
+  end_date: string;
+  redemption_count?: number;
+  remaining_quantity?: number;
+  total_quantity?: number;
+  is_active?: boolean;
 }
 
 export default function CouponsScreen() {
@@ -22,17 +26,30 @@ export default function CouponsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<string | null>(null);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Sample coupon data
-  const coupons: Coupon[] = [
-    {
-      id: '1',
-      title: '來店消費即可折 5 元',
-      startDate: '2024/07/27',
-      endDate: '2024/9/30',
-      redemptionCount: 32,
-    },
-  ];
+  useEffect(() => {
+    loadCoupons();
+  }, []);
+
+  const loadCoupons = async () => {
+    try {
+      setIsLoading(true);
+      const data = await merchantAPI.listTemplates();
+      setCoupons(data || []);
+    } catch (error) {
+      console.error('Failed to load coupons:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Filter coupons based on search query
+  const filteredCoupons = coupons.filter((coupon) => {
+    const matchesSearch = coupon.coupon_name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
+  });
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
@@ -80,15 +97,31 @@ export default function CouponsScreen() {
 
         {/* Coupon Cards */}
         <YStack gap="$3">
-          {coupons.map((coupon) => (
-            <CouponCard
-              key={coupon.id}
-              coupon={coupon}
-              onEdit={() => {
-                router.push(`/(coupons)/edit?id=${coupon.id}`);
-              }}
-            />
-          ))}
+          {isLoading ? (
+            <Text textAlign="center" color={colors.textSecondary} padding="$4">
+              載入中...
+            </Text>
+          ) : filteredCoupons.length === 0 ? (
+            <Text textAlign="center" color={colors.textSecondary} padding="$4">
+              尚無優惠券
+            </Text>
+          ) : (
+            filteredCoupons.map((coupon) => (
+              <CouponCard
+                key={coupon.id}
+                coupon={{
+                  id: String(coupon.id),
+                  title: coupon.coupon_name,
+                  startDate: new Date(coupon.start_date).toLocaleDateString('zh-TW'),
+                  endDate: new Date(coupon.end_date).toLocaleDateString('zh-TW'),
+                  redemptionCount: coupon.redemption_count || 0,
+                }}
+                onEdit={() => {
+                  router.push(`/(coupons)/edit?id=${coupon.id}`);
+                }}
+              />
+            ))
+          )}
         </YStack>
         </ScrollView>
       </YStack>

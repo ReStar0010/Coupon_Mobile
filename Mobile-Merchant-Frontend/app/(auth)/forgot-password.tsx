@@ -36,12 +36,9 @@ export default function ForgotPasswordScreen() {
 
     setIsLoading(true);
     try {
-      // TODO: Implement actual forgot password API call
-      console.log('Send reset email attempt:', formData);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { authAPI } = await import('@/utils/api');
+      await authAPI.forgotPassword(formData.email);
       
-      // Simulate success
       setShowSuccessModal(true);
     } catch (error: any) {
       console.error('Send reset email error:', error);
@@ -58,7 +55,8 @@ export default function ForgotPasswordScreen() {
   };
 
   const handleBackToLogin = () => {
-    router.back();
+    // Use replace instead of back since we used replace to navigate here
+    router.replace('/(auth)/login');
   };
 
   return (
