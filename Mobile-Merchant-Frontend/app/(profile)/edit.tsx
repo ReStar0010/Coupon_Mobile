@@ -165,7 +165,7 @@ export default function ProfileEditScreen() {
         image_url: imageUrl,
       });
       alert('資料已更新');
-      router.back();
+      router.replace('/(profile)/');
     } catch (error: any) {
       console.error('Failed to save profile:', error);
       alert(error?.message || '儲存失敗，請稍後再試');
@@ -186,7 +186,7 @@ export default function ProfileEditScreen() {
           borderBottomWidth={1}
           borderBottomColor={colors.border}
         >
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => router.replace('/(profile)/')} activeOpacity={0.7}>
             <MaterialIcons name="chevron-left" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text 

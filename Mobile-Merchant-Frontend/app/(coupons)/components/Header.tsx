@@ -47,15 +47,15 @@ export function Header({ onLogoPress, onMenuPress, showMenu = true }: HeaderProp
 
       {/* Hamburger Menu */}
       {showMenu && (
-        <TouchableOpacity
-          onPress={onMenuPress || (() => {
-            // TODO: Open navigation drawer
-            console.log('Menu pressed');
-          })}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="menu" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
+      <TouchableOpacity
+        onPress={onMenuPress || (() => {
+          // TODO: Open navigation drawer
+          console.log('Menu pressed');
+        })}
+        activeOpacity={0.7}
+      >
+        <MaterialIcons name="menu" size={24} color={colors.textPrimary} />
+      </TouchableOpacity>
       )}
     </XStack>
   );
