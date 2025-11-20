@@ -99,6 +99,7 @@ const Collection = () => {
         expiryDate={item.expiryDate}
         id={item.id}
         imageUrl={item.imageUrl}
+        tags={item.tags}
       />
     ),
     []

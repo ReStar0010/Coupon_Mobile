@@ -8,6 +8,7 @@ import { AlignJustify, Search, MoreHorizontalIcon, X } from 'lucide-react-native
 import TabsFooter from '../components/TabsFooter';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapComponent, { type Store } from '../components/MapComponent';
+import { BackendIndicator } from '../components/BackendIndicator';
 
 export type CouponType = {
   className?: string;
@@ -29,6 +30,7 @@ export type CouponType = {
   active_coupon_count?: number;
   has_active_coupons?: boolean;
   imageUrl?: string;
+  tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
 };
 
 // Removed Store typing while using placeholders
@@ -62,10 +64,11 @@ interface CouponCardProps {
   description: string;
   imageUrl?: string;
   id?: number;
+  tags?: string[];
   onPress: () => void;
 }
 
-const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUrl, onPress }) => (
+const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUrl, tags, onPress }) => (
   <Card
     elevate
     bordered
@@ -96,6 +99,26 @@ const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUr
         <Text color="#6b7280" numberOfLines={2} ellipsizeMode="tail">
           {description}
         </Text>
+
+        {tags && tags.length > 0 && (
+          <XStack gap={6} flexWrap="wrap" marginTop={4}>
+            {tags.map((tag, index) => (
+              <View
+                key={index}
+                style={{
+                  backgroundColor: '#FFF5E6',
+                  borderRadius: 12,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                }}
+              >
+                <Text fontSize={12} color="#FFAD31" fontWeight="500">
+                  {tag}
+                </Text>
+              </View>
+            ))}
+          </XStack>
+        )}
       </YStack>
 
     </XStack>
@@ -148,6 +171,7 @@ const CouPro = () => {
           active_coupon_count: coupon.active_coupon_count,
           has_active_coupons: coupon.has_active_coupons,
           imageUrl: coupon.image_url,
+          tags: coupon.tags,
         }));
         setCoupons(transformed);
       } catch (err: any) {
@@ -180,10 +204,25 @@ const CouPro = () => {
   }, [coupons]);
 
   const filteredCoupons = coupons.filter((coupon) => {
-    return searchQuery
-      ? coupon.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      coupon.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    // 搜尋店家名稱
+    if (coupon.storeName?.toLowerCase().includes(query)) return true;
+    
+    // 搜尋優惠內容
+    if (coupon.description?.toLowerCase().includes(query)) return true;
+    
+    // 搜尋標籤
+    if (coupon.tags && coupon.tags.length > 0) {
+      const tagMatch = coupon.tags.some(tag => 
+        tag.toLowerCase().includes(query)
+      );
+      if (tagMatch) return true;
+    }
+    
+    return false;
   });
 
   const toggleCategory = (category: string) => {
@@ -209,6 +248,7 @@ const CouPro = () => {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
+      {__DEV__ && <BackendIndicator />}
       
       <YStack flex={1}>
         {/* Header */}
@@ -292,6 +332,7 @@ const CouPro = () => {
                     storeName={coupon.storeName}
                     description={coupon.description}
                     imageUrl={coupon.imageUrl}
+                    tags={coupon.tags}
                     id={coupon.id}
                     onPress={() => onCouponPress(coupon.id)}
                   />

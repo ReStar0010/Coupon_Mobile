@@ -19,6 +19,7 @@ export const transformApiCoupon = (coupon: ApiCoupon): CouponType => {
     couponType: coupon.coupon_type,
     sourceUser: coupon.current_holder,
     imageUrl: coupon.image_url,
+    tags: coupon.tags,
   };
 };
 
@@ -79,11 +80,26 @@ export const checkLastDrawDate = async (): Promise<boolean> => {
 export const filterCoupons = (coupons: CouponType[], searchQuery: string): CouponType[] => {
   if (!searchQuery) return coupons;
 
-  const query = searchQuery.toLowerCase();
-  return coupons.filter(
-    (coupon) =>
-      coupon.storeName?.toLowerCase().includes(query) ||
-      coupon.description?.toLowerCase().includes(query)
-  );
+  const query = searchQuery.toLowerCase().trim();
+  return coupons.filter((coupon) => {
+    // 搜尋店家名稱
+    if (coupon.storeName?.toLowerCase().includes(query)) return true;
+    
+    // 搜尋優惠內容
+    if (coupon.description?.toLowerCase().includes(query)) return true;
+    
+    // 搜尋優惠名稱
+    if (coupon.couponName?.toLowerCase().includes(query)) return true;
+    
+    // 搜尋標籤
+    if (coupon.tags && coupon.tags.length > 0) {
+      const tagMatch = coupon.tags.some(tag => 
+        tag.toLowerCase().includes(query)
+      );
+      if (tagMatch) return true;
+    }
+    
+    return false;
+  });
 };
 export default transformApiCoupon;

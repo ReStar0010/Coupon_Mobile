@@ -6,7 +6,8 @@ import {
   Text, 
   Button, 
   Card,
-  Spinner
+  Spinner,
+  View
 } from 'tamagui';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -27,6 +28,7 @@ const Coupon: React.FC<CouponProps> = ({
   expiryDate,
   id,
   imageUrl,
+  tags,
 }) => {
   const router = useRouter();
   const [shareError, setShareError] = useState<string | null>(null);
@@ -130,6 +132,26 @@ const Coupon: React.FC<CouponProps> = ({
           <Text fontSize="$3" color="#6b7280" numberOfLines={1}>
             有效期限 : {expiryDate ? expiryDate.toLocaleDateString() : ''}
           </Text>
+
+          {tags && tags.length > 0 && (
+            <XStack gap={6} flexWrap="wrap" marginTop={4}>
+              {tags.map((tag, index) => (
+                <View
+                  key={index}
+                  style={{
+                    backgroundColor: '#FFF5E6',
+                    borderRadius: 12,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <Text fontSize={12} color="#FFAD31" fontWeight="500">
+                    {tag}
+                  </Text>
+                </View>
+              ))}
+            </XStack>
+          )}
         </YStack>
 
         {/* Share button */}

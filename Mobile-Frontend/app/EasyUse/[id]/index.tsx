@@ -43,6 +43,7 @@ export type CouponDetailType = {
   last_holder_email?: string;
   is_redeemed: boolean;
   can_use_today: boolean;
+  tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
 };
 
 const CouponDetailPage: React.FC = () => {
@@ -396,6 +397,26 @@ const CouponDetailPage: React.FC = () => {
               >
                 {coupon?.coupon_name || '來店消費滿120送 滷蛋一顆'}
               </Text>
+              
+              {coupon?.tags && coupon.tags.length > 0 && (
+                <XStack gap={6} flexWrap="wrap" justifyContent="center" marginTop={8}>
+                  {coupon.tags.map((tag, index) => (
+                    <View
+                      key={index}
+                      style={{
+                        backgroundColor: '#FFF5E6',
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text fontSize={14} color="#FFAD31" fontWeight="500">
+                        {tag}
+                      </Text>
+                    </View>
+                  ))}
+                </XStack>
+              )}
             </YStack>
           </Card>
 
