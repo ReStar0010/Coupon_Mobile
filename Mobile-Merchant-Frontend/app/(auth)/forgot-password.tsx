@@ -36,12 +36,9 @@ export default function ForgotPasswordScreen() {
 
     setIsLoading(true);
     try {
-      // TODO: Implement actual forgot password API call
-      console.log('Send reset email attempt:', formData);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { authAPI } = await import('@/utils/api');
+      await authAPI.forgotPassword(formData.email);
       
-      // Simulate success
       setShowSuccessModal(true);
     } catch (error: any) {
       console.error('Send reset email error:', error);
@@ -55,6 +52,11 @@ export default function ForgotPasswordScreen() {
   const handleSuccessConfirm = () => {
     setShowSuccessModal(false);
     router.back();
+  };
+
+  const handleBackToLogin = () => {
+    // Use replace instead of back since we used replace to navigate here
+    router.replace('/(auth)/login');
   };
 
   return (
@@ -101,6 +103,20 @@ export default function ForgotPasswordScreen() {
       >
         寄送重設密碼信件
       </Button>
+
+      {/* Back to Login Link */}
+      <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
+        <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
+          <Text
+            fontSize="$sm"
+            color={colors.primary}
+            onPress={handleBackToLogin}
+            style={{ textDecorationLine: 'underline' }}
+          >
+            返回登入
+          </Text>
+        </Text>
+      </XStack>
 
       {/* Empty space at bottom (10px height as per design) */}
       <XStack height={10} width="100%" />

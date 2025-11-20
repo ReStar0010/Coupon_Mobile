@@ -1,33 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Input } from '@/components/ui';
 import { Button } from '@/components/ui';
-import { StyleSheet, TouchableOpacity, View, TextInput, Switch } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, Switch, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
 import { DeleteModal } from './components/DeleteModal';
+import { merchantAPI } from '@/utils/api';
 
 export default function CouponEditScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditMode = !!id;
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form state
   const [image, setImage] = useState<string | null>(null);
-  const [couponName, setCouponName] = useState('來店消費滿120送滷蛋一顆');
-  const [startTime, setStartTime] = useState('2024/07/27 15:00');
-  const [endTime, setEndTime] = useState('2024/09/30 23:59');
-  const [couponContent, setCouponContent] = useState('來店消費鮮奶茶系列,買一送一');
-  const [quantity, setQuantity] = useState('unlimited');
-  const [notes, setNotes] = useState('1. 限文山店實體使用; 2. 本店擁有');
+  const [couponName, setCouponName] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [couponContent, setCouponContent] = useState('');
+  const [quantity, setQuantity] = useState('1');
+  const [notes, setNotes] = useState('');
   const [couponType, setCouponType] = useState<'一般' | '共享'>('共享');
   const [limitPerDay, setLimitPerDay] = useState(false);
-  const [tags, setTags] = useState('飲料 奶茶');
-  const [verificationCode, setVerificationCode] = useState('固定,123456');
+  const [tags, setTags] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+
+  // Load existing coupon data if in edit mode
+  useEffect(() => {
+    if (isEditMode && id) {
+      loadCouponData(parseInt(id));
+    }
+  }, [isEditMode, id]);
+
+  const loadCouponData = async (couponId: number) => {
+    try {
+      setIsLoading(true);
+      const data = await merchantAPI.getTemplate(couponId);
+      setCouponName(data.coupon_name || '');
+      setCouponContent(data.coupon_detail || '');
+      setNotes(data.important_notes || '');
+      setImage(data.image_url || null);
+      setQuantity(String(data.total_quantity || 1));
+      setVerificationCode(data.template_redeem_code || '');
+      if (data.start_date) {
+        setStartTime(new Date(data.start_date).toISOString().slice(0, 16));
+      }
+      if (data.end_date) {
+        setEndTime(new Date(data.end_date).toISOString().slice(0, 16));
+      }
+    } catch (error) {
+      console.error('Failed to load coupon:', error);
+      Alert.alert('錯誤', '無法載入優惠券資料');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleImageUpload = async () => {
     // TODO: Install expo-image-picker and implement image upload
@@ -54,34 +88,61 @@ export default function CouponEditScreen() {
     }
   };
 
-  const handleSave = () => {
-    // TODO: Implement save logic
-    console.log('Saving coupon:', {
-      id,
-      couponName,
-      startTime,
-      endTime,
-      couponContent,
-      quantity,
-      notes,
-      couponType,
-      limitPerDay,
-      tags,
-      verificationCode,
-      image,
-    });
-    router.back();
+  const handleSave = async () => {
+    if (!couponName || !couponContent || !startTime || !endTime || !quantity) {
+      Alert.alert('錯誤', '請填寫所有必填欄位');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const couponData = {
+        coupon_name: couponName,
+        coupon_detail: couponContent,
+        important_notes: notes,
+        image_url: image || '',
+        total_quantity: parseInt(quantity) || 1,
+        template_redeem_code: verificationCode || undefined,
+        start_date: new Date(startTime).toISOString(),
+        expiry_date: new Date(endTime).toISOString(),
+        draw_probability: 0.5,
+        is_active: true,
+        tags: [],
+      };
+
+      if (isEditMode && id) {
+        await merchantAPI.updateTemplate(parseInt(id), couponData);
+        Alert.alert('成功', '優惠券已更新');
+      } else {
+        await merchantAPI.createTemplate(couponData);
+        Alert.alert('成功', '優惠券已建立');
+      }
+      router.back();
+    } catch (error: any) {
+      console.error('Failed to save coupon:', error);
+      Alert.alert('錯誤', error?.message || '儲存失敗，請稍後再試');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteClick = () => {
     setShowDeleteModal(true);
   };
 
-  const handleDeleteConfirm = () => {
-    // TODO: Implement delete logic
-    console.log('Deleting coupon:', id);
-    setShowDeleteModal(false);
-    router.back();
+  const handleDeleteConfirm = async () => {
+    if (!id) return;
+    
+    try {
+      await merchantAPI.deleteTemplate(parseInt(id));
+      Alert.alert('成功', '優惠券已刪除');
+      setShowDeleteModal(false);
+      router.back();
+    } catch (error: any) {
+      console.error('Failed to delete coupon:', error);
+      Alert.alert('錯誤', error?.message || '刪除失敗，請稍後再試');
+      setShowDeleteModal(false);
+    }
   };
 
   return (
@@ -264,8 +325,14 @@ export default function CouponEditScreen() {
 
         {/* Save Button */}
         <View style={styles.saveButtonContainer}>
-          <Button variant="primary" fullWidth onPress={handleSave}>
-            儲存
+          <Button 
+            variant="primary" 
+            fullWidth 
+            onPress={handleSave}
+            disabled={isSaving || isLoading}
+            opacity={isSaving || isLoading ? 0.6 : 1}
+          >
+            {isSaving ? '儲存中...' : '儲存'}
           </Button>
         </View>
 

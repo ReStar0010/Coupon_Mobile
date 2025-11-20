@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStatisticsData } from './hooks/useStatisticsData';
 import { useTransactionHistory } from './hooks/useTransactionHistory';
 import { AlignJustify, List, ChevronRight } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import StatisticsChart from './components/StatisticsChart';
 import StatCard from './components/StatCard';
 import GoalModal from './components/GoalModal';
@@ -70,6 +71,22 @@ const Statistics: React.FC = () => {
   const handleViewHistory = () => {
     router.push('/Statistics/History');
   };
+
+  // Handle clicking on a history item
+  const handleHistoryItemClick = useCallback(
+    async (couponId: number, item: any) => {
+      try {
+        // Store the item data in AsyncStorage for use in detail page
+        await AsyncStorage.setItem('selectedCouponHistory', JSON.stringify(item));
+        // Set navigation source to 'statistics' so the back button returns to Statistics page
+        await AsyncStorage.setItem('couponNavigationSource', 'statistics');
+        router.push(`/Statistics/History/${couponId}`);
+      } catch (error) {
+        console.error('Error storing coupon history:', error);
+      }
+    },
+    [router]
+  );
 
   // Navigation handlers for TabsFooter
   const handleHomePress = () => {
@@ -240,6 +257,7 @@ const Statistics: React.FC = () => {
                       hoverTheme
                       pressTheme
                       p="$3"
+                      onPress={() => handleHistoryItemClick(item.coupon_id, item)}
                     >
                       <ListItem.Text fontSize={13} color="#333333">
                         {item.store_name}
@@ -247,6 +265,7 @@ const Statistics: React.FC = () => {
                       <ListItem.Subtitle fontSize={12} color="#707070">
                         {formatDate(item.used_date)}
                       </ListItem.Subtitle>
+                      <ChevronRight size={16} color="#333333" />
                     </ListItem>
                     {index < transactionHistory.length - 1 && <Separator />}
                   </React.Fragment>

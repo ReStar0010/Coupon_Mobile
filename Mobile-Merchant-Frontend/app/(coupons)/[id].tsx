@@ -20,13 +20,26 @@ export default function CouponRedemptionScreen() {
   // QR code data (could be the redemption code or a URL)
   const qrData = redemptionCode;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!phoneNumber.trim()) {
-      // TODO: Show error message
+      alert('請輸入電話號碼');
       return;
     }
-    // TODO: Implement confirmation logic
-    console.log('Confirm redemption:', { id, phoneNumber, code: redemptionCode });
+    
+    if (!id) {
+      alert('無效的優惠券 ID');
+      return;
+    }
+
+    try {
+      const { merchantAPI } = await import('@/utils/api');
+      await merchantAPI.redeem(parseInt(id), phoneNumber);
+      alert('核銷成功！');
+      setPhoneNumber('');
+    } catch (error: any) {
+      console.error('Redemption error:', error);
+      alert(error?.message || '核銷失敗，請稍後再試');
+    }
   };
 
   return (

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { ChevronLeft, Calendar, MapPin, Clock } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth } from '../../../utils/authAPI';
 import { useAuthCheck } from '../../hooks/useAuthCheck';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XStack, YStack, H4, Button, ScrollView, View, Text } from 'tamagui';
 
 interface CouponDetail {
@@ -21,6 +22,7 @@ interface CouponDetail {
 const CouponHistoryDetail: React.FC = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   
   // Authentication hooks
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
@@ -102,7 +104,7 @@ const CouponHistoryDetail: React.FC = () => {
         <XStack 
           items="center" 
           px="$5" 
-          pt="$8"
+          pt={insets.top + 10}
           pb="$4"
         >
           <Button 
@@ -131,11 +133,12 @@ const CouponHistoryDetail: React.FC = () => {
 
   return (
     <View flex={1} bg="#f5f5f5">
+      <Stack.Screen options={{ headerShown: false }} />
       {/* Header */}
       <XStack 
         items="center" 
         px="$5" 
-        pt="$8"
+        pt={insets.top + 10}
         pb="$4"
       >
         <Button 

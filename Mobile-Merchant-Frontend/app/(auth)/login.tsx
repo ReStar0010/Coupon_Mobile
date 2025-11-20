@@ -4,9 +4,11 @@ import { useRouter } from 'expo-router';
 import { Input, Button, AlertModal } from '@/components/ui';
 import { colors } from '@/constants/colors';
 import { LoginFormData } from '@/types';
+import { useAuth } from '@/app/components/providers/AuthProvider';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { checkAuth } = useAuth();
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
@@ -41,33 +43,54 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      // TODO: Implement actual login API call
-      console.log('Login attempt:', formData);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { authAPI } = await import('@/utils/api');
+      const response = await authAPI.login(formData.email, formData.password);
+      console.log('[Login] Login successful:', response);
       
-      // Simulate success - in real app, this would be based on API response
+      // Immediately refresh auth state after successful login
+      await checkAuth();
+      console.log('[Login] Auth state refreshed');
+      
       setShowSuccessModal(true);
     } catch (error: any) {
-      console.error('Login error:', error);
-      setErrorMessage(error?.message || '登入失敗，請檢查您的帳號密碼');
+      console.error('[Login] Login error:', error);
+      // Extract error message, handling both Error objects and API response errors
+      let errorMsg = '登入失敗，請檢查您的帳號密碼';
+      if (error?.message) {
+        errorMsg = error.message;
+      } else if (typeof error === 'string') {
+        errorMsg = error;
+      }
+      setErrorMessage(errorMsg);
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSuccessConfirm = () => {
+  const handleSuccessConfirm = async () => {
     setShowSuccessModal(false);
-    // router.replace('/(tabs)');
+    // Refresh auth state in AuthProvider
+    try {
+      await checkAuth();
+      console.log('[Login] Auth state refreshed after login');
+    } catch (error) {
+      console.error('[Login] Failed to refresh auth state:', error);
+    }
+    // Navigate to coupons page
+    router.replace('/(coupons)/');
   };
 
   const handleRegisterPress = () => {
-    router.push('/(auth)/register');
+    console.log('[Login] Navigating to register page');
+    // Use replace instead of push to avoid back navigation issues
+    router.replace('/(auth)/register');
   };
 
   const handleForgotPasswordPress = () => {
-    router.push('/(auth)/forgot-password');
+    console.log('[Login] Navigating to forgot password page');
+    // Use replace instead of push to avoid back navigation issues
+    router.replace('/(auth)/forgot-password');
   };
 
   return (

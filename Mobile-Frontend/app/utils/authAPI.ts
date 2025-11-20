@@ -3,7 +3,7 @@
  * Combines functionality from api.ts and auth.ts into a single, cohesive module
  */
 
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
@@ -359,18 +359,6 @@ export const useRequireAuth = () => {
     let isMounted = true;
 
     const checkAuth = async () => {
-      // Check if we have tokens directly as a failsafe
-      const hasRefreshToken = (await getRefreshToken()) !== null;
-      const hasAuth = isAuthenticated || hasRefreshToken;
-
-      devDebug('Route protection check:', {
-        isAuthenticated,
-        loading,
-        userId,
-        hasRefreshToken,
-        shareToken,
-      });
-
       // If there's a share token, we don't redirect immediately
       // Gift component will handle the redirect after they click "領取"
       if (shareToken) {
@@ -379,13 +367,24 @@ export const useRequireAuth = () => {
       }
 
       // Only redirect if authentication check is complete and user is not authenticated
-      // Add a small delay to ensure all auth checks are complete
-      setTimeout(() => {
-        if (isMounted && !loading && !hasAuth) {
+      // No delay needed - if loading is false and isAuthenticated is false, redirect immediately
+      if (!loading && !isAuthenticated) {
+        // Double-check with a quick token check as failsafe
+        const hasRefreshToken = (await getRefreshToken()) !== null;
+        
+        devDebug('Route protection check:', {
+          isAuthenticated,
+          loading,
+          userId,
+          hasRefreshToken,
+          shareToken,
+        });
+
+        if (isMounted && !hasRefreshToken) {
           devLog('Redirecting to login due to failed auth');
           router.push('/Login');
         }
-      }, 500); // Small delay to ensure all auth checks complete
+      }
     };
 
     checkAuth();
@@ -395,7 +394,28 @@ export const useRequireAuth = () => {
     };
   }, [isAuthenticated, loading, router, userId, shareToken]);
 
-  return { isAuthenticated, loading };
+  // Return isAuthenticated as true if we have a refresh token, even if SessionProvider hasn't finished
+  // This allows components to start rendering/fetching earlier
+  const [hasToken, setHasToken] = React.useState<boolean | null>(null);
+  
+  React.useEffect(() => {
+    // Quick token check to allow early rendering
+    getRefreshToken().then(token => {
+      setHasToken(token !== null);
+    });
+  }, []);
+
+  // If we have a token, we can consider the user authenticated immediately
+  // This allows data fetching to start before SessionProvider finishes
+  const effectiveIsAuthenticated = isAuthenticated || hasToken === true;
+  
+  // Only show loading if:
+  // 1. SessionProvider is still loading AND
+  // 2. We haven't checked for a token yet OR we don't have a token
+  // If we have a token, we can proceed even if SessionProvider is still loading
+  const effectiveLoading = loading && (hasToken === null || (hasToken === false && !isAuthenticated));
+
+  return { isAuthenticated: effectiveIsAuthenticated, loading: effectiveLoading };
 };
 
 /**

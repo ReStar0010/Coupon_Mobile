@@ -24,6 +24,17 @@ export default function RegisterScreen() {
     setFormData((prev) => ({ ...prev, password: text }));
   };
 
+  const [merchantData, setMerchantData] = useState({
+    phone: '',
+    contactPerson: '',
+    contactInfo: '',
+    storeName: '',
+    storeAddress: '',
+    storeLat: 0,
+    storeLng: 0,
+    businessHours: '',
+  });
+
   const handleRegister = async () => {
     if (!formData.email || !formData.password) {
       setErrorMessage('請輸入 Email 和密碼');
@@ -46,18 +57,63 @@ export default function RegisterScreen() {
       return;
     }
 
+    // Validate merchant-specific fields
+    if (!merchantData.phone || !merchantData.contactPerson || !merchantData.storeName || !merchantData.storeAddress) {
+      setErrorMessage('請填寫所有必填欄位（電話、聯絡人、店家名稱、地址）');
+      setShowErrorModal(true);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: Implement actual register API call
-      console.log('Register attempt:', formData);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { authAPI } = await import('@/utils/api');
+      console.log('[Register] Sending registration request:', {
+        email: formData.email,
+        user_type: 'merchant',
+        hasPhone: !!merchantData.phone,
+        hasContactPerson: !!merchantData.contactPerson,
+        hasStoreName: !!merchantData.storeName,
+        hasStoreAddress: !!merchantData.storeAddress,
+      });
       
-      // Simulate success
+      const response = await authAPI.register({
+        email: formData.email,
+        password: formData.password,
+        user_type: 'merchant',
+        phone: merchantData.phone,
+        contact_person: merchantData.contactPerson,
+        contact_info: merchantData.contactInfo,
+        store_name: merchantData.storeName,
+        store_address: merchantData.storeAddress,
+        store_lat: merchantData.storeLat || 25.0, // Default to Taipei coordinates
+        store_lng: merchantData.storeLng || 121.5,
+        business_hours: merchantData.businessHours,
+      });
+      
+      console.log('[Register] Registration successful:', response);
       setShowSuccessModal(true);
     } catch (error: any) {
-      console.error('Register error:', error);
-      setErrorMessage(error?.message || '註冊失敗，請稍後再試');
+      console.error('[Register] Registration error:', error);
+      // Extract error message, handling both Error objects and API response errors
+      let errorMsg = '註冊失敗，請稍後再試';
+      if (error?.message) {
+        errorMsg = error.message;
+        // If error message contains field-specific errors, format them nicely
+        if (typeof error.message === 'object') {
+          const errorObj = error.message;
+          const fieldErrors = Object.entries(errorObj)
+            .map(([field, messages]: [string, any]) => {
+              const fieldName = field.replace(/_/g, ' ');
+              const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+              return `${fieldName}: ${msg}`;
+            })
+            .join('\n');
+          errorMsg = fieldErrors || errorMsg;
+        }
+      } else if (typeof error === 'string') {
+        errorMsg = error;
+      }
+      setErrorMessage(errorMsg);
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
@@ -66,11 +122,13 @@ export default function RegisterScreen() {
 
   const handleSuccessConfirm = () => {
     setShowSuccessModal(false);
-    router.back();
+    // Use replace instead of back since we used replace to navigate here
+    router.replace('/(auth)/login');
   };
 
   const handleLoginPress = () => {
-    router.back();
+    // Use replace instead of back since we used replace to navigate here
+    router.replace('/(auth)/login');
   };
 
   return (
@@ -115,6 +173,48 @@ export default function RegisterScreen() {
         secureTextEntry
         autoCapitalize="none"
         autoComplete="password"
+        editable={!isLoading}
+        width="100%"
+      />
+
+      {/* Merchant-specific fields */}
+      <Input
+        placeholder="電話號碼"
+        value={merchantData.phone}
+        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, phone: text }))}
+        keyboardType="phone-pad"
+        editable={!isLoading}
+        width="100%"
+      />
+
+      <Input
+        placeholder="聯絡人姓名"
+        value={merchantData.contactPerson}
+        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, contactPerson: text }))}
+        editable={!isLoading}
+        width="100%"
+      />
+
+      <Input
+        placeholder="店家名稱"
+        value={merchantData.storeName}
+        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, storeName: text }))}
+        editable={!isLoading}
+        width="100%"
+      />
+
+      <Input
+        placeholder="店家地址"
+        value={merchantData.storeAddress}
+        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, storeAddress: text }))}
+        editable={!isLoading}
+        width="100%"
+      />
+
+      <Input
+        placeholder="營業時間（選填）"
+        value={merchantData.businessHours}
+        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, businessHours: text }))}
         editable={!isLoading}
         width="100%"
       />
