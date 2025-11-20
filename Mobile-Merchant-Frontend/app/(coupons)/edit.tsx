@@ -31,6 +31,20 @@ export default function CouponEditScreen() {
   const [notes, setNotes] = useState('');
   const [couponType, setCouponType] = useState<'一般' | '共享'>('共享');
   const [limitPerDay, setLimitPerDay] = useState(false);
+  // Store original values for validation in edit mode
+  const [originalTotalQuantity, setOriginalTotalQuantity] = useState<number | null>(null);
+  const [remainingQuantity, setRemainingQuantity] = useState<number | null>(null);
+  
+  // Store original form data to detect changes
+  const [originalData, setOriginalData] = useState<{
+    couponName: string;
+    couponContent: string;
+    notes: string;
+    image: string | null;
+    quantity: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
 
   // Date time picker state
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -54,7 +68,23 @@ export default function CouponEditScreen() {
       setNotes(data.important_notes || '');
       // Convert relative URL to absolute URL for image display
       setImage(getAbsoluteImageUrl(data.image_url) || null);
-      setQuantity(String(data.total_quantity || 1));
+      
+      // Store original values for validation
+      const totalQty = data.total_quantity || 0;
+      const remainingQty = data.remaining_quantity || 0;
+      setOriginalTotalQuantity(totalQty);
+      setRemainingQuantity(remainingQty);
+      
+      // Determine coupon type based on total_quantity
+      // If total_quantity > 0, it's '共享', otherwise '一般'
+      const type: '一般' | '共享' = totalQty > 0 ? '共享' : '一般';
+      setCouponType(type);
+      
+      // Set quantity for display (only for '共享' type)
+      if (type === '共享') {
+        setQuantity(String(totalQty));
+      }
+      
       if (data.start_date) {
         const start = new Date(data.start_date);
         setStartTime(formatDateTime(start));
@@ -62,9 +92,26 @@ export default function CouponEditScreen() {
       }
       if (data.end_date) {
         const end = new Date(data.end_date);
-        setEndTime(formatDateTime(end));
+        const endTimeStr = formatDateTime(end);
+        setEndTime(endTimeStr);
         setEndDate(end);
       }
+      
+      // Store original data for change detection
+      const originalImageUrl = getAbsoluteImageUrl(data.image_url) || null;
+      const originalQuantity = type === '共享' ? String(totalQty) : '1';
+      const originalStartTime = data.start_date ? formatDateTime(new Date(data.start_date)) : '';
+      const originalEndTime = data.end_date ? formatDateTime(new Date(data.end_date)) : '';
+      
+      setOriginalData({
+        couponName: data.coupon_name || '',
+        couponContent: data.coupon_detail || '',
+        notes: data.important_notes || '',
+        image: originalImageUrl,
+        quantity: originalQuantity,
+        startTime: originalStartTime,
+        endTime: originalEndTime,
+      });
     } catch (error) {
       console.error('Failed to load coupon:', error);
       Alert.alert('錯誤', '無法載入優惠券資料');
@@ -129,6 +176,18 @@ export default function CouponEditScreen() {
       return;
     }
 
+    // Edit 模式：驗證優惠數量不能比已核銷數量少
+    if (isEditMode && couponType === '共享' && originalTotalQuantity !== null && remainingQuantity !== null) {
+      const newQuantity = parseInt(quantity) || 0;
+      const redeemedQuantity = originalTotalQuantity - remainingQuantity;
+      
+      // 新數量必須 >= 原始 total_quantity（即已核銷數量）
+      if (newQuantity < originalTotalQuantity) {
+        Alert.alert('錯誤', `優惠數量不能少於已核銷數量（${originalTotalQuantity}），只能調高`);
+        return;
+      }
+    }
+
     try {
       setIsSaving(true);
       
@@ -170,6 +229,18 @@ export default function CouponEditScreen() {
       if (isEditMode && id) {
         await merchantAPI.updateTemplate(parseInt(id), couponData);
         Alert.alert('成功', '優惠券已更新');
+        // Update original data after successful save
+        if (originalData) {
+          setOriginalData({
+            couponName,
+            couponContent,
+            notes,
+            image: image || null,
+            quantity: couponType === '共享' ? quantity : '1',
+            startTime,
+            endTime,
+          });
+        }
       } else {
         await merchantAPI.createTemplate(couponData);
         Alert.alert('成功', '優惠券已建立');
@@ -229,6 +300,26 @@ export default function CouponEditScreen() {
       setEndDate(selectedDate);
       setEndTime(formatDateTime(selectedDate));
     }
+  };
+
+  // Check if form data has changed (only for edit mode)
+  const hasChanges = (): boolean => {
+    if (!isEditMode || !originalData) {
+      return true; // Always enable save button in create mode
+    }
+
+    // Compare current values with original values
+    const currentQuantity = couponType === '共享' ? quantity : '1';
+    
+    return (
+      couponName !== originalData.couponName ||
+      couponContent !== originalData.couponContent ||
+      notes !== originalData.notes ||
+      image !== originalData.image ||
+      currentQuantity !== originalData.quantity ||
+      startTime !== originalData.startTime ||
+      endTime !== originalData.endTime
+    );
   };
 
   return (
@@ -317,6 +408,7 @@ export default function CouponEditScreen() {
             />
 
             {/* 優惠數量 - 只在共享類型時顯示 */}
+            {/* Edit 模式且類型為一般時隱藏，Create 模式或類型為共享時顯示 */}
             {couponType === '共享' && (
               <FormField
                 label="優惠數量"
@@ -326,7 +418,9 @@ export default function CouponEditScreen() {
                   const numericValue = text.replace(/[^0-9]/g, '');
                   setQuantity(numericValue);
                 }}
-                placeholder="輸入數量"
+                placeholder={isEditMode && originalTotalQuantity !== null 
+                  ? `最小數量：${originalTotalQuantity}` 
+                  : "輸入數量"}
                 keyboardType="numeric"
               />
             )}
@@ -340,46 +434,48 @@ export default function CouponEditScreen() {
               multiline
             />
 
-            {/* 優惠類型 */}
-            <YStack gap="$2">
-              <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
-                優惠類型(一般、共享)
-              </Text>
-              <XStack gap="$3">
-                <TouchableOpacity
-                  onPress={() => setCouponType('一般')}
-                  style={[
-                    styles.radioButton,
-                    couponType === '一般' && styles.radioButtonActive,
-                  ]}
-                >
-                  <Text
+            {/* 優惠類型 - 只在 Create 模式顯示 */}
+            {!isEditMode && (
+              <YStack gap="$2">
+                <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
+                  優惠類型(一般、共享)
+                </Text>
+                <XStack gap="$3">
+                  <TouchableOpacity
+                    onPress={() => setCouponType('一般')}
                     style={[
-                      styles.radioText,
-                      couponType === '一般' && styles.radioTextActive,
+                      styles.radioButton,
+                      couponType === '一般' && styles.radioButtonActive,
                     ]}
                   >
-                    一般
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setCouponType('共享')}
-                  style={[
-                    styles.radioButton,
-                    couponType === '共享' && styles.radioButtonActive,
-                  ]}
-                >
-                  <Text
+                    <Text
+                      style={[
+                        styles.radioText,
+                        couponType === '一般' && styles.radioTextActive,
+                      ]}
+                    >
+                      一般
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setCouponType('共享')}
                     style={[
-                      styles.radioText,
-                      couponType === '共享' && styles.radioTextActive,
+                      styles.radioButton,
+                      couponType === '共享' && styles.radioButtonActive,
                     ]}
                   >
-                    共享
-                  </Text>
-                </TouchableOpacity>
-              </XStack>
-            </YStack>
+                    <Text
+                      style={[
+                        styles.radioText,
+                        couponType === '共享' && styles.radioTextActive,
+                      ]}
+                    >
+                      共享
+                    </Text>
+                  </TouchableOpacity>
+                </XStack>
+              </YStack>
+            )}
 
             {/* 每天限用一次 */}
             <XStack alignItems="center" justifyContent="space-between">
@@ -407,8 +503,8 @@ export default function CouponEditScreen() {
             variant="primary" 
             fullWidth 
             onPress={handleSave}
-            disabled={isSaving || isLoading}
-            opacity={isSaving || isLoading ? 0.6 : 1}
+            disabled={isSaving || isLoading || !hasChanges()}
+            opacity={isSaving || isLoading || !hasChanges() ? 0.6 : 1}
           >
             {isSaving ? '儲存中...' : '儲存'}
           </Button>
