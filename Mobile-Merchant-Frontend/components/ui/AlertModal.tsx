@@ -47,7 +47,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
       // Auto hide after 0.8 seconds for success/error types
       if (type === 'success' || type === 'error') {
         const hideTimer = setTimeout(() => {
-          hideModal();
+          hideModal(true); // Pass true to call onConfirm after closing
         }, 800);
 
         return () => clearTimeout(hideTimer);
@@ -57,7 +57,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
     }
   }, [isOpen, type]);
 
-  const hideModal = () => {
+  const hideModal = (shouldCallOnConfirm = false) => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -71,6 +71,10 @@ export const AlertModal: React.FC<AlertModalProps> = ({
       }),
     ]).start(() => {
       onClose();
+      // Call onConfirm after modal closes if it was auto-hide
+      if (shouldCallOnConfirm && onConfirm) {
+        onConfirm();
+      }
     });
   };
 
