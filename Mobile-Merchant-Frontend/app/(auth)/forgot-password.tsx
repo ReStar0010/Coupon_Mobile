@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { YStack, Text, XStack } from 'tamagui';
 import { useRouter } from 'expo-router';
-import { Input, Button } from '@/components/ui';
+import { Input, Button, AlertModal } from '@/components/ui';
 import { colors } from '@/constants/colors';
 import { ForgotPasswordFormData } from '@/types';
-import { StyleSheet, View } from 'react-native';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -12,7 +11,9 @@ export default function ForgotPasswordScreen() {
     email: '',
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<'success' | 'error' | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleEmailChange = (text: string) => {
     setFormData((prev) => ({ ...prev, email: text }));
@@ -20,30 +21,37 @@ export default function ForgotPasswordScreen() {
 
   const handleSendResetEmail = async () => {
     if (!formData.email) {
-      setStatusMessage('error');
+      setErrorMessage('請輸入 Email');
+      setShowErrorModal(true);
       return;
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setStatusMessage('error');
+      setErrorMessage('請輸入有效的 Email 格式');
+      setShowErrorModal(true);
       return;
     }
 
     setIsLoading(true);
-    setStatusMessage(null);
     try {
       const { authAPI } = await import('@/utils/api');
       await authAPI.forgotPassword(formData.email);
       
-      setStatusMessage('success');
+      setShowSuccessModal(true);
     } catch (error: any) {
       console.error('Send reset email error:', error);
-      setStatusMessage('error');
+      setErrorMessage(error?.message || '發送失敗，請稍後再試');
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSuccessConfirm = () => {
+    setShowSuccessModal(false);
+    router.replace('/(auth)/login');
   };
 
   const handleBackToLogin = () => {
@@ -110,57 +118,27 @@ export default function ForgotPasswordScreen() {
         </Text>
       </XStack>
 
-      {/* Status Message Button */}
-      {statusMessage && (
-        <View style={styles.statusContainer}>
-          <View
-            style={[
-              styles.statusButton,
-              statusMessage === 'success' ? styles.successButton : styles.errorButton,
-            ]}
-          >
-            <Text
-              style={[
-                styles.statusText,
-                statusMessage === 'success' ? styles.successText : styles.errorText,
-              ]}
-            >
-              {statusMessage === 'success' ? '信件寄送成功' : '信件寄送失敗'}
-            </Text>
-          </View>
-        </View>
-      )}
+      {/* Success Modal */}
+      <AlertModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="發送成功"
+        message="信件寄送成功"
+        type="success"
+        confirmText="確定"
+        onConfirm={handleSuccessConfirm}
+      />
+
+      {/* Error Modal */}
+      <AlertModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="發送失敗"
+        message={errorMessage}
+        type="error"
+        confirmText="確定"
+      />
     </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  statusContainer: {
-    width: '100%',
-    marginTop: 10,
-  },
-  statusButton: {
-    width: '100%',
-    height: 54,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  successButton: {
-    backgroundColor: '#4CAF50', // Green color for success
-  },
-  errorButton: {
-    backgroundColor: '#FFB6C1', // Pink color for error
-  },
-  statusText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  successText: {
-    color: '#FFFFFF',
-  },
-  errorText: {
-    color: '#FFFFFF',
-  },
-});
 
