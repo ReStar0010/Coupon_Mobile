@@ -18,7 +18,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan redemption codes."
+          "cameraPermission": "允許 $(PRODUCT_NAME) 存取您的相機以掃描 QR Code"
         }
       ]
     ],

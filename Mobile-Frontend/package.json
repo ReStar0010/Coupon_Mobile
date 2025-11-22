@@ -20,7 +20,7 @@
     "@tamagui/metro-plugin": "^1.136.6",
     "@tamagui/portal": "^1.136.6",
     "axios": "^1.11.0",
-    "expo": "^54.0.23",
+    "expo": "^54.0.25",
     "expo-camera": "~17.0.8",
     "expo-clipboard": "~8.0.7",
     "expo-constants": "~18.0.10",
@@ -48,10 +48,7 @@
   "main": "expo-router/entry",
   "private": true,
   "devDependencies": {
-    "@testing-library/jest-native": "^5.4.3",
-    "@testing-library/react-native": "^13.3.3",
     "@types/react": "~19.1.10",
-    "jest": "^30.2.0",
     "typescript": "~5.9.2"
   }
 }
