@@ -9,6 +9,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { getAbsoluteImageUrl } from '@/utils/api';
+import LocationPicker from '@/app/components/LocationPicker';
 
 interface EditableFieldProps {
   label: string;
@@ -94,6 +95,8 @@ export default function ProfileEditScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [type, setType] = useState('');
   const [businessHours, setBusinessHours] = useState('');
+  const [storeLat, setStoreLat] = useState<number>(0);
+  const [storeLng, setStoreLng] = useState<number>(0);
   const [showTypePicker, setShowTypePicker] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -113,6 +116,8 @@ export default function ProfileEditScreen() {
         setAddress(data.store.address || '');
         setPhoneNumber(data.merchant?.phone || '');
         setBusinessHours(data.store.business_hours || '');
+        setStoreLat(data.store.lat || 0);
+        setStoreLng(data.store.lng || 0);
         // Convert relative URL to absolute URL for image display
         const absoluteImageUrl = getAbsoluteImageUrl(data.store.image_url);
         setImageUrl(absoluteImageUrl || '');
@@ -179,6 +184,11 @@ export default function ProfileEditScreen() {
     }
   };
 
+  const handleLocationSelect = (latitude: number, longitude: number) => {
+    setStoreLat(latitude);
+    setStoreLng(longitude);
+  };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
@@ -186,6 +196,8 @@ export default function ProfileEditScreen() {
       await merchantAPI.updateProfile({
         phone: phoneNumber,
         store_address: address,
+        store_lat: storeLat,
+        store_lng: storeLng,
         business_hours: businessHours,
         store_type: type,
         image_url: imageUrl,
@@ -287,6 +299,23 @@ export default function ProfileEditScreen() {
               onChangeText={setAddress}
               placeholder="輸入地址"
             />
+            {/* Location Picker */}
+            <YStack
+              paddingVertical="$3"
+              borderBottomWidth={1}
+              borderBottomColor={colors.border}
+              gap="$2"
+            >
+              <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} marginBottom="$2">
+                店家位置
+              </Text>
+              <LocationPicker
+                initialLatitude={storeLat || undefined}
+                initialLongitude={storeLng || undefined}
+                onLocationSelect={handleLocationSelect}
+                height={250}
+              />
+            </YStack>
             <EditableField
               label="電話號碼"
               value={phoneNumber}

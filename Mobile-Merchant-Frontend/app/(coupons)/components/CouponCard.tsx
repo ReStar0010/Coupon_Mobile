@@ -45,7 +45,7 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
 
       {/* Usage Count */}
       <Text fontSize="$sm" color={colors.textSecondary}>
-        累積核銷: {coupon.redemptionCount}
+        已發出: {coupon.redemptionCount}
       </Text>
       </YStack>
     </TouchableOpacity>
