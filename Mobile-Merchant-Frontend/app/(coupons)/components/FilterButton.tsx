@@ -6,16 +6,19 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 interface FilterButtonProps {
   label: string;
+  selectedValue?: string | null;
   onPress: () => void;
 }
 
-export function FilterButton({ label, onPress }: FilterButtonProps) {
+export function FilterButton({ label, selectedValue, onPress }: FilterButtonProps) {
+  const displayText = selectedValue || label;
+  
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <XStack
-        backgroundColor={colors.background}
+        backgroundColor={selectedValue ? colors.primary : colors.background}
         borderWidth={1}
-        borderColor={colors.border}
+        borderColor={selectedValue ? colors.primary : colors.border}
         borderRadius="$4"
         paddingHorizontal="$3"
         paddingVertical="$2.5"
@@ -23,10 +26,18 @@ export function FilterButton({ label, onPress }: FilterButtonProps) {
         gap="$2"
         minWidth={80}
       >
-        <Text fontSize="$md" color={colors.textPrimary} fontWeight="500">
-          {label}
+        <Text 
+          fontSize="$md" 
+          color={selectedValue ? colors.white : colors.textPrimary} 
+          fontWeight="500"
+        >
+          {displayText}
         </Text>
-        <MaterialIcons name="keyboard-arrow-down" size={16} color={colors.textSecondary} />
+        <MaterialIcons 
+          name="keyboard-arrow-down" 
+          size={16} 
+          color={selectedValue ? colors.white : colors.textSecondary} 
+        />
       </XStack>
     </TouchableOpacity>
   );
