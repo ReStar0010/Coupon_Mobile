@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { YStack, Text, XStack } from 'tamagui';
+import { YStack, Text, XStack, ScrollView } from 'tamagui';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Input, Button, AlertModal } from '@/components/ui';
 import { colors } from '@/constants/colors';
 import { RegisterFormData } from '@/types';
+import LocationPicker from '@/app/components/LocationPicker';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -34,6 +36,7 @@ export default function RegisterScreen() {
     storeLng: 0,
     businessHours: '',
   });
+  const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
 
   const handleRegister = async () => {
     if (!formData.email || !formData.password) {
@@ -64,6 +67,13 @@ export default function RegisterScreen() {
       return;
     }
 
+    // Validate location selection
+    if (!hasSelectedLocation || merchantData.storeLat === 0 || merchantData.storeLng === 0) {
+      setErrorMessage('請在地圖上選擇店家位置');
+      setShowErrorModal(true);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { authAPI } = await import('@/utils/api');
@@ -85,8 +95,8 @@ export default function RegisterScreen() {
         contact_info: merchantData.contactInfo,
         store_name: merchantData.storeName,
         store_address: merchantData.storeAddress,
-        store_lat: merchantData.storeLat || 25.0, // Default to Taipei coordinates
-        store_lng: merchantData.storeLng || 121.5,
+        store_lat: merchantData.storeLat,
+        store_lng: merchantData.storeLng,
         business_hours: merchantData.businessHours,
       });
       
@@ -131,27 +141,42 @@ export default function RegisterScreen() {
     router.replace('/(auth)/login');
   };
 
+  const handleLocationSelect = (latitude: number, longitude: number) => {
+    setMerchantData((prev) => ({
+      ...prev,
+      storeLat: latitude,
+      storeLng: longitude,
+    }));
+    setHasSelectedLocation(true);
+  };
+
   return (
-    <YStack
-      flex={1}
-      backgroundColor={colors.background}
-      paddingHorizontal="$5"
-      paddingVertical="$8"
-      justifyContent="center"
-      alignItems="center"
-      gap="$3"
-    >
-      {/* Title */}
-      <XStack width="100%" justifyContent="center" alignItems="center" marginBottom="$2">
-        <Text
-          fontSize={34}
-          fontWeight="800"
-          color={colors.textPrimary}
-          style={{ lineHeight: 42.5 }}
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+      <YStack
+        flex={1}
+        backgroundColor={colors.background}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: 20,
+            paddingBottom: 40,
+            gap: 12,
+          }}
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
         >
-          註冊
-        </Text>
-      </XStack>
+          {/* Title */}
+          <XStack width="100%" justifyContent="center" alignItems="center" marginTop="$2" marginBottom="$4">
+            <Text
+              fontSize={34}
+              fontWeight="800"
+              color={colors.textPrimary}
+              style={{ lineHeight: 42.5 }}
+            >
+              註冊
+            </Text>
+          </XStack>
 
       {/* Email Input */}
       <Input
@@ -211,6 +236,22 @@ export default function RegisterScreen() {
         width="100%"
       />
 
+      {/* Location Picker */}
+      <YStack width="100%" gap="$2" marginTop="$2">
+        <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
+          選擇店家位置 *
+        </Text>
+        <LocationPicker
+          onLocationSelect={handleLocationSelect}
+          height={250}
+        />
+        {!hasSelectedLocation && (
+          <Text fontSize="$sm" color={colors.textSecondary}>
+            請在地圖上點擊或拖動標記來選擇位置
+          </Text>
+        )}
+      </YStack>
+
       <Input
         placeholder="營業時間（選填）"
         value={merchantData.businessHours}
@@ -265,7 +306,9 @@ export default function RegisterScreen() {
         type="error"
         confirmText="確定"
       />
-    </YStack>
+        </ScrollView>
+      </YStack>
+    </SafeAreaView>
   );
 }
 

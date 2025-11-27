@@ -205,7 +205,8 @@ class Coupon(models.Model):
             self.original_owner = None
             self.last_holder = None
             self.current_holder = None
-            self.template = None
+            # Keep template field for store type coupons to allow synchronization with CouponTemplate
+            # Only clear redeem_code for store type coupons
             self.redeem_code = None
         super().save(*args, **kwargs)
 

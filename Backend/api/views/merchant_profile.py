@@ -128,8 +128,11 @@ def update_merchant_profile(request):
     merchant_profile.save()
     
     # Update store if it exists
+    # Note: owner field is never updated - it's set during registration and remains unchanged
     store = get_merchant_store(user)
     if store:
+        # Ensure owner is not modified (security measure)
+        # Only update allowed fields
         if 'store_name' in data:
             store.name = data['store_name']
         if 'store_address' in data:
@@ -144,6 +147,7 @@ def update_merchant_profile(request):
             store.image_url = data['image_url']
         if 'store_type' in data:
             store.store_type = data['store_type']
+        # Owner is never updated - it's always the authenticated user
         store.save()
     
     response_data = {

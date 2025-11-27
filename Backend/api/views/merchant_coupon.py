@@ -254,6 +254,24 @@ def create_coupon_template(request):
             tags = Tag.objects.filter(id__in=tag_ids)
             template.tags.set(tags)
         
+        # If total_quantity is 0, this is a "一般" type coupon (EasyUse/store type)
+        # Create a corresponding Coupon object for EasyUse page
+        if validated_data['total_quantity'] == 0:
+            coupon = Coupon.objects.create(
+                store=store,
+                template=template,
+                coupon_name=template.coupon_name,
+                coupon_detail=template.coupon_detail,
+                important_notes=template.important_notes,
+                start_date=template.start_date,
+                expiry_date=template.expiry_date,
+                image_url=template.image_url,
+                coupon_type='store',  # EasyUse coupons are store type
+                estimated_savings=template.estimated_savings,
+            )
+            # Set tags for the coupon
+            coupon.tags.set(template.tags.all())
+        
         template_data = {
             'id': template.id,
             'coupon_name': template.coupon_name,
@@ -316,6 +334,7 @@ def update_coupon_template(request, id):
             template.is_active = validated_data['is_active']
         
         # Handle quantity update (adjust remaining_quantity accordingly)
+        old_total_quantity = template.total_quantity
         if 'total_quantity' in validated_data:
             new_total = validated_data['total_quantity']
             # Calculate redeemed quantity (cannot be reduced)
@@ -338,6 +357,47 @@ def update_coupon_template(request, id):
             tag_ids = validated_data['tags']
             tags = Tag.objects.filter(id__in=tag_ids)
             template.tags.set(tags)
+        
+        # Handle Coupon object synchronization for "一般" type (total_quantity = 0)
+        # Find existing store-type coupon linked to this template
+        existing_coupon = Coupon.objects.filter(template=template, coupon_type='store').first()
+        
+        # Check if this is a "一般" type coupon (total_quantity = 0)
+        # After save, template.total_quantity is the current value
+        if template.total_quantity == 0:
+            # This is a "一般" type coupon - should have a corresponding store-type Coupon
+            if existing_coupon:
+                # Update existing coupon with all template fields
+                existing_coupon.coupon_name = template.coupon_name
+                existing_coupon.coupon_detail = template.coupon_detail
+                existing_coupon.important_notes = template.important_notes
+                existing_coupon.image_url = template.image_url
+                existing_coupon.estimated_savings = template.estimated_savings
+                existing_coupon.start_date = template.start_date
+                existing_coupon.expiry_date = template.expiry_date
+                existing_coupon.save()
+                # Update tags
+                existing_coupon.tags.set(template.tags.all())
+            else:
+                # Create new coupon if it doesn't exist (e.g., changed from "共享" to "一般")
+                coupon = Coupon.objects.create(
+                    store=store,
+                    template=template,
+                    coupon_name=template.coupon_name,
+                    coupon_detail=template.coupon_detail,
+                    important_notes=template.important_notes,
+                    start_date=template.start_date,
+                    expiry_date=template.expiry_date,
+                    image_url=template.image_url,
+                    coupon_type='store',
+                    estimated_savings=template.estimated_savings,
+                )
+                coupon.tags.set(template.tags.all())
+        else:
+            # This is a "共享" type coupon - should not have a store-type Coupon
+            # Delete existing store-type coupon if it exists (e.g., changed from "一般" to "共享")
+            if existing_coupon:
+                existing_coupon.delete()
         
         template_data = {
             'id': template.id,
@@ -369,6 +429,11 @@ def delete_coupon_template(request, id):
     
     try:
         template = CouponTemplate.objects.get(id=id, store=store)
+        
+        # Delete associated store-type Coupon if it exists (for "一般" type coupons)
+        existing_coupon = Coupon.objects.filter(template=template, coupon_type='store').first()
+        if existing_coupon:
+            existing_coupon.delete()
         
         # Delete associated image file if it exists and is stored locally
         if template.image_url:
