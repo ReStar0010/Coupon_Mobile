@@ -540,13 +540,15 @@ export default function CouponEditScreen() {
                       <Text fontSize="$md" color={colors.primary} fontWeight="600">完成</Text>
                     </TouchableOpacity>
                   </XStack>
-                  <DateTimePicker
-                    value={startDate}
-                    mode="datetime"
-                    display="spinner"
-                    onChange={handleStartDateChange}
-                    locale="zh-TW"
-                  />
+                  <View style={styles.pickerContainer}>
+                    <DateTimePicker
+                      value={startDate}
+                      mode="datetime"
+                      display="spinner"
+                      onChange={handleStartDateChange}
+                      locale="zh-TW"
+                    />
+                  </View>
                 </View>
               </View>
             </Modal>
@@ -570,13 +572,15 @@ export default function CouponEditScreen() {
                       <Text fontSize="$md" color={colors.primary} fontWeight="600">完成</Text>
                     </TouchableOpacity>
                   </XStack>
-                  <DateTimePicker
-                    value={endDate}
-                    mode="datetime"
-                    display="spinner"
-                    onChange={handleEndDateChange}
-                    locale="zh-TW"
-                  />
+                  <View style={styles.pickerContainer}>
+                    <DateTimePicker
+                      value={endDate}
+                      mode="datetime"
+                      display="spinner"
+                      onChange={handleEndDateChange}
+                      locale="zh-TW"
+                    />
+                  </View>
                 </View>
               </View>
             </Modal>
@@ -748,7 +752,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '50%',
+    maxHeight: '60%',
+    minHeight: 400,
+  },
+  pickerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    minHeight: 200,
   },
 });
 
