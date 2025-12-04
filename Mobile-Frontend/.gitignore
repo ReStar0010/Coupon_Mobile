@@ -3,3 +3,4 @@ node_modules/
 tamagui-web.css
 dist/
 coupro-458804-2d0f60f11bfd.json
+.env
