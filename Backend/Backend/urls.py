@@ -14,7 +14,8 @@ from api.views.merchant_coupon import (
     update_coupon_template, delete_coupon_template, merchant_redeem, upload_image
 )
 from api.views.merchant_profile import (
-    get_merchant_profile, update_merchant_profile, get_merchant_statistics
+    get_merchant_profile, update_merchant_profile, get_merchant_statistics,
+    get_merchant_analytics, update_average_order_value
 )
 
 from django.http import HttpResponse
@@ -103,6 +104,8 @@ urlpatterns = [
     path('api/merchant/profile/', get_merchant_profile, name='get_merchant_profile'),
     path('api/merchant/profile/update/', update_merchant_profile, name='update_merchant_profile'),
     path('api/merchant/statistics/', get_merchant_statistics, name='get_merchant_statistics'),
+    path('api/merchant/analytics/', get_merchant_analytics, name='get_merchant_analytics'),
+    path('api/merchant/average-order-value/', update_average_order_value, name='update_average_order_value'),
     
     # Merchant image upload
     path('api/merchant/upload-image/', upload_image, name='upload_image'),

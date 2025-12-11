@@ -89,6 +89,7 @@ class Store(models.Model):
     business_hours = models.TextField(blank=True, null=True)
     image_url = models.CharField(max_length=255, blank=True, null=True)
     store_type = models.CharField(max_length=20, choices=STORE_TYPE_CHOICES, blank=True, null=True)
+    average_order_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Average order value in TWD for GMV calculation")
 
     def __str__(self):
         return self.name
@@ -233,6 +234,8 @@ class CouponRedemption(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='coupon_redemptions')
     redeemed_at = models.DateTimeField(default=timezone.now)
     savings_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    lat = models.FloatField(null=True, blank=True, help_text="Latitude of redemption location")
+    lng = models.FloatField(null=True, blank=True, help_text="Longitude of redemption location")
 
     # Denormalized field (copies coupon_type for use in constraints)
     coupon_type = models.CharField(max_length=20, editable=False)
@@ -261,6 +264,8 @@ class Log(models.Model):
     action = models.CharField(max_length=20)  # "view", "redeem", "share"
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True) # User performing the action
     coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True) # Coupon related to the action
+    lat = models.FloatField(null=True, blank=True, help_text="Latitude of action location")
+    lng = models.FloatField(null=True, blank=True, help_text="Longitude of action location")
     
     def __str__(self):
         user_email = self.user.email if self.user else "Anonymous/System"
