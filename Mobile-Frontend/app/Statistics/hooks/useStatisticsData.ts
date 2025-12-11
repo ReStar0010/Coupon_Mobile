@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useToast } from '../../components/providers/ToastProvider';
 import { devDebug } from '../../utils/devLogger';
@@ -23,31 +23,48 @@ export interface CompletedGoal {
   completedDate: string;
 }
 
-export const useStatisticsData = (isAuthenticated: boolean) => {
+interface UseStatisticsDataReturn {
+  stats: StatisticsData;
+  completedGoals: CompletedGoal[];
+  isLoading: boolean;
+  error: string | null;
+  resetGoal: () => Promise<void>;
+  setSavingsGoal: (goalName: string, goalAmount: number, goalImage: string) => Promise<void>;
+  fetchUserStats: () => Promise<void>;
+}
+
+const INITIAL_STATS: StatisticsData = {
+  couponsUsedCount: 0,
+  totalSavings: 0,
+  monthlySavings: 0,
+  hasGoal: false,
+  savingsGoalName: '',
+  savingsGoalAmount: 0,
+  savingsGoalImage: '',
+  goalProgress: 0,
+  goalAchieved: false,
+};
+
+export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataReturn => {
   const { showToast } = useToast();
-
-  // Stats state
-  const [stats, setStats] = useState<StatisticsData>({
-    couponsUsedCount: 0,
-    totalSavings: 0,
-    monthlySavings: 0,
-    hasGoal: false,
-    savingsGoalName: '',
-    savingsGoalAmount: 0,
-    savingsGoalImage: '',
-    goalProgress: 0,
-    goalAchieved: false,
-  });
-
-  // Completed goals state
+  const [stats, setStats] = useState<StatisticsData>(INITIAL_STATS);
   const [completedGoals, setCompletedGoals] = useState<CompletedGoal[]>([]);
-
-  // Loading states - start as false to allow page to render immediately
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch completed goals
-  const fetchCompletedGoals = async () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const fetchCompletedGoals = useCallback(async () => {
     try {
       const response = await fetchAPI('/completed-goals/', {
         method: 'GET',
@@ -56,17 +73,23 @@ export const useStatisticsData = (isAuthenticated: boolean) => {
 
       devDebug('Completed goals response:', response.data);
 
-      if (response.data && Array.isArray(response.data)) {
+      if (isMountedRef.current && response.data && Array.isArray(response.data)) {
         setCompletedGoals(response.data);
       }
     } catch (err) {
       console.error('Error fetching completed goals:', err);
-      // We don't set an error state here to not disrupt the main UI
     }
-  };
+  }, []);
 
-  // Fetch user statistics
-  const fetchUserStats = async () => {
+  const fetchUserStats = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+
     try {
       setIsLoading(true);
       setError(null);
@@ -74,7 +97,10 @@ export const useStatisticsData = (isAuthenticated: boolean) => {
       const response = await fetchAPI('/user-statistics/', {
         method: 'GET',
         withCredentials: true,
+        signal: abortControllerRef.current.signal,
       });
+
+      if (!isMountedRef.current) return;
 
       setStats({
         couponsUsedCount: response.data.coupons_used_count || 0,
@@ -88,64 +114,68 @@ export const useStatisticsData = (isAuthenticated: boolean) => {
         goalAchieved: response.data.goal_achieved || false,
       });
 
-      // Also fetch completed goals
-      fetchCompletedGoals();
-
-      setIsLoading(false);
+      await fetchCompletedGoals();
     } catch (err) {
-      console.error('Error fetching user statistics:', err);
-      setError('Failed to load your statistics. Please try again later.');
-      setIsLoading(false);
-    }
-  };
-
-  // Set savings goal
-  const setSavingsGoal = async (goalName: string, goalAmount: number, goalImage: string) => {
-    try {
-      const response = await fetchAPI('/set-savings-goal/', {
-        method: 'POST',
-        withCredentials: true,
-        data: JSON.stringify({
-          goal_name: goalName,
-          goal_amount: goalAmount,
-          goal_image: goalImage,
-        }),
-      });
-
-      showToast('儲蓄目標已設定', 'success');
-
-      // Update local state with reset monthly savings
-      setStats((prev) => ({
-        ...prev,
-        hasGoal: true,
-        savingsGoalName: goalName,
-        savingsGoalAmount: goalAmount,
-        savingsGoalImage: goalImage,
-        // Use 0 for monthly savings as we're resetting progress
-        monthlySavings: 0,
-        goalProgress: 0,
-        goalAchieved: false,
-      }));
-
-      // If the previous goal was achieved, add it to completed goals
-      if (response.data.previous_goal_achieved) {
-        // Refresh completed goals list to show the new badge
-        fetchCompletedGoals();
+      if (axios.isCancel(err)) {
+        devDebug('Request cancelled');
+        return;
       }
-    } catch (err) {
-      console.error('Error setting savings goal:', err);
-      showToast('設定儲蓄目標失敗', 'error');
+      console.error('Error fetching user statistics:', err);
+      if (isMountedRef.current) {
+        setError('Failed to load your statistics. Please try again later.');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
+  }, [isAuthenticated, fetchCompletedGoals]);
 
-    fetchUserStats();
-  };
+  const setSavingsGoal = useCallback(
+    async (goalName: string, goalAmount: number, goalImage: string) => {
+      try {
+        const response = await fetchAPI('/set-savings-goal/', {
+          method: 'POST',
+          withCredentials: true,
+          data: JSON.stringify({
+            goal_name: goalName,
+            goal_amount: goalAmount,
+            goal_image: goalImage,
+          }),
+        });
 
-  // Reset savings goal
-  const resetGoal = async () => {
+        showToast('儲蓄目標已設定', 'success');
+
+        if (isMountedRef.current) {
+          setStats((prev) => ({
+            ...prev,
+            hasGoal: true,
+            savingsGoalName: goalName,
+            savingsGoalAmount: goalAmount,
+            savingsGoalImage: goalImage,
+            monthlySavings: 0,
+            goalProgress: 0,
+            goalAchieved: false,
+          }));
+        }
+
+        if (response.data.previous_goal_achieved) {
+          await fetchCompletedGoals();
+        }
+      } catch (err) {
+        console.error('Error setting savings goal:', err);
+        showToast('設定儲蓄目標失敗', 'error');
+      }
+
+      await fetchUserStats();
+    },
+    [showToast, fetchCompletedGoals, fetchUserStats]
+  );
+
+  const resetGoal = useCallback(async () => {
     try {
-      // If current goal was achieved, add it to completed goals
       if (stats.goalAchieved && stats.hasGoal) {
-        fetchAPI('/add-completed-goal/', {
+        await fetchAPI('/add-completed-goal/', {
           method: 'POST',
           withCredentials: true,
           data: JSON.stringify({
@@ -155,45 +185,47 @@ export const useStatisticsData = (isAuthenticated: boolean) => {
           }),
         });
 
-        // Add to local state immediately for better UX
-        const newCompletedGoal = {
+        const newCompletedGoal: CompletedGoal = {
           name: stats.savingsGoalName,
           amount: stats.savingsGoalAmount,
           image: stats.savingsGoalImage,
           completedDate: new Date().toISOString(),
         };
 
-        setCompletedGoals((prev) => [...prev, newCompletedGoal]);
+        if (isMountedRef.current) {
+          setCompletedGoals((prev) => [...prev, newCompletedGoal]);
+        }
       }
 
-      // Reset the goal
-      await fetchAPI('/reset-savings-goal/', { method: 'POST', withCredentials: true });
+      await fetchAPI('/reset-savings-goal/', {
+        method: 'POST',
+        withCredentials: true,
+      });
 
-      // Update local state to clear the goal
-      setStats((prev) => ({
-        ...prev,
-        hasGoal: false,
-        savingsGoalName: '',
-        savingsGoalAmount: 0,
-        savingsGoalImage: '',
-        goalProgress: 0,
-        goalAchieved: false,
-      }));
+      if (isMountedRef.current) {
+        setStats((prev) => ({
+          ...prev,
+          hasGoal: false,
+          savingsGoalName: '',
+          savingsGoalAmount: 0,
+          savingsGoalImage: '',
+          goalProgress: 0,
+          goalAchieved: false,
+        }));
+      }
 
       showToast('儲蓄目標已重置', 'success');
     } catch (err) {
       console.error('Error resetting savings goal:', err);
       showToast('重置儲蓄目標失敗', 'error');
     }
-  };
+  }, [stats, showToast]);
 
-  // Effect to fetch user stats on mount
   useEffect(() => {
     if (isAuthenticated) {
       fetchUserStats();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]); // fetchUserStats intentionally omitted
+  }, [isAuthenticated, fetchUserStats]);
 
   return {
     stats,
@@ -205,4 +237,5 @@ export const useStatisticsData = (isAuthenticated: boolean) => {
     fetchUserStats,
   };
 };
+
 export default useStatisticsData;
