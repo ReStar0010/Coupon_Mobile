@@ -30,7 +30,7 @@ export function Header({ onLogoPress, onMenuPress, showMenu = true }: HeaderProp
       >
         <XStack alignItems="center" gap="$2.5">
           <ExpoImage
-            source={require('@/assets/images/adaptive_icon.png')}
+            source={require('@/assets/adaptive-icon.png')}
             style={styles.logoIcon}
             contentFit="contain"
           />
