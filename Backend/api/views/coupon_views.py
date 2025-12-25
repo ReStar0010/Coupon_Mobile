@@ -189,6 +189,7 @@ def get_coupon_detail(request, id):
             "expiry_date": coupon.expiry_date,
             "coupon_type": coupon.coupon_type,
             "image_url": coupon.image_url,
+            "template_id": coupon.template.id if coupon.template else None,  # Add template_id
             "total_redemptions": coupon.get_redemption_count(),
             "unique_users": coupon.get_unique_users_count(),
             "can_use_today": can_use_today,
@@ -228,6 +229,7 @@ def get_coupon_detail(request, id):
             "expiry_date": coupon.expiry_date,
             "coupon_type": coupon.coupon_type,
             "image_url": coupon.image_url,
+            "template_id": coupon.template.id if coupon.template else None,  # Add template_id
             "redeem_code": coupon.redeem_code,
             "is_redeemed": is_redeemed,
             "original_owner_email": coupon.original_owner.email if coupon.original_owner else None,

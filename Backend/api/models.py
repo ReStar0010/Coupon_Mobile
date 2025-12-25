@@ -261,9 +261,10 @@ class CouponRedemption(models.Model):
 
 class Log(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
-    action = models.CharField(max_length=20)  # "view", "redeem", "share"
+    action = models.CharField(max_length=20)  # "view", "redeem", "share", "template_view"
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True) # User performing the action
     coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True) # Coupon related to the action
+    template = models.ForeignKey(CouponTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs') # Template related to the action
     lat = models.FloatField(null=True, blank=True, help_text="Latitude of action location")
     lng = models.FloatField(null=True, blank=True, help_text="Longitude of action location")
     

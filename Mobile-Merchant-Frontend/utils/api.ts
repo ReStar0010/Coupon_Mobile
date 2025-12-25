@@ -448,6 +448,11 @@ export const merchantAPI = {
     return parseResponse(response);
   },
 
+  getTemplateAnalytics: async (templateId: number, days: number = 30) => {
+    const response = await fetchAPI(`/merchant/coupon-templates/${templateId}/analytics/?days=${days}`);
+    return parseResponse(response);
+  },
+
   // Coupon Templates
   listTemplates: async () => {
     const response = await fetchAPI('/merchant/coupon-templates/');

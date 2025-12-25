@@ -40,6 +40,7 @@ export type CouponDetailType = {
   start_date: string;
   expiry_date: string;
   coupon_type: 'store' | 'exclusive';
+  template_id?: number | null; // Add template_id
   last_holder_email?: string;
   is_redeemed: boolean;
   can_use_today: boolean;
@@ -60,6 +61,43 @@ const CouponDetailPage: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
+  // Track template view event
+  const trackTemplateView = async (templateId: number, couponId: number) => {
+    try {
+      // Get user location if available
+      let lat: number | undefined;
+      let lng: number | undefined;
+      
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          lat = location.coords.latitude;
+          lng = location.coords.longitude;
+        }
+      } catch (locationError) {
+        // Location permission denied or error, continue without location
+        console.log('Location not available:', locationError);
+      }
+      
+      // Call template view tracking API
+      await fetchAPI('/events/template-view/', {
+        method: 'POST',
+        body: JSON.stringify({
+          template_id: templateId,
+          coupon_id: couponId,
+          lat: lat,
+          lng: lng,
+        }),
+      });
+      
+      devLog('Template view tracked:', { templateId, couponId, lat, lng });
+    } catch (error) {
+      // Silently fail - don't interrupt user experience
+      console.error('Failed to track template view:', error);
+    }
+  };
+
   useEffect(() => {
     if (id) {
       const fetchCouponDetail = async () => {
@@ -74,6 +112,11 @@ const CouponDetailPage: React.FC = () => {
           devLog('Fetched coupon details:', response.data);
           console.log('Coupon API Response:', response.data); // Additional console log
           setCoupon(response.data);
+          
+          // Track template view event if template_id exists
+          if (response.data.template_id) {
+            trackTemplateView(response.data.template_id, response.data.id);
+          }
         } catch (err) {
           console.error('Error fetching coupon details:', err);
           devLog('Error fetching coupon:', err);

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { YStack, XStack, Text, ScrollView } from 'tamagui';
+import { YStack, XStack, Text } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { StyleSheet, View, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { colors } from '@/constants/colors';
-import { Header } from '../(coupons)/components/Header';
+import { Header } from './components/Header';
 import { merchantAPI } from '@/utils/api';
 
 interface TrendData {
@@ -17,39 +17,36 @@ interface TrendData {
 }
 
 interface AnalyticsData {
-  gmv: number;
-  stranger_acquisition_ratio: number;
-  coupon_activation_rate: number;
-  local_conversion_rate: number | null;
-  overall_conversion_rate: number;
-  redemption_rate: number;
-  transfer_ranking: Array<{
+  // Exclusive template fields
+  gmv?: number;
+  stranger_acquisition_ratio?: number;
+  coupon_activation_rate?: number;
+  local_conversion_rate?: number | null;
+  overall_conversion_rate?: number;
+  redemption_rate?: number;
+  transfer_ranking?: Array<{
     user_id: number;
     email: string;
     transfer_count: number;
   }>;
   trends?: {
-    gmv: TrendData;
-    stranger_acquisition_ratio: TrendData;
-    coupon_activation_rate: TrendData;
-    local_conversion_rate: TrendData;
-    overall_conversion_rate: TrendData;
-    redemption_rate: TrendData;
+    gmv?: TrendData;
+    stranger_acquisition_ratio?: TrendData;
+    coupon_activation_rate?: TrendData;
+    local_conversion_rate?: TrendData;
+    overall_conversion_rate?: TrendData;
+    redemption_rate?: TrendData;
   };
-  // Backward compatibility
-  stranger_acquisition_trend?: {
-    current: number;
-    average: number;
-    daily_data: Array<{
-      date: string;
-      value: number;
-    }>;
-  };
+  // Store template fields
+  click_count?: number;
+  unique_users?: number;
+  click_trend?: TrendData;
+  unique_users_trend?: TrendData;
 }
 
 type TimeRange = 7 | 30 | 90;
 
-type MetricType = 'stranger_acquisition_ratio' | 'coupon_activation_rate' | 'local_conversion_rate' | 'overall_conversion_rate' | 'redemption_rate';
+type MetricType = 'stranger_acquisition_ratio' | 'coupon_activation_rate' | 'local_conversion_rate' | 'overall_conversion_rate' | 'redemption_rate' | 'click_count' | 'unique_users';
 
 interface MetricCardProps {
   label: string;
@@ -89,19 +86,41 @@ function MetricCard({ label, value, isPercentage = false, metricType, isSelected
   );
 }
 
-export default function AnalyticsScreen() {
+export default function TemplateAnalyticsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const templateId = params.id ? parseInt(params.id as string, 10) : null;
+  
   const [isLoading, setIsLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>(30);
   const [error, setError] = useState<string | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('stranger_acquisition_ratio');
+  const [templateName, setTemplateName] = useState<string>('');
+  const [isStoreTemplate, setIsStoreTemplate] = useState<boolean>(false);
 
   const loadAnalytics = async () => {
+    if (!templateId) {
+      setError('無效的模板 ID');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
-      const data = await merchantAPI.getAnalytics(timeRange);
+      
+      // Load template name and check type
+      try {
+        const templateData = await merchantAPI.getTemplate(templateId);
+        setTemplateName(templateData.coupon_name || '');
+        // Check if this is a store template (EasyUse - total_quantity == 0)
+        setIsStoreTemplate(templateData.total_quantity === 0);
+      } catch (err) {
+        console.error('Failed to load template name:', err);
+      }
+      
+      const data = await merchantAPI.getTemplateAnalytics(templateId, timeRange);
       setAnalytics(data);
     } catch (err: any) {
       console.error('Failed to load analytics:', err);
@@ -113,7 +132,22 @@ export default function AnalyticsScreen() {
 
   useEffect(() => {
     loadAnalytics();
-  }, [timeRange]);
+  }, [timeRange, templateId]);
+
+  // Auto-switch selected metric based on template type
+  useEffect(() => {
+    if (isStoreTemplate) {
+      // For store templates, default to click_count
+      if (selectedMetric !== 'click_count' && selectedMetric !== 'unique_users') {
+        setSelectedMetric('click_count');
+      }
+    } else {
+      // For exclusive templates, default to stranger_acquisition_ratio
+      if (selectedMetric === 'click_count' || selectedMetric === 'unique_users') {
+        setSelectedMetric('stranger_acquisition_ratio');
+      }
+    }
+  }, [isStoreTemplate, selectedMetric]);
 
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -130,17 +164,23 @@ export default function AnalyticsScreen() {
       local_conversion_rate: '在地轉換率',
       overall_conversion_rate: '總體轉換率',
       redemption_rate: '核銷率',
+      click_count: '總點擊次數',
+      unique_users: '不重複用戶數',
     };
     return labels[metric];
   };
 
   const getTrendData = (metric: MetricType, data: AnalyticsData): TrendData | null => {
+    // Check store template trends
+    if (metric === 'click_count' && data.click_trend) {
+      return data.click_trend;
+    }
+    if (metric === 'unique_users' && data.unique_users_trend) {
+      return data.unique_users_trend;
+    }
+    // Check exclusive template trends
     if (data.trends && data.trends[metric]) {
       return data.trends[metric];
-    }
-    // Backward compatibility
-    if (metric === 'stranger_acquisition_ratio' && data.stranger_acquisition_trend) {
-      return data.stranger_acquisition_trend as TrendData;
     }
     return null;
   };
@@ -148,7 +188,9 @@ export default function AnalyticsScreen() {
   const getCurrentValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
-      if (metric === 'local_conversion_rate' && trendData.current === null) {
+      if (metric === 'click_count' || metric === 'unique_users') {
+        return trendData.current.toLocaleString('zh-TW');
+      } else if (metric === 'local_conversion_rate' && trendData.current === null) {
         return '數據不足';
       } else {
         return formatPercentage(trendData.current);
@@ -158,24 +200,30 @@ export default function AnalyticsScreen() {
     // Fallback to direct values
     switch (metric) {
       case 'stranger_acquisition_ratio':
-        return formatPercentage(data.stranger_acquisition_ratio);
+        return formatPercentage(data.stranger_acquisition_ratio || 0);
       case 'coupon_activation_rate':
-        return formatPercentage(data.coupon_activation_rate);
+        return formatPercentage(data.coupon_activation_rate || 0);
       case 'local_conversion_rate':
-        return data.local_conversion_rate !== null ? formatPercentage(data.local_conversion_rate) : '數據不足';
+        return data.local_conversion_rate !== null && data.local_conversion_rate !== undefined ? formatPercentage(data.local_conversion_rate) : '數據不足';
       case 'overall_conversion_rate':
-        return formatPercentage(data.overall_conversion_rate);
+        return formatPercentage(data.overall_conversion_rate || 0);
       case 'redemption_rate':
-        return formatPercentage(data.redemption_rate);
+        return formatPercentage(data.redemption_rate || 0);
+      case 'click_count':
+        return (data.click_count || 0).toLocaleString('zh-TW');
+      case 'unique_users':
+        return (data.unique_users || 0).toLocaleString('zh-TW');
       default:
-        return '0%';
+        return '0';
     }
   };
 
   const getAverageValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
-      if (metric === 'local_conversion_rate' && trendData.average === null) {
+      if (metric === 'click_count' || metric === 'unique_users') {
+        return trendData.average.toLocaleString('zh-TW');
+      } else if (metric === 'local_conversion_rate' && trendData.average === null) {
         return '數據不足';
       } else {
         return formatPercentage(trendData.average);
@@ -211,16 +259,27 @@ export default function AnalyticsScreen() {
     );
   };
 
+  if (!templateId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
+        <YStack flex={1} backgroundColor={colors.white}>
+          <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <Text color={colors.error}>無效的模板 ID</Text>
+          </View>
+        </YStack>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
       <YStack flex={1} backgroundColor={colors.white}>
         <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
-        
+
         <ScrollView
-          flex={1}
-          paddingHorizontal="$4"
-          paddingTop="$4"
-          paddingBottom="$6"
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
         >
           {isLoading ? (
@@ -240,8 +299,8 @@ export default function AnalyticsScreen() {
           ) : analytics ? (
             <>
               {/* Title */}
-              <Text fontSize={24} fontWeight="700" color={colors.textPrimary} marginBottom="$4">
-                統計數據
+              <Text fontSize={24} fontWeight="700" color={colors.textPrimary} marginBottom="$2">
+                {templateName ? `${templateName} 統計數據` : '統計數據'}
               </Text>
 
               {/* Time Range Selector */}
@@ -253,50 +312,73 @@ export default function AnalyticsScreen() {
 
               {/* Metrics Grid */}
               <YStack gap="$3" marginBottom="$6">
-                <XStack gap="$3">
-                  <MetricCard 
-                    label="陌生獲客比" 
-                    value={analytics.stranger_acquisition_ratio} 
-                    isPercentage
-                    metricType="stranger_acquisition_ratio"
-                    isSelected={selectedMetric === 'stranger_acquisition_ratio'}
-                    onPress={() => setSelectedMetric('stranger_acquisition_ratio')}
-                  />
-                  <MetricCard 
-                    label="優惠券活化率" 
-                    value={analytics.coupon_activation_rate} 
-                    isPercentage
-                    metricType="coupon_activation_rate"
-                    isSelected={selectedMetric === 'coupon_activation_rate'}
-                    onPress={() => setSelectedMetric('coupon_activation_rate')}
-                  />
-                </XStack>
-                <XStack gap="$3">
-                  <MetricCard 
-                    label="在地轉換率" 
-                    value={analytics.local_conversion_rate} 
-                    isPercentage
-                    metricType="local_conversion_rate"
-                    isSelected={selectedMetric === 'local_conversion_rate'}
-                    onPress={() => setSelectedMetric('local_conversion_rate')}
-                  />
-                  <MetricCard 
-                    label="總體轉換率" 
-                    value={analytics.overall_conversion_rate} 
-                    isPercentage
-                    metricType="overall_conversion_rate"
-                    isSelected={selectedMetric === 'overall_conversion_rate'}
-                    onPress={() => setSelectedMetric('overall_conversion_rate')}
-                  />
-                  <MetricCard 
-                    label="核銷率" 
-                    value={analytics.redemption_rate} 
-                    isPercentage
-                    metricType="redemption_rate"
-                    isSelected={selectedMetric === 'redemption_rate'}
-                    onPress={() => setSelectedMetric('redemption_rate')}
-                  />
-                </XStack>
+                {isStoreTemplate ? (
+                  // Store template: Only show click statistics
+                  <XStack gap="$3">
+                    <MetricCard 
+                      label="總點擊次數" 
+                      value={analytics.click_count || 0}
+                      metricType="click_count"
+                      isSelected={selectedMetric === 'click_count'}
+                      onPress={() => setSelectedMetric('click_count')}
+                    />
+                    <MetricCard 
+                      label="不重複用戶數" 
+                      value={analytics.unique_users || 0}
+                      metricType="unique_users"
+                      isSelected={selectedMetric === 'unique_users'}
+                      onPress={() => setSelectedMetric('unique_users')}
+                    />
+                  </XStack>
+                ) : (
+                  // Exclusive template: Show all metrics
+                  <>
+                    <XStack gap="$3">
+                      <MetricCard 
+                        label="陌生獲客比" 
+                        value={analytics.stranger_acquisition_ratio || 0} 
+                        isPercentage
+                        metricType="stranger_acquisition_ratio"
+                        isSelected={selectedMetric === 'stranger_acquisition_ratio'}
+                        onPress={() => setSelectedMetric('stranger_acquisition_ratio')}
+                      />
+                      <MetricCard 
+                        label="優惠券活化率" 
+                        value={analytics.coupon_activation_rate || 0} 
+                        isPercentage
+                        metricType="coupon_activation_rate"
+                        isSelected={selectedMetric === 'coupon_activation_rate'}
+                        onPress={() => setSelectedMetric('coupon_activation_rate')}
+                      />
+                    </XStack>
+                    <XStack gap="$3">
+                      <MetricCard 
+                        label="在地轉換率" 
+                        value={analytics.local_conversion_rate} 
+                        isPercentage
+                        metricType="local_conversion_rate"
+                        isSelected={selectedMetric === 'local_conversion_rate'}
+                        onPress={() => setSelectedMetric('local_conversion_rate')}
+                      />
+                      <MetricCard 
+                        label="總體轉換率" 
+                        value={analytics.overall_conversion_rate || 0} 
+                        isPercentage
+                        metricType="overall_conversion_rate"
+                        isSelected={selectedMetric === 'overall_conversion_rate'}
+                        onPress={() => setSelectedMetric('overall_conversion_rate')}
+                      />
+                      <MetricCard 
+                        label="核銷率" 
+                        value={analytics.redemption_rate || 0} 
+                        isPercentage
+                        metricType="redemption_rate"
+                        isSelected={selectedMetric === 'redemption_rate'}
+                        onPress={() => setSelectedMetric('redemption_rate')}
+                      />
+                    </XStack>
+                  </>
+                )}
               </YStack>
 
               {/* Trend Chart Section */}
@@ -333,8 +415,9 @@ export default function AnalyticsScreen() {
                 </View>
               </View>
 
-              {/* Transfer Ranking */}
-              <View style={styles.sectionCard} marginTop="$4">
+              {/* Transfer Ranking - Only for exclusive templates */}
+              {!isStoreTemplate && analytics.transfer_ranking && (
+              <View style={[styles.sectionCard, { marginTop: 16 }]}>
                 <Text fontSize="$lg" fontWeight="700" color={colors.textPrimary} marginBottom="$3">
                   用戶轉贈總數排行榜
                 </Text>
@@ -372,6 +455,7 @@ export default function AnalyticsScreen() {
                   </Text>
                 )}
               </View>
+              )}
             </>
           ) : null}
         </ScrollView>
