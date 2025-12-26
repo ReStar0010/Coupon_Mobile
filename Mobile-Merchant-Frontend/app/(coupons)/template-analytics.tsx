@@ -22,7 +22,6 @@ interface AnalyticsData {
   gmv?: number;
   stranger_acquisition_ratio?: number;
   coupon_activation_rate?: number;
-  local_conversion_rate?: number | null;
   overall_conversion_rate?: number;
   redemption_rate?: number;
   transfer_ranking?: Array<{
@@ -34,7 +33,6 @@ interface AnalyticsData {
     gmv?: TrendData;
     stranger_acquisition_ratio?: TrendData;
     coupon_activation_rate?: TrendData;
-    local_conversion_rate?: TrendData;
     overall_conversion_rate?: TrendData;
     redemption_rate?: TrendData;
   };
@@ -47,7 +45,7 @@ interface AnalyticsData {
 
 type TimeRange = 7 | 30 | 90;
 
-type MetricType = 'stranger_acquisition_ratio' | 'coupon_activation_rate' | 'local_conversion_rate' | 'overall_conversion_rate' | 'redemption_rate' | 'click_count' | 'unique_users';
+type MetricType = 'stranger_acquisition_ratio' | 'coupon_activation_rate' | 'overall_conversion_rate' | 'redemption_rate' | 'click_count' | 'unique_users';
 
 interface MetricCardProps {
   label: string;
@@ -162,7 +160,6 @@ export default function TemplateAnalyticsScreen() {
     const labels: Record<MetricType, string> = {
       stranger_acquisition_ratio: '陌生獲客比',
       coupon_activation_rate: '優惠券活化率',
-      local_conversion_rate: '在地轉換率',
       overall_conversion_rate: '總體轉換率',
       redemption_rate: '核銷率',
       click_count: '總點擊次數',
@@ -191,8 +188,6 @@ export default function TemplateAnalyticsScreen() {
     if (trendData) {
       if (metric === 'click_count' || metric === 'unique_users') {
         return trendData.current.toLocaleString('zh-TW');
-      } else if (metric === 'local_conversion_rate' && trendData.current === null) {
-        return '數據不足';
       } else {
         return formatPercentage(trendData.current);
       }
@@ -204,8 +199,6 @@ export default function TemplateAnalyticsScreen() {
         return formatPercentage(data.stranger_acquisition_ratio || 0);
       case 'coupon_activation_rate':
         return formatPercentage(data.coupon_activation_rate || 0);
-      case 'local_conversion_rate':
-        return data.local_conversion_rate !== null && data.local_conversion_rate !== undefined ? formatPercentage(data.local_conversion_rate) : '數據不足';
       case 'overall_conversion_rate':
         return formatPercentage(data.overall_conversion_rate || 0);
       case 'redemption_rate':
@@ -224,8 +217,6 @@ export default function TemplateAnalyticsScreen() {
     if (trendData) {
       if (metric === 'click_count' || metric === 'unique_users') {
         return trendData.average.toLocaleString('zh-TW');
-      } else if (metric === 'local_conversion_rate' && trendData.average === null) {
-        return '數據不足';
       } else {
         return formatPercentage(trendData.average);
       }
@@ -353,14 +344,6 @@ export default function TemplateAnalyticsScreen() {
                       />
                     </XStack>
                     <XStack gap="$3">
-                      <MetricCard 
-                        label="在地轉換率" 
-                        value={analytics.local_conversion_rate} 
-                        isPercentage
-                        metricType="local_conversion_rate"
-                        isSelected={selectedMetric === 'local_conversion_rate'}
-                        onPress={() => setSelectedMetric('local_conversion_rate')}
-                      />
                       <MetricCard 
                         label="總體轉換率" 
                         value={analytics.overall_conversion_rate || 0} 
