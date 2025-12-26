@@ -708,11 +708,10 @@ def get_template_analytics(request, id):
     1. GMV (Gross Merchandise Value)
     2. Stranger Acquisition Ratio (陌生獲客比)
     3. Coupon Activation Rate (優惠券活化率)
-    4. Local Conversion Rate (在地轉換率)
-    5. Overall Conversion Rate (總體轉換率)
-    6. Redemption Rate (核銷率)
-    7. User Transfer Ranking (用戶轉贈總數排行榜)
-    8. Trends for all metrics
+    4. Overall Conversion Rate (總體轉換率)
+    5. Redemption Rate (核銷率)
+    6. User Transfer Ranking (用戶轉贈總數排行榜)
+    7. Trends for all metrics
     """
     user = request.user
     
@@ -855,42 +854,7 @@ def get_template_analytics(request, id):
     else:
         coupon_activation_rate = 0
     
-    # 4. 在地轉換率 = 近時間核銷數 / 近地點點擊數 (only exclusive redemptions)
-    store_lat = store.lat
-    store_lng = store.lng
-    
-    if is_store_template:
-        local_conversion_rate = None  # Store templates don't track redemptions
-    else:
-        # Get redemptions within distance and time range (only exclusive)
-        nearby_recent_redemptions = exclusive_redemptions.filter(
-            redeemed_at__gte=time_threshold
-        )
-        
-        nearby_recent_redemptions_count = 0
-        if store_lat and store_lng:
-            for redemption in nearby_recent_redemptions:
-                if redemption.lat and redemption.lng:
-                    distance = haversine_distance(store_lat, store_lng, redemption.lat, redemption.lng)
-                    if distance and distance <= DISTANCE_RADIUS:
-                        nearby_recent_redemptions_count += 1
-        
-        # Get clicks within distance (template_view events)
-        nearby_clicks = template_logs.filter(action='template_view')
-        nearby_clicks_count = 0
-        if store_lat and store_lng:
-            for log in nearby_clicks:
-                if log.lat and log.lng:
-                    distance = haversine_distance(store_lat, store_lng, log.lat, log.lng)
-                    if distance and distance <= DISTANCE_RADIUS:
-                        nearby_clicks_count += 1
-        
-        if nearby_clicks_count > 0:
-            local_conversion_rate = nearby_recent_redemptions_count / nearby_clicks_count
-        else:
-            local_conversion_rate = None  # Data insufficient
-    
-    # 5. 總體轉換率 = 總核銷數 / 總點擊數 (only exclusive redemptions)
+    # 4. 總體轉換率 = 總核銷數 / 總點擊數 (only exclusive redemptions)
     total_template_views = template_logs.filter(action='template_view').count()
     if is_store_template:
         overall_conversion_rate = 0  # Store templates don't track redemptions
@@ -899,7 +863,7 @@ def get_template_analytics(request, id):
     else:
         overall_conversion_rate = 0
     
-    # 6. 核銷率 = 總核銷數 / 優惠券總數（使用 template.total_quantity，only exclusive redemptions）
+    # 5. 核銷率 = 總核銷數 / 優惠券總數（使用 template.total_quantity，only exclusive redemptions）
     if is_store_template:
         redemption_rate = 0  # Store templates don't track redemptions
     elif template.total_quantity > 0:
@@ -907,7 +871,7 @@ def get_template_analytics(request, id):
     else:
         redemption_rate = 0
     
-    # 7. 用戶轉贈總數排行榜
+    # 6. 用戶轉贈總數排行榜
     # Only for exclusive coupons from this template
     exclusive_coupons = template_coupons.filter(coupon_type='exclusive')
     transfer_ranking = CouponShareRequest.objects.filter(
@@ -927,7 +891,7 @@ def get_template_analytics(request, id):
             'transfer_count': item['transfer_count']
         })
     
-    # 8. Calculate trend data for all metrics (daily data)
+    # 7. Calculate trend data for all metrics (daily data)
     current_date = time_threshold.date()
     end_date = now.date()
     
@@ -935,7 +899,6 @@ def get_template_analytics(request, id):
     stranger_trend_data = []
     gmv_trend_data = []
     activation_trend_data = []
-    local_conversion_trend_data = []
     overall_conversion_trend_data = []
     redemption_trend_data = []
     
@@ -1002,35 +965,7 @@ def get_template_analytics(request, id):
             'value': day_activation_rate
         })
         
-        # 4. Local conversion rate trend (only exclusive redemptions)
-        if is_store_template:
-            day_local_conversion = None
-        else:
-            day_nearby_recent_redemptions_count = 0
-            day_nearby_clicks_count = 0
-            if store_lat and store_lng:
-                for redemption in day_exclusive_redemptions:
-                    if redemption.lat and redemption.lng:
-                        distance = haversine_distance(store_lat, store_lng, redemption.lat, redemption.lng)
-                        if distance and distance <= DISTANCE_RADIUS:
-                            day_nearby_recent_redemptions_count += 1
-                
-                for log in day_clicks:
-                    if log.lat and log.lng:
-                        distance = haversine_distance(store_lat, store_lng, log.lat, log.lng)
-                        if distance and distance <= DISTANCE_RADIUS:
-                            day_nearby_clicks_count += 1
-            
-            if day_nearby_clicks_count > 0:
-                day_local_conversion = day_nearby_recent_redemptions_count / day_nearby_clicks_count
-            else:
-                day_local_conversion = None
-        local_conversion_trend_data.append({
-            'date': current_date.isoformat(),
-            'value': day_local_conversion
-        })
-        
-        # 5. Overall conversion rate trend (only exclusive redemptions)
+        # 4. Overall conversion rate trend (only exclusive redemptions)
         if is_store_template:
             day_overall_conversion = 0
         elif day_clicks_count > 0:
@@ -1042,7 +977,7 @@ def get_template_analytics(request, id):
             'value': day_overall_conversion
         })
         
-        # 6. Redemption rate trend (only exclusive redemptions)
+        # 5. Redemption rate trend (only exclusive redemptions)
         if is_store_template:
             day_redemption_rate = 0
         elif template.total_quantity > 0:
@@ -1064,7 +999,6 @@ def get_template_analytics(request, id):
     stranger_avg = calculate_average(stranger_trend_data)
     gmv_avg = calculate_average(gmv_trend_data)
     activation_avg = calculate_average(activation_trend_data)
-    local_conversion_avg = calculate_average([d for d in local_conversion_trend_data if d['value'] is not None])
     overall_conversion_avg = calculate_average(overall_conversion_trend_data)
     redemption_avg = calculate_average(redemption_trend_data)
     
@@ -1072,7 +1006,6 @@ def get_template_analytics(request, id):
         'gmv': gmv,
         'stranger_acquisition_ratio': stranger_acquisition_ratio,
         'coupon_activation_rate': coupon_activation_rate,
-        'local_conversion_rate': local_conversion_rate,
         'overall_conversion_rate': overall_conversion_rate,
         'redemption_rate': redemption_rate,
         'transfer_ranking': ranking_list,
@@ -1091,11 +1024,6 @@ def get_template_analytics(request, id):
                 'current': coupon_activation_rate,
                 'average': activation_avg,
                 'daily_data': activation_trend_data
-            },
-            'local_conversion_rate': {
-                'current': local_conversion_rate,
-                'average': local_conversion_avg if local_conversion_rate is not None else None,
-                'daily_data': local_conversion_trend_data
             },
             'overall_conversion_rate': {
                 'current': overall_conversion_rate,

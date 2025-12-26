@@ -280,11 +280,10 @@ def get_merchant_analytics(request):
     1. GMV (Gross Merchandise Value)
     2. Stranger Acquisition Ratio (陌生獲客比)
     3. Coupon Activation Rate (優惠券活化率)
-    4. Local Conversion Rate (在地轉換率)
-    5. Overall Conversion Rate (總體轉換率)
-    6. Redemption Rate (核銷率)
-    7. User Transfer Ranking (用戶轉贈總數排行榜)
-    8. Stranger Acquisition Trend (陌生獲客比趨勢)
+    4. Overall Conversion Rate (總體轉換率)
+    5. Redemption Rate (核銷率)
+    6. User Transfer Ranking (用戶轉贈總數排行榜)
+    7. Stranger Acquisition Trend (陌生獲客比趨勢)
     """
     user = request.user
     
@@ -320,15 +319,19 @@ def get_merchant_analytics(request):
     template_logs = Log.objects.filter(template__store=store, action='template_view')
     
     # Only calculate redemption-related metrics for exclusive coupons (EasyUse/store type doesn't track redemptions)
-    exclusive_redemptions = store_redemptions.filter(coupon__coupon_type='exclusive')
+    # Filter by time range for all redemption-related metrics
+    exclusive_redemptions = store_redemptions.filter(
+        coupon__coupon_type='exclusive',
+        redeemed_at__gte=time_threshold
+    )
     exclusive_redemptions_count = exclusive_redemptions.count()
     
-    # 1. GMV = 總核銷數 × 平均客單價 (only exclusive redemptions)
+    # 1. GMV = 總核銷數 × 平均客單價 (only exclusive redemptions within time range)
     average_order_value = store.average_order_value or 0
     gmv = float(exclusive_redemptions_count * average_order_value) if average_order_value else 0
     
     # 2. 陌生獲客比 = (總核銷數 - 原始擁有者核銷數) / 總核銷數
-    # Only for exclusive coupons
+    # Only for exclusive coupons within time range
     if exclusive_redemptions_count > 0:
         original_owner_redemptions = exclusive_redemptions.filter(
             user=F('coupon__original_owner')
@@ -358,59 +361,25 @@ def get_merchant_analytics(request):
     else:
         coupon_activation_rate = 0
     
-    # 4. 在地轉換率 = 近時間核銷數 / 近地點點擊數
-    # 近時間核銷數：在固定距離內且最近一段時間內的核銷數
-    # 近地點點擊數：在固定距離內的點擊數
-    store_lat = store.lat
-    store_lng = store.lng
-    
-    # Get redemptions within distance and time range (only exclusive)
-    nearby_recent_redemptions = exclusive_redemptions.filter(
-        redeemed_at__gte=time_threshold
-    )
-    
-    nearby_recent_redemptions_count = 0
-    if store_lat and store_lng:
-        for redemption in nearby_recent_redemptions:
-            if redemption.lat and redemption.lng:
-                distance = haversine_distance(store_lat, store_lng, redemption.lat, redemption.lng)
-                if distance and distance <= DISTANCE_RADIUS:
-                    nearby_recent_redemptions_count += 1
-    
-    # Get clicks within distance (using template_view logs)
-    nearby_clicks = template_logs.filter(
-        timestamp__gte=time_threshold
-    )
-    nearby_clicks_count = 0
-    if store_lat and store_lng:
-        for log in nearby_clicks:
-            if log.lat and log.lng:
-                distance = haversine_distance(store_lat, store_lng, log.lat, log.lng)
-                if distance and distance <= DISTANCE_RADIUS:
-                    nearby_clicks_count += 1
-    
-    if nearby_clicks_count > 0:
-        local_conversion_rate = nearby_recent_redemptions_count / nearby_clicks_count
-    else:
-        local_conversion_rate = None  # Data insufficient
-    
-    # 5. 總體轉換率 = 總核銷數 / 總點擊數 (only exclusive redemptions)
-    # Use template_view logs for click count
-    total_clicks = template_logs.count()
+    # 4. 總體轉換率 = 總核銷數 / 總點擊數 (only exclusive redemptions within time range)
+    # Use template_view logs for click count (filtered by time range)
+    total_clicks = template_logs.filter(timestamp__gte=time_threshold).count()
     if total_clicks > 0:
         overall_conversion_rate = exclusive_redemptions_count / total_clicks
     else:
         overall_conversion_rate = 0
     
-    # 6. 核銷率 = 總核銷數 / 優惠券總數 (only exclusive coupons)
+    # 5. 核銷率 = 總核銷數 / 優惠券總數 (only exclusive coupons that started before time threshold)
+    # Use exclusive coupons that have started by the end of the time range
     exclusive_coupons = store_coupons.filter(coupon_type='exclusive')
-    total_coupons = exclusive_coupons.count()
+    # Filter coupons that were available during the time range (start_date <= now)
+    total_coupons = exclusive_coupons.filter(start_date__lte=now).count()
     if total_coupons > 0:
         redemption_rate = exclusive_redemptions_count / total_coupons
     else:
         redemption_rate = 0
     
-    # 7. 用戶轉贈總數排行榜
+    # 6. 用戶轉贈總數排行榜
     # Only for exclusive coupons from this store
     exclusive_coupons = store_coupons.filter(coupon_type='exclusive')
     transfer_ranking = CouponShareRequest.objects.filter(
@@ -430,7 +399,7 @@ def get_merchant_analytics(request):
             'transfer_count': item['transfer_count']
         })
     
-    # 8. Calculate trend data for all metrics (daily data)
+    # 7. Calculate trend data for all metrics (daily data)
     daily_data = []
     current_date = time_threshold.date()
     end_date = now.date()
@@ -439,7 +408,6 @@ def get_merchant_analytics(request):
     stranger_trend_data = []
     gmv_trend_data = []
     activation_trend_data = []
-    local_conversion_trend_data = []
     overall_conversion_trend_data = []
     redemption_trend_data = []
     
@@ -501,32 +469,7 @@ def get_merchant_analytics(request):
             'value': day_activation_rate
         })
         
-        # 4. Local conversion rate trend (only exclusive redemptions)
-        day_nearby_recent_redemptions_count = 0
-        day_nearby_clicks_count = 0
-        if store_lat and store_lng:
-            for redemption in day_exclusive_redemptions:
-                if redemption.lat and redemption.lng:
-                    distance = haversine_distance(store_lat, store_lng, redemption.lat, redemption.lng)
-                    if distance and distance <= DISTANCE_RADIUS:
-                        day_nearby_recent_redemptions_count += 1
-            
-            for log in day_clicks:
-                if log.lat and log.lng:
-                    distance = haversine_distance(store_lat, store_lng, log.lat, log.lng)
-                    if distance and distance <= DISTANCE_RADIUS:
-                        day_nearby_clicks_count += 1
-        
-        if day_nearby_clicks_count > 0:
-            day_local_conversion = day_nearby_recent_redemptions_count / day_nearby_clicks_count
-        else:
-            day_local_conversion = None
-        local_conversion_trend_data.append({
-            'date': current_date.isoformat(),
-            'value': day_local_conversion
-        })
-        
-        # 5. Overall conversion rate trend (only exclusive redemptions)
+        # 4. Overall conversion rate trend (only exclusive redemptions)
         if day_clicks_count > 0:
             day_overall_conversion = day_exclusive_count / day_clicks_count
         else:
@@ -536,7 +479,7 @@ def get_merchant_analytics(request):
             'value': day_overall_conversion
         })
         
-        # 6. Redemption rate trend (only exclusive coupons)
+        # 5. Redemption rate trend (only exclusive coupons)
         # Use exclusive coupons that have started by this day (start_date <= day_end)
         total_exclusive_coupons_at_day = exclusive_coupons.filter(start_date__lte=day_end).count()
         if total_exclusive_coupons_at_day > 0:
@@ -558,7 +501,6 @@ def get_merchant_analytics(request):
     stranger_avg = calculate_average(stranger_trend_data)
     gmv_avg = calculate_average(gmv_trend_data)
     activation_avg = calculate_average(activation_trend_data)
-    local_conversion_avg = calculate_average([d for d in local_conversion_trend_data if d['value'] is not None])
     overall_conversion_avg = calculate_average(overall_conversion_trend_data)
     redemption_avg = calculate_average(redemption_trend_data)
     
@@ -566,7 +508,6 @@ def get_merchant_analytics(request):
         'gmv': gmv,
         'stranger_acquisition_ratio': stranger_acquisition_ratio,
         'coupon_activation_rate': coupon_activation_rate,
-        'local_conversion_rate': local_conversion_rate,
         'overall_conversion_rate': overall_conversion_rate,
         'redemption_rate': redemption_rate,
         'transfer_ranking': ranking_list,
@@ -585,11 +526,6 @@ def get_merchant_analytics(request):
                 'current': coupon_activation_rate,
                 'average': activation_avg,
                 'daily_data': activation_trend_data
-            },
-            'local_conversion_rate': {
-                'current': local_conversion_rate,
-                'average': local_conversion_avg if local_conversion_rate is not None else None,
-                'daily_data': local_conversion_trend_data
             },
             'overall_conversion_rate': {
                 'current': overall_conversion_rate,

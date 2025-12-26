@@ -87,7 +87,6 @@ curl -X GET "http://localhost:8000/api/merchant/analytics/?days=30" \
 
 # 檢查：
 # - overall_conversion_rate 的分母應該基於 template_view
-# - local_conversion_rate 的分母應該基於 template_view（且有位置資訊）
 # - trends 中的 daily_data 應該基於 template_view
 ```
 
@@ -160,14 +159,4 @@ print(f"最新的 view coupon 日誌數量: {recent_view_coupons.count()}")
 - 確認有 template_view 日誌存在
 - 檢查 template_view 日誌的 template__store 是否正確
 - 測試：進入優惠券詳情頁，然後檢查統計是否更新
-
-### 問題：在地轉換率仍顯示「數據不足」
-
-**可能原因**：
-- template_view 日誌沒有位置資訊（lat/lng 為 null）
-
-**解決方案**：
-- 確認前端有請求位置權限
-- 檢查 template_view 日誌是否有 lat/lng
-- 如果沒有，需要前端確保傳遞位置資訊
 
