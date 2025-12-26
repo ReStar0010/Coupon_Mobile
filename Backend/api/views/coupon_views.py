@@ -143,7 +143,29 @@ def get_coupon_detail(request, id):
     coupon = get_object_or_404(Coupon.objects.select_related('store').prefetch_related('tags'), id=id) 
     
     if request.user.is_authenticated:
-        Log.objects.create(action="view coupon", user=request.user, coupon=coupon)
+        # Get location from query parameters if available
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+        
+        # Convert to float if provided, otherwise None
+        lat_float = None
+        lng_float = None
+        try:
+            if lat is not None:
+                lat_float = float(lat)
+            if lng is not None:
+                lng_float = float(lng)
+        except (ValueError, TypeError):
+            # Invalid location data, continue without location
+            pass
+        
+        Log.objects.create(
+            action="view coupon", 
+            user=request.user, 
+            coupon=coupon,
+            lat=lat_float,
+            lng=lng_float
+        )
     
     if coupon.coupon_type == 'store':
         # Type A: Store coupon (可多次使用的識別型優惠券)

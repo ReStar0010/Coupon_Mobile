@@ -919,20 +919,11 @@ def get_template_analytics(request, id):
     
     ranking_list = []
     for item in transfer_ranking:
-        email = item['from_user__email']
-        # Mask email for privacy
-        if email:
-            parts = email.split('@')
-            if len(parts) == 2:
-                masked_email = f"{parts[0][:3]}***@{parts[1]}"
-            else:
-                masked_email = "***"
-        else:
-            masked_email = "***"
+        email = item['from_user__email'] or ""
         
         ranking_list.append({
             'user_id': item['from_user__id'],
-            'email': masked_email,
+            'email': email,
             'transfer_count': item['transfer_count']
         })
     

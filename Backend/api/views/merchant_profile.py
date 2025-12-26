@@ -217,9 +217,10 @@ def get_merchant_statistics(request):
     ).count()
     
     # Count total views/exposures (from Log entries)
+    # Use template_view as the source for statistics (template_view logs are linked via template__store)
     total_views = Log.objects.filter(
-        coupon__store=store,
-        action='view'
+        template__store=store,
+        action='template_view'
     ).count()
     
     # Additional statistics
@@ -315,6 +316,8 @@ def get_merchant_analytics(request):
     store_coupons = Coupon.objects.filter(store=store)
     store_redemptions = CouponRedemption.objects.filter(coupon__store=store)
     store_logs = Log.objects.filter(coupon__store=store)
+    # Template view logs for statistics (template_view logs are linked via template__store)
+    template_logs = Log.objects.filter(template__store=store, action='template_view')
     
     # Only calculate redemption-related metrics for exclusive coupons (EasyUse/store type doesn't track redemptions)
     exclusive_redemptions = store_redemptions.filter(coupon__coupon_type='exclusive')
@@ -374,8 +377,10 @@ def get_merchant_analytics(request):
                 if distance and distance <= DISTANCE_RADIUS:
                     nearby_recent_redemptions_count += 1
     
-    # Get clicks within distance
-    nearby_clicks = store_logs.filter(action='view')
+    # Get clicks within distance (using template_view logs)
+    nearby_clicks = template_logs.filter(
+        timestamp__gte=time_threshold
+    )
     nearby_clicks_count = 0
     if store_lat and store_lng:
         for log in nearby_clicks:
@@ -390,7 +395,8 @@ def get_merchant_analytics(request):
         local_conversion_rate = None  # Data insufficient
     
     # 5. 總體轉換率 = 總核銷數 / 總點擊數 (only exclusive redemptions)
-    total_clicks = store_logs.filter(action='view').count()
+    # Use template_view logs for click count
+    total_clicks = template_logs.count()
     if total_clicks > 0:
         overall_conversion_rate = exclusive_redemptions_count / total_clicks
     else:
@@ -416,20 +422,11 @@ def get_merchant_analytics(request):
     
     ranking_list = []
     for item in transfer_ranking:
-        email = item['from_user__email']
-        # Mask email for privacy
-        if email:
-            parts = email.split('@')
-            if len(parts) == 2:
-                masked_email = f"{parts[0][:3]}***@{parts[1]}"
-            else:
-                masked_email = "***"
-        else:
-            masked_email = "***"
+        email = item['from_user__email'] or ""
         
         ranking_list.append({
             'user_id': item['from_user__id'],
-            'email': masked_email,
+            'email': email,
             'transfer_count': item['transfer_count']
         })
     
@@ -457,9 +454,8 @@ def get_merchant_analytics(request):
         )
         day_exclusive_count = day_exclusive_redemptions.count()
         
-        # Daily clicks
-        day_clicks = store_logs.filter(
-            action='view',
+        # Daily clicks (using template_view logs)
+        day_clicks = template_logs.filter(
             timestamp__gte=day_start,
             timestamp__lt=day_end
         )
