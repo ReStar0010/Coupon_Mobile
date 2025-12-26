@@ -6,6 +6,7 @@ import { StyleSheet, View, ActivityIndicator, TouchableOpacity, Alert } from 're
 import { colors } from '@/constants/colors';
 import { Header } from '../(coupons)/components/Header';
 import { merchantAPI } from '@/utils/api';
+import TrendChart from './components/TrendChart';
 
 interface TrendData {
   current: number;
@@ -322,15 +323,8 @@ export default function AnalyticsScreen() {
                     </Text>
                   </XStack>
                 </YStack>
-                {/* Simple trend visualization - can be replaced with chart library later */}
-                <View style={styles.trendContainer}>
-                  <Text fontSize="$xs" color={colors.textSecondary} textAlign="center">
-                    趨勢圖表（待實作圖表庫）
-                  </Text>
-                  <Text fontSize="$xs" color={colors.textSecondary} textAlign="center" marginTop="$2">
-                    數據點數: {getTrendDataCount(selectedMetric, analytics)}
-                  </Text>
-                </View>
+                {/* Trend Chart */}
+                <TrendChart data={getTrendData(selectedMetric, analytics)} />
               </View>
 
               {/* Transfer Ranking */}

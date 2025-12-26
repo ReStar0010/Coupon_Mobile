@@ -6,6 +6,7 @@ import { StyleSheet, View, ActivityIndicator, TouchableOpacity, ScrollView } fro
 import { colors } from '@/constants/colors';
 import { Header } from './components/Header';
 import { merchantAPI } from '@/utils/api';
+import TrendChart from '../(profile)/components/TrendChart';
 
 interface TrendData {
   current: number;
@@ -404,15 +405,12 @@ export default function TemplateAnalyticsScreen() {
                     </Text>
                   </XStack>
                 </YStack>
-                {/* Simple trend visualization - can be replaced with chart library later */}
-                <View style={styles.trendContainer}>
-                  <Text fontSize="$xs" color={colors.textSecondary} textAlign="center">
-                    趨勢圖表（待實作圖表庫）
-                  </Text>
-                  <Text fontSize="$xs" color={colors.textSecondary} textAlign="center" marginTop="$2">
-                    數據點數: {getTrendDataCount(selectedMetric, analytics)}
-                  </Text>
-                </View>
+                {/* Trend Chart */}
+                <TrendChart 
+                  data={getTrendData(selectedMetric, analytics)} 
+                  isPercentage={selectedMetric !== 'click_count' && selectedMetric !== 'unique_users'}
+                  yAxisSuffix={selectedMetric === 'click_count' || selectedMetric === 'unique_users' ? '' : '%'}
+                />
               </View>
 
               {/* Transfer Ranking - Only for exclusive templates */}
