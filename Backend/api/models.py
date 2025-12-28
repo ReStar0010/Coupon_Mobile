@@ -279,8 +279,22 @@ class CouponShareRequest(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     responded_at = models.DateTimeField(null=True, blank=True)
 
+    # Flag for public pool sharing (EasyUse)
+    is_public = models.BooleanField(default=False, help_text="If True, coupon is shared to public pool")
+
+    class Meta:
+        constraints = [
+            # Ensure only one pending public share per coupon
+            models.UniqueConstraint(
+                fields=['coupon'],
+                condition=models.Q(is_public=True, status='pending'),
+                name='unique_pending_public_share_per_coupon'
+            )
+        ]
+
     def __str__(self):
-        return f"Share {self.coupon} from {self.from_user} to {self.to_user} ({self.status})"
+        share_type = "Public" if self.is_public else "Private"
+        return f"{share_type} Share {self.coupon} from {self.from_user} ({self.status})"
 
 # Model to track completed savings goals
 class CompletedGoal(models.Model):

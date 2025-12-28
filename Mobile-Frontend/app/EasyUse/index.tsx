@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import { Image, Text, View, ScrollView, Input, Button, XStack, H4, YStack, Card } from 'tamagui';
-import { fetchAPI } from '../utils/authAPI';
-import { TouchableOpacity } from 'react-native';
+import { Image, Text, View, ScrollView, Input, Button, XStack, H4, YStack, Card, Spinner } from 'tamagui';
+import { fetchAPI, isUserLoggedIn } from '../utils/authAPI';
+import { TouchableOpacity, Alert } from 'react-native';
 import { AlignJustify, Search, MoreHorizontalIcon, X } from 'lucide-react-native';
 import TabsFooter from '../components/TabsFooter';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapComponent, { type Store } from '../components/MapComponent';
 import { BackendIndicator } from '../components/BackendIndicator';
+import { devLog } from '../utils/devLogger';
 
 export type CouponType = {
   className?: string;
@@ -19,7 +20,7 @@ export type CouponType = {
   importantNotes?: string;
   startDate: Date;
   expiryDate: Date;
-  couponType: 'store' | 'exclusive';
+  couponType: 'store' | 'exclusive' | 'gift';
   sourceUser?: string;
   storeId?: number;
   storeLocation?: {
@@ -30,7 +31,11 @@ export type CouponType = {
   active_coupon_count?: number;
   has_active_coupons?: boolean;
   imageUrl?: string;
-  tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
+  tags?: string[];
+  // Public share fields
+  isPublicShare?: boolean;
+  shareToken?: string;
+  sharedBy?: string;
 };
 
 // Removed Store typing while using placeholders
@@ -125,6 +130,113 @@ const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUr
   </Card>
 );
 
+// Gift Card Component for public pool coupons
+interface GiftCardProps {
+  storeName: string;
+  couponName: string;
+  description: string;
+  imageUrl?: string;
+  tags?: string[];
+  shareToken: string;
+  sharedBy: string;
+  onClaim: () => void;
+  isClaiming?: boolean;
+}
+
+const GiftCard: React.FC<GiftCardProps> = ({
+  storeName,
+  couponName,
+  description,
+  imageUrl,
+  tags,
+  shareToken,
+  sharedBy,
+  onClaim,
+  isClaiming = false
+}) => (
+  <Card
+    elevate
+    bordered
+    borderRadius="$5"
+    padding="$4"
+    borderColor="#FFE4B5"
+    borderWidth={2}
+    bg="white"
+  >
+    <YStack gap={12}>
+      <XStack gap={15} style={{ alignItems: 'center' }}>
+        <Image
+          source={{
+            uri: imageUrl || 'https://api.iconify.design/mdi:gift.svg?color=%23ffad31',
+            width: 64,
+            height: 64,
+          }}
+          style={{ borderRadius: 8, flexShrink: 0 }}
+        />
+
+        <YStack gap={8} flex={1} style={{ flexShrink: 1 }}>
+          <XStack gap={8} alignItems="center">
+            <Text fontSize={12} color="#FFAD31" fontWeight="600">
+              公開交換池禮物
+            </Text>
+          </XStack>
+          <Text fontSize={24} fontWeight="700" color="#000000" numberOfLines={1} ellipsizeMode="tail">
+            {storeName}
+          </Text>
+          <Text color="#6b7280" numberOfLines={2} ellipsizeMode="tail">
+            {couponName}
+          </Text>
+          <Text fontSize={12} color="#9ca3af">
+            分享者: {sharedBy}
+          </Text>
+        </YStack>
+      </XStack>
+
+      {tags && tags.length > 0 && (
+        <XStack gap={6} flexWrap="wrap">
+          {tags.map((tag, index) => (
+            <View
+              key={index}
+              style={{
+                backgroundColor: '#FFF5E6',
+                borderRadius: 12,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+              }}
+            >
+              <Text fontSize={12} color="#FFAD31" fontWeight="500">
+                {tag}
+              </Text>
+            </View>
+          ))}
+        </XStack>
+      )}
+
+      <Button
+        backgroundColor="#FFAD31"
+        borderRadius="$3"
+        paddingVertical="$3"
+        onPress={onClaim}
+        disabled={isClaiming}
+        opacity={isClaiming ? 0.7 : 1}
+      >
+        {isClaiming ? (
+          <XStack alignItems="center" gap="$2">
+            <Spinner size="small" color="#000" />
+            <Text color="#000" fontSize={16} fontWeight="bold">
+              領取中...
+            </Text>
+          </XStack>
+        ) : (
+          <Text color="#000" fontSize={16} fontWeight="bold">
+            領取禮物
+          </Text>
+        )}
+      </Button>
+    </YStack>
+  </Card>
+);
+
 const CouPro = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -136,6 +248,7 @@ const CouPro = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeCategories, setActiveCategories] = useState<string[]>(['飲料', '麵']);
   const [stores, setStores] = useState<Store[]>([]);
+  const [claimingToken, setClaimingToken] = useState<string | null>(null);
 
   useEffect(() => {
     const searchParam = params.search as string;
@@ -145,45 +258,106 @@ const CouPro = () => {
   }, [params.search]);
 
   // Fetch coupons from backend
-  useEffect(() => {
-    const fetchCoupons = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetchAPI('/store-coupons/', { method: 'GET' });
-        const data = response?.data ?? [];
-        if (!Array.isArray(data)) {
-          throw new Error('Unexpected API response format');
-        }
-        const transformed: CouponType[] = data.map((coupon: any) => ({
-          id: coupon.id,
-          storeName: coupon.store_name,
-          couponName: coupon.coupon_name,
-          description: coupon.coupon_detail,
-          importantNotes: coupon.important_notes,
-          startDate: coupon.start_date ? new Date(coupon.start_date) : new Date(),
-          expiryDate: coupon.expiry_date ? new Date(coupon.expiry_date) : new Date(),
-          couponType: coupon.coupon_type,
-          sourceUser: coupon.source_user,
-          storeId: coupon.store_id,
-          storeLocation: coupon.store_location,
-          address: coupon.address,
-          active_coupon_count: coupon.active_coupon_count,
-          has_active_coupons: coupon.has_active_coupons,
-          imageUrl: coupon.image_url,
-          tags: coupon.tags,
-        }));
-        setCoupons(transformed);
-      } catch (err: any) {
-        console.error('Error fetching coupons:', err);
-        setError(err?.message || '載入失敗');
-        setCoupons([]);
-      } finally {
-        setIsLoading(false);
+  const fetchCoupons = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetchAPI('/store-coupons/', { method: 'GET' });
+      const data = response?.data ?? [];
+      if (!Array.isArray(data)) {
+        throw new Error('Unexpected API response format');
       }
-    };
+      const transformed: CouponType[] = data.map((coupon: any) => ({
+        id: coupon.id,
+        storeName: coupon.store_name,
+        couponName: coupon.coupon_name,
+        description: coupon.coupon_detail,
+        importantNotes: coupon.important_notes,
+        startDate: coupon.start_date ? new Date(coupon.start_date) : new Date(),
+        expiryDate: coupon.expiry_date ? new Date(coupon.expiry_date) : new Date(),
+        couponType: coupon.coupon_type,
+        sourceUser: coupon.source_user,
+        storeId: coupon.store_id,
+        storeLocation: coupon.store_location,
+        address: coupon.address,
+        active_coupon_count: coupon.active_coupon_count,
+        has_active_coupons: coupon.has_active_coupons,
+        imageUrl: coupon.image_url,
+        tags: coupon.tags,
+        // Public share fields
+        isPublicShare: coupon.is_public_share || false,
+        shareToken: coupon.share_token,
+        sharedBy: coupon.shared_by,
+      }));
+      setCoupons(transformed);
+    } catch (err: any) {
+      console.error('Error fetching coupons:', err);
+      setError(err?.message || '載入失敗');
+      setCoupons([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchCoupons();
-  }, [router]);
+  }, [fetchCoupons]);
+
+  // Handle claiming a gift from public pool
+  const handleClaimGift = useCallback(async (shareToken: string) => {
+    // Check if user is logged in
+    if (!isUserLoggedIn()) {
+      router.push(`/Login?returnUrl=${encodeURIComponent('/EasyUse')}`);
+      return;
+    }
+
+    setClaimingToken(shareToken);
+
+    try {
+      devLog('Claiming gift with token:', shareToken);
+      const response = await fetchAPI(`/coupon/share/${shareToken}/accept/`, {
+        method: 'POST',
+      });
+
+      Alert.alert(
+        '領取成功！',
+        `您已獲得: ${response.data.coupon_name}`,
+        [
+          {
+            text: '查看收藏',
+            onPress: () => router.push('/Collection')
+          },
+          {
+            text: '繼續瀏覽',
+            onPress: () => {
+              // Refresh the coupon list to remove claimed item
+              fetchCoupons();
+            }
+          }
+        ]
+      );
+    } catch (err: any) {
+      console.error('Error claiming gift:', err);
+      let errorMessage = '無法領取優惠券';
+
+      if (err?.response?.data?.error) {
+        const backendError = err.response.data.error;
+        if (backendError === 'You cannot claim your own shared coupon.') {
+          errorMessage = '您不能領取自己分享的優惠券';
+        } else if (backendError === 'This request has already been processed.') {
+          errorMessage = '此優惠券已被其他人領取';
+        } else if (backendError === 'This coupon has already been claimed.') {
+          errorMessage = '此優惠券已被領取';
+        } else {
+          errorMessage = backendError;
+        }
+      }
+
+      Alert.alert('領取失敗', errorMessage);
+    } finally {
+      setClaimingToken(null);
+    }
+  }, [router, fetchCoupons]);
 
   useEffect(() => {
     if (coupons) {
@@ -327,15 +501,30 @@ const CouPro = () => {
                 </View>
               ) : (
                 filteredCoupons.map((coupon) => (
-                  <CouponCard
-                    key={coupon.id}
-                    storeName={coupon.storeName}
-                    description={coupon.description}
-                    imageUrl={coupon.imageUrl}
-                    tags={coupon.tags}
-                    id={coupon.id}
-                    onPress={() => onCouponPress(coupon.id)}
-                  />
+                  coupon.couponType === 'gift' && coupon.shareToken ? (
+                    <GiftCard
+                      key={`gift-${coupon.id}`}
+                      storeName={coupon.storeName}
+                      couponName={coupon.couponName}
+                      description={coupon.description}
+                      imageUrl={coupon.imageUrl}
+                      tags={coupon.tags}
+                      shareToken={coupon.shareToken}
+                      sharedBy={coupon.sharedBy || '未知用戶'}
+                      onClaim={() => handleClaimGift(coupon.shareToken!)}
+                      isClaiming={claimingToken === coupon.shareToken}
+                    />
+                  ) : (
+                    <CouponCard
+                      key={coupon.id}
+                      storeName={coupon.storeName}
+                      description={coupon.description}
+                      imageUrl={coupon.imageUrl}
+                      tags={coupon.tags}
+                      id={coupon.id}
+                      onPress={() => onCouponPress(coupon.id)}
+                    />
+                  )
                 ))
               )}
             </YStack>

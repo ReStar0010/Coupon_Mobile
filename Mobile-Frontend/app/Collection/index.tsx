@@ -15,10 +15,12 @@ import { useCoupons } from './hooks/useCoupons';
 import { useDailyDraw } from './hooks/useDailyDraw';
 import { useSharedCoupon } from './hooks/useSharedCoupon';
 import { useSearch } from './hooks/useSearch';
+import { useMyPublicShares } from './hooks/useMyPublicShares';
 
 import Coupon from './components/Coupon';
 import DailyDrawBanner from './components/DailyDrawBanner';
 import DailyDrawModal from './components/DailyDrawModal';
+import MySharedCoupons from './components/MySharedCoupons';
 import type { CouponType } from './utils/types';
 
 interface CouponItemProps {
@@ -96,6 +98,8 @@ const Collection: React.FC = () => {
   } = useDailyDraw(isAuthenticated, authLoading, fetchCoupons);
   const { shareToken, sharedCoupon, showSharedGift, handleGiftAccepted } =
     useSharedCoupon(fetchCoupons);
+  const { publicShares, isLoading: sharesLoading, fetchPublicShares } =
+    useMyPublicShares(isAuthenticated, authLoading);
 
   const filteredCoupons = useMemo(
     () => filterCoupons(coupons, searchQuery),
@@ -104,7 +108,8 @@ const Collection: React.FC = () => {
 
   const onRefresh = useCallback(() => {
     fetchCoupons();
-  }, [fetchCoupons]);
+    fetchPublicShares();
+  }, [fetchCoupons, fetchPublicShares]);
 
   const handleHomePress = useCallback(() => {
     router.push('/EasyUse');
@@ -139,6 +144,9 @@ const Collection: React.FC = () => {
   const ListHeaderComponent = useMemo(
     () => (
       <YStack gap={25}>
+        {/* My Shared Coupons Section */}
+        <MySharedCoupons shares={publicShares} isLoading={sharesLoading} />
+
         {!hasDailyDrawn && !showSharedGift && (
           <DailyDrawBanner onClick={handleOpenDailyDraw} />
         )}
@@ -158,6 +166,8 @@ const Collection: React.FC = () => {
       </YStack>
     ),
     [
+      publicShares,
+      sharesLoading,
       hasDailyDrawn,
       showSharedGift,
       sharedCoupon,
