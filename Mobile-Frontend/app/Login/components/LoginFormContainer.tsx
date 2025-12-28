@@ -1,9 +1,9 @@
 import React from 'react';
 import { Text } from 'tamagui';
-import { LoginHeader } from './LoginHeader';
-import { LoginInput } from 'app/Login/components/LoginInput';
-import { LoginButton } from './LoginButton';
-import { LinkText } from './LinkText';
+import { FormHeader } from '../components/forms/FormHeader';
+import { FormInput } from '../components/forms/FormInput';
+import { FormButton } from '../components/forms/FormButton';
+import { LinkText } from '../components/forms/LinkText';
 import { YStack } from 'tamagui';
 import { API_URL } from 'app/config/api';
 
@@ -41,19 +41,19 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
     <YStack bg="#f5f5f5" px="$5" py="$6" gap="$3">
       {/* Header */}
       {mode === 'login' && (
-          <LoginHeader title="登入"/>
+          <FormHeader title="登入"/>
       )}
       {mode === 'register' && (
-          <LoginHeader title="註冊"/>
+          <FormHeader title="註冊"/>
       )}
       {mode === 'forgotPassword' && (
-          <LoginHeader title="忘記密碼"/>
+          <FormHeader title="忘記密碼"/>
       )}
 
       {/* Email Input */}
       {(mode === 'login' || mode === 'register') && (
         <>
-          <LoginInput
+          <FormInput
             placeholder="輸入 Email"
             value={email}
             onChangeText={setEmail}
@@ -61,7 +61,7 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
             autoCapitalize="none"
           />
     
-          <LoginInput
+          <FormInput
             placeholder="輸入密碼"
             value={password}
             onChangeText={setPassword}
@@ -70,7 +70,7 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
         </>
       )} 
       {mode === 'forgotPassword' && (
-        <LoginInput
+        <FormInput
           placeholder="輸入 Email"
           value={email}
           onChangeText={setEmail}
@@ -81,13 +81,13 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
 
       {/* Login Button */}
       {mode === 'login' && (
-        <LoginButton title="登入" onPress={handleLogin} />
+        <FormButton title="登入" onPress={handleLogin} />
       )}
       {mode === 'register' && (
-        <LoginButton title="註冊" onPress={handleRegister} />
+        <FormButton title="註冊" onPress={handleRegister} />
       )}
       {mode === 'forgotPassword' && (
-        <LoginButton title="寄送重設密碼信件" onPress={handleForgotPassword} />
+        <FormButton title="寄送重設密碼信件" onPress={handleForgotPassword} />
       )}
 
       {/* Links */}
