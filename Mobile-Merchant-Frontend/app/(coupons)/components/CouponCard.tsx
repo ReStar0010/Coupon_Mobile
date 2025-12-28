@@ -28,14 +28,22 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
         borderColor={colors.border}
         style={styles.cardShadow}
       >
-      {/* Title and Edit Icon */}
+      {/* Title, Edit Icon, and Statistics Icon */}
       <XStack alignItems="center" justifyContent="space-between" marginBottom="$2">
         <Text fontSize="$lg" fontWeight="700" color={colors.textPrimary} flex={1}>
           {coupon.title}
         </Text>
-        <TouchableOpacity onPress={onEdit} activeOpacity={0.7}>
-          <MaterialIcons name="edit" size={18} color={colors.primary} />
-        </TouchableOpacity>
+        <XStack gap="$3" alignItems="center">
+          <TouchableOpacity 
+            onPress={() => router.push(`/(coupons)/template-analytics?id=${coupon.id}`)} 
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="bar-chart" size={18} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onEdit} activeOpacity={0.7}>
+            <MaterialIcons name="edit" size={18} color={colors.primary} />
+          </TouchableOpacity>
+        </XStack>
       </XStack>
 
       {/* Date Range */}

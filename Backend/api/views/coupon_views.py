@@ -194,7 +194,29 @@ def get_coupon_detail(request, id):
     coupon = get_object_or_404(Coupon.objects.select_related('store').prefetch_related('tags'), id=id) 
     
     if request.user.is_authenticated:
-        Log.objects.create(action="view coupon", user=request.user, coupon=coupon)
+        # Get location from query parameters if available
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+        
+        # Convert to float if provided, otherwise None
+        lat_float = None
+        lng_float = None
+        try:
+            if lat is not None:
+                lat_float = float(lat)
+            if lng is not None:
+                lng_float = float(lng)
+        except (ValueError, TypeError):
+            # Invalid location data, continue without location
+            pass
+        
+        Log.objects.create(
+            action="view coupon", 
+            user=request.user, 
+            coupon=coupon,
+            lat=lat_float,
+            lng=lng_float
+        )
     
     if coupon.coupon_type == 'store':
         # Type A: Store coupon (可多次使用的識別型優惠券)
@@ -240,6 +262,7 @@ def get_coupon_detail(request, id):
             "expiry_date": coupon.expiry_date,
             "coupon_type": coupon.coupon_type,
             "image_url": coupon.image_url,
+            "template_id": coupon.template.id if coupon.template else None,  # Add template_id
             "total_redemptions": coupon.get_redemption_count(),
             "unique_users": coupon.get_unique_users_count(),
             "can_use_today": can_use_today,
@@ -279,6 +302,7 @@ def get_coupon_detail(request, id):
             "expiry_date": coupon.expiry_date,
             "coupon_type": coupon.coupon_type,
             "image_url": coupon.image_url,
+            "template_id": coupon.template.id if coupon.template else None,  # Add template_id
             "redeem_code": coupon.redeem_code,
             "is_redeemed": is_redeemed,
             "original_owner_email": coupon.original_owner.email if coupon.original_owner else None,

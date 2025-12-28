@@ -11,11 +11,14 @@ from api.views.daily_draw import get_daily_draw_templates, draw_coupon, draw_his
 from api.views.merchant_coupon import (
     merchant_consolidate_coupon, refresh_redeem_code,
     list_coupon_templates, get_coupon_template, create_coupon_template,
-    update_coupon_template, delete_coupon_template, merchant_redeem, upload_image
+    update_coupon_template, delete_coupon_template, merchant_redeem, upload_image,
+    get_template_analytics
 )
 from api.views.merchant_profile import (
-    get_merchant_profile, update_merchant_profile, get_merchant_statistics
+    get_merchant_profile, update_merchant_profile, get_merchant_statistics,
+    get_merchant_analytics, update_average_order_value
 )
+from api.views.events import track_template_view
 
 from django.http import HttpResponse
 from django.urls import re_path
@@ -52,6 +55,9 @@ urlpatterns = [
     path('api/exclusive-coupons/', get_exclusive_coupons),  # Type B (exclusive) coupons - 專屬優惠
     path('api/coupons/<int:id>/', get_coupon_detail),  # 單一 coupon 詳細頁面 API
     path('api/redeem/<int:id>/', redeem_coupon),
+    
+    # Event tracking endpoints
+    path('api/events/template-view/', track_template_view, name='track_template_view'),
 
     # Daily draw endpoints
     path('api/daily-draw-templates/', get_daily_draw_templates, name='daily_draw_templates'),
@@ -95,6 +101,7 @@ urlpatterns = [
     path('api/merchant/coupon-templates/create/', create_coupon_template, name='create_coupon_template'),
     path('api/merchant/coupon-templates/<int:id>/update/', update_coupon_template, name='update_coupon_template'),
     path('api/merchant/coupon-templates/<int:id>/delete/', delete_coupon_template, name='delete_coupon_template'),
+    path('api/merchant/coupon-templates/<int:id>/analytics/', get_template_analytics, name='get_template_analytics'),
     
     # Merchant coupon operations
     path('api/merchant/consolidate-coupon/', merchant_consolidate_coupon ,name='merchant_consolidate_coupon'),
@@ -105,6 +112,8 @@ urlpatterns = [
     path('api/merchant/profile/', get_merchant_profile, name='get_merchant_profile'),
     path('api/merchant/profile/update/', update_merchant_profile, name='update_merchant_profile'),
     path('api/merchant/statistics/', get_merchant_statistics, name='get_merchant_statistics'),
+    path('api/merchant/analytics/', get_merchant_analytics, name='get_merchant_analytics'),
+    path('api/merchant/average-order-value/', update_average_order_value, name='update_average_order_value'),
     
     # Merchant image upload
     path('api/merchant/upload-image/', upload_image, name='upload_image'),

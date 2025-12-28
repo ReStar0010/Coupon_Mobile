@@ -12,8 +12,11 @@ from datetime import datetime
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from ..models import Coupon, CouponShareRequest, Log, StudentProfile, CouponTemplate, Store, Tag
+from ..models import Coupon, CouponShareRequest, Log, StudentProfile, CouponTemplate, Store, Tag, CouponRedemption
 from ..serializers import ConsolidateCouponSerializer, RefreshRedeemCodeSerializer, CouponTemplateSerializer, MerchantRedeemSerializer
+from django.db.models import Count, F
+from datetime import timedelta, datetime
+import math
 
 
 @swagger_auto_schema(
@@ -120,6 +123,32 @@ def get_merchant_store(user):
     except Store.MultipleObjectsReturned:
         # If multiple stores, return the first one
         return Store.objects.filter(owner=user).first()
+
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great circle distance between two points on Earth (in meters)
+    using the Haversine formula.
+    """
+    if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
+        return None
+    
+    # Radius of Earth in meters
+    R = 6371000
+    
+    # Convert latitude and longitude from degrees to radians
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    
+    # Haversine formula
+    a = math.sin(delta_phi / 2) ** 2 + \
+        math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    distance = R * c
+    return distance
 
 
 @swagger_auto_schema(
@@ -662,3 +691,349 @@ def upload_image(request):
         return Response({
             'error': f'Failed to upload image: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get analytics for a specific coupon template",
+    manual_parameters=[
+        openapi.Parameter('days', openapi.IN_QUERY, description="Time range in days (7, 30, or 90)", type=openapi.TYPE_INTEGER, default=30),
+    ],
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_template_analytics(request, id):
+    """
+    Get comprehensive analytics for a specific coupon template including:
+    1. GMV (Gross Merchandise Value)
+    2. Stranger Acquisition Ratio (陌生獲客比)
+    3. Coupon Activation Rate (優惠券活化率)
+    4. Overall Conversion Rate (總體轉換率)
+    5. Redemption Rate (核銷率)
+    6. User Transfer Ranking (用戶轉贈總數排行榜)
+    7. Trends for all metrics
+    """
+    user = request.user
+    
+    # Check if user is a merchant
+    is_merchant = user.groups.filter(name='Merchants').exists()
+    if not is_merchant:
+        return Response({
+            'error': 'User is not a merchant.'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    store = get_merchant_store(user)
+    if not store:
+        return Response({
+            'error': 'No store found for this merchant.'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Get template and verify ownership
+    try:
+        template = CouponTemplate.objects.get(id=id, store=store)
+    except CouponTemplate.DoesNotExist:
+        return Response({
+            'error': 'Template not found or you do not have permission to access it.'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Get time range parameter (default 30 days)
+    days = int(request.query_params.get('days', 30))
+    if days not in [7, 30, 90]:
+        days = 30
+    
+    now = timezone.now()
+    time_threshold = now - timedelta(days=days)
+    
+    # Fixed distance radius in meters (500 meters = 0.5 km)
+    DISTANCE_RADIUS = 500
+    
+    # Base querysets filtered by template
+    template_coupons = Coupon.objects.filter(template=template)
+    template_redemptions = CouponRedemption.objects.filter(coupon__template=template)
+    template_logs = Log.objects.filter(template=template)
+    
+    # Check if this is a store type template (EasyUse - total_quantity == 0)
+    is_store_template = template.total_quantity == 0
+    
+    # For store templates, only return click statistics
+    if is_store_template:
+        # Calculate click statistics
+        template_view_logs = template_logs.filter(action='template_view')
+        total_click_count = template_view_logs.count()
+        unique_users_count = template_view_logs.exclude(user__isnull=True).values('user').distinct().count()
+        
+        # Calculate click trends (daily data)
+        click_trend_data = []
+        unique_users_trend_data = []
+        current_date = time_threshold.date()
+        end_date = now.date()
+        
+        while current_date <= end_date:
+            day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()))
+            day_end = day_start + timedelta(days=1)
+            
+            # Daily clicks
+            day_clicks = template_view_logs.filter(
+                timestamp__gte=day_start,
+                timestamp__lt=day_end
+            )
+            day_click_count = day_clicks.count()
+            day_unique_users = day_clicks.exclude(user__isnull=True).values('user').distinct().count()
+            
+            click_trend_data.append({
+                'date': current_date.isoformat(),
+                'value': day_click_count
+            })
+            
+            unique_users_trend_data.append({
+                'date': current_date.isoformat(),
+                'value': day_unique_users
+            })
+            
+            current_date += timedelta(days=1)
+        
+        # Calculate averages
+        click_avg = sum([d['value'] for d in click_trend_data]) / len(click_trend_data) if click_trend_data else 0
+        unique_users_avg = sum([d['value'] for d in unique_users_trend_data]) / len(unique_users_trend_data) if unique_users_trend_data else 0
+        
+        return Response({
+            'click_count': total_click_count,
+            'unique_users': unique_users_count,
+            'click_trend': {
+                'current': total_click_count,
+                'average': click_avg,
+                'daily_data': click_trend_data
+            },
+            'unique_users_trend': {
+                'current': unique_users_count,
+                'average': unique_users_avg,
+                'daily_data': unique_users_trend_data
+            }
+        }, status=status.HTTP_200_OK)
+    
+    # Only calculate redemption-related metrics for exclusive templates
+    exclusive_redemptions = template_redemptions.filter(coupon__coupon_type='exclusive')
+    exclusive_redemptions_count = exclusive_redemptions.count()
+    
+    # 1. GMV = 總核銷數 × 平均客單價 (only exclusive redemptions)
+    average_order_value = store.average_order_value or 0
+    gmv = float(exclusive_redemptions_count * average_order_value) if average_order_value else 0
+    
+    # 2. 陌生獲客比 = (總核銷數 - 原始擁有者核銷數) / 總核銷數
+    # Only for exclusive coupons
+    exclusive_redemptions = template_redemptions.filter(coupon__coupon_type='exclusive')
+    exclusive_redemptions_count = exclusive_redemptions.count()
+    
+    if exclusive_redemptions_count > 0:
+        original_owner_redemptions = exclusive_redemptions.filter(
+            user=F('coupon__original_owner')
+        ).count()
+        stranger_acquisition_ratio = (exclusive_redemptions_count - original_owner_redemptions) / exclusive_redemptions_count
+    else:
+        stranger_acquisition_ratio = 0
+    
+    # 3. 優惠券活化率 = 轉手次數 ≥ 1 的核銷券數 / 總核銷數
+    # Only for exclusive coupons
+    if exclusive_redemptions_count > 0:
+        # Get all redeemed exclusive coupons (distinct)
+        redeemed_exclusive_coupons = exclusive_redemptions.values_list('coupon', flat=True).distinct()
+        
+        # Count coupons with transfer count >= 1
+        activated_coupons_count = 0
+        total_redeemed_coupons_count = len(redeemed_exclusive_coupons)
+        
+        for coupon_id in redeemed_exclusive_coupons:
+            transfer_count = CouponShareRequest.objects.filter(
+                coupon_id=coupon_id,
+                status='accepted'
+            ).count()
+            if transfer_count >= 1:
+                activated_coupons_count += 1
+        
+        coupon_activation_rate = activated_coupons_count / total_redeemed_coupons_count if total_redeemed_coupons_count > 0 else 0
+    else:
+        coupon_activation_rate = 0
+    
+    # 4. 總體轉換率 = 總核銷數 / 總點擊數 (only exclusive redemptions)
+    total_template_views = template_logs.filter(action='template_view').count()
+    if is_store_template:
+        overall_conversion_rate = 0  # Store templates don't track redemptions
+    elif total_template_views > 0:
+        overall_conversion_rate = exclusive_redemptions_count / total_template_views
+    else:
+        overall_conversion_rate = 0
+    
+    # 5. 核銷率 = 總核銷數 / 優惠券總數（使用 template.total_quantity，only exclusive redemptions）
+    if is_store_template:
+        redemption_rate = 0  # Store templates don't track redemptions
+    elif template.total_quantity > 0:
+        redemption_rate = exclusive_redemptions_count / template.total_quantity
+    else:
+        redemption_rate = 0
+    
+    # 6. 用戶轉贈總數排行榜
+    # Only for exclusive coupons from this template
+    exclusive_coupons = template_coupons.filter(coupon_type='exclusive')
+    transfer_ranking = CouponShareRequest.objects.filter(
+        coupon__in=exclusive_coupons,
+        status='accepted'
+    ).values('from_user__email', 'from_user__id').annotate(
+        transfer_count=Count('id')
+    ).order_by('-transfer_count')[:10]
+    
+    ranking_list = []
+    for item in transfer_ranking:
+        email = item['from_user__email'] or ""
+        
+        ranking_list.append({
+            'user_id': item['from_user__id'],
+            'email': email,
+            'transfer_count': item['transfer_count']
+        })
+    
+    # 7. Calculate trend data for all metrics (daily data)
+    current_date = time_threshold.date()
+    end_date = now.date()
+    
+    # Initialize trend data structures
+    stranger_trend_data = []
+    gmv_trend_data = []
+    activation_trend_data = []
+    overall_conversion_trend_data = []
+    redemption_trend_data = []
+    
+    while current_date <= end_date:
+        day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()))
+        day_end = day_start + timedelta(days=1)
+        
+        # Daily exclusive redemptions (only exclusive type for redemption metrics)
+        day_exclusive_redemptions = exclusive_redemptions.filter(
+            redeemed_at__gte=day_start,
+            redeemed_at__lt=day_end
+        )
+        day_exclusive_count = day_exclusive_redemptions.count()
+        
+        # Daily clicks (template_view events)
+        day_clicks = template_logs.filter(
+            action='template_view',
+            timestamp__gte=day_start,
+            timestamp__lt=day_end
+        )
+        day_clicks_count = day_clicks.count()
+        
+        # 1. GMV trend (only exclusive redemptions, 0 for store templates)
+        if is_store_template:
+            day_gmv = 0
+        else:
+            average_order_value = store.average_order_value or 0
+            day_gmv = float(day_exclusive_count * average_order_value) if average_order_value else 0
+        gmv_trend_data.append({
+            'date': current_date.isoformat(),
+            'value': day_gmv
+        })
+        
+        # 2. Stranger acquisition ratio trend
+        if day_exclusive_count > 0:
+            day_original_owner_count = day_exclusive_redemptions.filter(
+                user=F('coupon__original_owner')
+            ).count()
+            day_stranger_ratio = (day_exclusive_count - day_original_owner_count) / day_exclusive_count
+        else:
+            day_stranger_ratio = 0
+        stranger_trend_data.append({
+            'date': current_date.isoformat(),
+            'value': day_stranger_ratio
+        })
+        
+        # 3. Coupon activation rate trend
+        if day_exclusive_count > 0:
+            day_activated_count = 0
+            redeemed_coupon_ids = day_exclusive_redemptions.values_list('coupon', flat=True).distinct()
+            for coupon_id in redeemed_coupon_ids:
+                transfer_count = CouponShareRequest.objects.filter(
+                    coupon_id=coupon_id,
+                    status='accepted'
+                ).count()
+                if transfer_count >= 1:
+                    day_activated_count += 1
+            day_total_redeemed_coupons = len(redeemed_coupon_ids)
+            day_activation_rate = day_activated_count / day_total_redeemed_coupons if day_total_redeemed_coupons > 0 else 0
+        else:
+            day_activation_rate = 0
+        activation_trend_data.append({
+            'date': current_date.isoformat(),
+            'value': day_activation_rate
+        })
+        
+        # 4. Overall conversion rate trend (only exclusive redemptions)
+        if is_store_template:
+            day_overall_conversion = 0
+        elif day_clicks_count > 0:
+            day_overall_conversion = day_exclusive_count / day_clicks_count
+        else:
+            day_overall_conversion = 0
+        overall_conversion_trend_data.append({
+            'date': current_date.isoformat(),
+            'value': day_overall_conversion
+        })
+        
+        # 5. Redemption rate trend (only exclusive redemptions)
+        if is_store_template:
+            day_redemption_rate = 0
+        elif template.total_quantity > 0:
+            day_redemption_rate = day_exclusive_count / template.total_quantity
+        else:
+            day_redemption_rate = 0
+        redemption_trend_data.append({
+            'date': current_date.isoformat(),
+            'value': day_redemption_rate
+        })
+        
+        current_date += timedelta(days=1)
+    
+    # Calculate averages for all trends
+    def calculate_average(trend_data):
+        valid_values = [d['value'] for d in trend_data if d['value'] is not None]
+        return sum(valid_values) / len(valid_values) if valid_values else 0
+    
+    stranger_avg = calculate_average(stranger_trend_data)
+    gmv_avg = calculate_average(gmv_trend_data)
+    activation_avg = calculate_average(activation_trend_data)
+    overall_conversion_avg = calculate_average(overall_conversion_trend_data)
+    redemption_avg = calculate_average(redemption_trend_data)
+    
+    return Response({
+        'gmv': gmv,
+        'stranger_acquisition_ratio': stranger_acquisition_ratio,
+        'coupon_activation_rate': coupon_activation_rate,
+        'overall_conversion_rate': overall_conversion_rate,
+        'redemption_rate': redemption_rate,
+        'transfer_ranking': ranking_list,
+        'trends': {
+            'gmv': {
+                'current': gmv,
+                'average': gmv_avg,
+                'daily_data': gmv_trend_data
+            },
+            'stranger_acquisition_ratio': {
+                'current': stranger_acquisition_ratio,
+                'average': stranger_avg,
+                'daily_data': stranger_trend_data
+            },
+            'coupon_activation_rate': {
+                'current': coupon_activation_rate,
+                'average': activation_avg,
+                'daily_data': activation_trend_data
+            },
+            'overall_conversion_rate': {
+                'current': overall_conversion_rate,
+                'average': overall_conversion_avg,
+                'daily_data': overall_conversion_trend_data
+            },
+            'redemption_rate': {
+                'current': redemption_rate,
+                'average': redemption_avg,
+                'daily_data': redemption_trend_data
+            }
+        }
+    }, status=status.HTTP_200_OK)
