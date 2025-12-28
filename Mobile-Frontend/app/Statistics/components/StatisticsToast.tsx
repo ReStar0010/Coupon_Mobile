@@ -2,14 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
 import { YStack, Text } from 'tamagui';
 
-interface ToastProps {
+interface StatisticsToastProps {
   visible: boolean;
   message: string;
   onHide: () => void;
   duration?: number;
 }
 
-const Toast: React.FC<ToastProps> = ({ 
+const StatisticsToast: React.FC<StatisticsToastProps> = ({ 
   visible, 
   message, 
   onHide, 
@@ -100,4 +100,5 @@ const Toast: React.FC<ToastProps> = ({
   );
 };
 
-export default Toast;
+export default StatisticsToast;
+
