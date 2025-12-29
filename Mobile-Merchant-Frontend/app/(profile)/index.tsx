@@ -149,19 +149,6 @@ export default function MerchantProfileScreen() {
                 <MetricCard label="總曝光" value={statistics?.total_views || 0} />
               </XStack>
 
-              {/* Analytics Button */}
-              <Button 
-                variant="primary" 
-                fullWidth 
-                onPress={() => {
-                  router.push('/(profile)/analytics');
-                }}
-                marginTop="$4"
-                marginBottom="$4"
-              >
-                查看詳細統計
-              </Button>
-
               {/* Merchant Information Card */}
               <View style={styles.infoCard}>
                 <InfoRow label="地址" value={profile?.store?.address || '未設定'} />
