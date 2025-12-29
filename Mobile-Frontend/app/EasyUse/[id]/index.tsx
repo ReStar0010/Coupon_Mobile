@@ -229,16 +229,58 @@ const CouponDetailPage: React.FC = () => {
   };
 
   const handleCouProShare = async () => {
+    if (!coupon?.id) {
+      Alert.alert('錯誤', '無法分享：優惠券ID不存在');
+      return;
+    }
+
+    setIsSharing(true);
+
     try {
-      devLog("CouPro share initiated for coupon:", coupon?.id);
-      // Implement CouPro sharing logic here
-      // This might involve API call to move coupon to public pool
-      setShowShareModal(false);
-      // You might want to show a success message or redirect
-      Alert.alert('分享成功', '優惠券已分享至 CouPro 隨取即用區域(此功能還未實作)');
-    } catch (err) {
-      console.error('Error sharing to CouPro:', err);
-      Alert.alert('分享失敗', '無法分享至 CouPro，請稍後再試');
+      devLog("Public pool share initiated for coupon:", coupon.id);
+
+      const response = await fetchAPI(`/coupon/${coupon.id}/share-public/`, {
+        method: 'POST',
+      });
+
+      if (response.data.message) {
+        setShowShareModal(false);
+
+        // Show success alert and navigate back to Collection
+        Alert.alert(
+          '分享成功',
+          '您的優惠券已分享至隨取即用公開交換池，其他用戶現在可以領取！',
+          [
+            {
+              text: '確定',
+              onPress: () => router.push('/Collection')
+            }
+          ]
+        );
+
+        devLog("Public share successful:", response.data);
+      }
+    } catch (err: any) {
+      console.error('Error sharing to public pool:', err);
+
+      let errorMessage = '無法分享優惠券，請稍後再試';
+
+      if (err?.response?.data?.error) {
+        const backendError = err.response.data.error;
+        if (backendError === 'You do not own this coupon.') {
+          errorMessage = '您不是此優惠券的持有者';
+        } else if (backendError === 'This coupon has already been redeemed.') {
+          errorMessage = '此優惠券已被使用';
+        } else if (backendError === 'This coupon is already shared to the public pool.') {
+          errorMessage = '此優惠券已在公開交換池中';
+        } else {
+          errorMessage = backendError;
+        }
+      }
+
+      Alert.alert('分享失敗', errorMessage);
+    } finally {
+      setIsSharing(false);
     }
   };
 

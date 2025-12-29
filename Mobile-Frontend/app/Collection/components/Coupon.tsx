@@ -1,29 +1,40 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Image } from 'react-native';
-import { 
-  YStack, 
-  XStack, 
-  Text, 
-  Button, 
-  Card,
-  Spinner,
-  View
-} from 'tamagui';
+import { YStack, XStack, Text, Card, View } from 'tamagui';
 import { useRouter } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
-import * as Sharing from 'expo-sharing';
-import { useToast } from '../../components/ToastContext';
-import { generateShareLink } from '../utils/couponUtils';
+import { COLORS, BORDER_RADIUS, SPACING } from '../../constants/theme';
 import type { CouponType } from '../utils/types';
 
 interface CouponProps extends Partial<CouponType> {
   className?: string;
 }
 
+const DEFAULT_IMAGE_URL =
+  'https://api.iconify.design/material-symbols:storefront-rounded.svg?color=%23ffad31';
+
+interface CouponTagProps {
+  tag: string;
+}
+
+const CouponTag: React.FC<CouponTagProps> = React.memo(({ tag }) => (
+  <View
+    style={{
+      backgroundColor: COLORS.tag.background,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: SPACING.xs,
+    }}
+  >
+    <Text fontSize={12} color={COLORS.tag.text} fontWeight="500">
+      {tag}
+    </Text>
+  </View>
+));
+
+CouponTag.displayName = 'CouponTag';
+
 const Coupon: React.FC<CouponProps> = ({
-  className = '',
   couponName,
-  description,
   storeName,
   expiryDate,
   id,
@@ -31,161 +42,78 @@ const Coupon: React.FC<CouponProps> = ({
   tags,
 }) => {
   const router = useRouter();
-  const [shareError, setShareError] = useState<string | null>(null);
-  const [isSharing, setIsSharing] = useState(false);
 
-  // Use the ToastContext to access global toast notifications
-  const { showToast } = useToast();
-
-  const onCouponClick = useCallback(() => {
+  const handleCouponPress = useCallback(() => {
     router.push(`/EasyUse/${id}?source=collection`);
   }, [router, id]);
 
-  const handleShare = async () => {
-    setIsSharing(true);
-    setShareError(null);
+  const formattedDate = useMemo(() => {
+    return expiryDate ? expiryDate.toLocaleDateString() : '';
+  }, [expiryDate]);
 
-    if (!id) {
-      setShareError('無法分享：優惠券ID不存在');
-      setIsSharing(false);
-      return;
-    }
-
-    try {
-      const link = await generateShareLink(id);
-
-      if (link) {
-        // Check if sharing is available
-        const isAvailable = await Sharing.isAvailableAsync();
-
-        if (isAvailable) {
-          try {
-            await Sharing.shareAsync(link, {
-              dialogTitle: `分享優惠券 - ${storeName}`,
-            });
-            showToast('成功分享優惠券', 'success');
-          } catch (shareError) {
-            console.error('Error sharing:', shareError);
-            // Fall back to clipboard copy if sharing fails
-            await fallbackCopyToClipboard(link);
-          }
-        } else {
-          // No sharing support, use clipboard fallback
-          await fallbackCopyToClipboard(link);
-        }
-      } else {
-        setShareError('無法建立分享連結');
-      }
-    } catch (err: any) {
-      console.error('Error sharing coupon:', err);
-      setShareError(err?.response?.data?.error || '分享失敗，請稍後再試。');
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
-  // Fallback method to copy to clipboard
-  const fallbackCopyToClipboard = async (text: string) => {
-    try {
-      await Clipboard.setStringAsync(text);
-      showToast('已複製分享連結到剪貼簿', 'success');
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      setShareError('複製失敗，請手動分享。');
-    }
-  };
+  const imageSource = useMemo(
+    () => ({
+      uri: imageUrl || DEFAULT_IMAGE_URL,
+      width: 64,
+      height: 64,
+    }),
+    [imageUrl]
+  );
 
   return (
     <Card
       elevate
       bordered
-      borderRadius="$5"
+      borderRadius={BORDER_RADIUS.lg}
       padding="$4"
-      onPress={onCouponClick}
+      onPress={handleCouponPress}
       pressStyle={{ opacity: 0.9 }}
-      borderColor="#f8f8f8"
+      borderColor={COLORS.border}
       borderWidth={1}
-      backgroundColor="white"
+      backgroundColor={COLORS.white}
       marginBottom="$4"
     >
       <XStack gap={15} style={{ alignItems: 'center' }}>
-        {/* Store Image */}
-        <Image
-          source={{
-            uri: imageUrl || 'https://api.iconify.design/material-symbols:storefront-rounded.svg?color=%23ffad31',
-            width: 64,
-            height: 64,
-          }}
-          style={{ borderRadius: 8 }}
-        />
+        <Image source={imageSource} style={{ borderRadius: BORDER_RADIUS.sm }} />
 
-        {/* Content */}
-        <YStack gap={8} flex={1}>
-          <Text fontSize={24} fontWeight="700" color="#000000" numberOfLines={1}>
+        <YStack gap={SPACING.sm} flex={1}>
+          <Text
+            fontSize={24}
+            fontWeight="700"
+            color={COLORS.text.primary}
+            numberOfLines={1}
+          >
             {storeName}
           </Text>
-          
-          <Text color="#6b7280" numberOfLines={2}>
+
+          <Text color={COLORS.text.secondary} numberOfLines={2}>
             {couponName}
           </Text>
-          
-          <Text fontSize="$3" color="#6b7280" numberOfLines={1}>
-            有效期限 : {expiryDate ? expiryDate.toLocaleDateString() : ''}
+
+          <Text fontSize="$3" color={COLORS.text.secondary} numberOfLines={1}>
+            有效期限 : {formattedDate}
           </Text>
 
           {tags && tags.length > 0 && (
             <XStack gap={6} flexWrap="wrap" marginTop={4}>
               {tags.map((tag, index) => (
-                <View
-                  key={index}
-                  style={{
-                    backgroundColor: '#FFF5E6',
-                    borderRadius: 12,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                  }}
-                >
-                  <Text fontSize={12} color="#FFAD31" fontWeight="500">
-                    {tag}
-                  </Text>
-                </View>
+                <CouponTag key={`${tag}-${index}`} tag={tag} />
               ))}
             </XStack>
           )}
         </YStack>
-
-        {/* Share button */}
-        {/* <Button
-          onPress={handleShare}
-          disabled={isSharing}
-          backgroundColor="#FFAD31"
-          borderRadius="$3"
-          padding="$2"
-          opacity={isSharing ? 0.7 : 1}
-          pressStyle={{ opacity: 0.7 }}
-        >
-          {isSharing ? (
-            <Spinner size="small" color="#000" />
-          ) : (
-            <Text fontSize="$5" color="#000">📤</Text>
-          )}
-        </Button> */}
       </XStack>
-
-      {/* Error message */}
-      {shareError && (
-        <Text 
-          position="absolute" 
-          bottom="$1" 
-          right="$3"
-          fontSize="$2" 
-          color="#ef4444"
-        >
-          {shareError}
-        </Text>
-      )}
     </Card>
   );
 };
 
-export default Coupon;
+export default React.memo(Coupon, (prevProps, nextProps) => {
+  return (
+    prevProps.id === nextProps.id &&
+    prevProps.couponName === nextProps.couponName &&
+    prevProps.storeName === nextProps.storeName &&
+    prevProps.expiryDate?.getTime() === nextProps.expiryDate?.getTime() &&
+    prevProps.imageUrl === nextProps.imageUrl &&
+    JSON.stringify(prevProps.tags) === JSON.stringify(nextProps.tags)
+  );
+});

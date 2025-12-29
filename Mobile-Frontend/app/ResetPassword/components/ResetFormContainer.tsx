@@ -1,10 +1,9 @@
 import React from 'react';
 import { View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { LoginHeader } from './LoginHeader';
-import { LoginInput } from 'app/Login/components/LoginInput';
-import { LoginButton } from './LoginButton';
-import { LinkText } from './LinkText';
+import { FormHeader } from '../../components/forms/FormHeader';
+import { FormInput } from '../../components/forms/FormInput';
+import { FormButton } from '../../components/forms/FormButton';
 
 interface ResetFormContainterProps {
   password: string;
@@ -25,22 +24,22 @@ export const ResetFormContainer: React.FC<ResetFormContainterProps> = ({
   return (
     <View className="bg-login-bg px-5 py-8 flex flex-col gap-[13px]">
       {/* Header */}
-      <LoginHeader title='重設密碼' /> 
+      <FormHeader title='重設密碼' /> 
       {/* ResetPassword Input */}
-      <LoginInput
+      <FormInput
         placeholder='輸入新密碼'
         value={password}
         onChangeText={setPassword}
         secureTextEntry={true}
       />
-      <LoginInput
+      <FormInput
           placeholder='再次輸入新密碼'
           value={verifyPassword}
           onChangeText={setVerifyPassword}
           secureTextEntry={true}
       /> 
       {/* Reset Button */}
-      <LoginButton title="儲存變更" onPress={handleReset} />
+      <FormButton title="儲存變更" onPress={handleReset} />
     </View>
   );
 };

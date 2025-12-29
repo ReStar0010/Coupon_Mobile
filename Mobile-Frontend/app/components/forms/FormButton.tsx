@@ -1,12 +1,12 @@
 import React from 'react';
 import { Button, Text } from 'tamagui';
 
-interface LoginButtonProps {
+interface FormButtonProps {
   title: string;
   onPress?: () => void;
 }
 
-export const LoginButton: React.FC<LoginButtonProps> = ({ title, onPress }) => {
+export const FormButton: React.FC<FormButtonProps> = ({ title, onPress }) => {
   return (
     <Button
       onPress={onPress}
@@ -28,3 +28,6 @@ export const LoginButton: React.FC<LoginButtonProps> = ({ title, onPress }) => {
     </Button>
   );
 };
+
+export default FormButton;
+

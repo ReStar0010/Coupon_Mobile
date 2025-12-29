@@ -1,11 +1,11 @@
 import React from 'react';
 import { YStack, H1 } from 'tamagui';
 
-type props = {
+interface FormHeaderProps {
   title?: string;
-};
+}
 
-export const LoginHeader: React.FC<props> = ({title}) => {
+export const FormHeader: React.FC<FormHeaderProps> = ({title}) => {
   return (
     <YStack items="center">
       <H1 
@@ -21,4 +21,5 @@ export const LoginHeader: React.FC<props> = ({title}) => {
   );
 };
 
-export default LoginHeader;
+export default FormHeader;
+

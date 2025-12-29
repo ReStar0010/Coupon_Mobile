@@ -2,12 +2,12 @@ import React from 'react';
 import { TextInputProps } from 'react-native';
 import { Input } from 'tamagui';
 
-interface LoginInputProps extends TextInputProps {
+interface FormInputProps extends TextInputProps {
   placeholder: string;
   secureTextEntry?: boolean;
 }
 
-export const LoginInput: React.FC<LoginInputProps> = ({
+export const FormInput: React.FC<FormInputProps> = ({
   placeholder,
   secureTextEntry = false,
   ...props
@@ -33,3 +33,6 @@ export const LoginInput: React.FC<LoginInputProps> = ({
     />
   );
 };
+
+export default FormInput;
+

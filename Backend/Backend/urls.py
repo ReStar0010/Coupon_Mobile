@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from api.views.authentication import register, login, logout, user_info, verify_email, forgot_password, reset_password, refresh_token
 from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon
-from api.views.sharing_views import share_coupon, get_share_request, accept_share_request
+from api.views.sharing_views import share_coupon, get_share_request, accept_share_request, share_coupon_public, get_my_public_shares
 from api.views.user_profile import (user_statistics, set_savings_goal, reset_savings_goal, 
                                   coupon_history, coupon_history_detail, completed_goals, add_completed_goal)
 from api.views.daily_draw import get_daily_draw_templates, draw_coupon, draw_history, get_last_draw_time
@@ -67,8 +67,10 @@ urlpatterns = [
 
     # Coupon sharing endpoints
     path('api/coupon/<int:coupon_id>/share/', share_coupon, name='share_coupon'),
+    path('api/coupon/<int:coupon_id>/share-public/', share_coupon_public, name='share_coupon_public'),
     path('api/coupon/share/<str:token>/', get_share_request, name='get_share_request'),
     path('api/coupon/share/<str:token>/accept/', accept_share_request, name='accept_share_request'),
+    path('api/my-public-shares/', get_my_public_shares, name='get_my_public_shares'),
 
     # Authentication endpoints    
     path('api/register/', register),

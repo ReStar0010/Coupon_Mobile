@@ -436,6 +436,7 @@ export const logout = async (): Promise<void> => {
   // Note: In React Native, we don't use window.location.href
   // The router navigation should be handled by the calling component
 };
+
 export default {
   fetchAPI,
   refreshAccessToken,

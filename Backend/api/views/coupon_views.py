@@ -8,14 +8,15 @@ from django.db.models import Count
 from drf_yasg.utils import swagger_auto_schema
 
 from ..serializers import RedeemCouponSerializer
-from ..models import Coupon, Log, StudentProfile, CouponRedemption
+from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest
 
 @api_view(['GET'])
 @permission_classes([AllowAny])  # 允許匿名訪問
 def get_store_coupons(request):
     """
-    Get type A coupons (store coupons) that are available to all users.
-    These are the general "identification" coupons that can be used multiple times.
+    Get type A coupons (store coupons) and public pool coupons (shared exclusive coupons).
+    These are the general "identification" coupons that can be used multiple times,
+    plus exclusive coupons that have been shared to the public pool.
     """
     # Track view easy use page event
     if request.user.is_authenticated:
@@ -23,13 +24,13 @@ def get_store_coupons(request):
 
     now = timezone.now()
 
-    # 查詢：未過期、已開始的 store type coupon
+    # Query 1: Store coupons (existing logic)
     store_coupons = Coupon.objects.filter(
         coupon_type='store',
         expiry_date__gt=now,
         start_date__lte=now
     ).select_related('store').prefetch_related('tags')  # Optimize DB query
-    
+
     # 取得這些 coupon 關聯的所有 store IDs
     store_ids = store_coupons.values_list('store_id', flat=True).distinct()
 
@@ -44,10 +45,26 @@ def get_store_coupons(request):
     # 將數量轉換為字典方便查找 {store_id: count}
     active_counts_dict = {item['store_id']: item['active_coupon_count'] for item in active_counts}
 
+    # Query 2: Public pool coupons (shared exclusive coupons)
+    public_share_coupon_ids = CouponShareRequest.objects.filter(
+        is_public=True,
+        status='pending'
+    ).values_list('coupon_id', flat=True)
+
+    public_pool_coupons = Coupon.objects.filter(
+        id__in=public_share_coupon_ids,
+        coupon_type='exclusive',
+        expiry_date__gt=now,
+        start_date__lte=now,
+        current_holder__isnull=True  # Ensure not already claimed
+    ).select_related('store').prefetch_related('tags', 'share_requests')
+
     data = []
+
+    # Add store coupons
     for c in store_coupons:
         store_active_count = active_counts_dict.get(c.store_id, 0)
-         
+
         data.append({
             "id": c.id,
             "store_name": c.store.name,
@@ -68,9 +85,43 @@ def get_store_coupons(request):
             "image_url": c.image_url,
             "total_redemptions": c.get_redemption_count(),
             "unique_users": c.get_unique_users_count(),
-            "tags": [tag.display_name for tag in c.tags.all()]  # 返回標籤的顯示名稱
+            "tags": [tag.display_name for tag in c.tags.all()],
+            "is_public_share": False,
+            "share_token": None,
+            "shared_by": None,
         })
-    
+
+    # Add public pool coupons
+    for c in public_pool_coupons:
+        # Get the pending public share request for this coupon
+        share_request = c.share_requests.filter(is_public=True, status='pending').first()
+        if share_request:
+            data.append({
+                "id": c.id,
+                "store_name": c.store.name,
+                "store_id": c.store.id,
+                "store_location": {
+                    "lat": c.store.lat,
+                    "lng": c.store.lng
+                },
+                "address": c.store.address,
+                "active_coupon_count": 1,
+                "has_active_coupons": True,
+                "coupon_name": c.coupon_name,
+                "coupon_detail": c.coupon_detail,
+                "important_notes": c.important_notes,
+                "start_date": c.start_date,
+                "expiry_date": c.expiry_date,
+                "coupon_type": "gift",  # Special type to differentiate in frontend
+                "image_url": c.image_url,
+                "total_redemptions": 0,
+                "unique_users": 0,
+                "tags": [tag.display_name for tag in c.tags.all()],
+                "is_public_share": True,
+                "share_token": share_request.token,
+                "shared_by": share_request.from_user.email,
+            })
+
     return Response(data)
 
 @api_view(['GET'])
@@ -263,11 +314,6 @@ def get_coupon_detail(request, id):
     
     return Response(data)
 
-@swagger_auto_schema(
-        method='post',
-        operation_description="Redeem a coupon by its ID",
-        request_body=RedeemCouponSerializer
-)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def redeem_coupon(request, id):

@@ -1,68 +1,115 @@
-// Custom hook for managing daily draws
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { DailyDrawResult, DrawTemplate } from '../utils/types';
 import { checkLastDrawDate } from '../utils/couponUtils';
 import { devDebug } from '../../utils/devLogger';
 import { fetchAPI } from '../../utils/authAPI';
 
+interface UseDailyDrawReturn {
+  showDailyDraw: boolean;
+  setShowDailyDraw: (show: boolean) => void;
+  dailyDrawResult: DailyDrawResult | null;
+  isDailyDrawLoading: boolean;
+  hasDailyDrawn: boolean;
+  availableTemplates: DrawTemplate[];
+  handleDailyDraw: () => Promise<void>;
+  resetDailyDrawUI: () => void;
+  closeDailyDrawWithSuccess: () => void;
+}
+
 export function useDailyDraw(
   isAuthenticated: boolean,
   authLoading: boolean,
   onDrawSuccess: () => void
-) {
+): UseDailyDrawReturn {
   const [showDailyDraw, setShowDailyDraw] = useState(false);
   const [dailyDrawResult, setDailyDrawResult] = useState<DailyDrawResult | null>(null);
   const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
   const [hasDailyDrawn, setHasDailyDrawn] = useState(false);
   const [availableTemplates, setAvailableTemplates] = useState<DrawTemplate[]>([]);
+  const isMountedRef = useRef(true);
 
-  // Check if user has already drawn today
   useEffect(() => {
-    const checkDrawStatus = async () => {
-      if (isAuthenticated && !authLoading) {
-        const hasDrawn = await checkLastDrawDate();
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const checkDrawStatus = useCallback(async () => {
+    if (!isAuthenticated || authLoading) return;
+
+    try {
+      const hasDrawn = await checkLastDrawDate();
+      if (isMountedRef.current) {
         setHasDailyDrawn(hasDrawn);
       }
-    };
-
-    checkDrawStatus();
+    } catch (error) {
+      console.error('Error checking draw status:', error);
+    }
   }, [isAuthenticated, authLoading]);
 
-  // Fetch available draw templates when the daily draw modal opens
-  const fetchAvailableTemplates = async () => {
+  useEffect(() => {
+    checkDrawStatus();
+  }, [checkDrawStatus]);
+
+  const fetchAvailableTemplates = useCallback(async () => {
+    if (!isAuthenticated) return;
+
     try {
       const response = await fetchAPI('/daily-draw-templates/', {
         method: 'GET',
         withCredentials: true,
       });
 
-      setAvailableTemplates(response.data.active_templates);
-      devDebug('Available templates:', response.data.active_templates);
+      if (isMountedRef.current) {
+        setAvailableTemplates(response.data.active_templates);
+        devDebug('Available templates:', response.data.active_templates);
+      }
     } catch (err) {
       console.error('Error fetching available templates:', err);
     }
-  };
+  }, [isAuthenticated]);
 
-  // Fetch templates when the daily draw modal opens
   useEffect(() => {
     if (showDailyDraw && isAuthenticated) {
       fetchAvailableTemplates();
     }
-  }, [showDailyDraw, isAuthenticated]);
+  }, [showDailyDraw, isAuthenticated, fetchAvailableTemplates]);
 
-  // Handle daily draw
-  const handleDailyDraw = async () => {
+  const selectRandomTemplate = useCallback(
+    (templates: DrawTemplate[]): DrawTemplate | null => {
+      if (!templates || templates.length === 0) return null;
+      const randomIndex = Math.floor(Math.random() * templates.length);
+      return templates[randomIndex];
+    },
+    []
+  );
+
+  const getErrorMessage = useCallback((err: unknown): string => {
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 400) {
+        return err.response.data.message || '抽獎失敗，請稍後再試。';
+      }
+      if (err.response?.data?.error) {
+        return err.response.data.error;
+      }
+    }
+    if (err instanceof Error) {
+      return err.message;
+    }
+    return '抽獎失敗，請稍後再試。';
+  }, []);
+
+  const handleDailyDraw = useCallback(async () => {
     setIsDailyDrawLoading(true);
+
     try {
-      // Check if templates are available
-      if (!availableTemplates || availableTemplates.length === 0) {
+      const selectedTemplate = selectRandomTemplate(availableTemplates);
+
+      if (!selectedTemplate) {
         throw new Error('沒有可用的優惠券模板');
       }
-
-      // Select a random template from available ones
-      const randomIndex = Math.floor(Math.random() * availableTemplates.length);
-      const selectedTemplate = availableTemplates[randomIndex];
 
       devDebug('Selected template for draw:', selectedTemplate);
 
@@ -74,55 +121,53 @@ export function useDailyDraw(
 
       devDebug('Daily draw result:', response.data);
 
-      setDailyDrawResult({
-        success: response.data.success,
-        coupon: response.data.success
-          ? {
-              id: response.data.coupon.id,
-              name: response.data.coupon.name,
-            }
-          : undefined,
-        message: response.data.message,
-      });
-
-      setHasDailyDrawn(true);
+      if (isMountedRef.current) {
+        setDailyDrawResult({
+          success: response.data.success,
+          coupon: response.data.success
+            ? {
+                id: response.data.coupon.id,
+                name: response.data.coupon.name,
+              }
+            : undefined,
+          message: response.data.message,
+        });
+        setHasDailyDrawn(true);
+      }
     } catch (err) {
       console.error('Error during daily draw:', err);
-      let errorMessage = '抽獎失敗，請稍後再試。';
 
-      if (axios.isAxiosError(err)) {
-        if (err.response?.status === 400) {
-          // If the user has already drawn today
-          errorMessage = err.response.data.message || errorMessage;
+      if (axios.isAxiosError(err) && err.response?.status === 400) {
+        if (isMountedRef.current) {
           setHasDailyDrawn(true);
-        } else if (err.response?.data?.error) {
-          errorMessage = err.response.data.error;
         }
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
       }
 
-      setDailyDrawResult({
-        success: false,
-        message: errorMessage,
-      });
+      if (isMountedRef.current) {
+        setDailyDrawResult({
+          success: false,
+          message: getErrorMessage(err),
+        });
+      }
     } finally {
-      setIsDailyDrawLoading(false);
+      if (isMountedRef.current) {
+        setIsDailyDrawLoading(false);
+      }
     }
-  };
+  }, [availableTemplates, selectRandomTemplate, getErrorMessage]);
 
-  const resetDailyDrawUI = () => {
+  const resetDailyDrawUI = useCallback(() => {
     setShowDailyDraw(false);
     setDailyDrawResult(null);
-  };
+  }, []);
 
-  const closeDailyDrawWithSuccess = () => {
+  const closeDailyDrawWithSuccess = useCallback(() => {
     setShowDailyDraw(false);
     setDailyDrawResult(null);
     if (dailyDrawResult?.success) {
-      onDrawSuccess(); // Call the callback to refresh coupons
+      onDrawSuccess();
     }
-  };
+  }, [dailyDrawResult?.success, onDrawSuccess]);
 
   return {
     showDailyDraw,
@@ -136,4 +181,5 @@ export function useDailyDraw(
     closeDailyDrawWithSuccess,
   };
 }
+
 export default useDailyDraw;

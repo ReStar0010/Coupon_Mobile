@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import StatisticsChart from './components/StatisticsChart';
 import StatCard from './components/StatCard';
 import GoalModal from './components/GoalModal';
-import Toast from './components/Toast';
+import StatisticsToast from './components/StatisticsToast';
 import TabsFooter from '../components/TabsFooter';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { XStack, YStack, H4, Button, ScrollView, View, Text, ListItem, Separator, Spinner } from 'tamagui';
@@ -324,7 +324,7 @@ const Statistics: React.FC = () => {
       />
 
       {/* Toast */}
-      <Toast
+      <StatisticsToast
         visible={showToast}
         message="目標設定成功"
         onHide={() => setShowToast(false)}

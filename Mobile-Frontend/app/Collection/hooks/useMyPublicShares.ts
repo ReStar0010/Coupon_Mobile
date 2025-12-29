@@ -1,22 +1,32 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { ApiCoupon, CouponType } from '../utils/types';
-import { transformApiCoupon } from '../utils/couponUtils';
 import { devDebug } from '../../utils/devLogger';
 import { fetchAPI } from '../../utils/authAPI';
 
-interface UseCouponsReturn {
-  coupons: CouponType[];
-  isLoading: boolean;
-  error: string | null;
-  fetchCoupons: () => Promise<void>;
+export interface PublicShare {
+  share_id: number;
+  coupon_id: number;
+  coupon_name: string;
+  store_name: string | null;
+  image_url: string | null;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  created_at: string;
+  claimed_by: string | null;
+  claimed_at: string | null;
 }
 
-export function useCoupons(
+interface UseMyPublicSharesReturn {
+  publicShares: PublicShare[];
+  isLoading: boolean;
+  error: string | null;
+  fetchPublicShares: () => Promise<void>;
+}
+
+export function useMyPublicShares(
   isAuthenticated: boolean,
   authLoading: boolean
-): UseCouponsReturn {
-  const [coupons, setCoupons] = useState<CouponType[]>([]);
+): UseMyPublicSharesReturn {
+  const [publicShares, setPublicShares] = useState<PublicShare[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
@@ -28,16 +38,16 @@ export function useCoupons(
         return '請先登入或重新登入。';
       }
       if (err.message) {
-        return `無法載入優惠券: ${err.message}`;
+        return `無法載入分享記錄: ${err.message}`;
       }
     }
     if (err instanceof Error) {
       return err.message;
     }
-    return '無法載入優惠券，請稍後再試。';
+    return '無法載入分享記錄，請稍後再試。';
   }, []);
 
-  const fetchCoupons = useCallback(async () => {
+  const fetchPublicShares = useCallback(async () => {
     if (authLoading || !isAuthenticated) {
       setIsLoading(false);
       return;
@@ -54,7 +64,7 @@ export function useCoupons(
     setError(null);
 
     try {
-      const response = await fetchAPI('/exclusive-coupons/', {
+      const response = await fetchAPI('/my-public-shares/', {
         method: 'GET',
         withCredentials: true,
         signal: abortControllerRef.current.signal,
@@ -62,29 +72,25 @@ export function useCoupons(
 
       if (!isMountedRef.current) return;
 
-      devDebug('API response:', response.data);
+      devDebug('Public shares response:', response.data);
 
       if (!Array.isArray(response.data)) {
         console.error('API response is not an array:', response.data);
         throw new Error('Unexpected API response format.');
       }
 
-      const transformedCoupons = response.data.map((coupon: ApiCoupon) =>
-        transformApiCoupon(coupon)
-      );
-
       if (isMountedRef.current) {
-        setCoupons(transformedCoupons);
+        setPublicShares(response.data);
       }
     } catch (err) {
       if (axios.isCancel(err)) {
         devDebug('Request cancelled');
         return;
       }
-      console.error('Error fetching coupons:', err);
+      console.error('Error fetching public shares:', err);
       if (isMountedRef.current) {
         setError(getErrorMessage(err));
-        setCoupons([]);
+        setPublicShares([]);
       }
     } finally {
       if (isMountedRef.current) {
@@ -97,7 +103,7 @@ export function useCoupons(
     isMountedRef.current = true;
 
     if (isAuthenticated && !authLoading) {
-      fetchCoupons();
+      fetchPublicShares();
     }
 
     return () => {
@@ -106,14 +112,14 @@ export function useCoupons(
         abortControllerRef.current.abort();
       }
     };
-  }, [isAuthenticated, authLoading, fetchCoupons]);
+  }, [isAuthenticated, authLoading, fetchPublicShares]);
 
   return {
-    coupons,
+    publicShares,
     isLoading,
     error,
-    fetchCoupons,
+    fetchPublicShares,
   };
 }
 
-export default useCoupons;
+export default useMyPublicShares;

@@ -34,7 +34,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.cokayne.MobileFrontend",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
