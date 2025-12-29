@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Share2 } from 'lucide-react-native';
+import { ArrowLeft, Share2, MapPin } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
 import { 
@@ -602,43 +602,81 @@ const CouponDetailPage: React.FC = () => {
       {/* Fixed Bottom Button */}
       {!coupon.is_redeemed && (
         <YStack style={{ position: 'absolute', bottom: 30, left: 20, right: 20 }}>
-          <Button
-            onPress={
-              sourceParam === 'collection' 
-                ? (isRedeeming || !coupon.can_use_today ? undefined : onRedeemClick)
-                : openGoogleMaps
-            }
-            bg="#FFAD31"
-            height={60}
-            style={{
-              borderRadius: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 8,
-              elevation: 5,
-              opacity: 
-                sourceParam === 'collection' 
-                  ? (isRedeeming || !coupon.can_use_today ? 0.5 : 1)
-                  : 1
-            }}
-            disabled={sourceParam === 'collection' && (isRedeeming || !coupon.can_use_today)}
-          >
-            <Text 
-              color="#333" 
-              fontSize="$6" 
-              fontWeight="bold"
+          {sourceParam === 'collection' ? (
+            // Collection source: Keep original single button behavior
+            <Button
+              onPress={isRedeeming || !coupon.can_use_today ? undefined : onRedeemClick}
+              bg="#FFAD31"
+              height={60}
+              style={{
+                borderRadius: 16,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 5,
+                opacity: isRedeeming || !coupon.can_use_today ? 0.5 : 1
+              }}
+              disabled={isRedeeming || !coupon.can_use_today}
             >
-              {sourceParam === 'collection' 
-                ? (isRedeeming
-                    ? '處理中...'
-                    : !coupon.can_use_today
-                      ? '今日已使用'
-                      : '使用')
-                : "Let's GOOOOO!"
-              }
-            </Text>
-          </Button>
+              <Text 
+                color="#333" 
+                fontSize="$6" 
+                fontWeight="bold"
+              >
+                {isRedeeming
+                  ? '處理中...'
+                  : !coupon.can_use_today
+                    ? '今日已使用'
+                    : '使用'}
+              </Text>
+            </Button>
+          ) : (
+            // EasyUse source: Two buttons side by side (Paste_Image style)
+            <XStack gap={12} style={{ width: '100%' }}>
+              {/* Left: Large "使用" button */}
+              <Button
+                onPress={onRedeemClick}
+                bg="#FFAD31"
+                flex={2}
+                height={60}
+                style={{
+                  borderRadius: 16,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  elevation: 5,
+                }}
+              >
+                <Text 
+                  color="#333" 
+                  fontSize="$6" 
+                  fontWeight="bold"
+                >
+                  使用
+                </Text>
+              </Button>
+              
+              {/* Right: Square map icon button */}
+              <Button
+                onPress={openGoogleMaps}
+                bg="#FFAD31"
+                width={60}
+                height={60}
+                style={{
+                  borderRadius: 16,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  elevation: 5,
+                }}
+              >
+                <MapPin size={24} color="#333" />
+              </Button>
+            </XStack>
+          )}
         </YStack>
       )}
 
