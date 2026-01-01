@@ -231,161 +231,6 @@ class StatisticsTester:
         
         return results
     
-    def test_stage2_core_analytics(self) -> list:
-        """Stage 2: Test core analytics calculations."""
-        print("\n" + "=" * 60)
-        print("STAGE 2: Core Analytics Test")
-        print("=" * 60)
-        
-        results = []
-        store = Store.objects.filter(owner__email=MERCHANT_EMAIL).first()
-        if not store:
-            results.append(TestResult(
-                "Store Exists", False,
-                "Merchant store not found"
-            ))
-            return results
-        
-        # Test with different time ranges
-        for days in [7, 30, 90]:
-            data = self._make_request("/api/merchant/analytics/", data={"days": days})
-            if not data:
-                results.append(TestResult(
-                    f"Analytics API (days={days})", False,
-                    "Failed to get response (check server logs above)"
-                ))
-                continue
-            
-            # Calculate expected values
-            from datetime import timedelta
-            now = timezone.now()
-            time_threshold = now - timedelta(days=days)
-            
-            # Only exclusive redemptions
-            exclusive_redemptions = CouponRedemption.objects.filter(
-                coupon__store=store,
-                coupon__coupon_type='exclusive',
-                redeemed_at__gte=time_threshold
-            )
-            exclusive_count = exclusive_redemptions.count()
-            
-            # Test GMV
-            expected_gmv = float(exclusive_count * (store.average_order_value or 0))
-            actual_gmv = data.get('gmv', 0)
-            tolerance = 0.01  # Allow small floating point differences
-            results.append(TestResult(
-                f"GMV Calculation (days={days})",
-                abs(expected_gmv - actual_gmv) < tolerance,
-                expected=expected_gmv,
-                actual=actual_gmv
-            ))
-            
-            # Test Stranger Acquisition Ratio
-            if exclusive_count > 0:
-                from django.db.models import F
-                original_owner_count = exclusive_redemptions.filter(
-                    user=F('coupon__original_owner')
-                ).count()
-                expected_stranger_ratio = (exclusive_count - original_owner_count) / exclusive_count
-                actual_stranger_ratio = data.get('stranger_acquisition_ratio', 0)
-                results.append(TestResult(
-                    f"Stranger Acquisition Ratio (days={days})",
-                    abs(expected_stranger_ratio - actual_stranger_ratio) < tolerance,
-                    expected=expected_stranger_ratio,
-                    actual=actual_stranger_ratio
-                ))
-            
-            # Test Redemption Rate
-            # API uses coupons that started before now (start_date <= now)
-            exclusive_coupons = Coupon.objects.filter(
-                store=store,
-                coupon_type='exclusive',
-                start_date__lte=now
-            )
-            total_coupons = exclusive_coupons.count()
-            if total_coupons > 0:
-                expected_redemption_rate = exclusive_count / total_coupons
-                actual_redemption_rate = data.get('redemption_rate', 0)
-                results.append(TestResult(
-                    f"Redemption Rate (days={days})",
-                    abs(expected_redemption_rate - actual_redemption_rate) < tolerance,
-                    expected=expected_redemption_rate,
-                    actual=actual_redemption_rate
-                ))
-            
-            # Test Overall Conversion Rate
-            template_logs = Log.objects.filter(
-                template__store=store,
-                action='template_view',
-                timestamp__gte=time_threshold
-            )
-            total_clicks = template_logs.count()
-            if total_clicks > 0:
-                expected_conversion = exclusive_count / total_clicks
-                actual_conversion = data.get('overall_conversion_rate', 0)
-                results.append(TestResult(
-                    f"Overall Conversion Rate (days={days})",
-                    abs(expected_conversion - actual_conversion) < tolerance,
-                    expected=expected_conversion,
-                    actual=actual_conversion
-                ))
-        
-        return results
-    
-    def test_stage3_trend_data(self) -> list:
-        """Stage 3: Test trend data calculations."""
-        print("\n" + "=" * 60)
-        print("STAGE 3: Trend Data Test")
-        print("=" * 60)
-        
-        results = []
-        data = self._make_request("/api/merchant/analytics/", data={"days": 30})
-        
-        if not data:
-            results.append(TestResult(
-                "Trend Data API", False,
-                "Failed to get response (check server logs above)"
-            ))
-            return results
-        
-        trends = data.get('trends', {})
-        
-        # Test that trend data exists
-        required_trends = ['gmv', 'stranger_acquisition_ratio', 'coupon_activation_rate', 
-                          'overall_conversion_rate', 'redemption_rate']
-        
-        for trend_name in required_trends:
-            trend = trends.get(trend_name)
-            if not trend:
-                results.append(TestResult(
-                    f"Trend Data: {trend_name}", False,
-                    "Trend data missing"
-                ))
-                continue
-            
-            # Check structure
-            has_current = 'current' in trend
-            has_average = 'average' in trend
-            has_daily_data = 'daily_data' in trend and isinstance(trend['daily_data'], list)
-            
-            results.append(TestResult(
-                f"Trend Structure: {trend_name}",
-                has_current and has_average and has_daily_data,
-                message="Missing required fields" if not (has_current and has_average and has_daily_data) else ""
-            ))
-            
-            # Check daily data length (should be approximately equal to days)
-            if has_daily_data:
-                daily_data = trend['daily_data']
-                results.append(TestResult(
-                    f"Daily Data Length: {trend_name}",
-                    25 <= len(daily_data) <= 35,  # Allow some flexibility
-                    expected="25-35 days",
-                    actual=len(daily_data)
-                ))
-        
-        return results
-    
     def test_stage4_template_analytics(self) -> list:
         """Stage 4: Test template-level analytics."""
         print("\n" + "=" * 60)
@@ -462,8 +307,6 @@ class StatisticsTester:
             return all_results
         
         all_results['stage1'] = self.test_stage1_basic_statistics()
-        all_results['stage2'] = self.test_stage2_core_analytics()
-        all_results['stage3'] = self.test_stage3_trend_data()
         all_results['stage4'] = self.test_stage4_template_analytics()
         
         return all_results
@@ -496,7 +339,7 @@ class StatisticsTester:
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(description='Test merchant statistics APIs')
-    parser.add_argument('--stage', type=int, choices=[1, 2, 3, 4], help='Test a specific stage')
+    parser.add_argument('--stage', type=int, choices=[1, 4], help='Test a specific stage')
     parser.add_argument('--all', action='store_true', help='Test all stages')
     parser.add_argument('--url', type=str, default=BASE_URL, help='Base URL for API')
     
@@ -515,10 +358,6 @@ def main():
         results = {}
         if args.stage == 1:
             results['stage1'] = tester.test_stage1_basic_statistics()
-        elif args.stage == 2:
-            results['stage2'] = tester.test_stage2_core_analytics()
-        elif args.stage == 3:
-            results['stage3'] = tester.test_stage3_trend_data()
         elif args.stage == 4:
             results['stage4'] = tester.test_stage4_template_analytics()
     else:

@@ -89,7 +89,8 @@ def draw_coupon(request):
                 coupon = template.generate_coupon(recipient=request.user)
                 
                 if coupon:
-
+                    # Set acquisition method to 'draw'
+                    coupon.acquisition_method = 'draw'
                     coupon.save()
                     
                     # Log the successful draw

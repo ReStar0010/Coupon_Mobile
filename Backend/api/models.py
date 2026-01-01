@@ -199,6 +199,21 @@ class Coupon(models.Model):
         ('unlimited', '每日無限制'),
     ]
     usage_per_day = models.CharField(max_length=10, choices=USAGE_PER_DAY_CHOICES, default='unlimited', help_text="How many times this coupon can be used per day")
+    
+    # Acquisition method tracking
+    ACQUISITION_METHOD_CHOICES = [
+        ('draw', '抽優惠券'),
+        ('consolidate', '電話歸戶'),
+        ('transfer', '私人轉讓'),
+        ('public_pool', '公共池領取'),
+    ]
+    acquisition_method = models.CharField(
+        max_length=20, 
+        choices=ACQUISITION_METHOD_CHOICES, 
+        null=True, 
+        blank=True,
+        help_text="How the coupon was acquired by the current holder"
+    )
  
     def save(self, *args, **kwargs):
         # Ensure original_owner and current_holder is None for 'store' type coupons

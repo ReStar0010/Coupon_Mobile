@@ -150,6 +150,11 @@ def accept_share_request(request, token):
         # Transfer coupon
         coupon.current_holder = request.user
         coupon.last_holder = share_request.from_user
+        # Set acquisition method based on share type
+        if share_request.is_public:
+            coupon.acquisition_method = 'public_pool'  # 公共池領取
+        else:
+            coupon.acquisition_method = 'transfer'  # 私人轉讓
         coupon.save()
 
         share_request.to_user = request.user
