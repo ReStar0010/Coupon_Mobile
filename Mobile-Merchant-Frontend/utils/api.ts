@@ -435,14 +435,6 @@ export const merchantAPI = {
     return parseResponse(response);
   },
 
-  updateAverageOrderValue: async (value: number) => {
-    const response = await fetchAPI('/merchant/average-order-value/', {
-      method: 'PUT',
-      body: JSON.stringify({ average_order_value: value }),
-    });
-    return parseResponse(response);
-  },
-
   getTemplateAnalytics: async (templateId: number, days: number = 30) => {
     const response = await fetchAPI(`/merchant/coupon-templates/${templateId}/analytics/?days=${days}`);
     return parseResponse(response);

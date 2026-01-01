@@ -18,34 +18,29 @@ interface TrendData {
 }
 
 interface AnalyticsData {
-  // Exclusive template fields
-  gmv?: number;
-  stranger_acquisition_ratio?: number;
-  coupon_activation_rate?: number;
-  overall_conversion_rate?: number;
-  redemption_rate?: number;
-  transfer_ranking?: Array<{
-    user_id: number;
-    email: string;
-    transfer_count: number;
-  }>;
+  // Common fields
+  exposure_count?: number;
+  conversion_rate?: number;
   trends?: {
-    gmv?: TrendData;
-    stranger_acquisition_ratio?: TrendData;
-    coupon_activation_rate?: TrendData;
-    overall_conversion_rate?: TrendData;
+    exposure_count?: TrendData;
+    conversion_rate?: TrendData;
+    retention_rate?: TrendData;
+    stranger_acquisition_rate?: TrendData;
+    circulation_rate?: TrendData;
+    circulation_redemption_rate?: TrendData;
     redemption_rate?: TrendData;
   };
-  // Store template fields
-  click_count?: number;
-  unique_users?: number;
-  click_trend?: TrendData;
-  unique_users_trend?: TrendData;
+  // Exclusive template fields only
+  retention_rate?: number;
+  stranger_acquisition_rate?: number;
+  circulation_rate?: number;
+  circulation_redemption_rate?: number;
+  redemption_rate?: number;
 }
 
-type TimeRange = 7 | 30 | 90;
+type TimeRange = 3 | 7 | 30 | 90;
 
-type MetricType = 'stranger_acquisition_ratio' | 'coupon_activation_rate' | 'overall_conversion_rate' | 'redemption_rate' | 'click_count' | 'unique_users';
+type MetricType = 'exposure_count' | 'conversion_rate' | 'retention_rate' | 'stranger_acquisition_rate' | 'circulation_rate' | 'circulation_redemption_rate' | 'redemption_rate';
 
 interface MetricCardProps {
   label: string;
@@ -94,7 +89,7 @@ export default function TemplateAnalyticsScreen() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>(30);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>('stranger_acquisition_ratio');
+  const [selectedMetric, setSelectedMetric] = useState<MetricType>('exposure_count');
   const [templateName, setTemplateName] = useState<string>('');
   const [isStoreTemplate, setIsStoreTemplate] = useState<boolean>(false);
 
@@ -136,14 +131,14 @@ export default function TemplateAnalyticsScreen() {
   // Auto-switch selected metric based on template type
   useEffect(() => {
     if (isStoreTemplate) {
-      // For store templates, default to click_count
-      if (selectedMetric !== 'click_count' && selectedMetric !== 'unique_users') {
-        setSelectedMetric('click_count');
+      // For store templates, default to exposure_count
+      if (selectedMetric !== 'exposure_count' && selectedMetric !== 'conversion_rate') {
+        setSelectedMetric('exposure_count');
       }
     } else {
-      // For exclusive templates, default to stranger_acquisition_ratio
-      if (selectedMetric === 'click_count' || selectedMetric === 'unique_users') {
-        setSelectedMetric('stranger_acquisition_ratio');
+      // For exclusive templates, default to exposure_count
+      if (!['exposure_count', 'conversion_rate', 'retention_rate', 'stranger_acquisition_rate', 'circulation_rate', 'circulation_redemption_rate', 'redemption_rate'].includes(selectedMetric)) {
+        setSelectedMetric('exposure_count');
       }
     }
   }, [isStoreTemplate, selectedMetric]);
@@ -158,25 +153,19 @@ export default function TemplateAnalyticsScreen() {
 
   const getMetricLabel = (metric: MetricType): string => {
     const labels: Record<MetricType, string> = {
-      stranger_acquisition_ratio: '陌生獲客比',
-      coupon_activation_rate: '優惠券活化率',
-      overall_conversion_rate: '總體轉換率',
+      exposure_count: '曝光次數',
+      conversion_rate: '轉換率',
+      retention_rate: '留客率',
+      stranger_acquisition_rate: '陌生獲客率',
+      circulation_rate: '流動率',
+      circulation_redemption_rate: '流動核銷率',
       redemption_rate: '核銷率',
-      click_count: '總點擊次數',
-      unique_users: '不重複用戶數',
     };
     return labels[metric];
   };
 
   const getTrendData = (metric: MetricType, data: AnalyticsData): TrendData | null => {
-    // Check store template trends
-    if (metric === 'click_count' && data.click_trend) {
-      return data.click_trend;
-    }
-    if (metric === 'unique_users' && data.unique_users_trend) {
-      return data.unique_users_trend;
-    }
-    // Check exclusive template trends
+    // Check trends in data.trends
     if (data.trends && data.trends[metric]) {
       return data.trends[metric];
     }
@@ -186,7 +175,7 @@ export default function TemplateAnalyticsScreen() {
   const getCurrentValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
-      if (metric === 'click_count' || metric === 'unique_users') {
+      if (metric === 'exposure_count') {
         return trendData.current.toLocaleString('zh-TW');
       } else {
         return formatPercentage(trendData.current);
@@ -195,18 +184,20 @@ export default function TemplateAnalyticsScreen() {
     
     // Fallback to direct values
     switch (metric) {
-      case 'stranger_acquisition_ratio':
-        return formatPercentage(data.stranger_acquisition_ratio || 0);
-      case 'coupon_activation_rate':
-        return formatPercentage(data.coupon_activation_rate || 0);
-      case 'overall_conversion_rate':
-        return formatPercentage(data.overall_conversion_rate || 0);
+      case 'exposure_count':
+        return (data.exposure_count || 0).toLocaleString('zh-TW');
+      case 'conversion_rate':
+        return formatPercentage(data.conversion_rate || 0);
+      case 'retention_rate':
+        return formatPercentage(data.retention_rate || 0);
+      case 'stranger_acquisition_rate':
+        return formatPercentage(data.stranger_acquisition_rate || 0);
+      case 'circulation_rate':
+        return formatPercentage(data.circulation_rate || 0);
+      case 'circulation_redemption_rate':
+        return formatPercentage(data.circulation_redemption_rate || 0);
       case 'redemption_rate':
         return formatPercentage(data.redemption_rate || 0);
-      case 'click_count':
-        return (data.click_count || 0).toLocaleString('zh-TW');
-      case 'unique_users':
-        return (data.unique_users || 0).toLocaleString('zh-TW');
       default:
         return '0';
     }
@@ -215,7 +206,7 @@ export default function TemplateAnalyticsScreen() {
   const getAverageValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
-      if (metric === 'click_count' || metric === 'unique_users') {
+      if (metric === 'exposure_count') {
         return trendData.average.toLocaleString('zh-TW');
       } else {
         return formatPercentage(trendData.average);
@@ -297,6 +288,7 @@ export default function TemplateAnalyticsScreen() {
 
               {/* Time Range Selector */}
               <XStack gap="$2" marginBottom="$4">
+                <TimeRangeButton days={3} label="近3天" />
                 <TimeRangeButton days={7} label="近7天" />
                 <TimeRangeButton days={30} label="近30天" />
                 <TimeRangeButton days={90} label="近90天" />
@@ -305,21 +297,22 @@ export default function TemplateAnalyticsScreen() {
               {/* Metrics Grid */}
               <YStack gap="$3" marginBottom="$6">
                 {isStoreTemplate ? (
-                  // Store template: Only show click statistics
+                  // Store template (EasyUse): Show exposure and conversion
                   <XStack gap="$3">
                     <MetricCard 
-                      label="總點擊次數" 
-                      value={analytics.click_count || 0}
-                      metricType="click_count"
-                      isSelected={selectedMetric === 'click_count'}
-                      onPress={() => setSelectedMetric('click_count')}
+                      label="曝光次數" 
+                      value={analytics.exposure_count || 0}
+                      metricType="exposure_count"
+                      isSelected={selectedMetric === 'exposure_count'}
+                      onPress={() => setSelectedMetric('exposure_count')}
                     />
                     <MetricCard 
-                      label="不重複用戶數" 
-                      value={analytics.unique_users || 0}
-                      metricType="unique_users"
-                      isSelected={selectedMetric === 'unique_users'}
-                      onPress={() => setSelectedMetric('unique_users')}
+                      label="轉換率" 
+                      value={analytics.conversion_rate || 0}
+                      isPercentage
+                      metricType="conversion_rate"
+                      isSelected={selectedMetric === 'conversion_rate'}
+                      onPress={() => setSelectedMetric('conversion_rate')}
                     />
                   </XStack>
                 ) : (
@@ -327,31 +320,40 @@ export default function TemplateAnalyticsScreen() {
                   <>
                     <XStack gap="$3">
                       <MetricCard 
-                        label="陌生獲客比" 
-                        value={analytics.stranger_acquisition_ratio || 0} 
-                        isPercentage
-                        metricType="stranger_acquisition_ratio"
-                        isSelected={selectedMetric === 'stranger_acquisition_ratio'}
-                        onPress={() => setSelectedMetric('stranger_acquisition_ratio')}
+                        label="曝光次數" 
+                        value={analytics.exposure_count || 0}
+                        metricType="exposure_count"
+                        isSelected={selectedMetric === 'exposure_count'}
+                        onPress={() => setSelectedMetric('exposure_count')}
                       />
                       <MetricCard 
-                        label="優惠券活化率" 
-                        value={analytics.coupon_activation_rate || 0} 
+                        label="轉換率" 
+                        value={analytics.conversion_rate || 0} 
                         isPercentage
-                        metricType="coupon_activation_rate"
-                        isSelected={selectedMetric === 'coupon_activation_rate'}
-                        onPress={() => setSelectedMetric('coupon_activation_rate')}
+                        metricType="conversion_rate"
+                        isSelected={selectedMetric === 'conversion_rate'}
+                        onPress={() => setSelectedMetric('conversion_rate')}
                       />
                     </XStack>
                     <XStack gap="$3">
                       <MetricCard 
-                        label="總體轉換率" 
-                        value={analytics.overall_conversion_rate || 0} 
+                        label="留客率" 
+                        value={analytics.retention_rate || 0} 
                         isPercentage
-                        metricType="overall_conversion_rate"
-                        isSelected={selectedMetric === 'overall_conversion_rate'}
-                        onPress={() => setSelectedMetric('overall_conversion_rate')}
+                        metricType="retention_rate"
+                        isSelected={selectedMetric === 'retention_rate'}
+                        onPress={() => setSelectedMetric('retention_rate')}
                       />
+                      <MetricCard 
+                        label="陌生獲客率" 
+                        value={analytics.stranger_acquisition_rate || 0} 
+                        isPercentage
+                        metricType="stranger_acquisition_rate"
+                        isSelected={selectedMetric === 'stranger_acquisition_rate'}
+                        onPress={() => setSelectedMetric('stranger_acquisition_rate')}
+                      />
+                    </XStack>
+                    <XStack gap="$3">
                       <MetricCard 
                         label="核銷率" 
                         value={analytics.redemption_rate || 0} 
@@ -359,6 +361,24 @@ export default function TemplateAnalyticsScreen() {
                         metricType="redemption_rate"
                         isSelected={selectedMetric === 'redemption_rate'}
                         onPress={() => setSelectedMetric('redemption_rate')}
+                      />
+                      <MetricCard 
+                        label="流動率" 
+                        value={analytics.circulation_rate || 0} 
+                        isPercentage
+                        metricType="circulation_rate"
+                        isSelected={selectedMetric === 'circulation_rate'}
+                        onPress={() => setSelectedMetric('circulation_rate')}
+                      />
+                    </XStack>
+                    <XStack gap="$3">
+                      <MetricCard 
+                        label="流動核銷率" 
+                        value={analytics.circulation_redemption_rate || 0} 
+                        isPercentage
+                        metricType="circulation_redemption_rate"
+                        isSelected={selectedMetric === 'circulation_redemption_rate'}
+                        onPress={() => setSelectedMetric('circulation_redemption_rate')}
                       />
                     </XStack>
                   </>
@@ -391,52 +411,11 @@ export default function TemplateAnalyticsScreen() {
                 {/* Trend Chart */}
                 <TrendChart 
                   data={getTrendData(selectedMetric, analytics)} 
-                  isPercentage={selectedMetric !== 'click_count' && selectedMetric !== 'unique_users'}
-                  yAxisSuffix={selectedMetric === 'click_count' || selectedMetric === 'unique_users' ? '' : '%'}
+                  isPercentage={selectedMetric !== 'exposure_count'}
+                  yAxisSuffix={selectedMetric === 'exposure_count' ? '' : '%'}
                 />
               </View>
 
-              {/* Transfer Ranking - Only for exclusive templates */}
-              {!isStoreTemplate && analytics.transfer_ranking && (
-              <View style={[styles.sectionCard, { marginTop: 16 }]}>
-                <Text fontSize="$lg" fontWeight="700" color={colors.textPrimary} marginBottom="$3">
-                  用戶轉贈總數排行榜
-                </Text>
-                {analytics.transfer_ranking.length > 0 ? (
-                  <YStack gap="$2">
-                    {analytics.transfer_ranking.map((item, index) => (
-                      <XStack
-                        key={item.user_id}
-                        paddingVertical="$2"
-                        paddingHorizontal="$3"
-                        backgroundColor={colors.background}
-                        borderRadius={8}
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <XStack alignItems="center" gap="$3">
-                          <View style={styles.rankBadge}>
-                            <Text fontSize="$sm" fontWeight="700" color={colors.white}>
-                              {index + 1}
-                            </Text>
-                          </View>
-                          <Text fontSize="$md" color={colors.textPrimary}>
-                            {item.email}
-                          </Text>
-                        </XStack>
-                        <Text fontSize="$md" fontWeight="600" color={colors.primary}>
-                          {item.transfer_count}
-                        </Text>
-                      </XStack>
-                    ))}
-                  </YStack>
-                ) : (
-                  <Text fontSize="$sm" color={colors.textSecondary} textAlign="center" padding="$4">
-                    尚無轉贈記錄
-                  </Text>
-                )}
-              </View>
-              )}
             </>
           ) : null}
         </ScrollView>
