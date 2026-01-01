@@ -721,6 +721,7 @@ def get_template_analytics(request, id):
     - 陌生獲客率 (stranger_acquisition_rate): Non-consolidate redemptions / Total redemptions
     - 流動率 (circulation_rate): (Transfer + Public pool) / Total coupons
     - 流動核銷率 (circulation_redemption_rate): (Transfer + Public pool redeemed) / (Transfer + Public pool)
+    - 核銷率 (redemption_rate): Total redemptions / Total quantity
     """
     user = request.user
     
@@ -875,6 +876,9 @@ def get_template_analytics(request, id):
     transfer_redemption_count = transfer_redemptions.count()
     circulation_redemption_rate = transfer_redemption_count / transfer_count if transfer_count > 0 else 0
     
+    # 7. 核銷率 (Redemption Rate): 已核銷數量 / 總數量
+    redemption_rate = exclusive_redemptions_count / template.total_quantity if template.total_quantity > 0 else 0
+    
     # Calculate trend data for all metrics (daily data)
     current_date = time_threshold.date()
     end_date = now.date()
@@ -886,6 +890,7 @@ def get_template_analytics(request, id):
     stranger_acquisition_trend_data = []
     circulation_trend_data = []
     circulation_redemption_trend_data = []
+    redemption_trend_data = []
     
     while current_date <= end_date:
         day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()))
@@ -928,6 +933,9 @@ def get_template_analytics(request, id):
         day_transfer_redemption_count = day_transfer_redemptions.count()
         day_circulation_redemption_rate = day_transfer_redemption_count / transfer_count if transfer_count > 0 else 0
         
+        # Daily redemption rate (已核銷數量 / 總數量)
+        day_redemption_rate = day_exclusive_count / template.total_quantity if template.total_quantity > 0 else 0
+        
         exposure_trend_data.append({
             'date': current_date.isoformat(),
             'value': day_exposure_count
@@ -958,6 +966,11 @@ def get_template_analytics(request, id):
             'value': day_circulation_redemption_rate
         })
         
+        redemption_trend_data.append({
+            'date': current_date.isoformat(),
+            'value': day_redemption_rate
+        })
+        
         current_date += timedelta(days=1)
     
     # Calculate averages for all trends
@@ -971,6 +984,7 @@ def get_template_analytics(request, id):
     stranger_avg = calculate_average(stranger_acquisition_trend_data)
     circulation_avg = calculate_average(circulation_trend_data)
     circulation_redemption_avg = calculate_average(circulation_redemption_trend_data)
+    redemption_avg = calculate_average(redemption_trend_data)
     
     return Response({
         'exposure_count': exposure_count,
@@ -979,6 +993,7 @@ def get_template_analytics(request, id):
         'stranger_acquisition_rate': stranger_acquisition_rate,
         'circulation_rate': circulation_rate,
         'circulation_redemption_rate': circulation_redemption_rate,
+        'redemption_rate': redemption_rate,
         'trends': {
             'exposure_count': {
                 'current': exposure_count,
@@ -1009,6 +1024,11 @@ def get_template_analytics(request, id):
                 'current': circulation_redemption_rate,
                 'average': circulation_redemption_avg,
                 'daily_data': circulation_redemption_trend_data
+            },
+            'redemption_rate': {
+                'current': redemption_rate,
+                'average': redemption_avg,
+                'daily_data': redemption_trend_data
             }
         }
     }, status=status.HTTP_200_OK)
