@@ -524,6 +524,12 @@ export const merchantAPI = {
     return parseResponse(response);
   },
 
+  // Tags
+  getTags: async () => {
+    const response = await fetchAPI('/tags/');
+    return parseResponse<Array<{id: number, name: string, display_name: string}>>(response);
+  },
+
   // Image Upload
   uploadImage: async (imageUri: string): Promise<string> => {
     // Create FormData for multipart/form-data request

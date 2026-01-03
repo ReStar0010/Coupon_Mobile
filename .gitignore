@@ -29,6 +29,7 @@ ENV/
 # Database
 *.sqlite3
 db.sqlite3
+db_test.sqlite3
 
 # IDEs
 .vscode/
@@ -64,3 +65,4 @@ web-build/
 # images
 media/
 images/
+images_test/
