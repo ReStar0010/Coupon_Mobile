@@ -5,11 +5,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Input } from '@/components/ui';
 import { Button } from '@/components/ui';
-import { StyleSheet, TouchableOpacity, View, TextInput, Switch, Alert, Platform, Modal } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, Switch, Alert, Platform } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { DeleteModal } from './components/DeleteModal';
 import { merchantAPI, getAbsoluteImageUrl } from '@/utils/api';
 
@@ -29,8 +29,12 @@ export default function CouponEditScreen() {
   const [couponContent, setCouponContent] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [notes, setNotes] = useState('');
-  const [couponType, setCouponType] = useState<'一般' | '共享'>('共享');
+  const [couponType, setCouponType] = useState<'隨取即用' | '專屬優惠'>('專屬優惠');
   const [limitPerDay, setLimitPerDay] = useState(false);
+  const [drawProbability, setDrawProbability] = useState('50');
+  // Tag state
+  const [availableTags, setAvailableTags] = useState<Array<{id: number, name: string, display_name: string}>>([]);
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
   // Store original values for validation in edit mode
   const [originalTotalQuantity, setOriginalTotalQuantity] = useState<number | null>(null);
   const [remainingQuantity, setRemainingQuantity] = useState<number | null>(null);
@@ -51,6 +55,19 @@ export default function CouponEditScreen() {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
+
+  // Load tags on mount
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        const tags = await merchantAPI.getTags();
+        setAvailableTags(tags);
+      } catch (error) {
+        console.error('Failed to load tags:', error);
+      }
+    };
+    loadTags();
+  }, []);
 
   // Load existing coupon data if in edit mode
   useEffect(() => {
@@ -76,12 +93,12 @@ export default function CouponEditScreen() {
       setRemainingQuantity(remainingQty);
       
       // Determine coupon type based on total_quantity
-      // If total_quantity > 0, it's '共享', otherwise '一般'
-      const type: '一般' | '共享' = totalQty > 0 ? '共享' : '一般';
+      // If total_quantity > 0, it's '專屬優惠', otherwise '隨取即用'
+      const type: '隨取即用' | '專屬優惠' = totalQty > 0 ? '專屬優惠' : '隨取即用';
       setCouponType(type);
       
-      // Set quantity for display (only for '共享' type)
-      if (type === '共享') {
+      // Set quantity for display (only for '專屬優惠' type)
+      if (type === '專屬優惠') {
         setQuantity(String(totalQty));
       }
       
@@ -97,9 +114,19 @@ export default function CouponEditScreen() {
         setEndDate(end);
       }
       
+      // Load tags if available
+      if (data.tags && Array.isArray(data.tags)) {
+        setSelectedTags(data.tags);
+      }
+      
+      // Load draw probability if available (convert from 0-1 to 0-100)
+      if (data.draw_probability !== undefined && data.draw_probability !== null) {
+        setDrawProbability(String(Math.round(data.draw_probability * 100)));
+      }
+      
       // Store original data for change detection
       const originalImageUrl = getAbsoluteImageUrl(data.image_url) || null;
-      const originalQuantity = type === '共享' ? String(totalQty) : '1';
+      const originalQuantity = type === '專屬優惠' ? String(totalQty) : '1';
       const originalStartTime = data.start_date ? formatDateTime(new Date(data.start_date)) : '';
       const originalEndTime = data.end_date ? formatDateTime(new Date(data.end_date)) : '';
       
@@ -166,18 +193,18 @@ export default function CouponEditScreen() {
   };
 
   const handleSave = async () => {
-    // 驗證必填欄位：優惠數量只在共享類型時必填
+    // 驗證必填欄位：優惠數量只在專屬優惠類型時必填
     if (!couponName || !couponContent || !startTime || !endTime) {
       Alert.alert('錯誤', '請填寫所有必填欄位');
       return;
     }
-    if (couponType === '共享' && !quantity) {
+    if (couponType === '專屬優惠' && !quantity) {
       Alert.alert('錯誤', '請填寫優惠數量');
       return;
     }
 
     // Edit 模式：驗證優惠數量不能比已核銷數量少
-    if (isEditMode && couponType === '共享' && originalTotalQuantity !== null && remainingQuantity !== null) {
+    if (isEditMode && couponType === '專屬優惠' && originalTotalQuantity !== null && remainingQuantity !== null) {
       const newQuantity = parseInt(quantity) || 0;
       const redeemedQuantity = originalTotalQuantity - remainingQuantity;
       
@@ -215,15 +242,15 @@ export default function CouponEditScreen() {
         coupon_detail: couponContent,
         important_notes: notes,
         image_url: image || '',
-        // 優惠數量：共享類型使用輸入的數量，一般類型設為 0 或 undefined（根據後端需求）
-        total_quantity: couponType === '共享' ? (parseInt(quantity) || 1) : 0,
+        // 優惠數量：專屬優惠類型使用輸入的數量，隨取即用類型設為 0 或 undefined（根據後端需求）
+        total_quantity: couponType === '專屬優惠' ? (parseInt(quantity) || 1) : 0,
         // 核銷碼：自動生成隨機的六位數字
         template_redeem_code: generateVerificationCode(),
         start_date: new Date(startTime).toISOString(),
         expiry_date: new Date(endTime).toISOString(),
-        draw_probability: 0.5,
+        draw_probability: couponType === '專屬優惠' ? (parseInt(drawProbability) || 50) / 100 : 0.5,
         is_active: true,
-        tags: [],
+        tags: selectedTags,
       };
 
       if (isEditMode && id) {
@@ -236,7 +263,7 @@ export default function CouponEditScreen() {
             couponContent,
             notes,
             image: image || null,
-            quantity: couponType === '共享' ? quantity : '1',
+            quantity: couponType === '專屬優惠' ? quantity : '1',
             startTime,
             endTime,
           });
@@ -282,24 +309,16 @@ export default function CouponEditScreen() {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
-  const handleStartDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowStartDatePicker(false);
-    }
-    if (selectedDate) {
-      setStartDate(selectedDate);
-      setStartTime(formatDateTime(selectedDate));
-    }
+  const handleStartDateChange = (selectedDate: Date) => {
+    setShowStartDatePicker(false);
+    setStartDate(selectedDate);
+    setStartTime(formatDateTime(selectedDate));
   };
 
-  const handleEndDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowEndDatePicker(false);
-    }
-    if (selectedDate) {
-      setEndDate(selectedDate);
-      setEndTime(formatDateTime(selectedDate));
-    }
+  const handleEndDateChange = (selectedDate: Date) => {
+    setShowEndDatePicker(false);
+    setEndDate(selectedDate);
+    setEndTime(formatDateTime(selectedDate));
   };
 
   // Check if form data has changed (only for edit mode)
@@ -309,7 +328,7 @@ export default function CouponEditScreen() {
     }
 
     // Compare current values with original values
-    const currentQuantity = couponType === '共享' ? quantity : '1';
+    const currentQuantity = couponType === '專屬優惠' ? quantity : '1';
     
     return (
       couponName !== originalData.couponName ||
@@ -407,9 +426,9 @@ export default function CouponEditScreen() {
               multiline
             />
 
-            {/* 優惠數量 - 只在共享類型時顯示 */}
-            {/* Edit 模式且類型為一般時隱藏，Create 模式或類型為共享時顯示 */}
-            {couponType === '共享' && (
+            {/* 優惠數量 - 只在專屬優惠類型時顯示 */}
+            {/* Edit 模式且類型為隨取即用時隱藏，Create 模式或類型為專屬優惠時顯示 */}
+            {couponType === '專屬優惠' && (
               <FormField
                 label="優惠數量"
                 value={quantity}
@@ -434,47 +453,102 @@ export default function CouponEditScreen() {
               multiline
             />
 
+            {/* 標籤 */}
+            <YStack gap="$2">
+              <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
+                標籤
+              </Text>
+              <XStack gap="$2" flexWrap="wrap">
+                {availableTags.map((tag) => {
+                  const isSelected = selectedTags.includes(tag.id);
+                  return (
+                    <TouchableOpacity
+                      key={tag.id}
+                      onPress={() => {
+                        if (isSelected) {
+                          setSelectedTags(selectedTags.filter(id => id !== tag.id));
+                        } else {
+                          setSelectedTags([...selectedTags, tag.id]);
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[
+                        styles.tagButton,
+                        isSelected && styles.tagButtonActive
+                      ]}>
+                        <Text style={[
+                          styles.tagText,
+                          isSelected && styles.tagTextActive
+                        ]}>
+                          {tag.display_name}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </XStack>
+            </YStack>
+
             {/* 優惠類型 - 只在 Create 模式顯示 */}
             {!isEditMode && (
             <YStack gap="$2">
               <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
-                優惠類型(一般、共享)
+                優惠類型(隨取即用、專屬優惠)
               </Text>
               <XStack gap="$3">
                 <TouchableOpacity
-                  onPress={() => setCouponType('一般')}
+                  onPress={() => setCouponType('隨取即用')}
                   style={[
                     styles.radioButton,
-                    couponType === '一般' && styles.radioButtonActive,
+                    couponType === '隨取即用' && styles.radioButtonActive,
                   ]}
                 >
                   <Text
                     style={[
                       styles.radioText,
-                      couponType === '一般' && styles.radioTextActive,
+                      couponType === '隨取即用' && styles.radioTextActive,
                     ]}
                   >
-                    一般
+                    隨取即用
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setCouponType('共享')}
+                  onPress={() => setCouponType('專屬優惠')}
                   style={[
                     styles.radioButton,
-                    couponType === '共享' && styles.radioButtonActive,
+                    couponType === '專屬優惠' && styles.radioButtonActive,
                   ]}
                 >
                   <Text
                     style={[
                       styles.radioText,
-                      couponType === '共享' && styles.radioTextActive,
+                      couponType === '專屬優惠' && styles.radioTextActive,
                     ]}
                   >
-                    共享
+                    專屬優惠
                   </Text>
                 </TouchableOpacity>
               </XStack>
             </YStack>
+            )}
+
+            {/* 中獎機率 - 只在專屬優惠類型時顯示 */}
+            {couponType === '專屬優惠' && (
+              <FormField
+                label="中獎機率 (%)"
+                value={drawProbability}
+                onChangeText={(text) => {
+                  // Only allow numbers
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  // Limit to 0-100
+                  const num = parseInt(numericValue) || 0;
+                  const clampedValue = Math.min(100, Math.max(0, num));
+                  setDrawProbability(String(clampedValue));
+                }}
+                placeholder="輸入中獎機率 (0-100)"
+                keyboardType="numeric"
+              />
             )}
 
             {/* 每天限用一次 */}
@@ -518,93 +592,26 @@ export default function CouponEditScreen() {
         />
 
         {/* Date Time Pickers */}
-        {Platform.OS === 'ios' ? (
-          <>
-            <Modal
-              visible={showStartDatePicker}
-              transparent
-              animationType="slide"
-              onRequestClose={() => setShowStartDatePicker(false)}
-            >
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                  <XStack justifyContent="space-between" alignItems="center" padding="$4" borderBottomWidth={1} borderBottomColor={colors.border}>
-                    <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
-                      <Text fontSize="$md" color={colors.textSecondary}>取消</Text>
-                    </TouchableOpacity>
-                    <Text fontSize="$lg" fontWeight="600" color={colors.textPrimary}>選擇開始時間</Text>
-                    <TouchableOpacity onPress={() => {
-                      setStartTime(formatDateTime(startDate));
-                      setShowStartDatePicker(false);
-                    }}>
-                      <Text fontSize="$md" color={colors.primary} fontWeight="600">完成</Text>
-                    </TouchableOpacity>
-                  </XStack>
-                  <View style={styles.pickerContainer}>
-                    <DateTimePicker
-                      value={startDate}
-                      mode="datetime"
-                      display="spinner"
-                      onChange={handleStartDateChange}
-                      locale="zh-TW"
-                    />
-                  </View>
-                </View>
-              </View>
-            </Modal>
-            <Modal
-              visible={showEndDatePicker}
-              transparent
-              animationType="slide"
-              onRequestClose={() => setShowEndDatePicker(false)}
-            >
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                  <XStack justifyContent="space-between" alignItems="center" padding="$4" borderBottomWidth={1} borderBottomColor={colors.border}>
-                    <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
-                      <Text fontSize="$md" color={colors.textSecondary}>取消</Text>
-                    </TouchableOpacity>
-                    <Text fontSize="$lg" fontWeight="600" color={colors.textPrimary}>選擇結束時間</Text>
-                    <TouchableOpacity onPress={() => {
-                      setEndTime(formatDateTime(endDate));
-                      setShowEndDatePicker(false);
-                    }}>
-                      <Text fontSize="$md" color={colors.primary} fontWeight="600">完成</Text>
-                    </TouchableOpacity>
-                  </XStack>
-                  <View style={styles.pickerContainer}>
-                    <DateTimePicker
-                      value={endDate}
-                      mode="datetime"
-                      display="spinner"
-                      onChange={handleEndDateChange}
-                      locale="zh-TW"
-                    />
-                  </View>
-                </View>
-              </View>
-            </Modal>
-          </>
-        ) : (
-          <>
-            {showStartDatePicker && (
-              <DateTimePicker
-                value={startDate}
-                mode="datetime"
-                display="default"
-                onChange={handleStartDateChange}
-              />
-            )}
-            {showEndDatePicker && (
-              <DateTimePicker
-                value={endDate}
-                mode="datetime"
-                display="default"
-                onChange={handleEndDateChange}
-              />
-            )}
-          </>
-        )}
+        <DateTimePickerModal
+          isVisible={showStartDatePicker}
+          mode="datetime"
+          date={startDate}
+          onConfirm={handleStartDateChange}
+          onCancel={() => setShowStartDatePicker(false)}
+          locale="zh-TW"
+          confirmTextIOS="完成"
+          cancelTextIOS="取消"
+        />
+        <DateTimePickerModal
+          isVisible={showEndDatePicker}
+          mode="datetime"
+          date={endDate}
+          onConfirm={handleEndDateChange}
+          onCancel={() => setShowEndDatePicker(false)}
+          locale="zh-TW"
+          confirmTextIOS="完成"
+          cancelTextIOS="取消"
+        />
       </YStack>
     </SafeAreaView>
   );
@@ -731,6 +738,27 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
   },
+  tagButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    marginBottom: 8,
+  },
+  tagButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  tagText: {
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  tagTextActive: {
+    color: colors.white,
+    fontWeight: '600',
+  },
   saveButtonContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -742,25 +770,6 @@ const styles = StyleSheet.create({
   dateTimeText: {
     fontSize: 16,
     color: colors.textPrimary,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '60%',
-    minHeight: 400,
-  },
-  pickerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    minHeight: 200,
   },
 });
 
