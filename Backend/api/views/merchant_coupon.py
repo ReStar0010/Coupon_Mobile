@@ -522,6 +522,21 @@ def delete_coupon_template(request, id):
 
 
 @swagger_auto_schema(
+    method='get',
+    operation_description="Get all available tags for coupon categorization",
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_tags(request):
+    """Get all available tags for coupon categorization"""
+    tags = Tag.objects.all().order_by('display_name')
+    return Response([
+        {'id': tag.id, 'name': tag.name, 'display_name': tag.display_name}
+        for tag in tags
+    ], status=status.HTTP_200_OK)
+
+
+@swagger_auto_schema(
     method='post',
     operation_description="Redeem a coupon using phone number and template ID",
     request_body=MerchantRedeemSerializer,

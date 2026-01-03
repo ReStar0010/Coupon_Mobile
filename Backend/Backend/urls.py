@@ -12,7 +12,7 @@ from api.views.merchant_coupon import (
     merchant_consolidate_coupon, refresh_redeem_code,
     list_coupon_templates, get_coupon_template, create_coupon_template,
     update_coupon_template, delete_coupon_template, merchant_redeem, upload_image,
-    get_template_analytics
+    get_template_analytics, get_all_tags
 )
 from api.views.merchant_profile import (
     get_merchant_profile, update_merchant_profile, get_merchant_statistics
@@ -114,6 +114,9 @@ urlpatterns = [
     
     # Merchant image upload
     path('api/merchant/upload-image/', upload_image, name='upload_image'),
+    
+    # Tags endpoint
+    path('api/tags/', get_all_tags, name='get_all_tags'),
 
     # Ping from cron-job.org to keep the server alive
     path('api/ping/', lambda request: HttpResponse("Pong!")),  # Ping endpoint for cron-job.org
