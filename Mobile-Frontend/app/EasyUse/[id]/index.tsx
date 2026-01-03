@@ -143,12 +143,7 @@ const CouponDetailPage: React.FC = () => {
   }, [id]);
 
   const onGoBackContainerClick = useCallback(() => {
-    // Navigate based on source parameter
-    if (sourceParam === 'collection') {
-      router.push('/Collection');
-    } else {
-      router.push('/EasyUse');
-    }
+    router.back();
   }, [router, sourceParam]);
 
   const onRedeemClick = async () => {
