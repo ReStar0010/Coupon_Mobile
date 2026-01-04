@@ -39,7 +39,7 @@
     ],
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.cokayne.MobileMerchantFrontend",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
