@@ -1,9 +1,9 @@
 import React from 'react';
 import { Text } from 'tamagui';
-import { FormHeader } from '../components/forms/FormHeader';
-import { FormInput } from '../components/forms/FormInput';
-import { FormButton } from '../components/forms/FormButton';
-import { LinkText } from '../components/forms/LinkText';
+import { FormHeader } from '../../components/forms/FormHeader';
+import { FormInput } from '../../components/forms/FormInput';
+import { FormButton } from '../../components/forms/FormButton';
+import { LinkText } from '../../components/forms/LinkText';
 import { YStack } from 'tamagui';
 import { API_URL } from 'app/config/api';
 
