@@ -66,9 +66,3 @@ web-build/
 media/
 images/
 images_test/
-
-# Claude
-.claude/
-
-# Specify
-.specify/

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(git remote get-url:*)",
+      "Bash(if not exist \"thoughts\\\\shared\\\\research\" mkdir \"thoughts\\\\shared\\\\research\")",
+      "Bash(mkdir:*)"
+    ]
+  }
+}

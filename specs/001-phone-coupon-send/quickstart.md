@@ -22,6 +22,7 @@ This document provides implementation guidance for the phone-based coupon send f
 ### Phase 1: Backend Changes
 
 > **⚠️ IMPORTANT**: Before running any backend commands, activate the Python virtual environment:
+>
 > ```bash
 > .venv\Scripts\activate  # Windows
 > # or
@@ -29,6 +30,7 @@ This document provides implementation guidance for the phone-based coupon send f
 > ```
 
 1. **Add `pending_phone_number` field to Coupon model**
+
    ```bash
    cd Backend
    python manage.py makemigrations api --name add_coupon_pending_phone_number
@@ -36,11 +38,13 @@ This document provides implementation guidance for the phone-based coupon send f
    ```
 
 2. **Update `merchant_consolidate_coupon` view**
+
    - File: `Backend/api/views/merchant_coupon.py`
    - Change permission from `AllowAny` to `IsAuthenticated`
    - Add logic to create pending coupons for unregistered phones
 
 3. **Add user phone endpoints**
+
    - File: `Backend/api/views/user_profile.py` (add new functions)
    - File: `Backend/Backend/urls.py` (add routes)
    - Endpoints: GET/PUT/DELETE `/api/user/phone/`
@@ -52,6 +56,7 @@ This document provides implementation guidance for the phone-based coupon send f
 ### Phase 2: User App Changes
 
 5. **Add phone settings screen**
+
    - File: `Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx` (new)
    - Add navigation from `Mobile-Frontend/app/OptionsMenu/index.tsx`
 
@@ -62,6 +67,7 @@ This document provides implementation guidance for the phone-based coupon send f
 ### Phase 3: Merchant App Changes
 
 7. **Update coupon redemption screen**
+
    - File: `Mobile-Merchant-Frontend/app/(coupons)/[id].tsx`
    - Add "Send Coupon" button alongside existing redemption functionality
 
@@ -265,18 +271,18 @@ def assign_pending_coupons(user, phone_number):
 ```tsx
 // Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx
 
-import React, { useState, useEffect } from 'react';
-import { Alert } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { YStack, XStack, H4, Input, Button, Text, Card } from 'tamagui';
-import { ChevronLeft, Phone } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fetchAPI } from '../../utils/authAPI';
+import React, { useState, useEffect } from "react";
+import { Alert } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import { YStack, XStack, H4, Input, Button, Text, Card } from "tamagui";
+import { ChevronLeft, Phone } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { fetchAPI } from "../../utils/authAPI";
 
 export default function PhoneSettings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState("");
   const [maskedPhone, setMaskedPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -287,12 +293,12 @@ export default function PhoneSettings() {
 
   const loadPhone = async () => {
     try {
-      const response = await fetchAPI('/user/phone/');
+      const response = await fetchAPI("/user/phone/");
       const data = response.data;
-      setPhone(data.phone_number || '');
+      setPhone(data.phone_number || "");
       setMaskedPhone(data.phone_number_masked);
     } catch (error) {
-      console.error('Failed to load phone:', error);
+      console.error("Failed to load phone:", error);
     } finally {
       setLoading(false);
     }
@@ -300,15 +306,15 @@ export default function PhoneSettings() {
 
   const savePhone = async () => {
     if (!phone.match(/^09\d{8}$/)) {
-      Alert.alert('格式錯誤', '請輸入有效的台灣手機號碼（09開頭，共10碼）');
+      Alert.alert("格式錯誤", "請輸入有效的台灣手機號碼（09開頭，共10碼）");
       return;
     }
 
     setSaving(true);
     try {
-      const response = await fetchAPI('/user/phone/', {
-        method: 'PUT',
-        data: { phone_number: phone }
+      const response = await fetchAPI("/user/phone/", {
+        method: "PUT",
+        data: { phone_number: phone },
       });
       const data = response.data;
 
@@ -316,14 +322,14 @@ export default function PhoneSettings() {
 
       if (data.pending_coupons_claimed > 0) {
         Alert.alert(
-          '設定成功',
+          "設定成功",
           `手機號碼已儲存，您有 ${data.pending_coupons_claimed} 張優惠券已自動領取！`
         );
       } else {
-        Alert.alert('設定成功', '手機號碼已儲存');
+        Alert.alert("設定成功", "手機號碼已儲存");
       }
     } catch (error: any) {
-      Alert.alert('錯誤', error.message || '儲存手機號碼失敗');
+      Alert.alert("錯誤", error.message || "儲存手機號碼失敗");
     } finally {
       setSaving(false);
     }
@@ -332,7 +338,13 @@ export default function PhoneSettings() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <YStack flex={1} px="$4" py="$6" gap="$4" style={{ paddingTop: insets.top + 10 }}>
+      <YStack
+        flex={1}
+        px="$4"
+        py="$6"
+        gap="$4"
+        style={{ paddingTop: insets.top + 10 }}
+      >
         <XStack gap="$3" alignItems="center">
           <ChevronLeft size={24} onPress={() => router.back()} />
           <H4 fontWeight="bold">手機號碼</H4>
@@ -361,9 +373,9 @@ export default function PhoneSettings() {
             <Button
               onPress={savePhone}
               disabled={saving || !phone}
-              bg={saving ? '$gray5' : '#ffad31'}
+              bg={saving ? "$gray5" : "#ffad31"}
             >
-              {saving ? '儲存中...' : '儲存手機號碼'}
+              {saving ? "儲存中..." : "儲存手機號碼"}
             </Button>
           </YStack>
         </Card>
@@ -443,16 +455,19 @@ class PhoneConsolidateTests(TestCase):
 ### Manual Test Scenarios
 
 1. **User registers phone number**
+
    - Navigate to Settings > Phone Number
    - Enter valid phone (09XXXXXXXX)
    - Verify phone is saved and displayed masked
 
 2. **Merchant sends coupon to registered user**
+
    - Select coupon template
    - Enter registered user's phone
    - Confirm coupon appears in user's collection
 
 3. **Merchant sends coupon to unregistered phone**
+
    - Enter unregistered phone number
    - Confirm "pending" status message
    - New user registers with that phone
@@ -467,12 +482,13 @@ class PhoneConsolidateTests(TestCase):
 ## Deployment Notes
 
 1. **Run migrations before deploying new code**
+
    ```bash
    # First activate venv (if not already activated)
    .venv\Scripts\activate  # Windows
    # or
    source .venv/bin/activate  # macOS/Linux
-   
+
    # Then run migrations
    python manage.py migrate
    ```
