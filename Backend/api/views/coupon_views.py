@@ -337,8 +337,16 @@ def redeem_coupon(request, id):
             return Response({"error": "兌換碼為必填項目"}, status=status.HTTP_400_BAD_REQUEST)
 
         # 驗證兌換碼 
-        # ADD: check template redeem code, exclusive coupon redeem code is not NONE
-        if coupon.template.template_redeem_code != submitted_code: 
+        # 優先使用 coupon.redeem_code（從 template 複製過來的）
+        # 如果 coupon.redeem_code 為 None，則檢查 template.template_redeem_code
+        expected_code = coupon.redeem_code
+        if not expected_code and coupon.template:
+            expected_code = coupon.template.template_redeem_code
+        
+        if not expected_code:
+            return Response({"error": "此優惠券未設定兌換碼"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if expected_code != submitted_code:
             return Response({"error": "無效的兌換碼"}, status=status.HTTP_400_BAD_REQUEST)
             
     elif coupon.coupon_type == 'store':

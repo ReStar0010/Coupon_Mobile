@@ -83,12 +83,12 @@ const CouponDetailPage: React.FC = () => {
       // Call template view tracking API
       await fetchAPI('/events/template-view/', {
         method: 'POST',
-        body: JSON.stringify({
+        data: {
           template_id: templateId,
           coupon_id: couponId,
           lat: lat,
           lng: lng,
-        }),
+        },
       });
       
       devLog('Template view tracked:', { templateId, couponId, lat, lng });
