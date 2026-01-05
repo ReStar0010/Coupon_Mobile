@@ -9,6 +9,7 @@ import {
   ChevronRight,
   MessageSquareText,
   Phone,
+  Smartphone,
   ScrollText,
   LogOut,
 } from 'lucide-react-native';
@@ -45,6 +46,10 @@ const OptionsMenu: React.FC = () => {
 
   const handleTerms = useCallback(() => {
     router.push('/OptionsMenu/Terms');
+  }, [router]);
+
+  const handlePhoneSettings = useCallback(() => {
+    router.push('/OptionsMenu/PhoneSettings');
   }, [router]);
 
   // 登出功能 - 使用 AsyncStorage 方式
@@ -108,17 +113,17 @@ const OptionsMenu: React.FC = () => {
 
         {/* Tamagui ListItem Group with 3 items */}
         <YStack style={{ borderWidth: 1, borderColor: '#e1e1e1' }} rounded={'$5'}>
-          {/* <ListItem
-            icon={MessageSquareText}
+          <ListItem
+            icon={Smartphone}
             iconAfter={ChevronRight}
             style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
             bg="white"
             hoverTheme
             pressTheme
             size="$6"
-            onPress={handleFeedBack}>
-            <ListItem.Text>意見回饋</ListItem.Text>
-          </ListItem> */}
+            onPress={handlePhoneSettings}>
+            <ListItem.Text>手機號碼</ListItem.Text>
+          </ListItem>
           <Separator />
           <ListItem
             icon={Phone}

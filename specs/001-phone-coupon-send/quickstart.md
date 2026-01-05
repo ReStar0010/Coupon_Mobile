@@ -21,6 +21,13 @@ This document provides implementation guidance for the phone-based coupon send f
 
 ### Phase 1: Backend Changes
 
+> **⚠️ IMPORTANT**: Before running any backend commands, activate the Python virtual environment:
+> ```bash
+> .venv\Scripts\activate  # Windows
+> # or
+> source .venv/bin/activate  # macOS/Linux
+> ```
+
 1. **Add `pending_phone_number` field to Coupon model**
    ```bash
    cd Backend
@@ -461,6 +468,12 @@ class PhoneConsolidateTests(TestCase):
 
 1. **Run migrations before deploying new code**
    ```bash
+   # First activate venv (if not already activated)
+   .venv\Scripts\activate  # Windows
+   # or
+   source .venv/bin/activate  # macOS/Linux
+   
+   # Then run migrations
    python manage.py migrate
    ```
 

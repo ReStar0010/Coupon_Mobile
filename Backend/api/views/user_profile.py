@@ -3,11 +3,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from ..serializers import SetSavingsGoalSerializer
-from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption
+from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -283,3 +284,141 @@ def completed_goals(request):
             {'error': '無法取得已完成目標列表'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+# Phone-based coupon send feature endpoints and helper functions
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def user_phone(request):
+    """
+    Unified endpoint for user phone number operations.
+    - GET: Retrieve user's registered phone number
+    - PUT: Register or update user's phone number
+    - DELETE: Remove user's registered phone number
+    """
+    from ..utils import validate_phone_number, mask_phone_number
+    
+    if request.method == 'GET':
+        """
+        Get user's registered phone number.
+        Returns phone number (raw and masked) or null if not registered.
+        """
+        try:
+            profile = request.user.student_profile
+            return Response({
+                'phone_number': profile.phone_number,
+                'phone_number_masked': mask_phone_number(profile.phone_number) if profile.phone_number else None,
+                'has_phone': bool(profile.phone_number)
+            })
+        except StudentProfile.DoesNotExist:
+            return Response({
+                'phone_number': None,
+                'phone_number_masked': None,
+                'has_phone': False
+            })
+    
+    elif request.method == 'PUT':
+        """
+        Register or update user's phone number.
+        Automatically assigns pending coupons if any exist for this phone number.
+        """
+        phone_number = request.data.get('phone_number', '').strip()
+        
+        if not phone_number:
+            return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate phone format
+        try:
+            phone_number = validate_phone_number(phone_number)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check uniqueness (excluding current user)
+        if StudentProfile.objects.filter(phone_number=phone_number).exclude(user=request.user).exists():
+            return Response({
+                'error': 'This phone number is already registered to another account'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update or create profile
+        profile, _ = StudentProfile.objects.get_or_create(user=request.user)
+        profile.phone_number = phone_number
+        profile.save()
+        
+        # Assign pending coupons
+        claimed_count = assign_pending_coupons(request.user, phone_number)
+        
+        return Response({
+            'message': 'Phone number updated successfully',
+            'phone_number_masked': mask_phone_number(phone_number),
+            'pending_coupons_claimed': claimed_count
+        })
+    
+    elif request.method == 'DELETE':
+        """
+        Remove user's registered phone number.
+        Previously received coupons are not affected.
+        """
+        try:
+            profile = request.user.student_profile
+            
+            if not profile.phone_number:
+                return Response({
+                    'error': 'No phone number registered for this account'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            profile.phone_number = None
+            profile.save()
+            
+            return Response({
+                'message': 'Phone number removed successfully'
+            })
+        except StudentProfile.DoesNotExist:
+            return Response({
+                'error': 'No phone number registered for this account'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+def assign_pending_coupons(user, phone_number):
+    """
+    Assign all pending coupons for a phone number to the user.
+    
+    This function is called when:
+    1. A user registers/updates their phone number
+    2. A new user creates an account with a phone number
+    
+    Args:
+        user: The User object to assign coupons to
+        phone_number: The phone number (normalized format: 09XXXXXXXX)
+        
+    Returns:
+        int: Number of pending coupons assigned
+    """
+    pending_coupons = Coupon.objects.filter(
+        pending_phone_number=phone_number,
+        current_holder__isnull=True,
+        expiry_date__gt=timezone.now()  # Only assign non-expired coupons
+    ).select_related('template', 'store')
+    
+    count = 0
+    for coupon in pending_coupons:
+        # Assign coupon to user
+        coupon.current_holder = user
+        coupon.original_owner = user  # First holder
+        coupon.pending_phone_number = None  # Clear pending status
+        coupon.save()
+        count += 1
+        
+        # Log the assignment
+        try:
+            Log.objects.create(
+                user=user,
+                coupon=coupon,
+                action='pending_coupon_claimed',
+                store=coupon.store
+            )
+        except Exception as e:
+            # Log creation failure shouldn't block the assignment
+            print(f"Failed to create log for pending coupon assignment: {e}")
+    
+    return count

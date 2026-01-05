@@ -191,6 +191,15 @@ class Coupon(models.Model):
     last_holder = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='last_coupons')
     current_holder = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='held_coupons')
     
+    # Phone-based coupon send: store phone number for pending (unclaimed) coupons
+    pending_phone_number = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Phone number for pending (unclaimed) coupons sent to unregistered users'
+    )
+    
     # redemption code
     redeem_code = models.CharField(max_length=6, null=True, blank=True)  # 兌換碼
 

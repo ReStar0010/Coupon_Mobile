@@ -21,67 +21,118 @@ import math
 
 @swagger_auto_schema(
     method='post',
-    operation_description="Consolidate coupon with user's information",
+    operation_description="Send coupon to user via phone number (registered or pending)",
     request_body=ConsolidateCouponSerializer,
 )
 @api_view(['POST'])
-@permission_classes([AllowAny]) #FIXME - change to IsAuthenticated if needed
+@permission_classes([IsAuthenticated])  # T014: Changed from AllowAny to IsAuthenticated
 def merchant_consolidate_coupon(request):
     """
-    Merchant consolidate coupon with user's information (Phone number...).
+    Merchant sends coupon to user via phone number.
+    - If phone is registered: Coupon is immediately assigned to the user
+    - If phone is not registered: Coupon is created as "pending" and auto-assigned when user registers
     """
+    from ..utils import validate_phone_number, mask_phone_number
+    
     serializer = ConsolidateCouponSerializer(data=request.data)
-    if serializer.is_valid():
-        template_id = serializer.validated_data['template_id'] # type: ignore
-        phone_number = serializer.validated_data['phone_number'] # type: ignore
-
-        try:
-            # Check if the phone_number can find the user
-            user_profile = StudentProfile.objects.get(phone_number=phone_number)
-            user = user_profile.user
-
-            # Check if the template exists AND has quantity > 0
-            coupon_template = CouponTemplate.objects.get(
-                id=template_id, 
-                is_active=True,  
-                remaining_quantity__gt=0  
-            )
-            
-            # Generate coupon and check if successful
-            generated_coupon = coupon_template.generate_coupon(user)
-            if not generated_coupon:
-                return Response({
-                    'error': 'Failed to generate coupon. Template may be out of stock.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Set acquisition method to 'consolidate' (電話歸戶)
-            generated_coupon.acquisition_method = 'consolidate'
-            generated_coupon.save()
-
-            # Log the consolidation action
-            Log.objects.create(
-                user=user,
-                action='consolidate_coupon',
-            )
-
-            return Response({
-                'message': 'Coupon consolidated successfully',
-                'coupon_name': generated_coupon.coupon_name,
-                'remaining_quantity': coupon_template.remaining_quantity
-            }, status=status.HTTP_201_CREATED)
-            
-        except StudentProfile.DoesNotExist:
-            return Response({
-                'error': 'User with this phone number does not exist.'
-            }, status=status.HTTP_404_NOT_FOUND)
-            
-        except CouponTemplate.DoesNotExist:
-            return Response({
-                'error': 'Coupon template does not exist, is not active, or is out of stock.'
-            }, status=status.HTTP_404_NOT_FOUND)
-            
-    else:
+    if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    template_id = serializer.validated_data['template_id'] # type: ignore
+    phone_number_raw = serializer.validated_data['phone_number'] # type: ignore
+    
+    # T015: Verify merchant owns this template's store
+    store = get_merchant_store(request.user)
+    if not store:
+        return Response({
+            'error': 'No store found for this merchant.'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Validate and normalize phone number
+    try:
+        phone_number = validate_phone_number(phone_number_raw)
+    except ValueError as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # T015: Check if the template exists AND belongs to merchant's store
+    try:
+        coupon_template = CouponTemplate.objects.get(
+            id=template_id,
+            store=store,  # T015: Ownership check
+            is_active=True,
+            remaining_quantity__gt=0
+        )
+    except CouponTemplate.DoesNotExist:
+        return Response({
+            'error': 'Coupon template not found or not available.'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # T016 & T017: Try to find registered user, or create pending coupon
+    try:
+        # T016: Registered user - assign immediately
+        user_profile = StudentProfile.objects.get(phone_number=phone_number)
+        user = user_profile.user
+        
+        # Generate coupon and check if successful
+        generated_coupon = coupon_template.generate_coupon(user)
+        if not generated_coupon:
+            return Response({
+                'error': 'Failed to generate coupon. Template may be out of stock.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Set acquisition method to 'consolidate' (電話歸戶)
+        generated_coupon.acquisition_method = 'consolidate'
+        generated_coupon.save()
+        
+        # Log the consolidation action
+        Log.objects.create(
+            user=user,
+            coupon=generated_coupon,
+            action='consolidate_coupon',
+        )
+        
+        # T018: Return with recipient_status
+        return Response({
+            'message': 'Coupon consolidated successfully',
+            'coupon_name': generated_coupon.coupon_name,
+            'remaining_quantity': coupon_template.remaining_quantity,
+            'recipient_status': 'registered'
+        }, status=status.HTTP_201_CREATED)
+        
+    except StudentProfile.DoesNotExist:
+        # T017: Unregistered phone - create pending coupon
+        coupon = Coupon.objects.create(
+            store=coupon_template.store,
+            template=coupon_template,
+            coupon_name=coupon_template.coupon_name,
+            coupon_detail=coupon_template.coupon_detail,
+            important_notes=coupon_template.important_notes,
+            start_date=coupon_template.start_date,
+            expiry_date=coupon_template.expiry_date,
+            image_url=coupon_template.image_url,
+            coupon_type='exclusive',
+            estimated_savings=coupon_template.estimated_savings,
+            acquisition_method='consolidate',
+            pending_phone_number=phone_number,
+            current_holder=None,
+            original_owner=None,
+        )
+        coupon.tags.set(coupon_template.tags.all())
+        
+        # Decrement template quantity
+        coupon_template.remaining_quantity -= 1
+        if coupon_template.remaining_quantity <= 0:
+            coupon_template.is_active = False
+        coupon_template.save()
+        
+        # T018: Return with recipient_status and masked phone
+        return Response({
+            'message': 'Coupon created as pending. Will be assigned when user registers.',
+            'coupon_name': coupon.coupon_name,
+            'remaining_quantity': coupon_template.remaining_quantity,
+            'recipient_status': 'pending',
+            'pending_phone': mask_phone_number(phone_number)
+        }, status=status.HTTP_200_OK)
 
 @swagger_auto_schema(
         method='post',

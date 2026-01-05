@@ -91,6 +91,33 @@ export default function CouponRedemptionScreen() {
     }
   };
 
+  const handleSendCoupon = async () => {
+    if (!phoneNumber.trim()) {
+      alert('請輸入電話號碼');
+      return;
+    }
+    
+    if (!id) {
+      alert('無效的優惠券 ID');
+      return;
+    }
+
+    try {
+      const result = await merchantAPI.consolidateCoupon(parseInt(id), phoneNumber);
+      
+      if (result.recipient_status === 'registered') {
+        alert(`發送成功！\n優惠券已發送給 ${phoneNumber}\n剩餘數量：${result.remaining_quantity}`);
+      } else {
+        alert(`發送成功！\n優惠券已建立為待領取狀態\n手機號碼：${result.pending_phone}\n當用戶註冊此手機號碼時，優惠券將自動領取\n剩餘數量：${result.remaining_quantity}`);
+      }
+      
+      setPhoneNumber('');
+    } catch (error: any) {
+      console.error('Send coupon error:', error);
+      alert(error?.message || '發送失敗，請稍後再試');
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
       <YStack flex={1} backgroundColor={colors.white}>
@@ -124,16 +151,30 @@ export default function CouponRedemptionScreen() {
             maxLength={15}
           />
 
-          {/* Confirm Button */}
-          <Button
-            variant="primary"
-            fullWidth
-            onPress={handleConfirm}
-            disabled={!phoneNumber.trim()}
-            opacity={!phoneNumber.trim() ? 0.6 : 1}
-          >
-            確認
-          </Button>
+          {/* Action Buttons */}
+          <XStack gap="$3" width="100%">
+            {/* Redeem Button */}
+            <Button
+              variant="primary"
+              flex={1}
+              onPress={handleConfirm}
+              disabled={!phoneNumber.trim()}
+              opacity={!phoneNumber.trim() ? 0.6 : 1}
+            >
+              核銷
+            </Button>
+
+            {/* Send Coupon Button */}
+            <Button
+              variant="secondary"
+              flex={1}
+              onPress={handleSendCoupon}
+              disabled={!phoneNumber.trim()}
+              opacity={!phoneNumber.trim() ? 0.6 : 1}
+            >
+              發送優惠券
+            </Button>
+          </XStack>
         </YStack>
       </YStack>
     </SafeAreaView>

@@ -6,7 +6,8 @@ from api.views.authentication import register, login, logout, user_info, verify_
 from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon
 from api.views.sharing_views import share_coupon, get_share_request, accept_share_request, share_coupon_public, get_my_public_shares
 from api.views.user_profile import (user_statistics, set_savings_goal, reset_savings_goal, 
-                                  coupon_history, coupon_history_detail, completed_goals, add_completed_goal)
+                                  coupon_history, coupon_history_detail, completed_goals, add_completed_goal,
+                                  user_phone)
 from api.views.daily_draw import get_daily_draw_templates, draw_coupon, draw_history, get_last_draw_time
 from api.views.merchant_coupon import (
     merchant_consolidate_coupon, refresh_redeem_code,
@@ -89,6 +90,9 @@ urlpatterns = [
     path('api/add-completed-goal/', add_completed_goal, name='add_completed_goal'),    # Daily draw endpoints
     path('api/reset-savings-goal/', reset_savings_goal, name='reset_savings_goal'),
     path('api/user-info/', user_info),
+
+    # User phone endpoints (phone-based coupon send feature)
+    path('api/user/phone/', user_phone, name='user_phone'),
 
     # Coupon history endpoints
     path('api/coupon-history/', coupon_history, name='coupon_history'),

@@ -29,9 +29,9 @@ description: "Task list for phone-based coupon send feature implementation"
 
 **Purpose**: Project initialization and database schema changes
 
-- [ ] T001 Add `pending_phone_number` field to Coupon model in Backend/api/models.py
-- [ ] T002 Generate Django migration for Coupon model changes using `python manage.py makemigrations api --name add_coupon_pending_phone_number`
-- [ ] T003 Apply database migration using `python manage.py migrate`
+- [x] T001 Add `pending_phone_number` field to Coupon model in Backend/api/models.py
+- [x] T002 Generate Django migration for Coupon model changes using `python manage.py makemigrations api --name add_coupon_pending_phone_number`
+- [x] T003 Apply database migration using `python manage.py migrate`
 
 ---
 
@@ -41,9 +41,9 @@ description: "Task list for phone-based coupon send feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 [P] Create phone validation utility functions in Backend/api/utils.py (validate_phone_number, mask_phone_number)
-- [ ] T005 [P] Create pending coupon assignment helper function in Backend/api/views/user_profile.py (assign_pending_coupons)
-- [ ] T006 [P] Add URL routes for user phone endpoints in Backend/Backend/urls.py
+- [x] T004 [P] Create phone validation utility functions in Backend/api/utils.py (validate_phone_number, mask_phone_number)
+- [x] T005 [P] Create pending coupon assignment helper function in Backend/api/views/user_profile.py (assign_pending_coupons)
+- [x] T006 [P] Add URL routes for user phone endpoints in Backend/Backend/urls.py
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -57,13 +57,13 @@ description: "Task list for phone-based coupon send feature implementation"
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Create GET /api/user/phone/ endpoint in Backend/api/views/user_profile.py
-- [ ] T008 [P] [US1] Create PUT /api/user/phone/ endpoint with phone validation and uniqueness check in Backend/api/views/user_profile.py
-- [ ] T009 [P] [US1] Create DELETE /api/user/phone/ endpoint in Backend/api/views/user_profile.py
-- [ ] T010 [US1] Integrate pending coupon assignment into PUT /api/user/phone/ endpoint
-- [ ] T011 [P] [US1] Create PhoneSettings screen component in Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx
-- [ ] T012 [P] [US1] Add phone API methods (getUserPhone, updateUserPhone, deleteUserPhone) in Mobile-Frontend/app/utils/authAPI.ts
-- [ ] T013 [US1] Add navigation menu item for phone settings in Mobile-Frontend/app/OptionsMenu/index.tsx
+- [x] T007 [P] [US1] Create GET /api/user/phone/ endpoint in Backend/api/views/user_profile.py
+- [x] T008 [P] [US1] Create PUT /api/user/phone/ endpoint with phone validation and uniqueness check in Backend/api/views/user_profile.py
+- [x] T009 [P] [US1] Create DELETE /api/user/phone/ endpoint in Backend/api/views/user_profile.py
+- [x] T010 [US1] Integrate pending coupon assignment into PUT /api/user/phone/ endpoint
+- [x] T011 [P] [US1] Create PhoneSettings screen component in Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx
+- [x] T012 [P] [US1] Add phone API methods (getUserPhone, updateUserPhone, deleteUserPhone) in Mobile-Frontend/app/utils/authAPI.ts
+- [x] T013 [US1] Add navigation menu item for phone settings in Mobile-Frontend/app/OptionsMenu/index.tsx
 
 **Checkpoint**: Users can register and manage phone numbers. Pending coupon assignment is functional.
 
@@ -77,13 +77,13 @@ description: "Task list for phone-based coupon send feature implementation"
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Update merchant_consolidate_coupon permission from AllowAny to IsAuthenticated in Backend/api/views/merchant_coupon.py
-- [ ] T015 [US2] Add merchant store ownership validation to merchant_consolidate_coupon in Backend/api/views/merchant_coupon.py
-- [ ] T016 [US2] Extend merchant_consolidate_coupon to handle registered users (existing flow) in Backend/api/views/merchant_coupon.py
-- [ ] T017 [US2] Add pending coupon creation logic for unregistered phones in merchant_consolidate_coupon in Backend/api/views/merchant_coupon.py
-- [ ] T018 [US2] Update response format to include recipient_status (registered/pending) in Backend/api/views/merchant_coupon.py
-- [ ] T019 [P] [US2] Add consolidateCoupon API method to merchantAPI in Mobile-Merchant-Frontend/utils/api.ts
-- [ ] T020 [US2] Add "Send Coupon" functionality to coupon detail screen in Mobile-Merchant-Frontend/app/(coupons)/[id].tsx
+- [x] T014 [US2] Update merchant_consolidate_coupon permission from AllowAny to IsAuthenticated in Backend/api/views/merchant_coupon.py
+- [x] T015 [US2] Add merchant store ownership validation to merchant_consolidate_coupon in Backend/api/views/merchant_coupon.py
+- [x] T016 [US2] Extend merchant_consolidate_coupon to handle registered users (existing flow) in Backend/api/views/merchant_coupon.py
+- [x] T017 [US2] Add pending coupon creation logic for unregistered phones in merchant_consolidate_coupon in Backend/api/views/merchant_coupon.py
+- [x] T018 [US2] Update response format to include recipient_status (registered/pending) in Backend/api/views/merchant_coupon.py
+- [x] T019 [P] [US2] Add consolidateCoupon API method to merchantAPI in Mobile-Merchant-Frontend/utils/api.ts
+- [x] T020 [US2] Add "Send Coupon" functionality to coupon detail screen in Mobile-Merchant-Frontend/app/(coupons)/[id].tsx
 
 **Checkpoint**: Merchants can send coupons via phone number to both registered and unregistered users. Template quantity management works correctly.
 
@@ -97,10 +97,10 @@ description: "Task list for phone-based coupon send feature implementation"
 
 ### Implementation for User Story 5
 
-- [ ] T021 [US5] Add expiry date filter to pending coupon query in assign_pending_coupons function in Backend/api/views/user_profile.py
-- [ ] T022 [US5] Add logging for pending coupon assignment in Backend/api/views/user_profile.py
-- [ ] T023 [US5] Add pending_coupons_claimed count to PUT /api/user/phone/ response in Backend/api/views/user_profile.py
-- [ ] T024 [US5] Update PhoneSettings screen to display pending coupons claimed alert in Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx
+- [x] T021 [US5] Add expiry date filter to pending coupon query in assign_pending_coupons function in Backend/api/views/user_profile.py
+- [x] T022 [US5] Add logging for pending coupon assignment in Backend/api/views/user_profile.py
+- [x] T023 [US5] Add pending_coupons_claimed count to PUT /api/user/phone/ response in Backend/api/views/user_profile.py
+- [x] T024 [US5] Update PhoneSettings screen to display pending coupons claimed alert in Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx
 
 **Checkpoint**: Pending coupons are automatically assigned when users register phone numbers. Users receive confirmation of claimed coupons.
 
@@ -114,8 +114,8 @@ description: "Task list for phone-based coupon send feature implementation"
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] Verify acquisition_method='consolidate' is set correctly for phone-sent coupons in Backend/api/views/merchant_coupon.py
-- [ ] T026 [US3] Verify coupon display shows acquisition method in user's collection views in Mobile-Frontend (confirm existing functionality works)
+- [x] T025 [US3] Verify acquisition_method='consolidate' is set correctly for phone-sent coupons in Backend/api/views/merchant_coupon.py
+- [x] T026 [US3] Verify coupon display shows acquisition method in user's collection views in Mobile-Frontend (confirm existing functionality works)
 
 **Checkpoint**: Users can identify phone-sent coupons by their acquisition method. Coupon details are displayed correctly.
 
@@ -129,8 +129,8 @@ description: "Task list for phone-based coupon send feature implementation"
 
 ### Implementation for User Story 4
 
-- [ ] T027 [US4] Add phone number update validation (uniqueness check excluding current user) in PUT /api/user/phone/ in Backend/api/views/user_profile.py (verify existing implementation)
-- [ ] T028 [US4] Add update confirmation message in PhoneSettings screen in Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx (verify existing implementation)
+- [x] T027 [US4] Add phone number update validation (uniqueness check excluding current user) in PUT /api/user/phone/ in Backend/api/views/user_profile.py (verify existing implementation)
+- [x] T028 [US4] Add update confirmation message in PhoneSettings screen in Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx (verify existing implementation)
 
 **Checkpoint**: Users can update their phone numbers with proper validation. All user stories are now complete.
 
@@ -140,12 +140,12 @@ description: "Task list for phone-based coupon send feature implementation"
 
 **Purpose**: Improvements and validations that affect multiple user stories
 
-- [ ] T029 [P] Verify all phone numbers are normalized (spaces/dashes removed) before storage across all endpoints
-- [ ] T030 [P] Verify error messages are user-friendly and consistent across backend endpoints
-- [ ] T031 [P] Add input validation feedback in real-time for phone input fields in Mobile-Frontend
-- [ ] T032 Verify template quantity decrements correctly for both registered and pending coupons
-- [ ] T033 Run manual test scenarios from quickstart.md to validate complete feature flow
-- [ ] T034 [P] Update API documentation (Swagger/Redoc) with new endpoints
+- [x] T029 [P] Verify all phone numbers are normalized (spaces/dashes removed) before storage across all endpoints
+- [x] T030 [P] Verify error messages are user-friendly and consistent across backend endpoints
+- [x] T031 [P] Add input validation feedback in real-time for phone input fields in Mobile-Frontend
+- [x] T032 Verify template quantity decrements correctly for both registered and pending coupons
+- [x] T033 Run manual test scenarios from quickstart.md to validate complete feature flow
+- [ ] T034 [P] Update API documentation (Swagger/Redoc) with new endpoints (Optional documentation task)
 
 ---
 
