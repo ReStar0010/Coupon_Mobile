@@ -32,7 +32,7 @@
   },
   "submit": {
     "production": {
-     "android": {
+      "android": {
         "track": "alpha",
         "releaseStatus": "completed"
       }
