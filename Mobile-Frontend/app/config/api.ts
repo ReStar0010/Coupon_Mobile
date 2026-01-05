@@ -16,12 +16,22 @@
 // ============================================
 
 // 選擇後端模式：'production' | 'local' | 'local-network'
-const BACKEND_MODE = 'production' as 'production' | 'local' | 'local-network';
+const BACKEND_MODE = 'local-network' as 'production' | 'local' | 'local-network';
 
-// 如果使用 'local-network'，請設置您的本地 IP 地址
-// Windows: 在 PowerShell 中運行 `ipconfig` 查看 IPv4 地址
-// Mac/Linux: 在終端中運行 `ifconfig` 或 `ip addr` 查看 IP 地址
-const YOUR_LOCAL_IP = 'coupro-123.loca.lt'; // 替換為您的實際 IP 地址
+// 如果使用 'local-network'，請設置您的本地 IP 地址或 localtunnel URL
+// 
+// 選項 1: 使用本地 IP 地址
+//   Windows: 在 PowerShell 中運行 `ipconfig` 查看 IPv4 地址
+//   Mac/Linux: 在終端中運行 `ifconfig` 或 `ip addr` 查看 IP 地址
+//   例如: '192.168.1.100'
+//
+// 選項 2: 使用 localtunnel (推薦用於真實設備測試)
+//   1. 安裝: npm install -g localtunnel
+//   2. 啟動後端: cd Backend && python manage.py runserver 8000
+//   3. 創建 tunnel: lt --port 8000 --subdomain your-subdomain
+//   4. 將獲得的 URL (例如: your-subdomain.loca.lt) 填入下方
+//   注意: 只需要域名部分，不需要 https:// 前綴
+const YOUR_LOCAL_IP = 'coupro-123.loca.lt'; // 替換為您的實際 IP 地址或 localtunnel URL
 
 // ============================================
 // 自動配置（不需要修改）

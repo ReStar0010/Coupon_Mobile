@@ -3,17 +3,84 @@
  * Handles API calls, token management, and authentication
  */
 
-// Get API base URL from environment variable
-// In Expo, environment variables must be prefixed with EXPO_PUBLIC_ to be accessible
-// Make sure to add EXPO_PUBLIC_API_URL to your .env file
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL 
-  ? `${process.env.EXPO_PUBLIC_API_URL}/api`
-  : 'http://localhost:8000/api';
+// ============================================
+// 🔧 配置區域 - 在這裡修改後端設置
+// ============================================
 
-// Get base URL without /api suffix for media files
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL 
-  ? process.env.EXPO_PUBLIC_API_URL
-  : 'http://localhost:8000';
+/**
+ * API 配置
+ * 
+ * 使用方式：
+ * 1. 修改 BACKEND_MODE 來切換不同的後端
+ * 2. 如果使用 'local-network'，請設置 YOUR_LOCAL_IP
+ * 
+ * 模式說明：
+ * - 'production': 使用 Render.com 生產環境
+ * - 'local': 使用 localhost (僅適用於模擬器/瀏覽器)
+ * - 'local-network': 使用本地網絡 IP (適用於 Expo Go 在真實設備上)
+ */
+
+// 選擇後端模式：'production' | 'local' | 'local-network'
+const BACKEND_MODE = 'local-network' as 'production' | 'local' | 'local-network';
+
+// 如果使用 'local-network'，請設置您的本地 IP 地址或 localtunnel URL
+// 
+// 選項 1: 使用本地 IP 地址
+//   Windows: 在 PowerShell 中運行 `ipconfig` 查看 IPv4 地址
+//   Mac/Linux: 在終端中運行 `ifconfig` 或 `ip addr` 查看 IP 地址
+//   例如: '192.168.1.100'
+//
+// 選項 2: 使用 localtunnel (推薦用於真實設備測試)
+//   1. 安裝: npm install -g localtunnel
+//   2. 啟動後端: cd Backend && python manage.py runserver 8000
+//   3. 創建 tunnel: lt --port 8000 --subdomain your-subdomain
+//   4. 將獲得的 URL (例如: your-subdomain.loca.lt) 填入下方
+//   注意: 只需要域名部分，不需要 https:// 前綴
+const YOUR_LOCAL_IP = 'coupro-123.loca.lt'; // 替換為您的實際 IP 地址或 localtunnel URL
+
+// ============================================
+// 自動配置（不需要修改）
+// ============================================
+
+let API_BASE_URL: string;
+let BASE_URL: string;
+
+switch (BACKEND_MODE) {
+  case 'production':
+    // 優先使用環境變數，如果沒有則使用生產環境 URL
+    const prodUrl = process.env.EXPO_PUBLIC_API_URL || 'https://coupon-mobile.onrender.com';
+    BASE_URL = prodUrl;
+    API_BASE_URL = `${prodUrl}/api`;
+    break;
+  
+  case 'local':
+    // 使用 localhost（僅適用於模擬器或瀏覽器）
+    BASE_URL = 'http://localhost:8000';
+    API_BASE_URL = 'http://localhost:8000/api';
+    break;
+  
+  case 'local-network':
+    // 使用本地網絡 IP（適用於 Expo Go 在真實設備上）
+    // 如果是 tunnel URL (.loca.lt 或 .ngrok)，不需要添加端口
+    const isTunnel = YOUR_LOCAL_IP.includes('.loca.lt') || YOUR_LOCAL_IP.includes('.ngrok');
+    BASE_URL = isTunnel 
+      ? `https://${YOUR_LOCAL_IP}`      // Tunnel：不需要端口
+      : `http://${YOUR_LOCAL_IP}:8000`; // 本地 IP：需要端口和 http
+    API_BASE_URL = `${BASE_URL}/api`;
+    break;
+  
+  default:
+    const defaultUrl = process.env.EXPO_PUBLIC_API_URL || 'https://coupon-mobile.onrender.com';
+    BASE_URL = defaultUrl;
+    API_BASE_URL = `${defaultUrl}/api`;
+}
+
+// 導出用於調試
+export const getApiConfig = () => ({
+  mode: BACKEND_MODE,
+  baseUrl: BASE_URL,
+  apiUrl: API_BASE_URL,
+});
 
 // Helper function to convert relative media URL to absolute URL
 const getAbsoluteImageUrl = (imageUrl: string | null | undefined): string | null => {
@@ -33,10 +100,16 @@ const getAbsoluteImageUrl = (imageUrl: string | null | undefined): string | null
   return `${BASE_URL}/media/${imageUrl}`;
 };
 
-// Log API URL in development mode
+// 在開發模式下打印當前配置
 if (process.env.NODE_ENV !== 'production') {
-  console.log('[API Config] Base URL:', API_BASE_URL);
-  console.log('[API Config] EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL || 'Not set');
+  const config = getApiConfig();
+  console.log('\n' + '='.repeat(50));
+  console.log('🔧 當前後端配置 (Merchant Frontend)');
+  console.log('='.repeat(50));
+  console.log(`模式: ${config.mode}`);
+  console.log(`Base URL: ${config.baseUrl}`);
+  console.log(`API URL: ${config.apiUrl}`);
+  console.log('='.repeat(50) + '\n');
 }
 
 // Token storage keys
@@ -510,6 +583,24 @@ export const merchantAPI = {
       }),
     });
     return parseResponse(response);
+  },
+
+  // Phone-based coupon send
+  consolidateCoupon: async (templateId: number, phoneNumber: string) => {
+    const response = await fetchAPI('/merchant/consolidate-coupon/', {
+      method: 'POST',
+      body: JSON.stringify({
+        template_id: templateId,
+        phone_number: phoneNumber,
+      }),
+    });
+    return parseResponse<{
+      message: string;
+      coupon_name: string;
+      remaining_quantity: number;
+      recipient_status: 'registered' | 'pending';
+      pending_phone?: string;
+    }>(response);
   },
 
   // Refresh redeem code
