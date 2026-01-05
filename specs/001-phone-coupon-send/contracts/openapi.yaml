@@ -1,0 +1,285 @@
+openapi: 3.0.3
+info:
+  title: Phone-Based Coupon Send API
+  description: API contracts for phone number registration and phone-based coupon sending
+  version: 1.0.0
+
+servers:
+  - url: https://coupon-mobile.onrender.com/api
+    description: Production server
+  - url: http://localhost:8000/api
+    description: Local development
+
+tags:
+  - name: User Phone
+    description: User phone number management
+  - name: Merchant Coupon
+    description: Merchant coupon operations
+
+paths:
+  # ============================================
+  # USER PHONE NUMBER ENDPOINTS (NEW)
+  # ============================================
+
+  /user/phone/:
+    get:
+      tags:
+        - User Phone
+      summary: Get user's registered phone number
+      description: Returns the user's phone number (masked for display) or null if not registered
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Phone number retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  phone_number:
+                    type: string
+                    nullable: true
+                    example: "0912345678"
+                    description: Raw phone number (for editing)
+                  phone_number_masked:
+                    type: string
+                    nullable: true
+                    example: "0912****78"
+                    description: Masked phone number (for display)
+                  has_phone:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - User Phone
+      summary: Register or update phone number
+      description: |
+        Sets or updates the user's phone number.
+        If pending coupons exist for this phone number, they are automatically assigned to the user.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone_number
+              properties:
+                phone_number:
+                  type: string
+                  pattern: '^09\d{8}$'
+                  example: "0912345678"
+                  description: Taiwan mobile number (10 digits starting with 09)
+      responses:
+        '200':
+          description: Phone number updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Phone number updated successfully"
+                  phone_number_masked:
+                    type: string
+                    example: "0912****78"
+                  pending_coupons_claimed:
+                    type: integer
+                    example: 2
+                    description: Number of pending coupons automatically assigned
+        '400':
+          description: Invalid phone number format or already in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_format:
+                  value:
+                    error: "Invalid phone number format. Must be Taiwan mobile (09XXXXXXXX)"
+                already_registered:
+                  value:
+                    error: "This phone number is already registered to another account"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags:
+        - User Phone
+      summary: Remove registered phone number
+      description: Removes the user's registered phone number. Previously received coupons are not affected.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Phone number removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Phone number removed successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No phone number registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "No phone number registered for this account"
+
+  # ============================================
+  # MERCHANT COUPON ENDPOINTS (MODIFIED)
+  # ============================================
+
+  /merchant/consolidate-coupon/:
+    post:
+      tags:
+        - Merchant Coupon
+      summary: Send coupon to user via phone number
+      description: |
+        Sends a coupon from a template to a user identified by phone number.
+
+        **Behavior:**
+        - If phone is registered: Coupon is immediately assigned to the user
+        - If phone is not registered: Coupon is created as "pending" and auto-assigned when user registers
+
+        **Security:** Requires merchant authentication (changed from AllowAny)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsolidateCouponRequest'
+      responses:
+        '201':
+          description: Coupon sent successfully (to registered user)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Coupon consolidated successfully"
+                  coupon_name:
+                    type: string
+                    example: "20% 折扣券"
+                  remaining_quantity:
+                    type: integer
+                    example: 48
+                  recipient_status:
+                    type: string
+                    enum: [registered, pending]
+                    example: "registered"
+                    description: Whether coupon was assigned immediately or pending
+        '200':
+          description: Coupon created as pending (for unregistered phone)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Coupon created as pending. Will be assigned when user registers this phone number."
+                  coupon_name:
+                    type: string
+                    example: "20% 折扣券"
+                  remaining_quantity:
+                    type: integer
+                    example: 48
+                  recipient_status:
+                    type: string
+                    enum: [pending]
+                    example: "pending"
+                  pending_phone:
+                    type: string
+                    example: "0912****78"
+                    description: Masked phone number (for confirmation display)
+        '400':
+          description: Invalid request or template out of stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                out_of_stock:
+                  value:
+                    error: "Failed to generate coupon. Template may be out of stock."
+                invalid_phone:
+                  value:
+                    error: "Invalid phone number format"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Merchant does not own this template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "You do not have permission to send coupons from this template"
+        '404':
+          description: Template not found or inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Coupon template does not exist, is not active, or is out of stock."
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from login
+
+  schemas:
+    ConsolidateCouponRequest:
+      type: object
+      required:
+        - template_id
+        - phone_number
+      properties:
+        template_id:
+          type: integer
+          example: 123
+          description: ID of the coupon template to send
+        phone_number:
+          type: string
+          pattern: '^09\d{8}$'
+          example: "0912345678"
+          description: Recipient's phone number (Taiwan mobile format)
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Authentication credentials were not provided."
