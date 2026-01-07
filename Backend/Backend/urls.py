@@ -19,6 +19,7 @@ from api.views.merchant_profile import (
     get_merchant_profile, update_merchant_profile, get_merchant_statistics
 )
 from api.views.events import track_template_view
+from api.views.phone_otp import send_otp, verify_otp
 
 from django.http import HttpResponse
 from django.urls import re_path
@@ -92,6 +93,9 @@ urlpatterns = [
     path('api/user-info/', user_info),
 
     # User phone endpoints (phone-based coupon send feature)
+    # Phone OTP verification endpoints
+    path('api/phone-otp/send/', send_otp, name='send_otp'),
+    path('api/phone-otp/verify/', verify_otp, name='verify_otp'),
     path('api/user/phone/', user_phone, name='user_phone'),
 
     # Coupon history endpoints

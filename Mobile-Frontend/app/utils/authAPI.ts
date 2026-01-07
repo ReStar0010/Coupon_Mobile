@@ -230,6 +230,38 @@ const clearStoredTokens = async (): Promise<void> => {
 };
 
 /**
+ * API client wrapper that provides post and get methods
+ * Returns response.data instead of full AxiosResponse
+ */
+export const authAPI = {
+  /**
+   * POST request
+   * @param endpoint API endpoint
+   * @param data Request body data
+   * @returns Response data
+   */
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    const response = await fetchAPI(endpoint, {
+      method: 'POST',
+      data,
+    });
+    return response.data;
+  },
+
+  /**
+   * GET request
+   * @param endpoint API endpoint
+   * @returns Response data
+   */
+  async get<T>(endpoint: string): Promise<T> {
+    const response = await fetchAPI(endpoint, {
+      method: 'GET',
+    });
+    return response.data;
+  },
+};
+
+/**
  * Store login data in AsyncStorage after successful login
  * @param loginResponse The response data from login API
  */
@@ -439,6 +471,7 @@ export const logout = async (): Promise<void> => {
 
 export default {
   fetchAPI,
+  authAPI,
   refreshAccessToken,
   getRefreshToken,
   getAccessToken,

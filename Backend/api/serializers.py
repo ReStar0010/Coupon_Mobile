@@ -112,3 +112,59 @@ class StoreSerializer(serializers.Serializer):
     lat = serializers.FloatField(required=False)
     lng = serializers.FloatField(required=False)
     business_hours = serializers.CharField(required=False, allow_blank=True)
+
+class SendOTPSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/phone-otp/send/
+    """
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text="Taiwan mobile number (09XXXXXXXX format)"
+    )
+
+    def validate_phone_number(self, value):
+        """Validate Taiwan mobile phone number format."""
+        import re
+        # Remove any formatting (dashes, spaces)
+        normalized = re.sub(r'[-\s()]', '', value)
+
+        # Validate Taiwan mobile format: 09XXXXXXXX (10 digits)
+        if not re.match(r'^09\d{8}$', normalized):
+            raise serializers.ValidationError(
+                "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+            )
+        return normalized
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/phone-otp/verify/
+    """
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text="Phone number that received the OTP"
+    )
+    otp_code = serializers.CharField(
+        max_length=6,
+        min_length=6,
+        help_text="6-digit verification code"
+    )
+
+    def validate_phone_number(self, value):
+        """Validate Taiwan mobile phone number format."""
+        import re
+        normalized = re.sub(r'[-\s()]', '', value)
+        if not re.match(r'^09\d{8}$', normalized):
+            raise serializers.ValidationError(
+                "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+            )
+        return normalized
+
+    def validate_otp_code(self, value):
+        """Validate OTP code format."""
+        import re
+        if not re.match(r'^\d{6}$', value):
+            raise serializers.ValidationError(
+                "驗證碼必須為6位數字"
+            )
+        return value

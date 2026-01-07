@@ -339,3 +339,131 @@ class CompletedGoal(models.Model):
     
     class Meta:
         ordering = ['-completed_date']  # Most recent goals first
+
+class PhoneOTPRecord(models.Model):
+    """
+    Tracks OTP verification attempts for phone numbers.
+    Enforces: 3 requests/hour, 5 attempts/code, 10-min expiration.
+    """
+
+    phone_number = models.CharField(
+        max_length=20,
+        db_index=True,
+        help_text="Taiwan mobile number in 09XXXXXXXX format"
+    )
+    otp_code = models.CharField(
+        max_length=6,
+        help_text="6-digit verification code"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='phone_otp_records',
+        help_text="User requesting verification"
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="When OTP was generated"
+    )
+    expires_at = models.DateTimeField(
+        help_text="When OTP expires (created_at + 10 minutes)"
+    )
+
+    attempt_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of verification attempts (max 5)"
+    )
+
+    is_verified = models.BooleanField(
+        default=False,
+        help_text="True if OTP was successfully verified"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['phone_number', 'created_at'], name='api_phoneotp_phone_created_idx'),
+            models.Index(fields=['user', 'created_at'], name='api_phoneotp_user_created_idx'),
+        ]
+
+    def __str__(self) -> str:
+        status = "verified" if self.is_verified else "pending"
+        return f"OTP for {self.phone_number} ({status})"
+
+    def is_expired(self) -> bool:
+        """Check if OTP has expired."""
+        return timezone.now() > self.expires_at
+
+    def can_attempt(self) -> bool:
+        """Check if more verification attempts are allowed."""
+        return self.attempt_count < 5 and not self.is_expired()
+
+    def increment_attempt(self) -> None:
+        """Increment attempt count."""
+        self.attempt_count += 1
+        self.save(update_fields=['attempt_count'])
+
+    @classmethod
+    def can_send_otp(cls, phone_number: str) -> tuple[bool, str, int]:
+        """
+        Check rate limits for sending OTP.
+        Returns (allowed, error_message_if_not_allowed, retry_after_seconds).
+        """
+        from datetime import timedelta
+
+        now = timezone.now()
+        one_hour_ago = now - timedelta(hours=1)
+        one_minute_ago = now - timedelta(seconds=60)
+
+        # Check hourly limit: max 3 requests per phone per hour
+        hourly_count = cls.objects.filter(
+            phone_number=phone_number,
+            created_at__gte=one_hour_ago
+        ).count()
+
+        if hourly_count >= 3:
+            return False, "已超過每小時OTP請求次數限制，請稍後再試", 1800
+
+        # Check cooldown: 60 seconds between requests
+        recent = cls.objects.filter(
+            phone_number=phone_number,
+            created_at__gte=one_minute_ago
+        ).first()
+
+        if recent:
+            seconds_remaining = 60 - int((now - recent.created_at).total_seconds())
+            return False, "請等待60秒後再重新發送驗證碼", max(seconds_remaining, 1)
+
+        return True, "", 0
+
+    @classmethod
+    def create_otp(cls, user, phone_number: str) -> 'PhoneOTPRecord':
+        """
+        Generate and store a new OTP for the given phone number.
+        """
+        import secrets
+        from datetime import timedelta
+
+        otp_code = ''.join(str(secrets.randbelow(10)) for _ in range(6))
+        expires_at = timezone.now() + timedelta(minutes=10)
+
+        return cls.objects.create(
+            user=user,
+            phone_number=phone_number,
+            otp_code=otp_code,
+            expires_at=expires_at
+        )
+
+    @classmethod
+    def cleanup_old_records(cls, phone_number: str, user) -> None:
+        """
+        Delete old unverified OTP records for this phone/user.
+        Called after successful verification.
+        """
+        cls.objects.filter(
+            phone_number=phone_number,
+            user=user,
+            is_verified=False
+        ).delete()

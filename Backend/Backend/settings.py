@@ -166,3 +166,6 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 }
+# SMS Configuration (Twilio)
+# Set to True in development to log OTP to console instead of sending SMS
+SMS_DEV_MODE = True

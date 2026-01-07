@@ -319,64 +319,18 @@ def user_phone(request):
             })
     
     elif request.method == 'PUT':
-        """
-        Register or update user's phone number.
-        Automatically assigns pending coupons if any exist for this phone number.
-        """
-        phone_number = request.data.get('phone_number', '').strip()
-        
-        if not phone_number:
-            return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validate phone format
-        try:
-            phone_number = validate_phone_number(phone_number)
-        except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Check uniqueness (excluding current user)
-        if StudentProfile.objects.filter(phone_number=phone_number).exclude(user=request.user).exists():
-            return Response({
-                'error': 'This phone number is already registered to another account'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Update or create profile
-        profile, _ = StudentProfile.objects.get_or_create(user=request.user)
-        profile.phone_number = phone_number
-        profile.save()
-        
-        # Assign pending coupons
-        claimed_count = assign_pending_coupons(request.user, phone_number)
-        
+        # BLOCKED: Direct phone updates bypass OTP verification (FR-016)
         return Response({
-            'message': 'Phone number updated successfully',
-            'phone_number_masked': mask_phone_number(phone_number),
-            'pending_coupons_claimed': claimed_count
-        })
+            'error': '請使用 OTP 驗證流程更新電話號碼',
+            'redirect': '/api/phone-otp/send/'
+        }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
     
     elif request.method == 'DELETE':
-        """
-        Remove user's registered phone number.
-        Previously received coupons are not affected.
-        """
-        try:
-            profile = request.user.student_profile
-            
-            if not profile.phone_number:
-                return Response({
-                    'error': 'No phone number registered for this account'
-                }, status=status.HTTP_404_NOT_FOUND)
-            
-            profile.phone_number = None
-            profile.save()
-            
-            return Response({
-                'message': 'Phone number removed successfully'
-            })
-        except StudentProfile.DoesNotExist:
-            return Response({
-                'error': 'No phone number registered for this account'
-            }, status=status.HTTP_404_NOT_FOUND)
+        # BLOCKED: Per FR-017, users cannot remove their verified phone number
+        return Response({
+            'error': '已驗證的電話號碼無法移除，您可以更換為新的電話號碼',
+            'redirect': '/api/phone-otp/send/'
+        }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 def assign_pending_coupons(user, phone_number):
