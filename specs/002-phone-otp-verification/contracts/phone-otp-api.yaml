@@ -1,0 +1,398 @@
+openapi: 3.0.3
+info:
+  title: CouPro Phone OTP Verification API
+  description: |
+    API endpoints for phone number verification via SMS OTP.
+
+    ## Security Model
+    - All endpoints require JWT authentication (Bearer token)
+    - Rate limiting: 3 OTP requests per phone per hour
+    - OTP expiration: 10 minutes
+    - Max verification attempts: 5 per OTP
+
+    ## Phone Number Format
+    - Taiwan mobile numbers only: 09XXXXXXXX (10 digits)
+    - Converted to E.164 (+886XXXXXXXXX) for SMS delivery
+  version: 1.0.0
+  contact:
+    name: CouPro Team
+
+servers:
+  - url: /api
+    description: API base path
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Phone OTP
+    description: Phone number verification endpoints
+  - name: User Phone
+    description: User phone number management (modified)
+
+paths:
+  /phone-otp/send/:
+    post:
+      tags:
+        - Phone OTP
+      summary: Request OTP for phone verification
+      description: |
+        Sends a 6-digit verification code via SMS to the provided phone number.
+
+        **Rate Limits:**
+        - Max 3 requests per phone number per hour
+        - 60-second cooldown between requests
+
+        **Validation:**
+        - Phone must be Taiwan mobile format (09XXXXXXXX)
+        - Phone must not be registered to another user
+      operationId: sendPhoneOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOTPRequest'
+            examples:
+              valid:
+                summary: Valid phone number
+                value:
+                  phone_number: "0912345678"
+              formatted:
+                summary: Phone with formatting (accepted)
+                value:
+                  phone_number: "0912-345-678"
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendOTPResponse'
+              examples:
+                success:
+                  value:
+                    message: "驗證碼已發送至 0912****78"
+                    cooldown_seconds: 60
+                    expires_in_seconds: 600
+                dev_mode:
+                  value:
+                    message: "驗證碼已發送至 0912****78"
+                    cooldown_seconds: 60
+                    expires_in_seconds: 600
+                    dev_mode: true
+                    otp_code: "123456"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_format:
+                  value:
+                    error: "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+                phone_taken:
+                  value:
+                    error: "此電話號碼已被其他帳號使用"
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                hourly_limit:
+                  value:
+                    error: "已超過每小時OTP請求次數限制，請稍後再試"
+                    retry_after_seconds: 1800
+                cooldown:
+                  value:
+                    error: "請等待60秒後再重新發送驗證碼"
+                    retry_after_seconds: 45
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /phone-otp/verify/:
+    post:
+      tags:
+        - Phone OTP
+      summary: Verify OTP and update phone number
+      description: |
+        Verifies the OTP code and updates the user's phone number on success.
+
+        **On Success:**
+        1. User's phone number is updated
+        2. Pending coupons for that phone are claimed
+        3. If changing phone, unclaimed coupons from old phone transfer to user
+
+        **Limits:**
+        - Max 5 verification attempts per OTP
+        - OTP expires after 10 minutes
+      operationId: verifyPhoneOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+            example:
+              phone_number: "0912345678"
+              otp_code: "123456"
+      responses:
+        '200':
+          description: Phone verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyOTPResponse'
+              examples:
+                success_new_phone:
+                  summary: New phone verified
+                  value:
+                    message: "電話號碼驗證成功"
+                    phone_number: "0912345678"
+                    masked_phone: "0912****78"
+                    pending_coupons_claimed: 3
+                success_phone_change:
+                  summary: Phone changed with coupon transfer
+                  value:
+                    message: "電話號碼驗證成功"
+                    phone_number: "0922345678"
+                    masked_phone: "0922****78"
+                    pending_coupons_claimed: 1
+                    old_phone_coupons_transferred: 2
+        '400':
+          description: Invalid OTP or request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_code:
+                  value:
+                    error: "驗證碼錯誤，請重新輸入"
+                    attempts_remaining: 3
+                expired:
+                  value:
+                    error: "驗證碼已過期，請重新獲取"
+                max_attempts:
+                  value:
+                    error: "驗證碼輸入錯誤次數過多，請重新獲取驗證碼"
+                no_pending_otp:
+                  value:
+                    error: "找不到待驗證的OTP，請重新發送驗證碼"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/phone/:
+    get:
+      tags:
+        - User Phone
+      summary: Get user's phone number
+      description: Returns the user's verified phone number (raw and masked formats).
+      operationId: getUserPhone
+      responses:
+        '200':
+          description: Phone number retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPhoneResponse'
+              examples:
+                has_phone:
+                  value:
+                    phone_number: "0912345678"
+                    masked_phone: "0912****78"
+                no_phone:
+                  value:
+                    phone_number: null
+                    masked_phone: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - User Phone
+      summary: Update phone number (BLOCKED)
+      description: |
+        **This endpoint is now blocked.**
+
+        Direct phone updates bypass OTP verification and are no longer allowed.
+        Use the OTP flow instead: POST /phone-otp/send/ then POST /phone-otp/verify/
+      operationId: updateUserPhone
+      deprecated: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone_number:
+                  type: string
+      responses:
+        '405':
+          description: Method not allowed - use OTP flow instead
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "請使用 OTP 驗證流程更新電話號碼"
+                redirect: "/api/phone-otp/send/"
+
+    delete:
+      tags:
+        - User Phone
+      summary: Remove phone number (BLOCKED)
+      description: |
+        **This endpoint is now blocked.**
+
+        Per FR-017, users cannot remove their verified phone number.
+        They can only change to a different verified number via OTP flow.
+      operationId: deleteUserPhone
+      deprecated: true
+      responses:
+        '405':
+          description: Method not allowed - phone removal not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "已驗證的電話號碼無法移除，您可以更換為新的電話號碼"
+                redirect: "/api/phone-otp/send/"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from login
+
+  schemas:
+    SendOTPRequest:
+      type: object
+      required:
+        - phone_number
+      properties:
+        phone_number:
+          type: string
+          pattern: '^09\d{8}$'
+          description: Taiwan mobile number (09XXXXXXXX format)
+          example: "0912345678"
+
+    SendOTPResponse:
+      type: object
+      required:
+        - message
+        - cooldown_seconds
+        - expires_in_seconds
+      properties:
+        message:
+          type: string
+          description: Success message with masked phone
+          example: "驗證碼已發送至 0912****78"
+        cooldown_seconds:
+          type: integer
+          description: Seconds until resend is allowed
+          example: 60
+        expires_in_seconds:
+          type: integer
+          description: Seconds until OTP expires
+          example: 600
+        dev_mode:
+          type: boolean
+          description: True if running in development mode (OTP not actually sent)
+        otp_code:
+          type: string
+          description: OTP code (only in dev mode for testing)
+
+    VerifyOTPRequest:
+      type: object
+      required:
+        - phone_number
+        - otp_code
+      properties:
+        phone_number:
+          type: string
+          pattern: '^09\d{8}$'
+          description: Phone number that received the OTP
+          example: "0912345678"
+        otp_code:
+          type: string
+          pattern: '^\d{6}$'
+          description: 6-digit verification code
+          example: "123456"
+
+    VerifyOTPResponse:
+      type: object
+      required:
+        - message
+        - phone_number
+        - masked_phone
+        - pending_coupons_claimed
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: "電話號碼驗證成功"
+        phone_number:
+          type: string
+          description: Verified phone number
+          example: "0912345678"
+        masked_phone:
+          type: string
+          description: Masked phone for display
+          example: "0912****78"
+        pending_coupons_claimed:
+          type: integer
+          description: Number of pending coupons claimed for this phone
+          example: 3
+        old_phone_coupons_transferred:
+          type: integer
+          description: Number of unclaimed coupons transferred from old phone (only when changing phone)
+          example: 2
+
+    GetPhoneResponse:
+      type: object
+      properties:
+        phone_number:
+          type: string
+          nullable: true
+          description: Raw phone number or null if not set
+          example: "0912345678"
+        masked_phone:
+          type: string
+          nullable: true
+          description: Masked phone for display or null if not set
+          example: "0912****78"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message in Chinese
+        redirect:
+          type: string
+          description: Suggested endpoint to use instead
+        retry_after_seconds:
+          type: integer
+          description: Seconds to wait before retrying (for rate limits)
+        attempts_remaining:
+          type: integer
+          description: Remaining verification attempts (for OTP errors)
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Authentication credentials were not provided."
