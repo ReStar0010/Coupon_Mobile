@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Alert } from 'react-native';
 import { colors } from '@/constants/colors';
@@ -9,6 +9,8 @@ import { SearchBar } from './components/SearchBar';
 import { FilterButton } from './components/FilterButton';
 import { CouponCard } from './components/CouponCard';
 import { AddButton } from './components/AddButton';
+import { BarcodeVerificationButton } from './components/BarcodeVerificationButton';
+import { QRCodeModal } from './components/QRCodeModal';
 import { merchantAPI } from '@/utils/api';
 
 export interface Coupon {
@@ -42,11 +44,14 @@ const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
 
 export default function CouponsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CouponStatus>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
+  const [qrCodeValue, setQrCodeValue] = useState('');
 
   const loadCoupons = async () => {
     try {
@@ -225,8 +230,16 @@ export default function CouponsScreen() {
     return option && option.value !== 'all' ? option.label : null;
   };
 
+  // Handle barcode verification button press
+  const handleBarcodeVerificationPress = () => {
+    // Generate placeholder QR code value
+    const placeholderValue = `merchant-verification-${Date.now()}`;
+    setQrCodeValue(placeholderValue);
+    setIsQRCodeModalOpen(true);
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
       <YStack flex={1} backgroundColor={colors.white}>
         <Header 
           onMenuPress={() => router.push('/(profile)/')}
@@ -235,7 +248,7 @@ export default function CouponsScreen() {
         flex={1}
         paddingHorizontal="$4"
         paddingTop="$3"
-        paddingBottom="$6"
+        paddingBottom="$20"
         showsVerticalScrollIndicator={false}
       >
         {/* Search Bar */}
@@ -294,7 +307,27 @@ export default function CouponsScreen() {
           )}
         </YStack>
         </ScrollView>
+        
+        {/* Barcode Verification Button */}
+        <YStack
+          position="absolute"
+          bottom={insets.bottom}
+          left={0}
+          right={0}
+          paddingHorizontal="$4"
+          paddingBottom="$4"
+          backgroundColor={colors.white}
+        >
+          <BarcodeVerificationButton onPress={handleBarcodeVerificationPress} />
+        </YStack>
       </YStack>
+      
+      {/* QR Code Modal */}
+      <QRCodeModal
+        isOpen={isQRCodeModalOpen}
+        onClose={() => setIsQRCodeModalOpen(false)}
+        qrValue={qrCodeValue}
+      />
     </SafeAreaView>
   );
 }
