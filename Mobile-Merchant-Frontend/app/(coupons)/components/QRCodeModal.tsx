@@ -34,13 +34,31 @@ export function QRCodeModal({ isOpen, onClose, qrValue }: QRCodeModalProps) {
           </XStack>
 
           {/* QR Code */}
-          <YStack alignItems="center" justifyContent="center" marginBottom="$4">
-            <QRCode value={qrValue} size={280} />
+          <YStack alignItems="center" justifyContent="center" marginBottom="$4" minHeight={280}>
+            {qrValue ? (
+              <QRCode value={qrValue} size={280} />
+            ) : (
+              <Text fontSize="$md" color={colors.textSecondary} textAlign="center">
+                載入中...
+              </Text>
+            )}
           </YStack>
+
+          {/* Redemption Code Display */}
+          {qrValue && (
+            <YStack alignItems="center" marginBottom="$4">
+              <Text fontSize="$sm" color={colors.textSecondary} marginBottom="$2">
+                核銷碼
+              </Text>
+              <View style={styles.codeContainer}>
+                <Text style={styles.codeText}>{qrValue}</Text>
+              </View>
+            </YStack>
+          )}
 
           {/* Instruction Text */}
           <Text fontSize="$md" color={colors.textSecondary} textAlign="center" lineHeight={24}>
-            請掃描此 QR Code 進行核銷
+            請掃描此 QR Code 或輸入核銷碼進行核銷
           </Text>
         </View>
       </View>
@@ -70,5 +88,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  codeContainer: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  codeText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: 2,
+    fontFamily: 'monospace',
   },
 });
