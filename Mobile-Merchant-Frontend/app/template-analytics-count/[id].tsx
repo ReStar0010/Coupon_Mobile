@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { colors } from '@/constants/colors';
-import { Header } from './components/Header';
+import { Header } from '../(coupons)/components/Header';
 import { merchantAPI } from '@/utils/api';
 import TrendChart from '../(profile)/components/TrendChart';
 
@@ -14,6 +14,7 @@ interface TrendData {
   daily_data: Array<{
     date: string;
     value: number | null;
+    count?: number;  // Count value for count view
   }>;
 }
 
@@ -51,23 +52,19 @@ type MetricType = 'exposure_count' | 'conversion_rate' | 'retention_rate' | 'str
 interface MetricCardProps {
   label: string;
   value: string | number;
-  isPercentage?: boolean;
   metricType: MetricType;
   isSelected?: boolean;
   onPress?: () => void;
 }
 
-function MetricCard({ label, value, isPercentage = false, metricType, isSelected = false, onPress }: MetricCardProps) {
-  const displayValue = isPercentage 
-    ? typeof value === 'number' 
-      ? `${(value * 100).toFixed(0)}%` 
-      : value === null 
-        ? '數據不足' 
-        : value
-    : typeof value === 'number'
-      ? value.toLocaleString('zh-TW')
-      : value === null
-        ? '數據不足'
+function MetricCard({ label, value, metricType, isSelected = false, onPress }: MetricCardProps) {
+  // For count view, always display as count (not percentage)
+  const displayValue = typeof value === 'number'
+    ? value.toLocaleString('zh-TW')
+    : value === null || value === undefined
+      ? '數據不足'
+      : value === 0
+        ? '0'
         : value;
 
   return (
@@ -86,7 +83,7 @@ function MetricCard({ label, value, isPercentage = false, metricType, isSelected
   );
 }
 
-export default function TemplateAnalyticsScreen() {
+export default function TemplateAnalyticsCountScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const templateId = params.id ? parseInt(params.id as string, 10) : null;
@@ -149,23 +146,15 @@ export default function TemplateAnalyticsScreen() {
     }
   }, [isStoreTemplate, selectedMetric]);
 
-  const formatCurrency = (value: number) => {
-    return `$${value.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  };
-
-  const formatPercentage = (value: number) => {
-    return `${(value * 100).toFixed(0)}%`;
-  };
-
   const getMetricLabel = (metric: MetricType): string => {
     const labels: Record<MetricType, string> = {
       exposure_count: '曝光次數',
-      conversion_rate: '轉換率',
-      retention_rate: '留客率',
-      stranger_acquisition_rate: '陌生獲客率',
-      circulation_rate: '流動率',
-      circulation_redemption_rate: '流動核銷率',
-      redemption_rate: '核銷率',
+      conversion_rate: '轉換數',  // Count label instead of rate
+      retention_rate: '留客數',  // Count label
+      stranger_acquisition_rate: '陌生獲客數',  // Count label
+      circulation_rate: '流動數',  // Count label
+      circulation_redemption_rate: '流動核銷數',  // Count label
+      redemption_rate: '核銷數',  // Count label
     };
     return labels[metric];
   };
@@ -178,56 +167,77 @@ export default function TemplateAnalyticsScreen() {
     return null;
   };
 
-  const getCurrentValue = (metric: MetricType, data: AnalyticsData): string => {
-    const trendData = getTrendData(metric, data);
-    if (trendData) {
-      if (metric === 'exposure_count') {
-        return trendData.current.toLocaleString('zh-TW');
-      } else {
-        return formatPercentage(trendData.current);
-      }
-    }
-    
-    // Fallback to direct values
+  const getCurrentCountValue = (metric: MetricType, data: AnalyticsData): string => {
+    // For count view, get count values
     switch (metric) {
       case 'exposure_count':
         return (data.exposure_count || 0).toLocaleString('zh-TW');
       case 'conversion_rate':
-        return formatPercentage(data.conversion_rate || 0);
+        // For conversion, we don't have a direct count field, use trend data if available
+        const conversionTrend = getTrendData(metric, data);
+        if (conversionTrend && conversionTrend.daily_data.length > 0) {
+          // Use the latest count from daily_data if available
+          const latestData = conversionTrend.daily_data[conversionTrend.daily_data.length - 1];
+          if (latestData.count !== undefined) {
+            return latestData.count.toLocaleString('zh-TW');
+          }
+        }
+        return '0';
       case 'retention_rate':
-        return formatPercentage(data.retention_rate || 0);
+        return (data.retention_count || 0).toLocaleString('zh-TW');
       case 'stranger_acquisition_rate':
-        return formatPercentage(data.stranger_acquisition_rate || 0);
+        return (data.stranger_acquisition_count || 0).toLocaleString('zh-TW');
       case 'circulation_rate':
-        return formatPercentage(data.circulation_rate || 0);
+        return (data.circulation_count || 0).toLocaleString('zh-TW');
       case 'circulation_redemption_rate':
-        return formatPercentage(data.circulation_redemption_rate || 0);
+        return (data.circulation_redemption_count || 0).toLocaleString('zh-TW');
       case 'redemption_rate':
-        return formatPercentage(data.redemption_rate || 0);
+        return (data.redemption_count || 0).toLocaleString('zh-TW');
       default:
         return '0';
     }
   };
 
-  const getAverageValue = (metric: MetricType, data: AnalyticsData): string => {
+  const getAverageCountValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
-    if (trendData) {
-      if (metric === 'exposure_count') {
-        return trendData.average.toLocaleString('zh-TW');
-      } else {
-        return formatPercentage(trendData.average);
+    if (trendData && trendData.daily_data.length > 0) {
+      // Calculate average from count values in daily_data
+      const countValues = trendData.daily_data
+        .map(d => d.count !== undefined ? d.count : (d.value !== null && d.value !== undefined ? d.value : 0))
+        .filter(v => typeof v === 'number');
+      
+      if (countValues.length > 0) {
+        const sum = countValues.reduce((a, b) => a + b, 0);
+        const avg = sum / countValues.length;
+        return avg.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
       }
     }
     // Fallback to current value
-    return getCurrentValue(metric, data);
+    return getCurrentCountValue(metric, data);
   };
 
-  const getTrendDataCount = (metric: MetricType, data: AnalyticsData): number => {
+  // Get trend data with count values for chart
+  const getTrendDataForChart = (metric: MetricType, data: AnalyticsData): TrendData | null => {
     const trendData = getTrendData(metric, data);
-    if (trendData) {
-      return trendData.daily_data.length;
-    }
-    return 0;
+    if (!trendData) return null;
+
+    // For count view, use count values from daily_data if available, otherwise use value
+    const dailyDataWithCounts = trendData.daily_data.map(dayData => ({
+      date: dayData.date,
+      value: dayData.count !== undefined ? dayData.count : (dayData.value !== null ? dayData.value : 0)
+    }));
+
+    return {
+      ...trendData,
+      daily_data: dailyDataWithCounts,
+      current: trendData.daily_data.length > 0 
+        ? (trendData.daily_data[trendData.daily_data.length - 1].count !== undefined
+            ? trendData.daily_data[trendData.daily_data.length - 1].count!
+            : (trendData.daily_data[trendData.daily_data.length - 1].value !== null
+                ? trendData.daily_data[trendData.daily_data.length - 1].value!
+                : 0))
+        : 0
+    };
   };
 
   const TimeRangeButton = ({ days, label }: { days: TimeRange; label: string }) => {
@@ -296,10 +306,10 @@ export default function TemplateAnalyticsScreen() {
               <XStack alignItems="center" gap="$3" marginBottom="$4">
                 <Text fontSize="$md" color={colors.textSecondary}>百分比</Text>
                 <Switch
-                  checked={false}
+                  checked={true}  // Count view is active
                   onCheckedChange={() => {
-                    // Navigate to count view
-                    router.push(`/template-analytics-count/${templateId}`);
+                    // Navigate back to percentage view
+                    router.back();
                   }}
                   size="$4"
                 />
@@ -317,7 +327,7 @@ export default function TemplateAnalyticsScreen() {
               {/* Metrics Grid */}
               <YStack gap="$3" marginBottom="$6">
                 {isStoreTemplate ? (
-                  // Store template (EasyUse): Show exposure and conversion
+                  // Store template (EasyUse): Show exposure only (conversion count not available)
                   <XStack gap="$3">
                     <MetricCard 
                       label="曝光次數" 
@@ -326,17 +336,9 @@ export default function TemplateAnalyticsScreen() {
                       isSelected={selectedMetric === 'exposure_count'}
                       onPress={() => setSelectedMetric('exposure_count')}
                     />
-                    <MetricCard 
-                      label="轉換率" 
-                      value={analytics.conversion_rate || 0}
-                      isPercentage
-                      metricType="conversion_rate"
-                      isSelected={selectedMetric === 'conversion_rate'}
-                      onPress={() => setSelectedMetric('conversion_rate')}
-                    />
                   </XStack>
                 ) : (
-                  // Exclusive template: Show all metrics
+                  // Exclusive template: Show all count metrics
                   <>
                     <XStack gap="$3">
                       <MetricCard 
@@ -346,28 +348,18 @@ export default function TemplateAnalyticsScreen() {
                         isSelected={selectedMetric === 'exposure_count'}
                         onPress={() => setSelectedMetric('exposure_count')}
                       />
-                      <MetricCard 
-                        label="轉換率" 
-                        value={analytics.conversion_rate || 0} 
-                        isPercentage
-                        metricType="conversion_rate"
-                        isSelected={selectedMetric === 'conversion_rate'}
-                        onPress={() => setSelectedMetric('conversion_rate')}
-                      />
                     </XStack>
                     <XStack gap="$3">
                       <MetricCard 
-                        label="留客率" 
-                        value={analytics.retention_rate || 0} 
-                        isPercentage
+                        label="留客數" 
+                        value={analytics.retention_count || 0}
                         metricType="retention_rate"
                         isSelected={selectedMetric === 'retention_rate'}
                         onPress={() => setSelectedMetric('retention_rate')}
                       />
                       <MetricCard 
-                        label="陌生獲客率" 
-                        value={analytics.stranger_acquisition_rate || 0} 
-                        isPercentage
+                        label="陌生獲客數" 
+                        value={analytics.stranger_acquisition_count || 0}
                         metricType="stranger_acquisition_rate"
                         isSelected={selectedMetric === 'stranger_acquisition_rate'}
                         onPress={() => setSelectedMetric('stranger_acquisition_rate')}
@@ -375,17 +367,15 @@ export default function TemplateAnalyticsScreen() {
                     </XStack>
                     <XStack gap="$3">
                       <MetricCard 
-                        label="核銷率" 
-                        value={analytics.redemption_rate || 0} 
-                        isPercentage
+                        label="核銷數" 
+                        value={analytics.redemption_count || 0}
                         metricType="redemption_rate"
                         isSelected={selectedMetric === 'redemption_rate'}
                         onPress={() => setSelectedMetric('redemption_rate')}
                       />
                       <MetricCard 
-                        label="流動率" 
-                        value={analytics.circulation_rate || 0} 
-                        isPercentage
+                        label="流動數" 
+                        value={analytics.circulation_count || 0}
                         metricType="circulation_rate"
                         isSelected={selectedMetric === 'circulation_rate'}
                         onPress={() => setSelectedMetric('circulation_rate')}
@@ -393,9 +383,8 @@ export default function TemplateAnalyticsScreen() {
                     </XStack>
                     <XStack gap="$3">
                       <MetricCard 
-                        label="流動核銷率" 
-                        value={analytics.circulation_redemption_rate || 0} 
-                        isPercentage
+                        label="流動核銷數" 
+                        value={analytics.circulation_redemption_count || 0}
                         metricType="circulation_redemption_rate"
                         isSelected={selectedMetric === 'circulation_redemption_rate'}
                         onPress={() => setSelectedMetric('circulation_redemption_rate')}
@@ -416,7 +405,7 @@ export default function TemplateAnalyticsScreen() {
                       目前{getMetricLabel(selectedMetric)}
                     </Text>
                     <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
-                      {getCurrentValue(selectedMetric, analytics)}
+                      {getCurrentCountValue(selectedMetric, analytics)}
                     </Text>
                   </XStack>
                   <XStack justifyContent="space-between">
@@ -424,15 +413,15 @@ export default function TemplateAnalyticsScreen() {
                       近{timeRange}天平均
                     </Text>
                     <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
-                      {getAverageValue(selectedMetric, analytics)}
+                      {getAverageCountValue(selectedMetric, analytics)}
                     </Text>
                   </XStack>
                 </YStack>
-                {/* Trend Chart */}
+                {/* Trend Chart - Use count values, not percentages */}
                 <TrendChart 
-                  data={getTrendData(selectedMetric, analytics)} 
-                  isPercentage={selectedMetric !== 'exposure_count'}
-                  yAxisSuffix={selectedMetric === 'exposure_count' ? '' : '%'}
+                  data={getTrendDataForChart(selectedMetric, analytics)} 
+                  isPercentage={false}  // Count view, not percentage
+                  yAxisSuffix=""  // No percentage suffix for count view
                 />
               </View>
 
@@ -493,22 +482,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  trendContainer: {
-    padding: 16,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    minHeight: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rankBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   retryButton: {
     backgroundColor: colors.primary,
     paddingHorizontal: 20,
@@ -516,4 +489,3 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 });
-

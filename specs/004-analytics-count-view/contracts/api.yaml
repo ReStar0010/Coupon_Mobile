@@ -1,0 +1,211 @@
+openapi: 3.0.3
+info:
+  title: Template Analytics API - Count View Extension
+  description: Extended API contract for template analytics with count fields
+  version: 1.0.0
+
+paths:
+  /api/merchant/coupon-templates/{id}/analytics/:
+    get:
+      summary: Get template analytics (extended with count fields)
+      description: |
+        Returns analytics data for a coupon template including both rate and count fields.
+        Count fields represent absolute numbers (張數) while rate fields represent percentages.
+        
+        For EasyUse (store) templates:
+        - Returns exposure_count and conversion_rate only
+        
+        For Exclusive templates:
+        - Returns all metrics including retention, stranger acquisition, circulation, and redemption metrics
+        - Both rate and count fields are provided for each metric
+      operationId: getTemplateAnalytics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Template ID
+          schema:
+            type: integer
+        - name: days
+          in: query
+          required: false
+          description: Time range in days (3, 7, 30, or 90)
+          schema:
+            type: integer
+            enum: [3, 7, 30, 90]
+            default: 30
+      security:
+        - TokenAuth: []
+      responses:
+        '200':
+          description: Analytics data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateAnalyticsResponse'
+        '403':
+          description: User is not a merchant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Template not found or user does not have permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    TemplateAnalyticsResponse:
+      type: object
+      description: Analytics response with both rate and count fields
+      properties:
+        # Existing rate fields
+        exposure_count:
+          type: integer
+          description: Total template view count
+          example: 1250
+        conversion_rate:
+          type: number
+          format: float
+          description: Conversion rate (redemptions / exposures)
+          minimum: 0
+          maximum: 1
+          example: 0.45
+        retention_rate:
+          type: number
+          format: float
+          description: Retention rate (consolidate redemptions / consolidate issued) - Exclusive templates only
+          minimum: 0
+          maximum: 1
+          example: 0.72
+        stranger_acquisition_rate:
+          type: number
+          format: float
+          description: Stranger acquisition rate (non-consolidate redemptions / total redemptions) - Exclusive templates only
+          minimum: 0
+          maximum: 1
+          example: 0.28
+        circulation_rate:
+          type: number
+          format: float
+          description: Circulation rate (transfer + public_pool / total coupons) - Exclusive templates only
+          minimum: 0
+          maximum: 1
+          example: 0.15
+        circulation_redemption_rate:
+          type: number
+          format: float
+          description: Circulation redemption rate (transfer + public_pool redeemed / transfer + public_pool) - Exclusive templates only
+          minimum: 0
+          maximum: 1
+          example: 0.60
+        redemption_rate:
+          type: number
+          format: float
+          description: Redemption rate (total redemptions / total quantity) - Exclusive templates only
+          minimum: 0
+          maximum: 1
+          example: 0.85
+        
+        # New count fields
+        retention_count:
+          type: integer
+          description: Retention count - number of consolidate redemptions (留客數) - Exclusive templates only
+          minimum: 0
+          example: 180
+        stranger_acquisition_count:
+          type: integer
+          description: Stranger acquisition count - number of non-consolidate redemptions (陌生獲客數) - Exclusive templates only
+          minimum: 0
+          example: 70
+        redemption_count:
+          type: integer
+          description: Redemption count - total number of redemptions (核銷數) - Exclusive templates only
+          minimum: 0
+          example: 250
+        circulation_count:
+          type: integer
+          description: Circulation count - number of transfer + public_pool coupons (流動數) - Exclusive templates only
+          minimum: 0
+          example: 150
+        circulation_redemption_count:
+          type: integer
+          description: Circulation redemption count - number of transfer + public_pool redemptions (流動核銷數) - Exclusive templates only
+          minimum: 0
+          example: 90
+        
+        # Trend data
+        trends:
+          type: object
+          description: Trend data for all metrics
+          properties:
+            exposure_count:
+              $ref: '#/components/schemas/TrendData'
+            conversion_rate:
+              $ref: '#/components/schemas/TrendData'
+            retention_rate:
+              $ref: '#/components/schemas/TrendData'
+            stranger_acquisition_rate:
+              $ref: '#/components/schemas/TrendData'
+            circulation_rate:
+              $ref: '#/components/schemas/TrendData'
+            circulation_redemption_rate:
+              $ref: '#/components/schemas/TrendData'
+            redemption_rate:
+              $ref: '#/components/schemas/TrendData'
+    
+    TrendData:
+      type: object
+      description: Trend data for a specific metric
+      properties:
+        current:
+          type: number
+          description: Current value (rate for percentage view, count for count view)
+          example: 0.72
+        average:
+          type: number
+          description: Average value over the time range
+          example: 0.68
+        daily_data:
+          type: array
+          description: Daily data points for the trend chart
+          items:
+            $ref: '#/components/schemas/DailyDataPoint'
+    
+    DailyDataPoint:
+      type: object
+      description: Single daily data point
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date in ISO 8601 format (YYYY-MM-DD)
+          example: "2025-01-27"
+        value:
+          oneOf:
+            - type: number
+            - type: "null"
+          description: |
+            Value for this day. 
+            - For percentage view: Rate value (0.0 to 1.0) for rate metrics, count value for exposure_count
+            - For count view: Count value (integer) for all metrics
+            Null if no data available for this day.
+          example: 0.75
+    
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Template not found or you do not have permission to access it."
+  
+  securitySchemes:
+    TokenAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+      description: DRF Token Authentication

@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { colors } from '@/constants/colors';
-import { Header } from './components/Header';
+import { Header } from '../components/Header';
 import { merchantAPI } from '@/utils/api';
-import TrendChart from '../(profile)/components/TrendChart';
+import TrendChart from '../../(profile)/components/TrendChart';
 
 interface TrendData {
   current: number;

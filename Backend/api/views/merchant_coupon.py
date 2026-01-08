@@ -765,7 +765,7 @@ def upload_image(request):
 
 @swagger_auto_schema(
     method='get',
-    operation_description="Get analytics for a specific coupon template",
+    operation_description="Get comprehensive analytics for a specific coupon template. For exclusive templates, includes count fields (retention_count, stranger_acquisition_count, redemption_count, circulation_count, circulation_redemption_count) alongside rate fields.",
     manual_parameters=[
         openapi.Parameter('days', openapi.IN_QUERY, description="Time range in days (3, 7, 30, or 90)", type=openapi.TYPE_INTEGER, default=30),
     ],
@@ -880,7 +880,8 @@ def get_template_analytics(request, id):
             
             conversion_trend_data.append({
                 'date': current_date.isoformat(),
-                'value': day_conversion_rate
+                'value': day_conversion_rate,  # Rate value for percentage view
+                'count': day_redemptions  # Count value for count view (redemptions count)
             })
             
             current_date += timedelta(days=1)
@@ -992,7 +993,10 @@ def get_template_analytics(request, id):
         
         # Daily circulation rate (transfer + public_pool / total)
         # Use total coupons for denominator (not just in this day)
+        # For daily count, we count transfer coupons issued up to this day (cumulative)
         day_circulation_rate = transfer_count / total_coupons if total_coupons > 0 else 0
+        # Note: circulation_count is cumulative (total transfer coupons), not daily
+        # For trend display, we use the total transfer_count for each day
         
         # Daily circulation redemption rate
         day_transfer_redemptions = day_exclusive_redemptions.filter(coupon__acquisition_method__in=['transfer', 'public_pool'])
@@ -1009,32 +1013,38 @@ def get_template_analytics(request, id):
         
         conversion_trend_data.append({
             'date': current_date.isoformat(),
-            'value': day_conversion_rate
+            'value': day_conversion_rate,  # Rate value for percentage view
+            'count': day_exclusive_count  # Count value for count view (redemptions count)
         })
         
         retention_trend_data.append({
             'date': current_date.isoformat(),
-            'value': day_retention_rate
+            'value': day_retention_rate,  # Rate value for percentage view
+            'count': day_consolidate_redemption_count  # Count value for count view
         })
         
         stranger_acquisition_trend_data.append({
             'date': current_date.isoformat(),
-            'value': day_stranger_rate
+            'value': day_stranger_rate,  # Rate value for percentage view
+            'count': day_non_consolidate_count  # Count value for count view
         })
         
         circulation_trend_data.append({
             'date': current_date.isoformat(),
-            'value': day_circulation_rate
+            'value': day_circulation_rate,  # Rate value for percentage view
+            'count': transfer_count  # Count value for count view (total transfer count, not daily)
         })
         
         circulation_redemption_trend_data.append({
             'date': current_date.isoformat(),
-            'value': day_circulation_redemption_rate
+            'value': day_circulation_redemption_rate,  # Rate value for percentage view
+            'count': day_transfer_redemption_count  # Count value for count view
         })
         
         redemption_trend_data.append({
             'date': current_date.isoformat(),
-            'value': day_redemption_rate
+            'value': day_redemption_rate,  # Rate value for percentage view
+            'count': day_exclusive_count  # Count value for count view
         })
         
         current_date += timedelta(days=1)
@@ -1060,6 +1070,12 @@ def get_template_analytics(request, id):
         'circulation_rate': circulation_rate,
         'circulation_redemption_rate': circulation_redemption_rate,
         'redemption_rate': redemption_rate,
+        # Count fields (exclusive templates only)
+        'retention_count': consolidate_redemption_count,
+        'stranger_acquisition_count': non_consolidate_redemption_count,
+        'redemption_count': exclusive_redemptions_count,
+        'circulation_count': transfer_count,
+        'circulation_redemption_count': transfer_redemption_count,
         'trends': {
             'exposure_count': {
                 'current': exposure_count,

@@ -35,7 +35,7 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
         </Text>
         <XStack gap="$3" alignItems="center">
           <TouchableOpacity 
-            onPress={() => router.push(`/(coupons)/template-analytics?id=${coupon.id}`)} 
+            onPress={() => router.push(`/(coupons)/template-analytics/${coupon.id}`)} 
             activeOpacity={0.7}
           >
             <MaterialIcons name="bar-chart" size={18} color={colors.primary} />
