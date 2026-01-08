@@ -21,9 +21,11 @@ interface AnalyticsData {
   // Common fields
   exposure_count?: number;
   conversion_rate?: number;
+  redemption_count?: number;  // For store templates
   trends?: {
     exposure_count?: TrendData;
     conversion_rate?: TrendData;
+    redemption_count?: TrendData;  // For store templates
     retention_rate?: TrendData;
     stranger_acquisition_rate?: TrendData;
     circulation_rate?: TrendData;
@@ -39,14 +41,13 @@ interface AnalyticsData {
   // Count fields (exclusive templates only)
   retention_count?: number;
   stranger_acquisition_count?: number;
-  redemption_count?: number;
   circulation_count?: number;
   circulation_redemption_count?: number;
 }
 
 type TimeRange = 3 | 7 | 30 | 90;
 
-type MetricType = 'exposure_count' | 'conversion_rate' | 'retention_rate' | 'stranger_acquisition_rate' | 'circulation_rate' | 'circulation_redemption_rate' | 'redemption_rate';
+type MetricType = 'exposure_count' | 'conversion_rate' | 'redemption_count' | 'retention_rate' | 'stranger_acquisition_rate' | 'circulation_rate' | 'circulation_redemption_rate' | 'redemption_rate';
 
 interface MetricCardProps {
   label: string;
@@ -138,7 +139,7 @@ export default function TemplateAnalyticsScreen() {
   useEffect(() => {
     if (isStoreTemplate) {
       // For store templates, default to exposure_count
-      if (selectedMetric !== 'exposure_count' && selectedMetric !== 'conversion_rate') {
+      if (selectedMetric !== 'exposure_count' && selectedMetric !== 'conversion_rate' && selectedMetric !== 'redemption_count') {
         setSelectedMetric('exposure_count');
       }
     } else {
@@ -161,6 +162,7 @@ export default function TemplateAnalyticsScreen() {
     const labels: Record<MetricType, string> = {
       exposure_count: '曝光次數',
       conversion_rate: '轉換率',
+      redemption_count: '核銷數',
       retention_rate: '留客率',
       stranger_acquisition_rate: '陌生獲客率',
       circulation_rate: '流動率',
@@ -181,7 +183,7 @@ export default function TemplateAnalyticsScreen() {
   const getCurrentValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
-      if (metric === 'exposure_count') {
+      if (metric === 'exposure_count' || metric === 'redemption_count') {
         return trendData.current.toLocaleString('zh-TW');
       } else {
         return formatPercentage(trendData.current);
@@ -194,6 +196,8 @@ export default function TemplateAnalyticsScreen() {
         return (data.exposure_count || 0).toLocaleString('zh-TW');
       case 'conversion_rate':
         return formatPercentage(data.conversion_rate || 0);
+      case 'redemption_count':
+        return (data.redemption_count || 0).toLocaleString('zh-TW');
       case 'retention_rate':
         return formatPercentage(data.retention_rate || 0);
       case 'stranger_acquisition_rate':
@@ -212,7 +216,7 @@ export default function TemplateAnalyticsScreen() {
   const getAverageValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
-      if (metric === 'exposure_count') {
+      if (metric === 'exposure_count' || metric === 'redemption_count') {
         return trendData.average.toLocaleString('zh-TW');
       } else {
         return formatPercentage(trendData.average);
@@ -317,24 +321,35 @@ export default function TemplateAnalyticsScreen() {
               {/* Metrics Grid */}
               <YStack gap="$3" marginBottom="$6">
                 {isStoreTemplate ? (
-                  // Store template (EasyUse): Show exposure and conversion
-                  <XStack gap="$3">
-                    <MetricCard 
-                      label="曝光次數" 
-                      value={analytics.exposure_count || 0}
-                      metricType="exposure_count"
-                      isSelected={selectedMetric === 'exposure_count'}
-                      onPress={() => setSelectedMetric('exposure_count')}
-                    />
-                    <MetricCard 
-                      label="轉換率" 
-                      value={analytics.conversion_rate || 0}
-                      isPercentage
-                      metricType="conversion_rate"
-                      isSelected={selectedMetric === 'conversion_rate'}
-                      onPress={() => setSelectedMetric('conversion_rate')}
-                    />
-                  </XStack>
+                  // Store template (EasyUse): Show exposure, conversion, and redemption count
+                  <>
+                    <XStack gap="$3">
+                      <MetricCard 
+                        label="曝光次數" 
+                        value={analytics.exposure_count || 0}
+                        metricType="exposure_count"
+                        isSelected={selectedMetric === 'exposure_count'}
+                        onPress={() => setSelectedMetric('exposure_count')}
+                      />
+                      <MetricCard 
+                        label="核銷數" 
+                        value={analytics.redemption_count || 0}
+                        metricType="redemption_count"
+                        isSelected={selectedMetric === 'redemption_count'}
+                        onPress={() => setSelectedMetric('redemption_count')}
+                      />
+                    </XStack>
+                    <XStack gap="$3">
+                      <MetricCard 
+                        label="轉換率" 
+                        value={analytics.conversion_rate || 0}
+                        isPercentage
+                        metricType="conversion_rate"
+                        isSelected={selectedMetric === 'conversion_rate'}
+                        onPress={() => setSelectedMetric('conversion_rate')}
+                      />
+                    </XStack>
+                  </>
                 ) : (
                   // Exclusive template: Show all metrics
                   <>
@@ -431,8 +446,8 @@ export default function TemplateAnalyticsScreen() {
                 {/* Trend Chart */}
                 <TrendChart 
                   data={getTrendData(selectedMetric, analytics)} 
-                  isPercentage={selectedMetric !== 'exposure_count'}
-                  yAxisSuffix={selectedMetric === 'exposure_count' ? '' : '%'}
+                  isPercentage={selectedMetric !== 'exposure_count' && selectedMetric !== 'redemption_count'}
+                  yAxisSuffix={selectedMetric === 'exposure_count' || selectedMetric === 'redemption_count' ? '' : '%'}
                 />
               </View>
 

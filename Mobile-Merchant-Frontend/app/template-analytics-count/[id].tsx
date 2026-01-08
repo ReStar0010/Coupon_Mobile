@@ -22,9 +22,11 @@ interface AnalyticsData {
   // Common fields
   exposure_count?: number;
   conversion_rate?: number;
+  redemption_count?: number;  // For store templates
   trends?: {
     exposure_count?: TrendData;
     conversion_rate?: TrendData;
+    redemption_count?: TrendData;  // For store templates
     retention_rate?: TrendData;
     stranger_acquisition_rate?: TrendData;
     circulation_rate?: TrendData;
@@ -40,14 +42,13 @@ interface AnalyticsData {
   // Count fields (exclusive templates only)
   retention_count?: number;
   stranger_acquisition_count?: number;
-  redemption_count?: number;
   circulation_count?: number;
   circulation_redemption_count?: number;
 }
 
 type TimeRange = 3 | 7 | 30 | 90;
 
-type MetricType = 'exposure_count' | 'conversion_rate' | 'retention_rate' | 'stranger_acquisition_rate' | 'circulation_rate' | 'circulation_redemption_rate' | 'redemption_rate';
+type MetricType = 'exposure_count' | 'conversion_rate' | 'redemption_count' | 'retention_rate' | 'stranger_acquisition_rate' | 'circulation_rate' | 'circulation_redemption_rate' | 'redemption_rate';
 
 interface MetricCardProps {
   label: string;
@@ -135,7 +136,7 @@ export default function TemplateAnalyticsCountScreen() {
   useEffect(() => {
     if (isStoreTemplate) {
       // For store templates, default to exposure_count
-      if (selectedMetric !== 'exposure_count' && selectedMetric !== 'conversion_rate') {
+      if (selectedMetric !== 'exposure_count' && selectedMetric !== 'conversion_rate' && selectedMetric !== 'redemption_count') {
         setSelectedMetric('exposure_count');
       }
     } else {
@@ -150,11 +151,12 @@ export default function TemplateAnalyticsCountScreen() {
     const labels: Record<MetricType, string> = {
       exposure_count: '曝光次數',
       conversion_rate: '轉換數',  // Count label instead of rate
+      redemption_count: '核銷數',  // For store templates
       retention_rate: '留客數',  // Count label
       stranger_acquisition_rate: '陌生獲客數',  // Count label
       circulation_rate: '流動數',  // Count label
       circulation_redemption_rate: '流動核銷數',  // Count label
-      redemption_rate: '核銷數',  // Count label
+      redemption_rate: '核銷數',  // Count label (for exclusive templates)
     };
     return labels[metric];
   };
@@ -183,6 +185,13 @@ export default function TemplateAnalyticsCountScreen() {
           }
         }
         return '0';
+      case 'redemption_count':
+        // For store templates, use redemption_count field or trend data
+        const redemptionTrend = getTrendData(metric, data);
+        if (redemptionTrend) {
+          return redemptionTrend.current.toLocaleString('zh-TW');
+        }
+        return (data.redemption_count || 0).toLocaleString('zh-TW');
       case 'retention_rate':
         return (data.retention_count || 0).toLocaleString('zh-TW');
       case 'stranger_acquisition_rate':
@@ -200,16 +209,24 @@ export default function TemplateAnalyticsCountScreen() {
 
   const getAverageCountValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
-    if (trendData && trendData.daily_data.length > 0) {
-      // Calculate average from count values in daily_data
-      const countValues = trendData.daily_data
-        .map(d => d.count !== undefined ? d.count : (d.value !== null && d.value !== undefined ? d.value : 0))
-        .filter(v => typeof v === 'number');
+    if (trendData) {
+      // For metrics with direct average in trend data (like redemption_count), use it
+      if (metric === 'redemption_count' || metric === 'exposure_count') {
+        return trendData.average.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+      }
       
-      if (countValues.length > 0) {
-        const sum = countValues.reduce((a, b) => a + b, 0);
-        const avg = sum / countValues.length;
-        return avg.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+      // For other metrics, calculate from daily_data
+      if (trendData.daily_data.length > 0) {
+        // Calculate average from count values in daily_data
+        const countValues = trendData.daily_data
+          .map(d => d.count !== undefined ? d.count : (d.value !== null && d.value !== undefined ? d.value : 0))
+          .filter(v => typeof v === 'number');
+        
+        if (countValues.length > 0) {
+          const sum = countValues.reduce((a, b) => a + b, 0);
+          const avg = sum / countValues.length;
+          return avg.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+        }
       }
     }
     // Fallback to current value
@@ -327,7 +344,7 @@ export default function TemplateAnalyticsCountScreen() {
               {/* Metrics Grid */}
               <YStack gap="$3" marginBottom="$6">
                 {isStoreTemplate ? (
-                  // Store template (EasyUse): Show exposure only (conversion count not available)
+                  // Store template (EasyUse): Show exposure and redemption count
                   <XStack gap="$3">
                     <MetricCard 
                       label="曝光次數" 
@@ -335,6 +352,13 @@ export default function TemplateAnalyticsCountScreen() {
                       metricType="exposure_count"
                       isSelected={selectedMetric === 'exposure_count'}
                       onPress={() => setSelectedMetric('exposure_count')}
+                    />
+                    <MetricCard 
+                      label="核銷數" 
+                      value={analytics.redemption_count || 0}
+                      metricType="redemption_count"
+                      isSelected={selectedMetric === 'redemption_count'}
+                      onPress={() => setSelectedMetric('redemption_count')}
                     />
                   </XStack>
                 ) : (

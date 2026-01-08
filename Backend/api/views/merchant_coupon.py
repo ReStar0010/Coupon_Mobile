@@ -848,6 +848,7 @@ def get_template_analytics(request, id):
         # Calculate trends (daily data)
         exposure_trend_data = []
         conversion_trend_data = []
+        redemption_trend_data = []
         current_date = time_threshold.date()
         end_date = now.date()
         
@@ -884,15 +885,22 @@ def get_template_analytics(request, id):
                 'count': day_redemptions  # Count value for count view (redemptions count)
             })
             
+            redemption_trend_data.append({
+                'date': current_date.isoformat(),
+                'value': day_redemptions
+            })
+            
             current_date += timedelta(days=1)
         
         # Calculate averages
         exposure_avg = sum([d['value'] for d in exposure_trend_data]) / len(exposure_trend_data) if exposure_trend_data else 0
         conversion_avg = sum([d['value'] for d in conversion_trend_data]) / len(conversion_trend_data) if conversion_trend_data else 0
+        redemption_avg = sum([d['value'] for d in redemption_trend_data]) / len(redemption_trend_data) if redemption_trend_data else 0
         
         return Response({
             'exposure_count': exposure_count,
             'conversion_rate': conversion_rate,
+            'redemption_count': total_redemptions,
             'trends': {
                 'exposure_count': {
                     'current': exposure_count,
@@ -903,6 +911,11 @@ def get_template_analytics(request, id):
                     'current': conversion_rate,
                     'average': conversion_avg,
                     'daily_data': conversion_trend_data
+                },
+                'redemption_count': {
+                    'current': total_redemptions,
+                    'average': redemption_avg,
+                    'daily_data': redemption_trend_data
                 }
             }
         }, status=status.HTTP_200_OK)
