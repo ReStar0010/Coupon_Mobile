@@ -615,6 +615,18 @@ export const merchantAPI = {
     return parseResponse(response);
   },
 
+  // Unified redemption code generation
+  generateUnifiedRedemptionCode: async () => {
+    const response = await fetchAPI('/merchant/unified-redemption/generate/', {
+      method: 'POST',
+    });
+    return parseResponse<{
+      unified_redeem_code: string;
+      store_id: number;
+      store_name: string;
+    }>(response);
+  },
+
   // Tags
   getTags: async () => {
     const response = await fetchAPI('/tags/');

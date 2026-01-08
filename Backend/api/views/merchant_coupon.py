@@ -13,7 +13,8 @@ from datetime import datetime
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from ..models import Coupon, CouponShareRequest, Log, StudentProfile, CouponTemplate, Store, Tag, CouponRedemption
-from ..serializers import ConsolidateCouponSerializer, RefreshRedeemCodeSerializer, CouponTemplateSerializer, MerchantRedeemSerializer
+from ..serializers import ConsolidateCouponSerializer, RefreshRedeemCodeSerializer, CouponTemplateSerializer, MerchantRedeemSerializer, UnifiedRedemptionCodeSerializer
+from ..utils import generate_unified_redemption_code
 from django.db.models import Count, F
 from datetime import timedelta, datetime
 import math
@@ -144,6 +145,11 @@ def merchant_consolidate_coupon(request):
 def refresh_redeem_code(request):
     """
     Refresh the redeem code of CouponTemplate
+    
+    DEPRECATED: This endpoint is deprecated in favor of the unified redemption flow.
+    Individual coupon QR code generation has been removed from the UI (per FR-010).
+    This endpoint may remain for backward compatibility but should not be used by new code.
+    Merchants should use the unified redemption button on the coupon list page instead.
     """
     serializer = RefreshRedeemCodeSerializer(data=request.data)
     if serializer.is_valid():
@@ -1127,3 +1133,61 @@ def get_template_analytics(request, id):
             }
         }
     }, status=status.HTTP_200_OK)
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Generate unified redemption code for merchant's store",
+    responses={
+        200: UnifiedRedemptionCodeSerializer,
+        400: "Bad request - merchant has no store",
+        401: "Unauthorized - authentication required"
+    }
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_unified_redemption_code_view(request):
+    """
+    Generate a unified redemption code for the merchant's store.
+    This code works for all coupons from the merchant's store.
+    """
+    # Get merchant's store
+    store = get_merchant_store(request.user)
+    if not store:
+        # Log failed attempt
+        Log.objects.create(
+            user=request.user,
+            action='generate_unified_redemption_code_failed',
+        )
+        return Response({
+            'error': '此商家沒有關聯的商店'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Generate new unified redemption code
+    new_code = generate_unified_redemption_code()
+    
+    # Ensure code is unique (retry if collision, though unlikely)
+    max_retries = 10
+    retry_count = 0
+    while Store.objects.filter(unified_redeem_code=new_code).exclude(id=store.id).exists() and retry_count < max_retries:
+        new_code = generate_unified_redemption_code()
+        retry_count += 1
+    
+    # Update store's unified redemption code
+    store.unified_redeem_code = new_code
+    store.save()
+    
+    # Log the successful generation
+    Log.objects.create(
+        user=request.user,
+        action='generate_unified_redemption_code',
+    )
+    
+    # Return response
+    serializer = UnifiedRedemptionCodeSerializer({
+        'unified_redeem_code': new_code,
+        'store_id': store.id,
+        'store_name': store.name
+    })
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)

@@ -7,8 +7,8 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Count
 from drf_yasg.utils import swagger_auto_schema
 
-from ..serializers import RedeemCouponSerializer
-from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest
+from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
+from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store
 
 @api_view(['GET'])
 @permission_classes([AllowAny])  # 允許匿名訪問
@@ -336,18 +336,35 @@ def redeem_coupon(request, id):
         if not submitted_code:
             return Response({"error": "兌換碼為必填項目"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 驗證兌換碼 
+        # Validate unified redemption code first (if provided)
+        # Check if submitted code matches store's unified_redeem_code
+        if submitted_code and len(submitted_code) == 6 and submitted_code.isdigit():
+            try:
+                store = Store.objects.get(unified_redeem_code=submitted_code)
+                # Unified code validation: code must match the coupon's store
+                if store.id != coupon.store.id:
+                    return Response({"error": "統一核銷碼與優惠券店家不符"}, status=status.HTTP_400_BAD_REQUEST)
+                # Unified code validation passed, proceed with coupon redemption
+            except Store.DoesNotExist:
+                # Not a unified code, continue with coupon-specific code validation
+                pass
+
+        # 驗證兌換碼 (coupon-specific code validation)
         # 優先使用 coupon.redeem_code（從 template 複製過來的）
         # 如果 coupon.redeem_code 為 None，則檢查 template.template_redeem_code
         expected_code = coupon.redeem_code
         if not expected_code and coupon.template:
             expected_code = coupon.template.template_redeem_code
         
-        if not expected_code:
-            return Response({"error": "此優惠券未設定兌換碼"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if expected_code != submitted_code:
-            return Response({"error": "無效的兌換碼"}, status=status.HTTP_400_BAD_REQUEST)
+        # If unified code was validated above, skip coupon-specific code check
+        # Otherwise, validate coupon-specific code
+        if not (submitted_code and len(submitted_code) == 6 and submitted_code.isdigit() and Store.objects.filter(unified_redeem_code=submitted_code, id=coupon.store.id).exists()):
+            # This is not a unified code, so validate as coupon-specific code
+            if not expected_code:
+                return Response({"error": "此優惠券未設定兌換碼"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if expected_code != submitted_code:
+                return Response({"error": "無效的兌換碼"}, status=status.HTTP_400_BAD_REQUEST)
             
     elif coupon.coupon_type == 'store':
         pass
@@ -398,3 +415,94 @@ def redeem_coupon(request, id):
         "coupon_detail": coupon.coupon_detail,
         "savings_amount": savings_amount,
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def validate_unified_redemption_code(request, code):
+    """
+    Validate unified redemption code and return store info + consumer's available coupons.
+    
+    Args:
+        code: 6-digit unified redemption code
+        
+    Returns:
+        Store information and list of available coupons for the authenticated consumer
+    """
+    # Validate code format (6 digits)
+    if not code or len(code) != 6 or not code.isdigit():
+        # Log invalid format attempt
+        if request.user.is_authenticated:
+            Log.objects.create(
+                user=request.user,
+                action='validate_unified_redemption_code_failed',
+            )
+        return Response({
+            "error": "無效的統一核銷碼格式"
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Find store with matching unified_redeem_code
+    try:
+        store = Store.objects.get(unified_redeem_code=code)
+    except Store.DoesNotExist:
+        # Log invalid code attempt
+        if request.user.is_authenticated:
+            Log.objects.create(
+                user=request.user,
+                action='validate_unified_redemption_code_failed',
+            )
+        return Response({
+            "error": "無效的統一核銷碼"
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Get consumer's available coupons for this store
+    # Filter: owned by consumer, active, non-expired, not redeemed, exclusive type
+    now = timezone.now()
+    available_coupons = Coupon.objects.filter(
+        store=store,
+        coupon_type='exclusive',
+        current_holder=request.user,
+        expiry_date__gt=now,
+        start_date__lte=now
+    ).select_related('store', 'template').prefetch_related('tags')
+    
+    # Filter out redeemed coupons
+    unredeemed_coupons = []
+    for coupon in available_coupons:
+        if not coupon.is_redeemed():
+            unredeemed_coupons.append(coupon)
+    
+    # Format coupon data
+    coupon_data = []
+    for coupon in unredeemed_coupons:
+        coupon_data.append({
+            "id": coupon.id,
+            "coupon_name": coupon.coupon_name,
+            "coupon_detail": coupon.coupon_detail,
+            "coupon_type": coupon.coupon_type,
+            "store_name": store.name,
+            "expiry_date": coupon.expiry_date.isoformat(),
+            "estimated_savings": float(coupon.estimated_savings) if coupon.estimated_savings else 0,
+            "is_redeemed": coupon.is_redeemed(),
+            "image_url": coupon.image_url,
+        })
+    
+    # Prepare response
+    response_data = {
+        "store": {
+            "id": store.id,
+            "name": store.name,
+            "address": store.address,
+        },
+        "available_coupons": coupon_data
+    }
+    
+    # Log successful validation
+    if request.user.is_authenticated:
+        Log.objects.create(
+            user=request.user,
+            action='validate_unified_redemption_code',
+        )
+    
+    serializer = UnifiedRedemptionValidateSerializer(response_data)
+    return Response(serializer.data, status=status.HTTP_200_OK)

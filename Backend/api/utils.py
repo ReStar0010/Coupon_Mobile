@@ -2,6 +2,7 @@
 Utility functions for phone number validation and formatting.
 """
 import re
+import secrets
 
 # Taiwan mobile phone number format: 09XXXXXXXX (10 digits starting with 09)
 TAIWAN_MOBILE_REGEX = re.compile(r'^09\d{8}$')
@@ -46,4 +47,14 @@ def mask_phone_number(phone: str) -> str:
         return phone
     
     return f"{phone[:4]}{'*' * (len(phone) - 6)}{phone[-2:]}"
+
+
+def generate_unified_redemption_code() -> str:
+    """
+    Generate a 6-digit numeric unified redemption code (digits 0-9 only).
+    
+    Returns:
+        6-digit numeric string (e.g., "123456")
+    """
+    return ''.join(str(secrets.randbelow(10)) for _ in range(6))
 

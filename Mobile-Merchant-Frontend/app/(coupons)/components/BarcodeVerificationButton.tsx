@@ -1,19 +1,21 @@
 import React from 'react';
 import { XStack, Text } from 'tamagui';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors } from '@/constants/colors';
 
 interface BarcodeVerificationButtonProps {
   onPress: () => void;
+  isLoading?: boolean;
 }
 
-export function BarcodeVerificationButton({ onPress }: BarcodeVerificationButtonProps) {
+export function BarcodeVerificationButton({ onPress, isLoading = false }: BarcodeVerificationButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
-      style={styles.button}
+      style={[styles.button, isLoading && styles.buttonDisabled]}
+      disabled={isLoading}
     >
       <XStack
         alignItems="center"
@@ -22,9 +24,13 @@ export function BarcodeVerificationButton({ onPress }: BarcodeVerificationButton
         paddingVertical="$3"
         paddingHorizontal="$4"
       >
-        <MaterialIcons name="qr-code-scanner" size={24} color="#FFFFFF" />
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <MaterialIcons name="qr-code-scanner" size={24} color="#FFFFFF" />
+        )}
         <Text fontSize={16} fontWeight="600" color="#FFFFFF">
-          條碼核銷
+          {isLoading ? '生成中...' : '條碼核銷'}
         </Text>
       </XStack>
     </TouchableOpacity>
@@ -43,5 +49,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });

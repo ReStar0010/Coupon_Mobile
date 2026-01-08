@@ -3,7 +3,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views.authentication import register, login, logout, user_info, verify_email, forgot_password, reset_password, refresh_token
-from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon
+from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon, validate_unified_redemption_code
 from api.views.sharing_views import share_coupon, get_share_request, accept_share_request, share_coupon_public, get_my_public_shares
 from api.views.user_profile import (user_statistics, set_savings_goal, reset_savings_goal, 
                                   coupon_history, coupon_history_detail, completed_goals, add_completed_goal,
@@ -13,7 +13,7 @@ from api.views.merchant_coupon import (
     merchant_consolidate_coupon, refresh_redeem_code,
     list_coupon_templates, get_coupon_template, create_coupon_template,
     update_coupon_template, delete_coupon_template, merchant_redeem, upload_image,
-    get_template_analytics, get_all_tags
+    get_template_analytics, get_all_tags, generate_unified_redemption_code_view
 )
 from api.views.merchant_profile import (
     get_merchant_profile, update_merchant_profile, get_merchant_statistics
@@ -56,6 +56,9 @@ urlpatterns = [
     path('api/exclusive-coupons/', get_exclusive_coupons),  # Type B (exclusive) coupons - 專屬優惠
     path('api/coupons/<int:id>/', get_coupon_detail),  # 單一 coupon 詳細頁面 API
     path('api/redeem/<int:id>/', redeem_coupon),
+    
+    # Unified redemption endpoints
+    path('api/unified-redemption/<str:code>/', validate_unified_redemption_code, name='validate_unified_redemption_code'),
     
     # Event tracking endpoints
     path('api/events/template-view/', track_template_view, name='track_template_view'),
@@ -114,6 +117,9 @@ urlpatterns = [
     path('api/merchant/consolidate-coupon/', merchant_consolidate_coupon ,name='merchant_consolidate_coupon'),
     path('api/merchant/refresh_redeem_code/', refresh_redeem_code, name='refresh_redeem_code'),
     path('api/merchant/redeem/', merchant_redeem, name='merchant_redeem'),
+    
+    # Unified redemption operations
+    path('api/merchant/unified-redemption/generate/', generate_unified_redemption_code_view, name='generate_unified_redemption_code'),
     
     # Merchant profile operations
     path('api/merchant/profile/', get_merchant_profile, name='get_merchant_profile'),

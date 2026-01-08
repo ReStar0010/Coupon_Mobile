@@ -90,6 +90,7 @@ class Store(models.Model):
     image_url = models.CharField(max_length=255, blank=True, null=True)
     store_type = models.CharField(max_length=20, choices=STORE_TYPE_CHOICES, blank=True, null=True)
     average_order_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Average order value in TWD for GMV calculation")
+    unified_redeem_code = models.CharField(max_length=6, null=True, blank=True, unique=True, help_text="Unified redemption code for all coupons from this store (6-digit numeric format)")
 
     def __str__(self):
         return self.name

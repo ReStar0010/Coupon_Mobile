@@ -1,0 +1,245 @@
+openapi: 3.0.0
+info:
+  title: Unified Redemption QR Code API
+  description: API endpoints for unified redemption QR code generation and validation
+  version: 1.0.0
+servers:
+  - url: /api
+    description: Backend API base path
+
+paths:
+  /merchant/unified-redemption/generate/:
+    post:
+      summary: Generate unified redemption code and QR code data
+      description: |
+        Generates a new unified redemption code for the authenticated merchant's store.
+        The code is regenerated on each call (per FR-001).
+        Returns the code that should be encoded in the QR code.
+      operationId: generateUnifiedRedemptionCode
+      tags:
+        - Unified Redemption
+      security:
+        - CookieJWTAuthentication: []
+      responses:
+        '200':
+          description: Unified redemption code generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unified_redeem_code:
+                    type: string
+                    example: "123456"
+                    description: 6-digit numeric redemption code
+                  store_id:
+                    type: integer
+                    example: 1
+                    description: Store ID associated with the code
+                  store_name:
+                    type: string
+                    example: "Coffee Shop"
+                    description: Store name for display
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Store not found for merchant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /unified-redemption/{code}/:
+    get:
+      summary: Validate unified redemption code and get available coupons
+      description: |
+        Validates a unified redemption code and returns the associated store information
+        along with the authenticated consumer's available coupons from that store.
+        Used after consumer scans the unified QR code.
+      operationId: validateUnifiedRedemptionCode
+      tags:
+        - Unified Redemption
+      security:
+        - CookieJWTAuthentication: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: 6-digit unified redemption code from QR code
+          schema:
+            type: string
+            pattern: '^[0-9]{6}$'
+            example: "123456"
+      responses:
+        '200':
+          description: Code validated, store and coupons returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  store:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: "Coffee Shop"
+                      address:
+                        type: string
+                        example: "123 Main St"
+                  available_coupons:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Coupon'
+                    description: Consumer's available (active, non-expired, not redeemed) coupons from this store
+        '400':
+          description: Invalid code format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Code not found or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /redeem/{coupon_id}/:
+    post:
+      summary: Redeem a coupon (modified to accept unified redemption codes)
+      description: |
+        Redeems a coupon. Now accepts both coupon-specific redemption codes and
+        unified redemption codes. If unified code is provided, validates it at store
+        level first, then proceeds with standard coupon validation.
+      operationId: redeemCoupon
+      tags:
+        - Redemption
+      security:
+        - CookieJWTAuthentication: []
+      parameters:
+        - name: coupon_id
+          in: path
+          required: true
+          description: ID of the coupon to redeem
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                redeem_code:
+                  type: string
+                  description: |
+                    Redemption code. Can be either:
+                    - Coupon-specific code (from template or coupon)
+                    - Unified redemption code (6-digit code from unified QR)
+                  example: "123456"
+      responses:
+        '200':
+          description: Coupon redeemed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "優惠券兌換成功"
+                  coupon_name:
+                    type: string
+                    example: "Buy 1 Get 1 Free"
+                  redeemed_at:
+                    type: string
+                    format: date-time
+                    example: "2025-01-27T10:30:00Z"
+        '400':
+          description: Invalid redemption code or coupon already redeemed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: User is not the coupon holder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Coupon not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Coupon:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        coupon_name:
+          type: string
+          example: "Buy 1 Get 1 Free"
+        coupon_detail:
+          type: string
+          example: "Get one free item when you buy one"
+        coupon_type:
+          type: string
+          enum: [store, exclusive]
+          example: "exclusive"
+        store_name:
+          type: string
+          example: "Coffee Shop"
+        expiry_date:
+          type: string
+          format: date-time
+          example: "2025-12-31T23:59:59Z"
+        estimated_savings:
+          type: number
+          format: float
+          example: 50.00
+        is_redeemed:
+          type: boolean
+          example: false
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid redemption code"
+        details:
+          type: object
+          description: Additional error details (optional)
+
+  securitySchemes:
+    CookieJWTAuthentication:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: JWT token stored in HTTP-only cookie

@@ -469,9 +469,41 @@ export const logout = async (): Promise<void> => {
   // The router navigation should be handled by the calling component
 };
 
+/**
+ * Unified Redemption API functions
+ */
+export const unifiedRedemptionAPI = {
+  /**
+   * Validate unified redemption code and get available coupons
+   * @param code 6-digit unified redemption code
+   * @returns Store info and available coupons
+   */
+  validateUnifiedRedemptionCode: async (code: string) => {
+    const response = await fetchAPI(`/unified-redemption/${code}/`, {
+      method: 'GET',
+    });
+    return response.data;
+  },
+
+  /**
+   * Redeem coupon with unified redemption code
+   * @param couponId Coupon ID to redeem
+   * @param unifiedCode Unified redemption code
+   * @returns Redemption response
+   */
+  redeemCouponWithUnifiedCode: async (couponId: number, unifiedCode: string) => {
+    const response = await fetchAPI(`/redeem/${couponId}/`, {
+      method: 'POST',
+      data: { redeem_code: unifiedCode },
+    });
+    return response.data;
+  },
+};
+
 export default {
   fetchAPI,
   authAPI,
+  unifiedRedemptionAPI,
   refreshAccessToken,
   getRefreshToken,
   getAccessToken,

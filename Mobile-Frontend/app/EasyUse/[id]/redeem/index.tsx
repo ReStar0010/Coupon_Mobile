@@ -18,7 +18,7 @@ import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } f
 import SuccessPopup from './SuccessPopup';
 import Toast from './Toast';
 import { devLog } from '../../../utils/devLogger';
-import { fetchAPI } from '../../../utils/authAPI';
+import { fetchAPI, unifiedRedemptionAPI } from '../../../utils/authAPI';
 
 // Define the coupon interface
 interface Coupon {
@@ -31,7 +31,7 @@ interface Coupon {
 
 export default function RedeemPage() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id, unifiedCode } = useLocalSearchParams<{ id: string; unifiedCode?: string }>();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [redeemCode, setRedeemCode] = useState('');
   const [message, setMessage] = useState('');
@@ -107,30 +107,57 @@ export default function RedeemPage() {
     }
   };
 
-  const handleBarCodeScanned = useCallback(({ type, data }: BarcodeScanningResult) => {
+  const handleBarCodeScanned = useCallback(async ({ type, data }: BarcodeScanningResult) => {
     if (!isScanning) return;
     
     setIsScanning(false);
     devLog('Barcode scanned:', { type, data });
     
     // Set the scanned data as redeem code
-    const scannedCode = data.trim().toUpperCase();
-    setRedeemCode(scannedCode);
+    const scannedCode = data.trim();
     
-    // Close camera after scanning
-    setIsCameraActive(false);
+    // Check if this is a unified redemption code (6-digit numeric)
+    const isUnifiedCode = /^\d{6}$/.test(scannedCode);
     
-    // Clear any previous errors
-    setInputError(false);
-    setMessage('');
-    if (showErrorToast) {
-      setShowErrorToast(false);
-      setErrorToastMessage('');
+    if (isUnifiedCode) {
+      // This is a unified redemption code - navigate to coupon selection screen
+      try {
+        setIsLoading(true);
+        const response = await unifiedRedemptionAPI.validateUnifiedRedemptionCode(scannedCode);
+        
+        // Close camera after scanning
+        setIsCameraActive(false);
+        
+        // Navigate to coupon selection screen with the unified code
+        router.push(`/EasyUse/unified-redeem/${scannedCode}`);
+      } catch (error: any) {
+        console.error('Failed to validate unified redemption code:', error);
+        setErrorToastMessage(error?.response?.data?.error || '無效的統一核銷碼');
+        setShowErrorToast(true);
+        setIsCameraActive(false);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Regular coupon-specific code
+      const upperCode = scannedCode.toUpperCase();
+      setRedeemCode(upperCode);
+      
+      // Close camera after scanning
+      setIsCameraActive(false);
+      
+      // Clear any previous errors
+      setInputError(false);
+      setMessage('');
+      if (showErrorToast) {
+        setShowErrorToast(false);
+        setErrorToastMessage('');
+      }
+      
+      // Show feedback that code was scanned
+      setErrorToastMessage(`已掃描到代碼: ${upperCode}`);
+      setShowErrorToast(true);
     }
-    
-    // Show feedback that code was scanned
-    setErrorToastMessage(`已掃描到代碼: ${scannedCode}`);
-    setShowErrorToast(true);
   }, [isScanning, showErrorToast]);
 
   useEffect(() => {
@@ -158,6 +185,13 @@ export default function RedeemPage() {
       fetchCoupon();
     }
   }, [id, router]);
+
+  // Auto-fill unified redemption code if provided
+  useEffect(() => {
+    if (unifiedCode && !redeemCode) {
+      setRedeemCode(unifiedCode);
+    }
+  }, [unifiedCode, redeemCode]);
 
   // Cleanup camera when component unmounts
   useEffect(() => {

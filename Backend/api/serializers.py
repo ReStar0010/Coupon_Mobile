@@ -168,3 +168,20 @@ class VerifyOTPSerializer(serializers.Serializer):
                 "驗證碼必須為6位數字"
             )
         return value
+
+
+class UnifiedRedemptionCodeSerializer(serializers.Serializer):
+    """
+    Serializer for unified redemption code generation response.
+    """
+    unified_redeem_code = serializers.CharField(max_length=6, read_only=True, help_text="Generated 6-digit unified redemption code")
+    store_id = serializers.IntegerField(read_only=True, help_text="Store ID")
+    store_name = serializers.CharField(max_length=100, read_only=True, help_text="Store name")
+
+
+class UnifiedRedemptionValidateSerializer(serializers.Serializer):
+    """
+    Serializer for unified redemption code validation response.
+    """
+    store = serializers.DictField(read_only=True, help_text="Store information (id, name, address)")
+    available_coupons = serializers.ListField(read_only=True, help_text="List of available coupons for the consumer")

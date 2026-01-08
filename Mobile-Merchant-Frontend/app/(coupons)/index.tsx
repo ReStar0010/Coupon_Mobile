@@ -52,6 +52,7 @@ export default function CouponsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
   const [qrCodeValue, setQrCodeValue] = useState('');
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   const loadCoupons = async () => {
     try {
@@ -231,11 +232,18 @@ export default function CouponsScreen() {
   };
 
   // Handle barcode verification button press
-  const handleBarcodeVerificationPress = () => {
-    // Generate placeholder QR code value
-    const placeholderValue = `merchant-verification-${Date.now()}`;
-    setQrCodeValue(placeholderValue);
-    setIsQRCodeModalOpen(true);
+  const handleBarcodeVerificationPress = async () => {
+    try {
+      setIsGeneratingCode(true);
+      const response = await merchantAPI.generateUnifiedRedemptionCode();
+      setQrCodeValue(response.unified_redeem_code);
+      setIsQRCodeModalOpen(true);
+    } catch (error: any) {
+      console.error('Failed to generate unified redemption code:', error);
+      Alert.alert('錯誤', error?.message || '無法生成統一核銷碼，請稍後再試');
+    } finally {
+      setIsGeneratingCode(false);
+    }
   };
 
   return (
@@ -318,7 +326,10 @@ export default function CouponsScreen() {
           paddingBottom="$4"
           backgroundColor={colors.white}
         >
-          <BarcodeVerificationButton onPress={handleBarcodeVerificationPress} />
+          <BarcodeVerificationButton 
+            onPress={handleBarcodeVerificationPress} 
+            isLoading={isGeneratingCode}
+          />
         </YStack>
       </YStack>
       
