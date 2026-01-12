@@ -4,7 +4,6 @@ import { useRouter, Stack } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth } from '../../utils/authAPI';
-import { useAuthCheck } from '../hooks/useAuthCheck';
 import { useTransactionHistory } from '../hooks/useTransactionHistory';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XStack, YStack, H4, Button, ScrollView, View, Text, ListItem, Separator } from 'tamagui';
@@ -12,10 +11,9 @@ import { XStack, YStack, H4, Button, ScrollView, View, Text, ListItem, Separator
 const HistoryPage: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
-  // Authentication hooks
+
+  // Authentication - useRequireAuth handles auth check and redirect
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
-  useAuthCheck(isAuthenticated, authLoading);
 
   // Transaction history hook - fetch all history (no limit)
   const { 

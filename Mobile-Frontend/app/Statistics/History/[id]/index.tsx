@@ -4,7 +4,6 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { ChevronLeft, Calendar, MapPin, Clock } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth } from '../../../utils/authAPI';
-import { useAuthCheck } from '../../hooks/useAuthCheck';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XStack, YStack, H4, Button, ScrollView, View, Text } from 'tamagui';
 
@@ -23,10 +22,9 @@ const CouponHistoryDetail: React.FC = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
-  
-  // Authentication hooks
+
+  // Authentication - useRequireAuth handles auth check and redirect
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
-  useAuthCheck(isAuthenticated, authLoading);
 
   const [couponDetail, setCouponDetail] = useState<CouponDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
