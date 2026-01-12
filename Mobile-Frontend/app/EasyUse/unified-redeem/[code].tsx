@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { unifiedRedemptionAPI } from '../../utils/authAPI';
+import { unifiedRedemptionAPI, fetchAPI } from '../../utils/authAPI';
 import Toast from '../[id]/redeem/Toast';
+import SuccessPopup from '../[id]/redeem/SuccessPopup';
 
 // Define the coupon interface matching the API response
 interface AvailableCoupon {
@@ -32,6 +33,12 @@ interface StoreInfo {
   address?: string;
 }
 
+interface SuccessData {
+  couponName: string;
+  storeName: string;
+  savingsAmount?: number;
+}
+
 const DEFAULT_IMAGE_URL =
   'https://api.iconify.design/material-symbols:storefront-rounded.svg?color=%23ffad31';
 
@@ -44,6 +51,12 @@ export default function UnifiedRedeemScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorToastMessage, setErrorToastMessage] = useState('');
+  
+  // Redemption states
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successData, setSuccessData] = useState<SuccessData | null>(null);
 
   useEffect(() => {
     const fetchCoupons = async () => {
@@ -79,12 +92,78 @@ export default function UnifiedRedeemScreen() {
   }, [router]);
 
   const handleCouponPress = useCallback(
-    (coupon: AvailableCoupon) => {
-      // Navigate to redemption page with coupon ID and auto-filled unified code
-      router.push({
-        pathname: `/EasyUse/${coupon.id}/redeem`,
-        params: { unifiedCode: code },
-      });
+    async (coupon: AvailableCoupon) => {
+      if (!code) {
+        setErrorToastMessage('缺少核銷碼');
+        setShowErrorToast(true);
+        return;
+      }
+
+      // Show full-screen loading overlay
+      setIsRedeeming(true);
+      setLoadingMessage('核銷中...');
+
+      try {
+        // Directly call redemption API
+        const response = await fetchAPI(`/redeem/${coupon.id}/`, {
+          method: 'POST',
+          data: { redeem_code: code },
+        });
+
+        // Redemption successful: show success popup
+        setSuccessData({
+          couponName: coupon.coupon_name,
+          storeName: coupon.store_name,
+          savingsAmount: response.data.savings_amount,
+        });
+        setShowSuccessPopup(true);
+
+        // Remove redeemed coupon from list
+        setAvailableCoupons((prev) => prev.filter((c) => c.id !== coupon.id));
+      } catch (error: any) {
+        console.error('Redemption failed:', error);
+
+        // Handle different error scenarios
+        const errorResponse = error?.response;
+        const errorStatus = errorResponse?.status;
+        const errorMessage = errorResponse?.data?.error || '核銷失敗，請稍後再試';
+
+        if (
+          errorStatus === 400 &&
+          (errorMessage.includes('統一核銷碼') ||
+            errorMessage.includes('統一') ||
+            errorMessage.includes('核銷碼'))
+        ) {
+          // Unified code expired/invalid: redirect to manual input page
+          setErrorToastMessage('統一核銷碼已失效，請手動輸入核銷碼');
+          setShowErrorToast(true);
+
+          setTimeout(() => {
+            router.push({
+              pathname: `/EasyUse/${coupon.id}/redeem`,
+              params: { fallbackMode: 'true' },
+            });
+          }, 2000);
+        } else if (errorStatus === 400 && errorMessage.includes('已被兌換')) {
+          // Coupon already redeemed: show error and refresh list
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
+          // Remove redeemed coupon from list
+          setAvailableCoupons((prev) => prev.filter((c) => c.id !== coupon.id));
+        } else if (errorStatus === 400 && errorMessage.includes('過期')) {
+          // Coupon expired: show error and remove from list
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
+          setAvailableCoupons((prev) => prev.filter((c) => c.id !== coupon.id));
+        } else {
+          // Other errors: show error message
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
+        }
+      } finally {
+        setIsRedeeming(false);
+        setLoadingMessage('');
+      }
     },
     [code, router]
   );
@@ -93,6 +172,13 @@ export default function UnifiedRedeemScreen() {
     setShowErrorToast(false);
     setErrorToastMessage('');
   }, []);
+
+  const handleCloseSuccessPopup = useCallback(() => {
+    setShowSuccessPopup(false);
+    setSuccessData(null);
+    // Redirect to EasyUse main page after successful redemption
+    router.push('/EasyUse');
+  }, [router]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -249,6 +335,25 @@ export default function UnifiedRedeemScreen() {
         type="error"
         duration={4000}
       />
+
+      {/* Full-screen loading overlay during redemption */}
+      {isRedeeming && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#FFAD31" />
+          <Text style={styles.loadingOverlayText}>{loadingMessage}</Text>
+        </View>
+      )}
+
+      {/* Success popup */}
+      {successData && (
+        <SuccessPopup
+          isOpen={showSuccessPopup}
+          onClose={handleCloseSuccessPopup}
+          storeName={successData.storeName}
+          couponDetail={successData.couponName}
+          titleType="核銷成功"
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -418,5 +523,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingOverlayText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '500',
   },
 });

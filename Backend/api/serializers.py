@@ -208,6 +208,7 @@ class ClaimCouponRequestSerializer(serializers.Serializer):
     """
     template_id = serializers.IntegerField(required=True, help_text="ID of the coupon template (from QR code)")
     session_token = serializers.CharField(required=True, max_length=100, help_text="Session token from QR code (UUID4 format)")
+    idempotency_key = serializers.CharField(required=False, max_length=64, allow_blank=True, help_text="Optional idempotency key to prevent duplicate claims on retry")
 
 
 class ClaimCouponResponseSerializer(serializers.Serializer):

@@ -11,7 +11,31 @@ import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config/api';
 
+/**
+ * Generate a UUID v4-like string for idempotency keys
+ * Simple implementation that works in React Native without external dependencies
+ */
+function generateIdempotencyKey(): string {
+  // Generate a UUID v4-like string: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 const API_BASE_URL = API_URL;
+
+/**
+ * Custom error class for authentication failures
+ * Components can check for this error type to trigger redirect to login
+ */
+export class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
 
 // Token refresh state
 let isRefreshing = false;
@@ -83,9 +107,8 @@ export const refreshAccessToken = async (): Promise<boolean> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${refreshToken}`,
       },
-      body: JSON.stringify({ refresh: refreshToken }),
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
     const success = response.ok;
@@ -99,12 +122,23 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     }
 
     // Store the new tokens in AsyncStorage
+    // Support both response formats: { access_token, refresh_token } and { access, refresh }
     const data = await response.json();
-    if (data.access) {
-      await AsyncStorage.setItem('access_token', data.access);
+    const accessToken = data.access_token || data.access;
+    const newRefreshToken = data.refresh_token || data.refresh;
+    
+    if (accessToken) {
+      await AsyncStorage.setItem('access_token', accessToken);
+      devLog('✅ Stored new access_token');
+    } else {
+      devLog('⚠️ No access_token in refresh response');
     }
-    if (data.refresh) {
-      await AsyncStorage.setItem('refresh_token', data.refresh);
+    
+    if (newRefreshToken) {
+      await AsyncStorage.setItem('refresh_token', newRefreshToken);
+      devLog('✅ Stored new refresh_token');
+    } else {
+      devLog('⚠️ No refresh_token in refresh response');
     }
 
     return true;
@@ -183,12 +217,12 @@ export const fetchAPI = async (
               await clearStoredTokens();
 
               const errorData = retryError.response?.data || {};
-              const error = new Error(
+              const authError = new AuthenticationError(
                 errorData.error ||
                   errorData.message ||
                   `Authentication failed: ${retryError.response?.status}`
               );
-              throw error;
+              throw authError;
             }
             throw retryError;
           }
@@ -198,7 +232,7 @@ export const fetchAPI = async (
           await clearStoredTokens();
 
           const errorData = error.response?.data || {};
-          const authError = new Error(
+          const authError = new AuthenticationError(
             errorData.error ||
               errorData.message ||
               `Authentication failed: ${error.response?.status}`
@@ -208,16 +242,22 @@ export const fetchAPI = async (
       }
 
       // Handle other error responses
-      const errorData = axios.isAxiosError(error) ? error.response?.data || {} : {};
-      const apiError = new Error(
-        errorData.error ||
-          errorData.message ||
-          `API request failed: ${axios.isAxiosError(error) ? error.response?.status : 'Unknown error'}`
-      );
-      throw apiError;
+      // Preserve the original error object to maintain response information for retry logic
+      if (axios.isAxiosError(error)) {
+        // For Axios errors, keep the original error to preserve response data
+        const errorData = error.response?.data || {};
+        const errorMessage = errorData.error || errorData.message || `API request failed: ${error.response?.status}`;
+        console.error('API request error:', new Error(errorMessage));
+        throw error; // Throw original Axios error to preserve response info
+      } else {
+        // For non-Axios errors, wrap in a new Error
+        const apiError = new Error('API request failed: Unknown error');
+        console.error('API request error:', apiError);
+        throw apiError;
+      }
     }
   } catch (error) {
-    console.error('API request error:', error);
+    // Error already logged in the inner catch block
     throw error;
   }
 };
@@ -518,6 +558,10 @@ export const qrClaimAPI = {
     remaining_quantity: number;
     acquisition_method: 'qr_claim';
   }> => {
+    // Generate idempotency key once for this claim operation
+    // This ensures retries use the same key and won't create duplicate coupons
+    const idempotencyKey = generateIdempotencyKey();
+    
     let lastError: any;
     const maxRetries = 2;
     const retryDelays = [1000, 2000]; // 1s, 2s delays
@@ -529,8 +573,10 @@ export const qrClaimAPI = {
           data: {
             template_id: templateId,
             session_token: sessionToken,
+            idempotency_key: idempotencyKey,
           },
         });
+        // Accept both 200 (idempotent retry) and 201 (new claim) as success
         return response.data;
       } catch (error: any) {
         lastError = error;
@@ -572,4 +618,5 @@ export default {
   onRefreshComplete,
   isPublicEndpoint,
   clearStoredTokens,
+  AuthenticationError,
 };

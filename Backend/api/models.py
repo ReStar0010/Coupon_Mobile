@@ -193,6 +193,29 @@ class QRCodeSession(models.Model):
         return f"QR Session {self.id} - Template {self.template_id} - {'Active' if self.is_active else 'Inactive'}"
 
 
+class QRCodeClaim(models.Model):
+    """
+    Tracks QR code coupon claims with idempotency key to prevent duplicate claims.
+    Each idempotency key can only be used once, ensuring retry-safe coupon creation.
+    """
+    idempotency_key = models.CharField(max_length=64, unique=True, db_index=True, help_text="Unique key to prevent duplicate claims")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='qr_claims')
+    template = models.ForeignKey(CouponTemplate, on_delete=models.CASCADE, related_name='qr_claims')
+    coupon = models.ForeignKey('Coupon', on_delete=models.CASCADE, related_name='qr_claim_record')
+    claimed_at = models.DateTimeField(auto_now_add=True, help_text="When the coupon was claimed")
+    session_token = models.CharField(max_length=255, help_text="Session token from QR code")
+
+    class Meta:
+        db_table = 'api_qrcode_claim'
+        indexes = [
+            models.Index(fields=['idempotency_key'], name='qr_claim_idempotency_key_idx'),
+            models.Index(fields=['user', 'template'], name='qr_claim_user_template_idx'),
+        ]
+
+    def __str__(self):
+        return f"QR Claim {self.id} - User {self.user.email} - Template {self.template_id} - {self.claimed_at}"
+
+
 class Coupon(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
     template = models.ForeignKey(CouponTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name='coupons')

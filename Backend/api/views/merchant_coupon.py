@@ -249,6 +249,9 @@ def list_coupon_templates(request):
             'created_at': template.created_at.isoformat(),
             'tags': [tag.id for tag in template.tags.all()],
             'redemption_count': template.coupons.filter(coupon_type='exclusive').count(),
+            # Only exclusive coupons (total_quantity > 0) can be sold out
+            # Store coupons (total_quantity = 0) are always available
+            'is_sold_out': template.total_quantity > 0 and template.remaining_quantity <= 0,
         }
         template_list.append(template_data)
     

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useRouter, usePathname } from 'expo-router';
-import { getAccessToken, initStorage } from '@/utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken, getRefreshToken, initStorage } from '@/utils/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -33,13 +34,24 @@ function AuthProvider({ children }: AuthProviderProps) {
 
   const checkAuth = async () => {
     try {
+      // Initialize storage first to ensure tokens are loaded
       await initStorage();
-      const token = getAccessToken();
-      const isAuth = !!token;
+      
+      // Read directly from AsyncStorage to ensure we have the latest values
+      // This is more reliable than using the in-memory tokenStorage
+      const accessToken = await AsyncStorage.getItem('merchant_access_token');
+      const refreshToken = await AsyncStorage.getItem('merchant_refresh_token');
+      
+      // User is authenticated if they have either access token or refresh token
+      // If only refresh token exists, we can refresh the access token
+      const isAuth = !!(accessToken || refreshToken);
+      
       console.log('[AuthProvider] Auth check result:', {
-        hasToken: !!token,
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
         isAuthenticated: isAuth,
       });
+      
       setIsAuthenticated(isAuth);
     } catch (error) {
       console.error('[AuthProvider] Auth check error:', error);

@@ -9,6 +9,7 @@ import { config } from '../tamagui.config';
 import ThemeProvider from './components/providers/ThemeProvider';
 import AuthProvider from './components/providers/SessionProvider';
 import ToastProvider from './components/providers/ToastProvider';
+import AuthRedirectHandler from './components/AuthRedirectHandler';
 import { getApiConfig } from './config/api';
 
 // 在應用啟動時顯示後端配置
@@ -31,6 +32,7 @@ export default function RootLayout() {
         <PortalProvider shouldAddRootHost>
           <ThemeProvider>
             <AuthProvider>
+              <AuthRedirectHandler />
               <ToastProvider> 
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />

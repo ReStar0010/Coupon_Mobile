@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 
 import { config } from '../tamagui.config';
 import AuthProvider from './components/providers/AuthProvider';
+import AuthRedirectHandler from './components/AuthRedirectHandler';
 
 export default function RootLayout() {
   return (
@@ -16,6 +17,7 @@ export default function RootLayout() {
       <TamaguiProvider config={config} defaultTheme="light">
         <PortalProvider shouldAddRootHost>
           <AuthProvider>
+            <AuthRedirectHandler />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)/login" />

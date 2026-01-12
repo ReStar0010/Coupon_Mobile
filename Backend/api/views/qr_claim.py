@@ -15,7 +15,7 @@ import json
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from ..models import CouponTemplate, QRCodeSession, Coupon, Store
+from ..models import CouponTemplate, QRCodeSession, Coupon, Store, QRCodeClaim
 from ..serializers import (
     GenerateQRSessionSerializer,
     InvalidateSessionSerializer,
@@ -161,6 +161,7 @@ def invalidate_qr_session(request, session_id):
     operation_description="Claim coupon via QR code",
     request_body=ClaimCouponRequestSerializer,
     responses={
+        200: openapi.Response('Coupon already claimed (idempotent retry)', ClaimCouponResponseSerializer),
         201: openapi.Response('Coupon claimed successfully', ClaimCouponResponseSerializer),
         400: openapi.Response('Bad request'),
         401: openapi.Response('Unauthorized'),
@@ -183,6 +184,26 @@ def claim_coupon_via_qr(request):
     
     template_id = serializer.validated_data['template_id']  # type: ignore
     session_token = serializer.validated_data['session_token']  # type: ignore
+    idempotency_key = serializer.validated_data.get('idempotency_key', '').strip()  # type: ignore
+    
+    # Idempotency check: if idempotency_key is provided and already exists, return existing coupon
+    if idempotency_key:
+        try:
+            existing_claim = QRCodeClaim.objects.select_related('coupon', 'template').get(
+                idempotency_key=idempotency_key
+            )
+            # Return existing coupon info with 200 status (idempotent retry)
+            return Response({
+                'message': 'Coupon already claimed (idempotent retry)',
+                'coupon_id': existing_claim.coupon.id,
+                'coupon_name': existing_claim.coupon.coupon_name,
+                'template_id': existing_claim.template.id,
+                'remaining_quantity': existing_claim.template.remaining_quantity,
+                'acquisition_method': 'qr_claim'
+            }, status=status.HTTP_200_OK)
+        except QRCodeClaim.DoesNotExist:
+            # Idempotency key doesn't exist, proceed with normal flow
+            pass
     
     # T024: Validate session_token exists and is_active=True
     try:
@@ -220,6 +241,25 @@ def claim_coupon_via_qr(request):
     
     # T027: Race condition handling - use atomic transaction with F() expression
     with transaction.atomic():
+        # If idempotency_key provided, check again within transaction (double-check pattern)
+        if idempotency_key:
+            try:
+                existing_claim = QRCodeClaim.objects.select_related('coupon', 'template').get(
+                    idempotency_key=idempotency_key
+                )
+                # Reload template to get current remaining_quantity
+                template.refresh_from_db()
+                return Response({
+                    'message': 'Coupon already claimed (idempotent retry)',
+                    'coupon_id': existing_claim.coupon.id,
+                    'coupon_name': existing_claim.coupon.coupon_name,
+                    'template_id': existing_claim.template.id,
+                    'remaining_quantity': existing_claim.template.remaining_quantity,
+                    'acquisition_method': 'qr_claim'
+                }, status=status.HTTP_200_OK)
+            except QRCodeClaim.DoesNotExist:
+                pass
+        
         # Atomically decrement remaining_quantity
         updated = CouponTemplate.objects.filter(
             id=template_id,
@@ -256,6 +296,16 @@ def claim_coupon_via_qr(request):
         
         # Copy tags from template to coupon
         coupon.tags.set(template.tags.all())
+        
+        # Create QRCodeClaim record for idempotency tracking
+        if idempotency_key:
+            QRCodeClaim.objects.create(
+                idempotency_key=idempotency_key,
+                user=request.user,
+                template=template,
+                coupon=coupon,
+                session_token=session_token
+            )
     
     return Response({
         'message': 'Coupon claimed successfully',
