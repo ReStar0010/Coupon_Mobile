@@ -1,38 +1,32 @@
 import '../global.css';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { isUserLoggedIn } from './utils/authAPI';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ensureValidAuth } from './utils/authAPI';
 
 export default function App() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-
-    const checkLoginStatus = async () => {
+    const initializeAuth = async () => {
       try {
- 
-        const loggedIn = await isUserLoggedIn();
-        if (loggedIn) {
+        // Proactively validate and refresh tokens on app startup
+        // This ensures we have a valid access token before navigating
+        const hasValidAuth = await ensureValidAuth();
+
+        if (hasValidAuth) {
           router.replace('/EasyUse');
         } else {
           router.replace('/Login');
         }
-
       } catch (error) {
-
-        console.error('Error checking login status:', error);
+        console.error('Error initializing auth:', error);
         router.replace('/Login');
-
       } finally {
-
         setIsLoading(false);
-
       }
     };
 
-    checkLoginStatus();
+    initializeAuth();
   }, []);
 }

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { logout } from '../utils/authAPI';
+import { logout, fetchAPI } from '../utils/authAPI';
 import { View, Text, XStack, YStack, Card, Button, H4, ListItem, Separator } from 'tamagui';
 import {
   ChevronLeft,
@@ -21,11 +21,15 @@ const OptionsMenu: React.FC = () => {
   const [email, setEmail] = React.useState<string>('');
 
   useEffect(() => {
-    const loadEmail = async () => {
-      const storedEmail = await AsyncStorage.getItem('email');
-      setEmail(storedEmail || '');
+    const loadUserInfo = async () => {
+      try {
+        const response = await fetchAPI('/user-info/', { method: 'GET' });
+        setEmail(response.data?.email || '');
+      } catch (error) {
+        console.error('Failed to fetch user info:', error);
+      }
     };
-    loadEmail();
+    loadUserInfo();
   }, []);
 
   const handleGoBack = useCallback(() => {

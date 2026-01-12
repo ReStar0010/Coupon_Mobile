@@ -117,6 +117,48 @@ export const refreshAccessToken = async (): Promise<boolean> => {
 };
 
 /**
+ * Ensure the user has a valid access token on app startup
+ *
+ * This function should be called when the app initializes to proactively
+ * refresh the access token if needed, rather than waiting for a 401 error.
+ *
+ * Benefits:
+ * - Faster first API call (no need to retry after 401)
+ * - Better UX (no flash of logged-out state)
+ * - Validates that refresh token is still valid
+ *
+ * @returns Promise<boolean> - true if user has valid auth, false if needs to login
+ */
+export const ensureValidAuth = async (): Promise<boolean> => {
+  try {
+    const refreshToken = await AsyncStorage.getItem('refresh_token');
+
+    // No refresh token = not logged in
+    if (!refreshToken) {
+      devLog('No refresh token found - user needs to login');
+      return false;
+    }
+
+    // Proactively refresh the access token
+    // This ensures we have a fresh token before making any API calls
+    devLog('Proactively refreshing access token on app startup...');
+    const refreshSuccess = await refreshAccessToken();
+
+    if (!refreshSuccess) {
+      devLog('Token refresh failed - clearing auth data');
+      await clearStoredTokens();
+      return false;
+    }
+
+    devLog('Access token refreshed successfully');
+    return true;
+  } catch (error) {
+    console.error('Error ensuring valid auth:', error);
+    return false;
+  }
+};
+
+/**
  * Wrapped axios function with authentication and error handling
  * @param endpoint API path (without base URL)
  * @param options axios request options
@@ -223,10 +265,18 @@ export const fetchAPI = async (
 };
 
 /**
- * Clear all stored tokens from AsyncStorage
+ * Clear all stored auth data from AsyncStorage
+ * Also cleans up legacy keys for backwards compatibility
  */
 const clearStoredTokens = async (): Promise<void> => {
-  await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'is_logged_in', 'user_id']);
+  await AsyncStorage.multiRemove([
+    'access_token',
+    'refresh_token',
+    // Legacy keys - kept for cleanup of old data
+    'user_id',
+    'email',
+    'is_logged_in',
+  ]);
 };
 
 /**
@@ -263,58 +313,33 @@ export const authAPI = {
 
 /**
  * Store login data in AsyncStorage after successful login
+ *
+ * Minimal JWT storage - only stores essential tokens:
+ * - access_token: For API authentication
+ * - refresh_token: For refreshing expired access tokens (single source of truth for login status)
+ *
+ * User info (email, user_id) should be fetched from API when needed.
+ *
  * @param loginResponse The response data from login API
  */
-export const storeLoginData = async (loginResponse: any, email: string): Promise<void> => {
+export const storeLoginData = async (loginResponse: any): Promise<void> => {
   try {
-    devLog('📦 Storing login data:', loginResponse);
+    devLog('📦 Storing login tokens');
 
-    // Store tokens if they exist
-    if (loginResponse.access_token || loginResponse.access) {
-      const accessToken = loginResponse.access_token || loginResponse.access;
-      await AsyncStorage.setItem('access_token', accessToken);
-      devLog('✅ Stored access_token');
-    } else {
-      devLog('⚠️ No access_token in response - this might cause auth issues');
-    }
-    //
-    if (loginResponse.refresh_token || loginResponse.refresh) {
-      const refreshToken = loginResponse.refresh_token || loginResponse.refresh;
-      await AsyncStorage.setItem('refresh_token', refreshToken);
-      devLog('✅ Stored refresh_token');
-    } else {
-      devLog('⚠️ No refresh_token in response - this might cause auth issues');
+    const accessToken = loginResponse.access_token || loginResponse.access;
+    const refreshToken = loginResponse.refresh_token || loginResponse.refresh;
+
+    if (!accessToken || !refreshToken) {
+      throw new Error('Invalid login response: missing tokens');
     }
 
-    // Store user ID
-    if (loginResponse.user_id) {
-      await AsyncStorage.setItem('user_id', loginResponse.user_id.toString());
-      devLog('✅ Stored user_id:', loginResponse.user_id);
-    }
+    // Store only essential tokens
+    await AsyncStorage.multiSet([
+      ['access_token', accessToken],
+      ['refresh_token', refreshToken],
+    ]);
 
-    // Mark user as logged in (this is crucial for isUserLoggedIn to work)
-    await AsyncStorage.setItem('is_logged_in', 'true');
-    devLog('✅ Marked user as logged in');
-
-    // Store email for reference
-    if(email){
-      await AsyncStorage.setItem('email', email);
-      devLog('✅ Stored user email:', email);
-    }
-
-    // Debug: Verify what was stored
-    const storedData = {
-      access_token: await AsyncStorage.getItem('access_token'),
-      refresh_token: await AsyncStorage.getItem('refresh_token'),
-      user_id: await AsyncStorage.getItem('user_id'),
-      is_logged_in: await AsyncStorage.getItem('is_logged_in'),
-      email: await AsyncStorage.getItem('email'),
-    };
-    devDebug('📦 Verification - Stored data:', storedData);
-
-    // Check login status after storing
-    const loginCheck = await isUserLoggedIn();
-    devLog('🔍 Login status check after storing:', loginCheck);
+    devLog('✅ Stored tokens successfully');
   } catch (error) {
     console.error('Error storing login data:', error);
     throw error;
@@ -349,30 +374,19 @@ export const getAccessToken = async (): Promise<string | null> => {
 
 /**
  * Check if user is logged in
+ *
+ * Uses refresh_token presence as single source of truth.
+ * This avoids inconsistencies from redundant flags.
+ *
  * @returns boolean indicating login status
  */
 export const isUserLoggedIn = async (): Promise<boolean> => {
   try {
-    const isLoggedIn = await AsyncStorage.getItem('is_logged_in');
     const refreshToken = await AsyncStorage.getItem('refresh_token');
-
-    return isLoggedIn === 'true' || refreshToken !== null;
+    return refreshToken !== null && refreshToken.length > 0;
   } catch (error) {
     console.error('Error checking login status:', error);
     return false;
-  }
-};
-
-/**
- * Get the current user ID from AsyncStorage
- * @returns User ID or null if not found
- */
-export const getUserId = async (): Promise<string | null> => {
-  try {
-    return await AsyncStorage.getItem('user_id');
-  } catch (error) {
-    console.error('Error getting user ID:', error);
-    return null;
   }
 };
 
@@ -382,7 +396,7 @@ export const getUserId = async (): Promise<string | null> => {
  * If there is a share token in the URL, it will be preserved when redirecting to login
  */
 export const useRequireAuth = () => {
-  const { isAuthenticated, loading, userId } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams();
   const shareToken = params.token as string;
@@ -399,15 +413,13 @@ export const useRequireAuth = () => {
       }
 
       // Only redirect if authentication check is complete and user is not authenticated
-      // No delay needed - if loading is false and isAuthenticated is false, redirect immediately
       if (!loading && !isAuthenticated) {
         // Double-check with a quick token check as failsafe
         const hasRefreshToken = (await getRefreshToken()) !== null;
-        
+
         devDebug('Route protection check:', {
           isAuthenticated,
           loading,
-          userId,
           hasRefreshToken,
           shareToken,
         });
@@ -424,7 +436,7 @@ export const useRequireAuth = () => {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, loading, router, userId, shareToken]);
+  }, [isAuthenticated, loading, router, shareToken]);
 
   // Return isAuthenticated as true if we have a refresh token, even if SessionProvider hasn't finished
   // This allows components to start rendering/fetching earlier
@@ -561,10 +573,10 @@ export default {
   authAPI,
   unifiedRedemptionAPI,
   refreshAccessToken,
+  ensureValidAuth,
   getRefreshToken,
   getAccessToken,
   isUserLoggedIn,
-  getUserId,
   useRequireAuth,
   logout,
   storeLoginData,

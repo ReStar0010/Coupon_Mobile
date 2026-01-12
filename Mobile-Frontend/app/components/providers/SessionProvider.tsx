@@ -1,20 +1,18 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { isUserLoggedIn, getUserId } from '../../utils/authAPI';
 import { devDebug } from '../../utils/devLogger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Create an authentication context
+// Minimal context - only tracks authentication state, not user details
 type AuthContextType = {
   isAuthenticated: boolean;
-  userId: string | null;
   loading: boolean;
   refreshAuth: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
-  userId: null,
   loading: true,
   refreshAuth: async () => {},
 });
@@ -29,34 +27,25 @@ interface AuthProviderProps {
 const AuthProvider = ({ children }: AuthProviderProps) => {
   const [authState, setAuthState] = useState<AuthContextType>({
     isAuthenticated: false,
-    userId: null,
     loading: true,
     refreshAuth: async () => {},
   });
 
   // Function to check authentication status
+  // Single source of truth: refresh_token presence = authenticated
   const checkAuth = async () => {
     try {
-      // Optimize: Use multiGet to fetch all values in a single AsyncStorage call
-      const [isLoggedIn, refreshToken, userId] = await AsyncStorage.multiGet([
-        'is_logged_in',
-        'refresh_token',
-        'user_id',
-      ]);
-
-      const authenticated = isLoggedIn[1] === 'true' || refreshToken[1] !== null;
-      const userIdValue = userId[1];
+      const refreshToken = await AsyncStorage.getItem('refresh_token');
+      const hasRefreshToken = refreshToken !== null && refreshToken.length > 0;
 
       devDebug('Auth check:', {
-        authenticated,
-        userId: userIdValue,
+        authenticated: hasRefreshToken,
         platform: 'React Native',
       });
 
       setAuthState((prevState) => ({
         ...prevState,
-        isAuthenticated: authenticated,
-        userId: userIdValue,
+        isAuthenticated: hasRefreshToken,
         loading: false,
       }));
     } catch (error) {
@@ -64,7 +53,6 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       setAuthState((prevState) => ({
         ...prevState,
         isAuthenticated: false,
-        userId: null,
         loading: false,
       }));
     }

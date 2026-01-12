@@ -15,15 +15,14 @@ export default function Index() {
   const [mode, setMode] = useState<'login' | 'register' | 'forgotPassword'>('login');
 
   const handleLogin = async () => {
-    devLog("Login attempted", { email, password });
+    devLog("Login attempted", { email });
     try {
       const response = await fetchAPI('/login/', {
         method: 'POST',
         data: { email, password },
       });
-      devLog("Login successful", response.data);
-      await storeLoginData(response.data, email);
-      devLog("Store login data successfully");
+      devLog("Login successful");
+      await storeLoginData(response.data);
       router.replace("/EasyUse");
     } catch (err) {
       devError("Login error:", err);
