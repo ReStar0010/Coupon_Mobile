@@ -5,6 +5,20 @@ import { ApiCoupon, CouponType } from './types';
 import axios from 'axios';
 
 /**
+ * Get display label for acquisition method
+ */
+export const getAcquisitionMethodLabel = (method?: string): string => {
+  const labels: Record<string, string> = {
+    'draw': '抽優惠券',
+    'consolidate': '電話歸戶',
+    'transfer': '私人轉讓',
+    'public_pool': '公共池領取',
+    'qr_claim': 'QR Code 領取',
+  };
+  return method ? (labels[method] || method) : '';
+};
+
+/**
  * Transform API coupon data to frontend format
  */
 export const transformApiCoupon = (coupon: ApiCoupon): CouponType => {
@@ -20,6 +34,7 @@ export const transformApiCoupon = (coupon: ApiCoupon): CouponType => {
     sourceUser: coupon.current_holder,
     imageUrl: coupon.image_url,
     tags: coupon.tags,
+    acquisitionMethod: coupon.acquisition_method,
   };
 };
 

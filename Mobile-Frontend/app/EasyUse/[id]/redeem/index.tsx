@@ -47,6 +47,8 @@ export default function RedeemPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+  const lastScannedTimeRef = useRef<number>(0);
+  const lastScannedCodeRef = useRef<string>('');
 
   const { width } = Dimensions.get('window');
 
@@ -110,11 +112,19 @@ export default function RedeemPage() {
   const handleBarCodeScanned = useCallback(async ({ type, data }: BarcodeScanningResult) => {
     if (!isScanning) return;
     
+    // Prevent processing same QR code multiple times within 3 seconds
+    const now = Date.now();
+    const scannedCode = data.trim();
+    
+    if (scannedCode === lastScannedCodeRef.current && now - lastScannedTimeRef.current < 3000) {
+      devLog('Duplicate scan prevented:', scannedCode);
+      return;
+    }
+    
+    lastScannedTimeRef.current = now;
+    lastScannedCodeRef.current = scannedCode;
     setIsScanning(false);
     devLog('Barcode scanned:', { type, data });
-    
-    // Set the scanned data as redeem code
-    const scannedCode = data.trim();
     
     // Check if this is a unified redemption code (6-digit numeric)
     const isUnifiedCode = /^\d{6}$/.test(scannedCode);

@@ -95,6 +95,7 @@ export default function UnifiedRedeemScreen() {
   }, []);
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '';
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('zh-TW', {
@@ -103,7 +104,7 @@ export default function UnifiedRedeemScreen() {
         day: '2-digit',
       });
     } catch {
-      return dateString;
+      return dateString || '';
     }
   };
 
@@ -114,34 +115,35 @@ export default function UnifiedRedeemScreen() {
         onPress={() => handleCouponPress(item)}
         activeOpacity={0.7}>
         <View style={styles.couponContent}>
-          {/* Coupon Image */}
           <Image
             source={{ uri: DEFAULT_IMAGE_URL }}
             style={styles.couponImage}
             resizeMode="cover"
           />
-
-          {/* Coupon Info */}
           <View style={styles.couponInfo}>
-            <Text style={styles.storeName} numberOfLines={1}>
-              {item.store_name}
-            </Text>
-            <Text style={styles.couponName} numberOfLines={2}>
-              {item.coupon_name}
-            </Text>
-            <Text style={styles.couponDetail} numberOfLines={2}>
-              {item.coupon_detail}
-            </Text>
-            <View style={styles.couponMeta}>
-              <Text style={styles.expiryDate}>
-                有效期限: {formatDate(item.expiry_date)}
+            <>
+              <Text style={styles.storeName} numberOfLines={1}>
+                {item.store_name || ''}
               </Text>
-              {item.estimated_savings && (
-                <Text style={styles.savings}>
-                  預估節省: ${item.estimated_savings.toFixed(0)}
+              <Text style={styles.couponName} numberOfLines={2}>
+                {item.coupon_name || ''}
+              </Text>
+              {item.coupon_detail ? (
+                <Text style={styles.couponDetail} numberOfLines={2}>
+                  {item.coupon_detail}
                 </Text>
-              )}
-            </View>
+              ) : null}
+              <View style={styles.couponMeta}>
+                <Text style={styles.expiryDate}>
+                  有效期限: {formatDate(item.expiry_date)}
+                </Text>
+                {item.estimated_savings ? (
+                  <Text style={styles.savings}>
+                    預估節省: ${item.estimated_savings.toFixed(0)}
+                  </Text>
+                ) : null}
+              </View>
+            </>
           </View>
         </View>
       </TouchableOpacity>

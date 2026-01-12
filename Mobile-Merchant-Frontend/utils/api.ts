@@ -633,6 +633,33 @@ export const merchantAPI = {
     return parseResponse<Array<{id: number, name: string, display_name: string}>>(response);
   },
 
+  // QR Code Session
+  generateQRSession: async (templateId: number) => {
+    const response = await fetchAPI('/merchant/qr-session/generate/', {
+      method: 'POST',
+      body: JSON.stringify({
+        template_id: templateId,
+      }),
+    });
+    return parseResponse<{
+      session_id: number;
+      template_id: number;
+      session_token: string;
+      qr_code_data: string;
+      message: string;
+    }>(response);
+  },
+
+  invalidateQRSession: async (sessionId: number) => {
+    const response = await fetchAPI(`/merchant/qr-session/${sessionId}/invalidate/`, {
+      method: 'POST',
+    });
+    return parseResponse<{
+      message: string;
+      session_id: number;
+    }>(response);
+  },
+
   // Image Upload
   uploadImage: async (imageUri: string): Promise<string> => {
     // Create FormData for multipart/form-data request

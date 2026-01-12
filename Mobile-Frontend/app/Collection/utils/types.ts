@@ -13,6 +13,7 @@ export type CouponType = {
   sourceUser?: string; // 來源用戶 (如果是朋友贈送的專屬優惠)
   imageUrl?: string; // 店家圖片或優惠券圖片的URL
   tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
+  acquisitionMethod?: string; // 取得方式 (draw, consolidate, transfer, public_pool, qr_claim)
 };
 
 // 接口以匹配後端 API 回應
@@ -33,6 +34,7 @@ export interface ApiCoupon {
   template_id?: number;
   is_redeemed: boolean; // This is a computed property
   tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
+  acquisition_method?: string; // 取得方式 (draw, consolidate, transfer, public_pool, qr_claim)
 }
 
 // Interface for shared coupons

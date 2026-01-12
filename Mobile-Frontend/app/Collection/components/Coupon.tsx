@@ -4,6 +4,7 @@ import { YStack, XStack, Text, Card, View } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { COLORS, BORDER_RADIUS, SPACING } from '../../constants/theme';
 import type { CouponType } from '../utils/types';
+import { getAcquisitionMethodLabel } from '../utils/couponUtils';
 
 interface CouponProps extends Partial<CouponType> {
   className?: string;
@@ -40,6 +41,7 @@ const Coupon: React.FC<CouponProps> = ({
   id,
   imageUrl,
   tags,
+  acquisitionMethod,
 }) => {
   const router = useRouter();
 
@@ -93,6 +95,12 @@ const Coupon: React.FC<CouponProps> = ({
           <Text fontSize="$3" color={COLORS.text.secondary} numberOfLines={1}>
             有效期限 : {formattedDate}
           </Text>
+
+          {acquisitionMethod && (
+            <Text fontSize="$3" color={COLORS.text.secondary} numberOfLines={1}>
+              取得方式 : {getAcquisitionMethodLabel(acquisitionMethod)}
+            </Text>
+          )}
 
           {tags && tags.length > 0 && (
             <XStack gap={6} flexWrap="wrap" marginTop={4}>

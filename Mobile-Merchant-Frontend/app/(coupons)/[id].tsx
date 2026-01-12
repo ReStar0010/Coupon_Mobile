@@ -88,6 +88,15 @@ export default function CouponRedemptionScreen() {
             maxLength={15}
           />
 
+          {/* Generate QR Code Button */}
+          <Button
+            variant="secondary"
+            width="100%"
+            onPress={() => router.push(`/(coupons)/${id}/qr-code`)}
+          >
+            生成 QR Code
+          </Button>
+
           {/* Action Buttons */}
           <XStack gap="$3" width="100%">
             {/* Redeem Button */}

@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User  # Import Django's default User model
 from django.utils import timezone
 import random
+import uuid
 
 # Profile model for password reset functionality
 class PasswordResetProfile(models.Model):
@@ -167,6 +168,31 @@ class CouponTemplate(models.Model):
     def __str__(self):
         return f"Template: {self.coupon_name} ({self.remaining_quantity}/{self.total_quantity})"
 
+
+class QRCodeSession(models.Model):
+    """
+    Represents an active QR code generation session for a coupon template.
+    Created when a merchant requests a QR code, invalidated when the merchant closes the QR code display.
+    """
+    template = models.ForeignKey(CouponTemplate, on_delete=models.CASCADE, related_name='qr_sessions')
+    merchant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='qr_sessions')
+    session_token = models.CharField(max_length=100, unique=True, help_text="Unique token encoded in QR code (UUID4 format)")
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, help_text="Whether the session is still valid")
+    invalidated_at = models.DateTimeField(null=True, blank=True, help_text="When the session was invalidated")
+
+    class Meta:
+        db_table = 'api_qrcode_session'
+        indexes = [
+            models.Index(fields=['session_token'], name='qr_session_token_idx'),
+            models.Index(fields=['template', 'is_active'], name='qr_session_template_active_idx'),
+            models.Index(fields=['merchant', 'is_active'], name='qr_session_merchant_active_idx'),
+        ]
+
+    def __str__(self):
+        return f"QR Session {self.id} - Template {self.template_id} - {'Active' if self.is_active else 'Inactive'}"
+
+
 class Coupon(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
     template = models.ForeignKey(CouponTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name='coupons')
@@ -216,6 +242,7 @@ class Coupon(models.Model):
         ('consolidate', '電話歸戶'),
         ('transfer', '私人轉讓'),
         ('public_pool', '公共池領取'),
+        ('qr_claim', 'QR Code 領取'),
     ]
     acquisition_method = models.CharField(
         max_length=20, 

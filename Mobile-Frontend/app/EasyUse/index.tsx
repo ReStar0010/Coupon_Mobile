@@ -249,6 +249,7 @@ const CouPro = () => {
   const [activeCategories, setActiveCategories] = useState<string[]>(['飲料', '麵']);
   const [stores, setStores] = useState<Store[]>([]);
   const [claimingToken, setClaimingToken] = useState<string | null>(null);
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   useEffect(() => {
     const searchParam = params.search as string;
@@ -530,6 +531,27 @@ const CouPro = () => {
             </YStack>
           </ScrollView>
         </View>
+        
+        {/* Scan to Claim Coupon Button */}
+        <View style={{ paddingHorizontal: 13, paddingBottom: 10 }}>
+          <TouchableOpacity
+            onPress={() => router.push('/EasyUse/qr-claim')}
+            style={{
+              backgroundColor: '#ffad31',
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+              掃描 QR Code 領取優惠券
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
         {/* Bottom Navigation */}
         <TabsFooter
           activeTab="home"

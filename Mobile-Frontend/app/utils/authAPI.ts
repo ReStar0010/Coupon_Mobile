@@ -500,6 +500,62 @@ export const unifiedRedemptionAPI = {
   },
 };
 
+/**
+ * QR Code Claim API functions
+ */
+export const qrClaimAPI = {
+  /**
+   * Claim coupon via QR code
+   * @param templateId Template ID from QR code
+   * @param sessionToken Session token from QR code
+   * @returns Claim response
+   */
+  claimCouponViaQR: async (templateId: number, sessionToken: string): Promise<{
+    message: string;
+    coupon_id: number;
+    coupon_name: string;
+    template_id: number;
+    remaining_quantity: number;
+    acquisition_method: 'qr_claim';
+  }> => {
+    let lastError: any;
+    const maxRetries = 2;
+    const retryDelays = [1000, 2000]; // 1s, 2s delays
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetchAPI('/qr-claim/claim/', {
+          method: 'POST',
+          data: {
+            template_id: templateId,
+            session_token: sessionToken,
+          },
+        });
+        return response.data;
+      } catch (error: any) {
+        lastError = error;
+        const status = error?.response?.status;
+        
+        // Don't retry on 4xx errors (client errors)
+        if (status >= 400 && status < 500) {
+          throw error;
+        }
+        
+        // Retry on network errors (5xx, timeout, network failures)
+        if (attempt < maxRetries && (status >= 500 || status === 502 || status === 503 || status === 504 || !status)) {
+          const delay = retryDelays[attempt];
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        throw error;
+      }
+    }
+    
+    throw lastError;
+  },
+};
+
 export default {
   fetchAPI,
   authAPI,

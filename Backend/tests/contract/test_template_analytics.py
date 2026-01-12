@@ -82,14 +82,23 @@ class TemplateAnalyticsContractTestBase(TestCase):
             acquisition_method='transfer'
         )
 
+        # Create test user for redemptions
+        self.test_user = User.objects.create_user(
+            username='testuser@example.com',
+            email='testuser@example.com',
+            password='testpass123'
+        )
+
         # Create redemptions
         CouponRedemption.objects.create(
             coupon=self.consolidate_coupon,
+            user=self.test_user,
             redeemed_at=timezone.now() - timedelta(days=5)
         )
 
         CouponRedemption.objects.create(
             coupon=self.transfer_coupon,
+            user=self.test_user,
             redeemed_at=timezone.now() - timedelta(days=3)
         )
 

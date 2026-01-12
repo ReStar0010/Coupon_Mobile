@@ -1,0 +1,241 @@
+openapi: 3.0.3
+info:
+  title: QR Code Coupon Claim API
+  description: API endpoints for QR code-based coupon claiming
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: Backend API base path
+
+paths:
+  /merchant/qr-session/generate/:
+    post:
+      summary: Generate QR code session for coupon template
+      description: Creates a new QR code session for a coupon template. Returns template_id and session_token to encode in QR code.
+      tags:
+        - QR Code Session
+      security:
+        - TokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateQRSessionRequest'
+      responses:
+        '201':
+          description: QR code session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateQRSessionResponse'
+        '400':
+          description: Bad request (template not found, out of stock, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized (not authenticated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Template not found or not owned by merchant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /merchant/qr-session/{session_id}/invalidate/:
+    post:
+      summary: Invalidate QR code session
+      description: Invalidates an active QR code session. Called when merchant closes QR code display.
+      tags:
+        - QR Code Session
+      security:
+        - TokenAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: QR code session ID
+      responses:
+        '200':
+          description: Session invalidated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidateSessionResponse'
+        '400':
+          description: Bad request (session already invalidated, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized (not authenticated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Session not found or not owned by merchant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /qr-claim/claim/:
+    post:
+      summary: Claim coupon via QR code
+      description: Claims a coupon by scanning a QR code. Validates session token and template availability, then creates coupon instance.
+      tags:
+        - QR Code Claim
+      security:
+        - TokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimCouponRequest'
+      responses:
+        '201':
+          description: Coupon claimed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimCouponResponse'
+        '400':
+          description: Bad request (invalid session, out of stock, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized (not authenticated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Template or session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    TokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token authentication (format: "Token <token>")
+
+  schemas:
+    GenerateQRSessionRequest:
+      type: object
+      required:
+        - template_id
+      properties:
+        template_id:
+          type: integer
+          description: ID of the coupon template to generate QR code for
+          example: 123
+
+    GenerateQRSessionResponse:
+      type: object
+      properties:
+        session_id:
+          type: integer
+          description: ID of the created QR code session
+          example: 456
+        template_id:
+          type: integer
+          description: ID of the coupon template
+          example: 123
+        session_token:
+          type: string
+          description: Unique session token to encode in QR code (UUID4 format)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        qr_code_data:
+          type: string
+          description: JSON string to encode in QR code (for convenience)
+          example: '{"template_id": 123, "session_token": "550e8400-e29b-41d4-a716-446655440000"}'
+        message:
+          type: string
+          description: Success message
+          example: "QR code session created successfully"
+
+    InvalidateSessionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: "QR code session invalidated successfully"
+        session_id:
+          type: integer
+          description: ID of the invalidated session
+          example: 456
+
+    ClaimCouponRequest:
+      type: object
+      required:
+        - template_id
+        - session_token
+      properties:
+        template_id:
+          type: integer
+          description: ID of the coupon template (from QR code)
+          example: 123
+        session_token:
+          type: string
+          description: Session token from QR code (UUID4 format)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    ClaimCouponResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: "Coupon claimed successfully"
+        coupon_id:
+          type: integer
+          description: ID of the created coupon
+          example: 789
+        coupon_name:
+          type: string
+          description: Name of the claimed coupon
+          example: "20% Off Coffee"
+        template_id:
+          type: integer
+          description: ID of the template this coupon was created from
+          example: 123
+        remaining_quantity:
+          type: integer
+          description: Remaining quantity in the template after claim
+          example: 5
+        acquisition_method:
+          type: string
+          description: How the coupon was acquired
+          example: "qr_claim"
+          enum:
+            - qr_claim
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "QR code session expired"
+      required:
+        - error

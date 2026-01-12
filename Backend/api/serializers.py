@@ -185,3 +185,38 @@ class UnifiedRedemptionValidateSerializer(serializers.Serializer):
     """
     store = serializers.DictField(read_only=True, help_text="Store information (id, name, address)")
     available_coupons = serializers.ListField(read_only=True, help_text="List of available coupons for the consumer")
+
+
+class GenerateQRSessionSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/merchant/qr-session/generate/
+    """
+    template_id = serializers.IntegerField(required=True, help_text="ID of the coupon template to generate QR code for")
+
+
+class InvalidateSessionSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/merchant/qr-session/{session_id}/invalidate/
+    Note: session_id is passed as URL parameter, not in request body.
+    """
+    pass  # No request body needed, session_id is in URL
+
+
+class ClaimCouponRequestSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/qr-claim/claim/
+    """
+    template_id = serializers.IntegerField(required=True, help_text="ID of the coupon template (from QR code)")
+    session_token = serializers.CharField(required=True, max_length=100, help_text="Session token from QR code (UUID4 format)")
+
+
+class ClaimCouponResponseSerializer(serializers.Serializer):
+    """
+    Serializer for claim success response.
+    """
+    message = serializers.CharField(read_only=True, help_text="Success message")
+    coupon_id = serializers.IntegerField(read_only=True, help_text="ID of the created coupon")
+    coupon_name = serializers.CharField(read_only=True, help_text="Name of the claimed coupon")
+    template_id = serializers.IntegerField(read_only=True, help_text="ID of the template this coupon was created from")
+    remaining_quantity = serializers.IntegerField(read_only=True, help_text="Remaining quantity in the template after claim")
+    acquisition_method = serializers.CharField(read_only=True, help_text="How the coupon was acquired")

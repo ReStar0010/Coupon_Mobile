@@ -20,6 +20,7 @@ from api.views.merchant_profile import (
 )
 from api.views.events import track_template_view
 from api.views.phone_otp import send_otp, verify_otp
+from api.views.qr_claim import generate_qr_session, invalidate_qr_session, claim_coupon_via_qr
 
 from django.http import HttpResponse
 from django.urls import re_path
@@ -131,6 +132,11 @@ urlpatterns = [
     
     # Tags endpoint
     path('api/tags/', get_all_tags, name='get_all_tags'),
+    
+    # QR code claim endpoints
+    path('api/merchant/qr-session/generate/', generate_qr_session, name='generate_qr_session'),
+    path('api/merchant/qr-session/<int:session_id>/invalidate/', invalidate_qr_session, name='invalidate_qr_session'),
+    path('api/qr-claim/claim/', claim_coupon_via_qr, name='claim_coupon_via_qr'),
 
     # Ping from cron-job.org to keep the server alive
     path('api/ping/', lambda request: HttpResponse("Pong!")),  # Ping endpoint for cron-job.org
