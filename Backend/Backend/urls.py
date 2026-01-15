@@ -21,6 +21,7 @@ from api.views.merchant_profile import (
 from api.views.events import track_template_view
 from api.views.phone_otp import send_otp, verify_otp
 from api.views.qr_claim import generate_qr_session, invalidate_qr_session, claim_coupon_via_qr
+from api.views.account_deletion import pre_delete_check, delete_account, get_deletion_status
 
 from django.http import HttpResponse
 from django.urls import re_path
@@ -126,6 +127,11 @@ urlpatterns = [
     path('api/merchant/profile/', get_merchant_profile, name='get_merchant_profile'),
     path('api/merchant/profile/update/', update_merchant_profile, name='update_merchant_profile'),
     path('api/merchant/statistics/', get_merchant_statistics, name='get_merchant_statistics'),
+    
+    # Merchant account deletion (App Store compliance)
+    path('api/merchant/account/pre-delete-check/', pre_delete_check, name='pre_delete_check'),
+    path('api/merchant/account/delete/', delete_account, name='delete_account'),
+    path('api/merchant/account/deletion-status/', get_deletion_status, name='get_deletion_status'),
     
     # Merchant image upload
     path('api/merchant/upload-image/', upload_image, name='upload_image'),

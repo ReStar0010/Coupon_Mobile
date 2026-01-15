@@ -80,12 +80,12 @@ class Store(models.Model):
         ('other', '其他'),
     ]
     
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_stores', limit_choices_to={'groups__name': "Merchant"})
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='owned_stores', limit_choices_to={'groups__name': "Merchant"})
 
     # store information
     name = models.CharField(max_length=100)
-    lat = models.FloatField()
-    lng = models.FloatField()
+    lat = models.FloatField(null=True, blank=True)
+    lng = models.FloatField(null=True, blank=True)
     address = models.CharField(max_length=200)
     business_hours = models.TextField(blank=True, null=True)
     image_url = models.CharField(max_length=255, blank=True, null=True)
@@ -518,3 +518,41 @@ class PhoneOTPRecord(models.Model):
             user=user,
             is_verified=False
         ).delete()
+
+class AccountDeletionLog(models.Model):
+    """
+    Tracks account deletion events for audit purposes and network failure recovery.
+    Supports retry mechanism for pending deletions.
+    """
+    # Reference to deleted user (store email/id before deletion)
+    deleted_user_email = models.EmailField()
+    deleted_user_id = models.IntegerField()
+
+    # Deletion metadata
+    deleted_at = models.DateTimeField(auto_now_add=True)
+    deletion_reason = models.CharField(max_length=255, default='user_requested')
+
+    # What was preserved
+    stores_anonymized = models.IntegerField(default=0)
+    coupons_preserved = models.IntegerField(default=0)
+
+    # Network failure handling
+    initiated_at = models.DateTimeField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('completed', 'Completed'),
+            ('failed', 'Failed'),
+        ],
+        default='pending'
+    )
+    retry_count = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'account_deletion_log'
+        ordering = ['-deleted_at']
+
+    def __str__(self):
+        return f"Account Deletion: {self.deleted_user_email} ({self.status})"

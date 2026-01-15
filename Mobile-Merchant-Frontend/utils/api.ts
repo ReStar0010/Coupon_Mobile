@@ -739,3 +739,80 @@ export const merchantAPI = {
 // Export helper function for use in components
 export { getAbsoluteImageUrl };
 
+// ============================================
+// Account Deletion Types & APIs (App Store Compliance)
+// ============================================
+
+export interface DeletionWarning {
+  code: 'ACTIVE_COUPONS' | 'DATA_LOSS' | 'MULTIPLE_STORES';
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+}
+
+export interface PreDeleteCheckResponse {
+  can_delete: boolean;
+  warnings: DeletionWarning[];
+  data_summary: {
+    active_coupons_count: number;
+    stores_count: number;
+    total_redemptions: number;
+    pending_transactions: number;
+  };
+}
+
+export interface DeleteAccountRequest {
+  password: string;
+  acknowledgments: string[];
+}
+
+export interface DeleteAccountResponse {
+  success: boolean;
+  message: string;
+  deleted_at: string;
+}
+
+export interface DeletionStatusResponse {
+  status: 'none' | 'pending' | 'completed' | 'failed';
+  initiated_at?: string;
+  completed_at?: string;
+  error?: string;
+}
+
+/**
+ * Account deletion API functions
+ */
+export const accountDeletionAPI = {
+  /**
+   * Get pre-deletion check (warnings and data summary)
+   */
+  async preDeleteCheck(): Promise<PreDeleteCheckResponse> {
+    const url = `${API_BASE_URL}/merchant/account/pre-delete-check/`;
+    const response = await fetchWithAuth(url, { method: 'GET' });
+    return parseResponse(response);
+  },
+
+  /**
+   * Delete merchant account
+   */
+  async deleteAccount(request: DeleteAccountRequest): Promise<DeleteAccountResponse> {
+    const url = `${API_BASE_URL}/merchant/account/delete/`;
+    const response = await fetchWithAuth(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+    return parseResponse(response);
+  },
+
+  /**
+   * Get deletion status (for network failure recovery)
+   */
+  async getDeletionStatus(): Promise<DeletionStatusResponse> {
+    const url = `${API_BASE_URL}/merchant/account/deletion-status/`;
+    const response = await fetchWithAuth(url, { method: 'GET' });
+    return parseResponse(response);
+  },
+};
+

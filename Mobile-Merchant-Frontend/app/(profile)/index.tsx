@@ -187,8 +187,20 @@ export default function MerchantProfileScreen() {
                 )}
               </View>
 
-              {/* Logout Button */}
-              <YStack marginTop="$6" marginBottom="$4">
+              {/* Account Actions */}
+              <YStack marginTop="$6" marginBottom="$4" gap="$3">
+                {/* Delete Account Button */}
+                <Button 
+                  variant="outline" 
+                  fullWidth 
+                  onPress={() => router.push('/(profile)/delete-account')}
+                  borderColor="#EF4444"
+                  color="#EF4444"
+                >
+                  刪除帳號
+                </Button>
+
+                {/* Logout Button */}
                 <Button 
                   variant="outline" 
                   fullWidth 

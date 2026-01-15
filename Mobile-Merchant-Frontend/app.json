@@ -29,6 +29,12 @@
           }
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CouPro 需要存取您的照片,以便讓您上傳商店標誌、商品圖片或優惠券圖片至您的商家資料。"
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-web-browser"
     ],
