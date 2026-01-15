@@ -1,0 +1,263 @@
+openapi: 3.0.3
+info:
+  title: CouPro Merchant Account Deletion API
+  description: API endpoints for merchant account deletion (App Store Guideline 5.1.1 compliance)
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: API base path
+
+paths:
+  /merchant/account/pre-delete-check/:
+    get:
+      operationId: preDeleteCheck
+      summary: Check account deletion prerequisites
+      description: |
+        Returns information about what will happen if the account is deleted.
+        Used to display warnings to the merchant before they proceed.
+      tags:
+        - Account Deletion
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pre-deletion check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreDeleteCheckResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a merchant account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /merchant/account/delete/:
+    post:
+      operationId: deleteAccount
+      summary: Delete merchant account
+      description: |
+        Permanently deletes the merchant account after password verification.
+        - Anonymizes store data to preserve valid coupons
+        - Removes all personal information
+        - Logs out the merchant
+        - Cannot be undone
+      tags:
+        - Account Deletion
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+      responses:
+        '200':
+          description: Account successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteAccountResponse'
+        '400':
+          description: Invalid request (wrong password or missing confirmation)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a merchant account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error during deletion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /merchant/account/deletion-status/:
+    get:
+      operationId: getDeletionStatus
+      summary: Check pending deletion status
+      description: |
+        For network failure recovery: check if there's a pending deletion
+        that needs to be completed or was completed.
+      tags:
+        - Account Deletion
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Deletion status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionStatusResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PreDeleteCheckResponse:
+      type: object
+      required:
+        - can_delete
+        - warnings
+        - data_summary
+      properties:
+        can_delete:
+          type: boolean
+          description: Whether the account can be deleted
+          example: true
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeletionWarning'
+        data_summary:
+          type: object
+          properties:
+            active_coupons_count:
+              type: integer
+              description: Number of active/unredeemed coupons from this merchant
+              example: 15
+            stores_count:
+              type: integer
+              description: Number of stores owned
+              example: 1
+            total_redemptions:
+              type: integer
+              description: Total historical redemptions
+              example: 234
+            pending_transactions:
+              type: integer
+              description: Number of pending/incomplete transactions
+              example: 0
+
+    DeletionWarning:
+      type: object
+      required:
+        - code
+        - message
+        - severity
+      properties:
+        code:
+          type: string
+          enum:
+            - ACTIVE_COUPONS
+            - PENDING_TRANSACTIONS
+            - DATA_LOSS
+          example: ACTIVE_COUPONS
+        message:
+          type: string
+          description: User-facing warning message (Chinese)
+          example: 您目前有 15 張優惠券仍可被顧客兌換。刪除帳號後，這些優惠券仍然有效，但您的商家資訊將被匿名化。
+        severity:
+          type: string
+          enum:
+            - info
+            - warning
+            - critical
+          example: warning
+
+    DeleteAccountRequest:
+      type: object
+      required:
+        - password
+        - acknowledgments
+      properties:
+        password:
+          type: string
+          format: password
+          description: Current account password for verification
+          example: "mySecurePassword123"
+        acknowledgments:
+          type: array
+          items:
+            type: string
+          description: List of warning codes the user has acknowledged
+          example: ["ACTIVE_COUPONS", "DATA_LOSS"]
+
+    DeleteAccountResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          description: Confirmation message (Chinese)
+          example: 您的帳號已成功刪除。感謝您使用 CouPro。
+        deleted_at:
+          type: string
+          format: date-time
+          example: "2026-01-15T10:30:00Z"
+
+    DeletionStatusResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - none
+            - pending
+            - completed
+            - failed
+          description: Current deletion status
+          example: none
+        initiated_at:
+          type: string
+          format: date-time
+          description: When deletion was initiated (if pending/completed)
+        completed_at:
+          type: string
+          format: date-time
+          description: When deletion completed (if completed)
+        error:
+          type: string
+          description: Error message (if failed)
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: 密碼錯誤
+        code:
+          type: string
+          description: Error code for programmatic handling
+          example: INVALID_PASSWORD

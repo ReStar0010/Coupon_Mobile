@@ -10,7 +10,8 @@
       "Bash(mkdir:*)",
       "Bash(git fetch:*)",
       "Bash(powershell:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git checkout:*)"
     ]
   }
 }
