@@ -801,7 +801,7 @@ def get_template_analytics(request, id):
     user = request.user
     
     # Check if user is a merchant
-    is_merchant = user.groups.filter(name='Merchants').exists()
+    is_merchant = user.groups.filter(name='Merchant').exists()
     if not is_merchant:
         return Response({
             'error': 'User is not a merchant.'

@@ -26,7 +26,7 @@ class QRClaimPerformanceTestBase(TestCase):
             email='merchant@example.com',
             password='testpass123'
         )
-        merchant_group, _ = Group.objects.get_or_create(name='Merchants')
+        merchant_group, _ = Group.objects.get_or_create(name='Merchant')
         self.merchant_user.groups.add(merchant_group)
 
         # Create user

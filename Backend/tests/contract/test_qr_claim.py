@@ -19,13 +19,13 @@ class QRClaimContractTestBase(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        # Create merchant user and add to Merchants group
+        # Create merchant user and add to Merchant group
         self.merchant_user = User.objects.create_user(
             username='merchant@example.com',
             email='merchant@example.com',
             password='testpass123'
         )
-        merchant_group, _ = Group.objects.get_or_create(name='Merchants')
+        merchant_group, _ = Group.objects.get_or_create(name='Merchant')
         self.merchant_user.groups.add(merchant_group)
 
         # Create another merchant user (for unauthorized tests)

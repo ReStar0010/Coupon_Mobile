@@ -66,7 +66,7 @@ def create_tags():
 
 def create_merchant():
     """Create or get merchant account."""
-    merchant_group, _ = Group.objects.get_or_create(name='Merchants')
+    merchant_group, _ = Group.objects.get_or_create(name='Merchant')
     
     merchant_user, created = User.objects.get_or_create(
         username='demo_merchant',
