@@ -8,6 +8,7 @@ import { getAcquisitionMethodLabel } from '../utils/couponUtils';
 
 interface CouponProps extends Partial<CouponType> {
   className?: string;
+  onMerchantDeleted?: (storeName: string, storeId: number) => void;
 }
 
 const DEFAULT_IMAGE_URL =
@@ -42,12 +43,20 @@ const Coupon: React.FC<CouponProps> = ({
   imageUrl,
   tags,
   acquisitionMethod,
+  storeId,
+  merchantDeleted,
+  onMerchantDeleted,
 }) => {
   const router = useRouter();
 
   const handleCouponPress = useCallback(() => {
+    // If merchant has deleted their account, show the notice modal
+    if (merchantDeleted && storeId && storeName && onMerchantDeleted) {
+      onMerchantDeleted(storeName, storeId);
+      return;
+    }
     router.push(`/EasyUse/${id}?source=collection`);
-  }, [router, id]);
+  }, [router, id, merchantDeleted, storeId, storeName, onMerchantDeleted]);
 
   const formattedDate = useMemo(() => {
     return expiryDate ? expiryDate.toLocaleDateString() : '';
@@ -122,6 +131,8 @@ export default React.memo(Coupon, (prevProps, nextProps) => {
     prevProps.storeName === nextProps.storeName &&
     prevProps.expiryDate?.getTime() === nextProps.expiryDate?.getTime() &&
     prevProps.imageUrl === nextProps.imageUrl &&
-    JSON.stringify(prevProps.tags) === JSON.stringify(nextProps.tags)
+    JSON.stringify(prevProps.tags) === JSON.stringify(nextProps.tags) &&
+    prevProps.storeId === nextProps.storeId &&
+    prevProps.merchantDeleted === nextProps.merchantDeleted
   );
 });

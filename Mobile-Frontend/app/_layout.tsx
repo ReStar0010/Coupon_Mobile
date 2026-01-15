@@ -9,6 +9,7 @@ import { config } from '../tamagui.config';
 import ThemeProvider from './components/providers/ThemeProvider';
 import AuthProvider from './components/providers/SessionProvider';
 import ToastProvider from './components/providers/ToastProvider';
+import DismissedStoresProvider from './components/providers/DismissedStoresProvider';
 import AuthRedirectHandler from './components/AuthRedirectHandler';
 import { getApiConfig } from './config/api';
 
@@ -32,19 +33,21 @@ export default function RootLayout() {
         <PortalProvider shouldAddRootHost>
           <ThemeProvider>
             <AuthProvider>
-              <AuthRedirectHandler />
-              <ToastProvider> 
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="Login" />
-                  <Stack.Screen name="EasyUse" />
-                  <Stack.Screen name="Collection" />
-                  <Stack.Screen name="Statistics" />
-                  <Stack.Screen name="OptionsMenu" />
-                  <Stack.Screen name="ResetPassword" />
-                </Stack>
-                <StatusBar style="auto" />
-              </ToastProvider>
+              <DismissedStoresProvider>
+                <AuthRedirectHandler />
+                <ToastProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="Login" />
+                    <Stack.Screen name="EasyUse" />
+                    <Stack.Screen name="Collection" />
+                    <Stack.Screen name="Statistics" />
+                    <Stack.Screen name="OptionsMenu" />
+                    <Stack.Screen name="ResetPassword" />
+                  </Stack>
+                  <StatusBar style="auto" />
+                </ToastProvider>
+              </DismissedStoresProvider>
             </AuthProvider>
           </ThemeProvider>
         </PortalProvider>
