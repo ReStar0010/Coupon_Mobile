@@ -786,8 +786,9 @@ export const accountDeletionAPI = {
    * Get pre-deletion check (warnings and data summary)
    */
   async preDeleteCheck(): Promise<PreDeleteCheckResponse> {
-    const url = `${API_BASE_URL}/merchant/account/pre-delete-check/`;
-    const response = await fetchWithAuth(url, { method: 'GET' });
+    const response = await fetchAPI('/merchant/account/pre-delete-check/', {
+      method: 'GET',
+    });
     return parseResponse(response);
   },
 
@@ -795,12 +796,8 @@ export const accountDeletionAPI = {
    * Delete merchant account
    */
   async deleteAccount(request: DeleteAccountRequest): Promise<DeleteAccountResponse> {
-    const url = `${API_BASE_URL}/merchant/account/delete/`;
-    const response = await fetchWithAuth(url, {
+    const response = await fetchAPI('/merchant/account/delete/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(request),
     });
     return parseResponse(response);
@@ -810,8 +807,9 @@ export const accountDeletionAPI = {
    * Get deletion status (for network failure recovery)
    */
   async getDeletionStatus(): Promise<DeletionStatusResponse> {
-    const url = `${API_BASE_URL}/merchant/account/deletion-status/`;
-    const response = await fetchWithAuth(url, { method: 'GET' });
+    const response = await fetchAPI('/merchant/account/deletion-status/', {
+      method: 'GET',
+    });
     return parseResponse(response);
   },
 };
