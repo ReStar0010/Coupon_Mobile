@@ -372,6 +372,13 @@ export default function TemplateAnalyticsCountScreen() {
                         isSelected={selectedMetric === 'exposure_count'}
                         onPress={() => setSelectedMetric('exposure_count')}
                       />
+                      <MetricCard 
+                        label="核銷數" 
+                        value={analytics.redemption_count || 0}
+                        metricType="redemption_rate"
+                        isSelected={selectedMetric === 'redemption_rate'}
+                        onPress={() => setSelectedMetric('redemption_rate')}
+                      />
                     </XStack>
                     <XStack gap="$3">
                       <MetricCard 
@@ -391,21 +398,12 @@ export default function TemplateAnalyticsCountScreen() {
                     </XStack>
                     <XStack gap="$3">
                       <MetricCard 
-                        label="核銷數" 
-                        value={analytics.redemption_count || 0}
-                        metricType="redemption_rate"
-                        isSelected={selectedMetric === 'redemption_rate'}
-                        onPress={() => setSelectedMetric('redemption_rate')}
-                      />
-                      <MetricCard 
                         label="流動數" 
                         value={analytics.circulation_count || 0}
                         metricType="circulation_rate"
                         isSelected={selectedMetric === 'circulation_rate'}
                         onPress={() => setSelectedMetric('circulation_rate')}
                       />
-                    </XStack>
-                    <XStack gap="$3">
                       <MetricCard 
                         label="流動核銷數" 
                         value={analytics.circulation_redemption_count || 0}
