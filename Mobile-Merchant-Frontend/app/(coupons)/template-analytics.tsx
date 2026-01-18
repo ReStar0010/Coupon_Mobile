@@ -372,6 +372,16 @@ export default function TemplateAnalyticsScreen() {
                     </XStack>
                     <XStack gap="$3">
                       <MetricCard 
+                        label="核銷率" 
+                        value={analytics.redemption_rate || 0} 
+                        isPercentage
+                        metricType="redemption_rate"
+                        isSelected={selectedMetric === 'redemption_rate'}
+                        onPress={() => setSelectedMetric('redemption_rate')}
+                      />
+                    </XStack>
+                    <XStack gap="$3">
+                      <MetricCard 
                         label="留客率" 
                         value={analytics.retention_rate || 0} 
                         isPercentage
@@ -390,14 +400,6 @@ export default function TemplateAnalyticsScreen() {
                     </XStack>
                     <XStack gap="$3">
                       <MetricCard 
-                        label="核銷率" 
-                        value={analytics.redemption_rate || 0} 
-                        isPercentage
-                        metricType="redemption_rate"
-                        isSelected={selectedMetric === 'redemption_rate'}
-                        onPress={() => setSelectedMetric('redemption_rate')}
-                      />
-                      <MetricCard 
                         label="流動率" 
                         value={analytics.circulation_rate || 0} 
                         isPercentage
@@ -405,8 +407,6 @@ export default function TemplateAnalyticsScreen() {
                         isSelected={selectedMetric === 'circulation_rate'}
                         onPress={() => setSelectedMetric('circulation_rate')}
                       />
-                    </XStack>
-                    <XStack gap="$3">
                       <MetricCard 
                         label="流動核銷率" 
                         value={analytics.circulation_redemption_rate || 0} 
