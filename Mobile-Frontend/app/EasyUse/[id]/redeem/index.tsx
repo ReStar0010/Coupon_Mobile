@@ -59,8 +59,12 @@ export default function RedeemPage() {
   const { width } = Dimensions.get('window');
 
   const onGoBackContainerClick = useCallback(() => {
-    router.push(`/EasyUse/${id}`);
-  }, [router, id]);
+    if (source === 'collection') {
+      router.replace('/Collection');
+      return;
+    }
+    router.replace(`/EasyUse/${id}`);
+  }, [router, id, source]);
 
   const handleCloseSuccessPopup = useCallback(() => {
     setShowSuccessConfirmation(false);

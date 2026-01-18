@@ -23,9 +23,12 @@ export default function QRClaimScanner() {
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastScannedTime, setLastScannedTime] = useState<number>(0);
   const [isDisabled, setIsDisabled] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+  const lastScannedTimeRef = useRef<number>(0);
+  const lastScannedCodeRef = useRef<string>('');
+  const successfullyClaimedCodesRef = useRef<Set<string>>(new Set());
+  const scanLockRef = useRef<boolean>(false);
 
   // Request camera permission on mount
   useEffect(() => {
@@ -42,23 +45,42 @@ export default function QRClaimScanner() {
   const handleBarCodeScanned = useCallback(async ({ type, data }: BarcodeScanningResult) => {
     if (!isScanning || isDisabled || isLoading) return;
     
-    // T030: Duplicate-scan prevention - prevent processing same QR code multiple times within 2 seconds
     const now = Date.now();
-    if (now - lastScannedTime < 2000) {
+    const scannedCode = data.trim();
+
+    // Permanent prevention: once successfully claimed, ignore this QR payload forever (until page re-mount)
+    if (successfullyClaimedCodesRef.current.has(scannedCode)) {
       return;
     }
-    setLastScannedTime(now);
+
+    // In-flight lock: expo-camera may fire multiple scan events before React state updates apply
+    if (scanLockRef.current) {
+      return;
+    }
+
+    // Time + content prevention: ignore same QR payload if scanned again within 5 seconds
+    if (
+      scannedCode === lastScannedCodeRef.current &&
+      now - lastScannedTimeRef.current < 5000
+    ) {
+      return;
+    }
+
+    scanLockRef.current = true;
+    lastScannedTimeRef.current = now;
+    lastScannedCodeRef.current = scannedCode;
     
     setIsScanning(false);
     setIsDisabled(true);
     setIsLoading(true);
     setError(null);
     
+    let didSucceed = false;
     try {
       // T032: Parse QR code JSON
       let qrData: { template_id?: number; session_token?: string };
       try {
-        qrData = JSON.parse(data);
+        qrData = JSON.parse(scannedCode);
       } catch (parseError) {
         setError('無效的 QR Code 格式，請掃描正確的優惠券 QR Code');
         setIsLoading(false);
@@ -84,6 +106,10 @@ export default function QRClaimScanner() {
       
       // T033: Call claim API with retry logic
       const result = await qrClaimAPI.claimCouponViaQR(qrData.template_id, qrData.session_token);
+      didSucceed = true;
+
+      // After success: permanently ignore this QR payload to prevent repeated claims
+      successfullyClaimedCodesRef.current.add(scannedCode);
       
       // T034: Show success message and navigate back
       Alert.alert(
@@ -93,7 +119,7 @@ export default function QRClaimScanner() {
           {
             text: '確定',
             onPress: () => {
-              router.back();
+              router.replace('/Collection');
             },
           },
         ],
@@ -122,11 +148,14 @@ export default function QRClaimScanner() {
       setIsDisabled(false);
     } finally {
       setIsLoading(false);
+      if (!didSucceed) {
+        scanLockRef.current = false;
+      }
     }
-  }, [isScanning, isDisabled, isLoading, lastScannedTime, router]);
+  }, [isScanning, isDisabled, isLoading, router]);
 
   const handleGoBack = useCallback(() => {
-    router.back();
+    router.replace('/Collection');
   }, [router]);
 
   const handleRequestPermission = useCallback(async () => {
@@ -224,6 +253,9 @@ export default function QRClaimScanner() {
               onPress={() => {
                 setError(null);
                 setIsDisabled(false);
+                scanLockRef.current = false;
+                lastScannedTimeRef.current = 0;
+                lastScannedCodeRef.current = '';
                 setIsScanning(true);
               }}
               style={styles.retryButton}
