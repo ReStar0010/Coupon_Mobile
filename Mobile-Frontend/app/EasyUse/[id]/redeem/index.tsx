@@ -31,7 +31,7 @@ interface Coupon {
 
 export default function RedeemPage() {
   const router = useRouter();
-  const { id, unifiedCode } = useLocalSearchParams<{ id: string; unifiedCode?: string }>();
+  const { id, unifiedCode, source } = useLocalSearchParams<{ id: string; unifiedCode?: string; source?: string }>();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [redeemCode, setRedeemCode] = useState('');
   const [message, setMessage] = useState('');
@@ -58,9 +58,13 @@ export default function RedeemPage() {
 
   const handleCloseSuccessPopup = useCallback(() => {
     setShowSuccessConfirmation(false);
-    // Redirect to main EasyUse page after successful redemption
-    router.push('/EasyUse');
-  }, [router]);
+    // Redirect based on source: Collection or EasyUse
+    if (source === 'collection') {
+      router.push('/Collection');
+    } else {
+      router.push('/EasyUse');
+    }
+  }, [router, source]);
 
   const handleHideErrorToast = useCallback(() => {
     setShowErrorToast(false);
@@ -129,46 +133,30 @@ export default function RedeemPage() {
     // Check if this is a unified redemption code (6-digit numeric)
     const isUnifiedCode = /^\d{6}$/.test(scannedCode);
     
+    // Close camera after scanning
+    setIsCameraActive(false);
+    
+    // Clear any previous errors
+    setInputError(false);
+    setMessage('');
+    if (showErrorToast) {
+      setShowErrorToast(false);
+      setErrorToastMessage('');
+    }
+    
     if (isUnifiedCode) {
-      // This is a unified redemption code - navigate to coupon selection screen
-      try {
-        setIsLoading(true);
-        const response = await unifiedRedemptionAPI.validateUnifiedRedemptionCode(scannedCode);
-        
-        // Close camera after scanning
-        setIsCameraActive(false);
-        
-        // Navigate to coupon selection screen with the unified code
-        router.push(`/EasyUse/unified-redeem/${scannedCode}`);
-      } catch (error: any) {
-        console.error('Failed to validate unified redemption code:', error);
-        setErrorToastMessage(error?.response?.data?.error || '無效的統一核銷碼');
-        setShowErrorToast(true);
-        setIsCameraActive(false);
-      } finally {
-        setIsLoading(false);
-      }
+      // Unified redemption code - directly redeem the current coupon
+      // No need to navigate to selection screen since user already selected the coupon
+      await handleSubmitCode(scannedCode);
     } else {
-      // Regular coupon-specific code
+      // Regular coupon-specific code - auto-redeem immediately
       const upperCode = scannedCode.toUpperCase();
       setRedeemCode(upperCode);
       
-      // Close camera after scanning
-      setIsCameraActive(false);
-      
-      // Clear any previous errors
-      setInputError(false);
-      setMessage('');
-      if (showErrorToast) {
-        setShowErrorToast(false);
-        setErrorToastMessage('');
-      }
-      
-      // Show feedback that code was scanned
-      setErrorToastMessage(`已掃描到代碼: ${upperCode}`);
-      setShowErrorToast(true);
+      // Auto-redeem immediately after scanning
+      await handleSubmitCode(upperCode);
     }
-  }, [isScanning, showErrorToast]);
+  }, [isScanning, showErrorToast, id, handleSubmitCode]);
 
   useEffect(() => {
     const fetchCoupon = async () => {
@@ -196,12 +184,38 @@ export default function RedeemPage() {
     }
   }, [id, router]);
 
-  // Auto-fill unified redemption code if provided
+  // Auto-fill and auto-redeem unified redemption code if provided
   useEffect(() => {
-    if (unifiedCode && !redeemCode) {
+    if (unifiedCode && !redeemCode && coupon && !isLoading && !showSuccessConfirmation) {
       setRedeemCode(unifiedCode);
+      // Auto-redeem immediately if unified code is provided
+      handleSubmitCode(unifiedCode);
     }
-  }, [unifiedCode, redeemCode]);
+  }, [unifiedCode, redeemCode, coupon, isLoading, showSuccessConfirmation, handleSubmitCode]);
+
+  // Auto-redeem on manual input with debounce (1 second after user stops typing)
+  // Handles both regular codes and unified codes (6-digit) - both redeem directly
+  useEffect(() => {
+    // Only auto-redeem if:
+    // - Code is at least 6 characters (valid code length for both types)
+    // - Not currently loading
+    // - Not showing success popup
+    // - No unified code param from URL (URL params handled separately on mount)
+    // - Coupon data is loaded
+    if (
+      redeemCode.length >= 6 &&
+      !isLoading &&
+      !showSuccessConfirmation &&
+      !unifiedCode &&
+      coupon
+    ) {
+      const debounceTimer = setTimeout(() => {
+        handleSubmitCode();
+      }, 1000); // 1 second debounce
+
+      return () => clearTimeout(debounceTimer);
+    }
+  }, [redeemCode, isLoading, showSuccessConfirmation, unifiedCode, coupon, handleSubmitCode]);
 
   // Cleanup camera when component unmounts
   useEffect(() => {
@@ -211,7 +225,12 @@ export default function RedeemPage() {
     };
   }, []);
 
-  const handleSubmitCode = async () => {
+  const handleSubmitCode = useCallback(async (codeToUse?: string) => {
+    const code = codeToUse || redeemCode;
+    if (!code || code.length < 1) {
+      return;
+    }
+
     setInputError(false);
     setMessage('');
     setIsLoading(true);
@@ -219,7 +238,7 @@ export default function RedeemPage() {
     try {
       const response = await fetchAPI(`/redeem/${id}/`, {
         method: 'POST',
-        data: { redeem_code: redeemCode },
+        data: { redeem_code: code },
       });
 
       // Process the successful response
@@ -260,7 +279,7 @@ export default function RedeemPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id, redeemCode, router]);
 
   const handleInputChange = (text: string) => {
     // Allow more flexible input, not just 6 characters
@@ -587,14 +606,10 @@ export default function RedeemPage() {
             </View>
           </View>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            onPress={handleSubmitCode}
-            disabled={redeemCode.length < 1 || showSuccessConfirmation || isLoading}
-            style={{
-              backgroundColor: (redeemCode.length >= 1 && !showSuccessConfirmation && !isLoading) 
-                ? '#FFAD31' 
-                : '#d1d5db',
+          {/* Loading indicator when auto-redeeming */}
+          {isLoading && (
+            <View style={{
+              backgroundColor: '#fff',
               borderRadius: 16,
               paddingVertical: 16,
               marginBottom: 30,
@@ -605,19 +620,15 @@ export default function RedeemPage() {
               shadowOpacity: 0.1,
               shadowRadius: 4,
               elevation: 3,
-            }}
-            activeOpacity={0.8}>
-            {isLoading ? (
+            }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#333" style={{ marginRight: 8 }} />
+                <ActivityIndicator size="small" color="#FFAD31" style={{ marginRight: 8 }} />
                 <Text style={{ color: '#333', fontSize: 16, fontWeight: '600' }}>
                   處理中...
                 </Text>
               </View>
-            ) : (
-              <Send size={20} color="#333" />
-            )}
-          </TouchableOpacity>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
 

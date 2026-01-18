@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { unifiedRedemptionAPI } from '../../utils/authAPI';
 import Toast from '../[id]/redeem/Toast';
+import SuccessPopup from '../[id]/redeem/SuccessPopup';
 
 // Define the coupon interface matching the API response
 interface AvailableCoupon {
@@ -44,6 +45,9 @@ export default function UnifiedRedeemScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorToastMessage, setErrorToastMessage] = useState('');
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [redeemedCoupon, setRedeemedCoupon] = useState<AvailableCoupon | null>(null);
 
   useEffect(() => {
     const fetchCoupons = async () => {
@@ -79,15 +83,39 @@ export default function UnifiedRedeemScreen() {
   }, [router]);
 
   const handleCouponPress = useCallback(
-    (coupon: AvailableCoupon) => {
-      // Navigate to redemption page with coupon ID and auto-filled unified code
-      router.push({
-        pathname: `/EasyUse/${coupon.id}/redeem`,
-        params: { unifiedCode: code },
-      });
+    async (coupon: AvailableCoupon) => {
+      if (!code || isRedeeming) return;
+
+      setIsRedeeming(true);
+      setError(null);
+      setShowErrorToast(false);
+
+      try {
+        // Auto-redeem immediately using unified redemption API
+        await unifiedRedemptionAPI.redeemCouponWithUnifiedCode(coupon.id, code);
+        
+        // Store redeemed coupon info for success popup
+        setRedeemedCoupon(coupon);
+        setShowSuccessPopup(true);
+      } catch (err: any) {
+        console.error('Failed to redeem coupon:', err);
+        const errorMessage = err?.response?.data?.error || '兌換失敗，請稍後再試';
+        setError(errorMessage);
+        setErrorToastMessage(errorMessage);
+        setShowErrorToast(true);
+      } finally {
+        setIsRedeeming(false);
+      }
     },
-    [code, router]
+    [code, isRedeeming]
   );
+
+  const handleCloseSuccessPopup = useCallback(() => {
+    setShowSuccessPopup(false);
+    setRedeemedCoupon(null);
+    // Navigate back to Collection after successful redemption
+    router.push('/Collection');
+  }, [router]);
 
   const handleHideErrorToast = useCallback(() => {
     setShowErrorToast(false);
@@ -111,9 +139,10 @@ export default function UnifiedRedeemScreen() {
   const renderCouponItem = useCallback(
     ({ item }: { item: AvailableCoupon }) => (
       <TouchableOpacity
-        style={styles.couponCard}
+        style={[styles.couponCard, isRedeeming && styles.couponCardDisabled]}
         onPress={() => handleCouponPress(item)}
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+        disabled={isRedeeming}>
         <View style={styles.couponContent}>
           <Image
             source={{ uri: DEFAULT_IMAGE_URL }}
@@ -143,6 +172,12 @@ export default function UnifiedRedeemScreen() {
                   </Text>
                 ) : null}
               </View>
+              {isRedeeming && (
+                <View style={styles.redeemingIndicator}>
+                  <ActivityIndicator size="small" color="#FFAD31" />
+                  <Text style={styles.redeemingText}>處理中...</Text>
+                </View>
+              )}
             </>
           </View>
         </View>
@@ -249,6 +284,15 @@ export default function UnifiedRedeemScreen() {
         type="error"
         duration={4000}
       />
+
+      {/* Success Popup */}
+      <SuccessPopup
+        isOpen={showSuccessPopup}
+        onClose={handleCloseSuccessPopup}
+        storeName={redeemedCoupon?.store_name}
+        couponDetail={redeemedCoupon?.coupon_detail}
+        titleType="核銷成功"
+      />
     </SafeAreaView>
   );
 }
@@ -321,6 +365,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  couponCardDisabled: {
+    opacity: 0.6,
   },
   couponContent: {
     flexDirection: 'row',
@@ -418,5 +465,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  redeemingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  redeemingText: {
+    fontSize: 14,
+    color: '#FFAD31',
+    fontWeight: '600',
   },
 });

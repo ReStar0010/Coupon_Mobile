@@ -46,7 +46,11 @@ const Coupon: React.FC<CouponProps> = ({
   const router = useRouter();
 
   const handleCouponPress = useCallback(() => {
-    router.push(`/EasyUse/${id}?source=collection`);
+    // Navigate directly to redeem page for exclusive coupons (Collections)
+    // Skip the detail page to streamline the redemption flow
+    if (id) {
+      router.push(`/EasyUse/${id}/redeem?source=collection`);
+    }
   }, [router, id]);
 
   const formattedDate = useMemo(() => {
