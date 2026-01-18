@@ -66,3 +66,6 @@ export interface DailyDrawResult {
   };
   message: string;
 }
+
+// Filter types
+export type ExpiryFilter = 'all' | 'expiringSoon' | 'thisWeek' | 'thisMonth';

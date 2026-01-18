@@ -1,7 +1,7 @@
 // Utility functions for Collection page
 
 import { fetchAPI } from '../../utils/authAPI';
-import { ApiCoupon, CouponType } from './types';
+import { ApiCoupon, CouponType, ExpiryFilter } from './types';
 import axios from 'axios';
 
 /**
@@ -90,31 +90,112 @@ export const checkLastDrawDate = async (): Promise<boolean> => {
 };
 
 /**
- * Filter coupons based on search query
+ * Check if coupon matches expiry filter
  */
-export const filterCoupons = (coupons: CouponType[], searchQuery: string): CouponType[] => {
-  if (!searchQuery) return coupons;
+const matchesExpiryFilter = (coupon: CouponType, filter: ExpiryFilter): boolean => {
+  if (filter === 'all') return true;
 
-  const query = searchQuery.toLowerCase().trim();
-  return coupons.filter((coupon) => {
-    // 搜尋店家名稱
-    if (coupon.storeName?.toLowerCase().includes(query)) return true;
-    
-    // 搜尋優惠內容
-    if (coupon.description?.toLowerCase().includes(query)) return true;
-    
-    // 搜尋優惠名稱
-    if (coupon.couponName?.toLowerCase().includes(query)) return true;
-    
-    // 搜尋標籤
-    if (coupon.tags && coupon.tags.length > 0) {
-      const tagMatch = coupon.tags.some(tag => 
-        tag.toLowerCase().includes(query)
-      );
-      if (tagMatch) return true;
+  const now = new Date();
+  const expiryDate = coupon.expiryDate;
+  
+  if (!expiryDate) return false;
+
+  // Reset time to start of day for comparison
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+
+  switch (filter) {
+    case 'expiringSoon': {
+      // 7天内到期
+      const sevenDaysFromNow = new Date(todayStart);
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      const expiryTime = expiryDate.getTime();
+      const nowTime = now.getTime();
+      const sevenDaysTime = sevenDaysFromNow.getTime();
+      return expiryTime > nowTime && expiryTime <= sevenDaysTime;
     }
-    
-    return false;
+
+    case 'thisWeek': {
+      // 本周到期（周一到周日）
+      const dayOfWeek = now.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
+      const weekStart = new Date(todayStart);
+      weekStart.setDate(weekStart.getDate() - diff);
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      
+      const expiryTime = expiryDate.getTime();
+      return expiryTime >= weekStart.getTime() && expiryTime < weekEnd.getTime();
+    }
+
+    case 'thisMonth': {
+      // 本月到期
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      
+      const expiryTime = expiryDate.getTime();
+      return expiryTime >= monthStart.getTime() && expiryTime < monthEnd.getTime();
+    }
+
+    default:
+      return true;
+  }
+};
+
+/**
+ * Filter coupons based on search query and multiple filter criteria
+ */
+export const filterCoupons = (
+  coupons: CouponType[],
+  searchQuery: string,
+  selectedTags?: string[],
+  expiryFilter?: ExpiryFilter,
+  selectedMerchant?: string | null
+): CouponType[] => {
+  return coupons.filter((coupon) => {
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        coupon.storeName?.toLowerCase().includes(query) ||
+        coupon.description?.toLowerCase().includes(query) ||
+        coupon.couponName?.toLowerCase().includes(query) ||
+        (coupon.tags &&
+          coupon.tags.some((tag) => tag.toLowerCase().includes(query)));
+      
+      if (!matchesSearch) return false;
+    }
+
+    // Tag filter (multi-select)
+    // selectedTags should contain display_names (e.g., "食物", "飲品") to match coupon.tags
+    if (selectedTags && selectedTags.length > 0) {
+      if (!coupon.tags || coupon.tags.length === 0) return false;
+      
+      // Check if coupon has at least one of the selected tags
+      const hasMatchingTag = selectedTags.some((selectedTag) =>
+        coupon.tags!.some((tag) => 
+          tag.toLowerCase() === selectedTag.toLowerCase()
+        )
+      );
+      
+      if (!hasMatchingTag) return false;
+    }
+
+    // Expiry filter
+    if (expiryFilter && expiryFilter !== 'all') {
+      if (!matchesExpiryFilter(coupon, expiryFilter)) return false;
+    }
+
+    // Merchant filter
+    if (selectedMerchant) {
+      if (coupon.storeName?.toLowerCase() !== selectedMerchant.toLowerCase()) {
+        return false;
+      }
+    }
+
+    return true;
   });
 };
 export default transformApiCoupon;
