@@ -35,6 +35,7 @@ export default function CouponEditScreen() {
   // Tag state
   const [availableTags, setAvailableTags] = useState<Array<{id: number, name: string, display_name: string}>>([]);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [originalSelectedTags, setOriginalSelectedTags] = useState<number[]>([]);
   // Store original values for validation in edit mode
   const [originalTotalQuantity, setOriginalTotalQuantity] = useState<number | null>(null);
   const [remainingQuantity, setRemainingQuantity] = useState<number | null>(null);
@@ -117,6 +118,7 @@ export default function CouponEditScreen() {
       // Load tags if available
       if (data.tags && Array.isArray(data.tags)) {
         setSelectedTags(data.tags);
+        setOriginalSelectedTags(data.tags);
       }
       
       // Load draw probability if available (convert from 0-1 to 0-100)
@@ -268,6 +270,8 @@ export default function CouponEditScreen() {
             endTime,
           });
         }
+        // Update original selected tags after successful save
+        setOriginalSelectedTags(selectedTags);
       } else {
         await merchantAPI.createTemplate(couponData);
         Alert.alert('成功', '優惠券已建立');
@@ -330,6 +334,9 @@ export default function CouponEditScreen() {
     // Compare current values with original values
     const currentQuantity = couponType === '專屬優惠' ? quantity : '1';
     
+    // Compare tags by sorting and stringifying arrays
+    const tagsChanged = JSON.stringify([...selectedTags].sort()) !== JSON.stringify([...originalSelectedTags].sort());
+    
     return (
       couponName !== originalData.couponName ||
       couponContent !== originalData.couponContent ||
@@ -337,7 +344,8 @@ export default function CouponEditScreen() {
       image !== originalData.image ||
       currentQuantity !== originalData.quantity ||
       startTime !== originalData.startTime ||
-      endTime !== originalData.endTime
+      endTime !== originalData.endTime ||
+      tagsChanged
     );
   };
 
