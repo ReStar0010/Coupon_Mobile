@@ -26,60 +26,78 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
     coupon.remainingQuantity <= 0;
 
   return (
-    <YStack
-      backgroundColor={colors.white}
-      borderRadius="$4"
-      padding="$4"
-      borderWidth={1}
-      borderColor={colors.border}
-      style={[styles.cardShadow, isSoldOut ? styles.soldOutCard : undefined]}
+    <TouchableOpacity
+      onPress={() => {
+        // Only allow entering the phone/QR entry screen when not sold out.
+        if (isSoldOut) return;
+        router.push(`/(coupons)/${coupon.id}`);
+      }}
+      activeOpacity={isSoldOut ? 1 : 0.85}
     >
-      {/* Title, Edit Icon, and Statistics Icon */}
-      <XStack alignItems="center" justifyContent="space-between" marginBottom="$2">
-        <XStack flex={1} alignItems="center" gap="$2" minWidth={0}>
-          <Text fontSize="$lg" fontWeight="700" color={colors.textPrimary} flex={1} numberOfLines={1}>
-            {coupon.title}
-          </Text>
-        </XStack>
-        <XStack gap="$3" alignItems="center">
-          <TouchableOpacity 
-            onPress={() => router.push(`/(coupons)/template-analytics/${coupon.id}`)} 
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="bar-chart" size={18} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onEdit} activeOpacity={0.7}>
-            <MaterialIcons name="edit" size={18} color={colors.primary} />
-          </TouchableOpacity>
-        </XStack>
-      </XStack>
-
-      {/* Date Range */}
-      <Text fontSize="$sm" color={colors.textSecondary} marginBottom="$1.5">
-        {coupon.startDate} ~ {coupon.endDate}
-      </Text>
-
-      {/* Usage Count + Sold out badge (bottom-right) */}
-      <XStack alignItems="center" justifyContent="space-between">
-        <Text fontSize="$sm" color={colors.textSecondary}>
-          已發出: {coupon.redemptionCount}
-        </Text>
-        {isSoldOut ? (
-          <YStack
-            paddingHorizontal="$2"
-            paddingVertical="$1"
-            borderRadius="$10"
-            backgroundColor="rgba(239, 68, 68, 0.12)"
-            borderWidth={1}
-            borderColor="rgba(239, 68, 68, 0.35)"
-          >
-            <Text fontSize="$xs" fontWeight="700" color={colors.error}>
-              已發完
+      <YStack
+        backgroundColor={colors.white}
+        borderRadius="$4"
+        padding="$4"
+        borderWidth={1}
+        borderColor={colors.border}
+        style={[styles.cardShadow, isSoldOut ? styles.soldOutCard : undefined]}
+      >
+        {/* Title, Edit Icon, and Statistics Icon */}
+        <XStack alignItems="center" justifyContent="space-between" marginBottom="$2">
+          <XStack flex={1} alignItems="center" gap="$2" minWidth={0}>
+            <Text fontSize="$lg" fontWeight="700" color={colors.textPrimary} flex={1} numberOfLines={1}>
+              {coupon.title}
             </Text>
-          </YStack>
-        ) : null}
-      </XStack>
-    </YStack>
+          </XStack>
+          <XStack gap="$3" alignItems="center">
+            <TouchableOpacity 
+              onPress={(e) => {
+                e.stopPropagation();
+                router.push(`/(coupons)/template-analytics/${coupon.id}`);
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="bar-chart" size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="edit" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </XStack>
+        </XStack>
+
+        {/* Date Range */}
+        <Text fontSize="$sm" color={colors.textSecondary} marginBottom="$1.5">
+          {coupon.startDate} ~ {coupon.endDate}
+        </Text>
+
+        {/* Usage Count + Sold out badge (bottom-right) */}
+        <XStack alignItems="center" justifyContent="space-between">
+          <Text fontSize="$sm" color={colors.textSecondary}>
+            已發出: {coupon.redemptionCount}
+          </Text>
+          {isSoldOut ? (
+            <YStack
+              paddingHorizontal="$2"
+              paddingVertical="$1"
+              borderRadius="$10"
+              backgroundColor="rgba(239, 68, 68, 0.12)"
+              borderWidth={1}
+              borderColor="rgba(239, 68, 68, 0.35)"
+            >
+              <Text fontSize="$xs" fontWeight="700" color={colors.error}>
+                已發完
+              </Text>
+            </YStack>
+          ) : null}
+        </XStack>
+      </YStack>
+    </TouchableOpacity>
   );
 }
 
