@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { qrClaimAPI } from '../utils/authAPI';
@@ -18,6 +18,7 @@ const { width } = Dimensions.get('window');
 
 export default function QRClaimScanner() {
   const router = useRouter();
+  const pathname = usePathname();
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [isScanning, setIsScanning] = useState(false);
@@ -29,6 +30,20 @@ export default function QRClaimScanner() {
   const lastScannedCodeRef = useRef<string>('');
   const successfullyClaimedCodesRef = useRef<Set<string>>(new Set());
   const scanLockRef = useRef<boolean>(false);
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pathnameRef = useRef<string>(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    };
+  }, []);
 
   // Request camera permission on mount
   useEffect(() => {
@@ -145,6 +160,30 @@ export default function QRClaimScanner() {
       }
       
       setError(displayMessage);
+
+      // If out-of-stock: show message briefly then auto-return to previous page (fallback: /EasyUse)
+      if (displayMessage === '優惠券已領取完畢') {
+        setIsScanning(false);
+        setIsDisabled(true);
+
+        if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+        if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+
+        redirectTimerRef.current = setTimeout(() => {
+          const startPath = pathnameRef.current;
+          router.back();
+
+          // If back didn't change route (e.g., no history), fall back to EasyUse
+          fallbackTimerRef.current = setTimeout(() => {
+            if (pathnameRef.current === startPath) {
+              router.replace('/EasyUse');
+            }
+          }, 250);
+        }, 1000);
+
+        return;
+      }
+
       setIsDisabled(false);
     } finally {
       setIsLoading(false);
@@ -249,19 +288,21 @@ export default function QRClaimScanner() {
         {error && (
           <View style={styles.errorOverlay}>
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setError(null);
-                setIsDisabled(false);
-                scanLockRef.current = false;
-                lastScannedTimeRef.current = 0;
-                lastScannedCodeRef.current = '';
-                setIsScanning(true);
-              }}
-              style={styles.retryButton}
-            >
-              <Text style={styles.retryButtonText}>重試</Text>
-            </TouchableOpacity>
+            {error !== '優惠券已領取完畢' && (
+              <TouchableOpacity
+                onPress={() => {
+                  setError(null);
+                  setIsDisabled(false);
+                  scanLockRef.current = false;
+                  lastScannedTimeRef.current = 0;
+                  lastScannedCodeRef.current = '';
+                  setIsScanning(true);
+                }}
+                style={styles.retryButton}
+              >
+                <Text style={styles.retryButtonText}>重試</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
