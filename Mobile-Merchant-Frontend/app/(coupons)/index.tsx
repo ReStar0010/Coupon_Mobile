@@ -297,21 +297,29 @@ export default function CouponsScreen() {
               尚無優惠券
             </Text>
           ) : (
-            filteredCoupons.map((coupon) => (
-              <CouponCard
-                key={coupon.id}
-                coupon={{
-                  id: String(coupon.id),
-                  title: coupon.coupon_name,
-                  startDate: new Date(coupon.start_date).toLocaleDateString('zh-TW'),
-                  endDate: new Date(coupon.end_date).toLocaleDateString('zh-TW'),
-                  redemptionCount: coupon.redemption_count || 0,
-                }}
-                onEdit={() => {
-                  router.push(`/(coupons)/edit?id=${coupon.id}`);
-                }}
-              />
-            ))
+            filteredCoupons.map((coupon) => {
+              // Collections-only: in this app, total_quantity > 0 indicates "專屬優惠" (Collections).
+              // Other types (e.g., 隨取即用) should NOT show Sold Out UI.
+              const isCollectionsType = (coupon.total_quantity ?? 0) > 0;
+
+              return (
+                <CouponCard
+                  key={coupon.id}
+                  coupon={{
+                    id: String(coupon.id),
+                    title: coupon.coupon_name,
+                    startDate: new Date(coupon.start_date).toLocaleDateString('zh-TW'),
+                    endDate: new Date(coupon.end_date).toLocaleDateString('zh-TW'),
+                    redemptionCount: coupon.redemption_count || 0,
+                    enableSoldOutUI: isCollectionsType,
+                    remainingQuantity: isCollectionsType ? coupon.remaining_quantity : undefined,
+                  }}
+                  onEdit={() => {
+                    router.push(`/(coupons)/edit?id=${coupon.id}`);
+                  }}
+                />
+              );
+            })
           )}
         </YStack>
         </ScrollView>

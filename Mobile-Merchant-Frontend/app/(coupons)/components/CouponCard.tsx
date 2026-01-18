@@ -4,35 +4,43 @@ import { colors } from '@/constants/colors';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
-import type { Coupon } from '../index';
 
 interface CouponCardProps {
-  coupon: Coupon;
+  coupon: {
+    id: string;
+    title: string;
+    startDate: string;
+    endDate: string;
+    redemptionCount: number;
+    enableSoldOutUI?: boolean; // Only Collections-type coupons should use Sold Out UI
+    remainingQuantity?: number;
+  };
   onEdit: () => void;
 }
 
 export function CouponCard({ coupon, onEdit }: CouponCardProps) {
   const router = useRouter();
-
-  const handleCardPress = () => {
-    router.push(`/(coupons)/${coupon.id}`);
-  };
+  const isSoldOut =
+    coupon.enableSoldOutUI === true &&
+    typeof coupon.remainingQuantity === 'number' &&
+    coupon.remainingQuantity <= 0;
 
   return (
-    <TouchableOpacity onPress={handleCardPress} activeOpacity={0.8}>
-      <YStack
-        backgroundColor={colors.white}
-        borderRadius="$4"
-        padding="$4"
-        borderWidth={1}
-        borderColor={colors.border}
-        style={styles.cardShadow}
-      >
+    <YStack
+      backgroundColor={colors.white}
+      borderRadius="$4"
+      padding="$4"
+      borderWidth={1}
+      borderColor={colors.border}
+      style={[styles.cardShadow, isSoldOut ? styles.soldOutCard : undefined]}
+    >
       {/* Title, Edit Icon, and Statistics Icon */}
       <XStack alignItems="center" justifyContent="space-between" marginBottom="$2">
-        <Text fontSize="$lg" fontWeight="700" color={colors.textPrimary} flex={1}>
-          {coupon.title}
-        </Text>
+        <XStack flex={1} alignItems="center" gap="$2" minWidth={0}>
+          <Text fontSize="$lg" fontWeight="700" color={colors.textPrimary} flex={1} numberOfLines={1}>
+            {coupon.title}
+          </Text>
+        </XStack>
         <XStack gap="$3" alignItems="center">
           <TouchableOpacity 
             onPress={() => router.push(`/(coupons)/template-analytics/${coupon.id}`)} 
@@ -51,12 +59,27 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
         {coupon.startDate} ~ {coupon.endDate}
       </Text>
 
-      {/* Usage Count */}
-      <Text fontSize="$sm" color={colors.textSecondary}>
-        已發出: {coupon.redemptionCount}
-      </Text>
-      </YStack>
-    </TouchableOpacity>
+      {/* Usage Count + Sold out badge (bottom-right) */}
+      <XStack alignItems="center" justifyContent="space-between">
+        <Text fontSize="$sm" color={colors.textSecondary}>
+          已發出: {coupon.redemptionCount}
+        </Text>
+        {isSoldOut ? (
+          <YStack
+            paddingHorizontal="$2"
+            paddingVertical="$1"
+            borderRadius="$10"
+            backgroundColor="rgba(239, 68, 68, 0.12)"
+            borderWidth={1}
+            borderColor="rgba(239, 68, 68, 0.35)"
+          >
+            <Text fontSize="$xs" fontWeight="700" color={colors.error}>
+              已發完
+            </Text>
+          </YStack>
+        ) : null}
+      </XStack>
+    </YStack>
   );
 }
 
@@ -70,6 +93,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  soldOutCard: {
+    // Subtle tint (not disabled/greyed out), keeps text fully legible.
+    backgroundColor: 'rgba(255, 173, 49, 0.06)',
   },
 });
 
