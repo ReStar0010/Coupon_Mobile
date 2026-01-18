@@ -60,6 +60,12 @@ const CouponDetailPage: React.FC = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [redemptionData, setRedemptionData] = useState<{
+    couponName?: string;
+    discountValue?: number;
+    redeemedAt?: string;
+    redemptionId?: number;
+  } | null>(null);
 
   // Track template view event
   const trackTemplateView = async (templateId: number, couponId: number) => {
@@ -162,8 +168,16 @@ const CouponDetailPage: React.FC = () => {
         try {
           setIsRedeeming(true);
 
-          await fetchAPI(`/redeem/${coupon.id}/`, {
+          const response = await fetchAPI(`/redeem/${coupon.id}/`, {
             method: 'POST',
+          });
+
+          // Store redemption data from API response
+          setRedemptionData({
+            couponName: response.data.coupon_name,
+            discountValue: response.data.savings_amount,
+            redeemedAt: response.data.redeemed_at,
+            redemptionId: response.data.redemption_id,
           });
 
           // Update the coupon state to show it as redeemed
@@ -190,6 +204,7 @@ const CouponDetailPage: React.FC = () => {
   const handleCloseSuccessPopup = () => {
     setShowSuccessPopup(false);
     setIsRedeeming(false);
+    setRedemptionData(null);
     router.push('/EasyUse'); // Redirect back to main page
   };
 
@@ -731,6 +746,10 @@ const CouponDetailPage: React.FC = () => {
         onClose={handleCloseSuccessPopup}
         storeName={coupon?.store_name}
         couponDetail={coupon?.coupon_detail}
+        couponName={redemptionData?.couponName || coupon?.coupon_name}
+        discountValue={redemptionData?.discountValue}
+        redeemedAt={redemptionData?.redeemedAt}
+        redemptionId={redemptionData?.redemptionId}
         titleType="使用成功"
       />
 

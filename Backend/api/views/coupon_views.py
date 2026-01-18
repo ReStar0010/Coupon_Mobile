@@ -412,8 +412,11 @@ def redeem_coupon(request, id):
     
     return Response({
         "message": "優惠券兌換成功", 
+        "coupon_name": coupon.coupon_name,
         "coupon_detail": coupon.coupon_detail,
         "savings_amount": savings_amount,
+        "redeemed_at": redemption.redeemed_at.isoformat(),
+        "redemption_id": redemption.id,
     })
 
 

@@ -40,6 +40,12 @@ export default function RedeemPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorToastMessage, setErrorToastMessage] = useState('');
+  const [redemptionData, setRedemptionData] = useState<{
+    couponName?: string;
+    discountValue?: number;
+    redeemedAt?: string;
+    redemptionId?: number;
+  } | null>(null);
   
   // Camera states
   const [permission, requestPermission] = useCameraPermissions();
@@ -58,6 +64,7 @@ export default function RedeemPage() {
 
   const handleCloseSuccessPopup = useCallback(() => {
     setShowSuccessConfirmation(false);
+    setRedemptionData(null);
     // Redirect based on source: Collection or EasyUse
     if (source === 'collection') {
       router.push('/Collection');
@@ -243,6 +250,15 @@ export default function RedeemPage() {
 
       // Process the successful response
       devLog('兌換成功', response.data);
+      
+      // Store redemption data
+      setRedemptionData({
+        couponName: response.data.coupon_name,
+        discountValue: response.data.savings_amount,
+        redeemedAt: response.data.redeemed_at,
+        redemptionId: response.data.redemption_id,
+      });
+      
       setInputError(false);
       setShowSuccessConfirmation(true);
       setRedeemCode('');
@@ -638,6 +654,10 @@ export default function RedeemPage() {
         onClose={handleCloseSuccessPopup}
         storeName={coupon?.store_name}
         couponDetail={coupon?.coupon_detail}
+        couponName={redemptionData?.couponName || coupon?.coupon_name}
+        discountValue={redemptionData?.discountValue}
+        redeemedAt={redemptionData?.redeemedAt}
+        redemptionId={redemptionData?.redemptionId}
         titleType="核銷成功"
       />
 

@@ -48,6 +48,12 @@ export default function UnifiedRedeemScreen() {
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [redeemedCoupon, setRedeemedCoupon] = useState<AvailableCoupon | null>(null);
+  const [redemptionData, setRedemptionData] = useState<{
+    couponName?: string;
+    discountValue?: number;
+    redeemedAt?: string;
+    redemptionId?: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetchCoupons = async () => {
@@ -92,10 +98,19 @@ export default function UnifiedRedeemScreen() {
 
       try {
         // Auto-redeem immediately using unified redemption API
-        await unifiedRedemptionAPI.redeemCouponWithUnifiedCode(coupon.id, code);
+        const response = await unifiedRedemptionAPI.redeemCouponWithUnifiedCode(coupon.id, code);
         
         // Store redeemed coupon info for success popup
         setRedeemedCoupon(coupon);
+        
+        // Store redemption data from API response
+        setRedemptionData({
+          couponName: response.coupon_name,
+          discountValue: response.savings_amount,
+          redeemedAt: response.redeemed_at,
+          redemptionId: response.redemption_id,
+        });
+        
         setShowSuccessPopup(true);
       } catch (err: any) {
         console.error('Failed to redeem coupon:', err);
@@ -113,6 +128,7 @@ export default function UnifiedRedeemScreen() {
   const handleCloseSuccessPopup = useCallback(() => {
     setShowSuccessPopup(false);
     setRedeemedCoupon(null);
+    setRedemptionData(null);
     // Navigate back to Collection after successful redemption
     router.push('/Collection');
   }, [router]);
@@ -291,6 +307,10 @@ export default function UnifiedRedeemScreen() {
         onClose={handleCloseSuccessPopup}
         storeName={redeemedCoupon?.store_name}
         couponDetail={redeemedCoupon?.coupon_detail}
+        couponName={redemptionData?.couponName || redeemedCoupon?.coupon_name}
+        discountValue={redemptionData?.discountValue || redeemedCoupon?.estimated_savings}
+        redeemedAt={redemptionData?.redeemedAt}
+        redemptionId={redemptionData?.redemptionId}
         titleType="核銷成功"
       />
     </SafeAreaView>

@@ -7,6 +7,10 @@ interface SuccessPopupProps {
   storeName?: string;
   couponDetail?: string;
   titleType?: string;
+  couponName?: string;
+  discountValue?: number | string;
+  redeemedAt?: string;
+  redemptionId?: number;
 }
 
 const { width } = Dimensions.get('window');
@@ -17,14 +21,44 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
   storeName = '店家名稱',
   couponDetail = '優惠詳情',
   titleType = '核銷成功',
+  couponName,
+  discountValue,
+  redeemedAt,
+  redemptionId,
 }) => {
-  // Format current date as YYYY/MM/DD
-  const getCurrentDate = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}/${month}/${day}`;
+  // Format timestamp as YYYY/MM/DD HH:MM
+  const formatTimestamp = (isoString?: string) => {
+    if (!isoString) {
+      // Fallback to current date if no timestamp provided
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      return `${year}/${month}/${day} ${hours}:${minutes}`;
+    }
+    try {
+      const date = new Date(isoString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}/${month}/${day} ${hours}:${minutes}`;
+    } catch {
+      return isoString;
+    }
+  };
+
+  // Format discount value
+  const formatDiscountValue = (value?: number | string) => {
+    if (value === undefined || value === null) return '—';
+    if (typeof value === 'number') {
+      if (value === 0) return '免費';
+      return `NT$${value.toLocaleString()}`;
+    }
+    return String(value);
   };
 
   return (
@@ -55,14 +89,54 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
             fontWeight: 'bold',
             color: '#333',
             textAlign: 'center',
-            marginBottom: 32
+            marginBottom: 24
           }}>
             {titleType}
           </Text>
 
+          {/* Coupon Name - Prominent */}
+          {couponName && (
+            <Text style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: '#333',
+              textAlign: 'center',
+              marginBottom: 24
+            }} numberOfLines={2}>
+              {couponName}
+            </Text>
+          )}
+
           {/* Content */}
           <View style={{ marginBottom: 40 }}>
-            {/* Usage Date Row */}
+            {/* Discount Value Row */}
+            {discountValue !== undefined && (
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 20
+              }}>
+                <Text style={{
+                  fontSize: 16,
+                  color: '#999',
+                  fontWeight: '500'
+                }}>
+                  優惠內容
+                </Text>
+                <Text style={{
+                  fontSize: 16,
+                  color: '#333',
+                  fontWeight: '600',
+                  maxWidth: 180,
+                  textAlign: 'right'
+                }} numberOfLines={2}>
+                  {formatDiscountValue(discountValue)}
+                </Text>
+              </View>
+            )}
+
+            {/* Redemption Timestamp Row */}
             <View style={{
               flexDirection: 'row',
               justifyContent: 'space-between',
@@ -74,14 +148,14 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                 color: '#999',
                 fontWeight: '500'
               }}>
-                使用日期
+                核銷時間
               </Text>
               <Text style={{
                 fontSize: 16,
                 color: '#333',
                 fontWeight: '600'
               }}>
-                {getCurrentDate()}
+                {formatTimestamp(redeemedAt)}
               </Text>
             </View>
 
@@ -89,7 +163,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
             <View style={{
               flexDirection: 'row',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              marginBottom: redemptionId ? 20 : 0
             }}>
               <Text style={{
                 fontSize: 16,
@@ -108,6 +183,30 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                 {storeName}
               </Text>
             </View>
+
+            {/* Transaction ID Row - Small font */}
+            {redemptionId && (
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <Text style={{
+                  fontSize: 12,
+                  color: '#999',
+                  fontWeight: '400'
+                }}>
+                  交易編號
+                </Text>
+                <Text style={{
+                  fontSize: 12,
+                  color: '#999',
+                  fontWeight: '400'
+                }}>
+                  #{redemptionId}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Complete Button */}
