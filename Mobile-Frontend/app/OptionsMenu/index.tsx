@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logout, fetchAPI } from '../utils/authAPI';
 import { View, Text, XStack, YStack, Card, Button, H4, ListItem, Separator } from 'tamagui';
 import {
@@ -56,8 +55,8 @@ const OptionsMenu: React.FC = () => {
     router.push('/OptionsMenu/PhoneSettings');
   }, [router]);
 
-  // 登出功能 - 使用 AsyncStorage 方式
-  const handleLogout = async () => {
+  // 登出功能 - AuthOrchestrator 處理導航
+  const handleLogout = () => {
     Alert.alert('確認登出', '您確定要登出嗎？', [
       {
         text: '取消',
@@ -69,21 +68,12 @@ const OptionsMenu: React.FC = () => {
         onPress: async () => {
           try {
             await logout();
+            // AuthOrchestrator will handle navigation to /Login
           } catch (error) {
             console.error('登出失敗:', error);
-            // 即使 API 請求失敗，也清除前端狀態並重定向
-            try {
-              await AsyncStorage.multiRemove([
-                'auth_token',
-                'user_id',
-                'is_logged_in',
-                'user_info',
-              ]);
-            } catch (storageError) {
-              console.error('清除儲存失敗:', storageError);
-            }
+            // logout() already cleared tokens and emitted event
+            // AuthOrchestrator will still handle navigation
           }
-          router.replace('/Login');
         },
       },
     ]);

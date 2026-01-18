@@ -8,6 +8,7 @@ import { PortalProvider } from '@tamagui/portal';
 import { config } from '../tamagui.config';
 import ThemeProvider from './components/providers/ThemeProvider';
 import AuthProvider from './components/providers/SessionProvider';
+import AuthOrchestrator from './components/providers/AuthOrchestrator';
 import ToastProvider from './components/providers/ToastProvider';
 import { getApiConfig } from './config/api';
 
@@ -31,18 +32,20 @@ export default function RootLayout() {
         <PortalProvider shouldAddRootHost>
           <ThemeProvider>
             <AuthProvider>
-              <ToastProvider> 
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="Login" />
-                  <Stack.Screen name="EasyUse" />
-                  <Stack.Screen name="Collection" />
-                  <Stack.Screen name="Statistics" />
-                  <Stack.Screen name="OptionsMenu" />
-                  <Stack.Screen name="ResetPassword" />
-                </Stack>
-                <StatusBar style="auto" />
-              </ToastProvider>
+              <AuthOrchestrator>
+                <ToastProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="Login" />
+                    <Stack.Screen name="EasyUse" />
+                    <Stack.Screen name="Collection" />
+                    <Stack.Screen name="Statistics" />
+                    <Stack.Screen name="OptionsMenu" />
+                    <Stack.Screen name="ResetPassword" />
+                  </Stack>
+                  <StatusBar style="auto" />
+                </ToastProvider>
+              </AuthOrchestrator>
             </AuthProvider>
           </ThemeProvider>
         </PortalProvider>
