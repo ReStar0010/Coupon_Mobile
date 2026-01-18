@@ -21,7 +21,7 @@ wheels/
 *.egg
 MANIFEST
 .cursor
-
+.venv
 
 # Virtual environments
 venv/
