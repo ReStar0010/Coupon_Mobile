@@ -193,15 +193,26 @@ class StatisticsVerifier:
         redemption_rate = redemption_count / template.total_quantity if template.total_quantity > 0 else 0
         
         # DB queries for advanced metrics
-        consolidate_coupons = Coupon.objects.filter(template=template, acquisition_method='consolidate')
-        consolidate_issued_count = consolidate_coupons.count()
-        consolidate_redemptions = exclusive_redemptions.filter(coupon__acquisition_method='consolidate')
-        consolidate_redemption_count = consolidate_redemptions.count()
-        retention_rate = consolidate_redemption_count / consolidate_issued_count if consolidate_issued_count > 0 else 0
+        # Retention cohort includes:
+        # - consolidate: Merchant manual assignment via phone number
+        # - qr_claim: User directly scans merchant QR to acquire coupon
+        RETENTION_ACQUISITION_METHODS = ('consolidate', 'qr_claim')
+        retention_coupons = Coupon.objects.filter(
+            template=template,
+            acquisition_method__in=RETENTION_ACQUISITION_METHODS
+        )
+        retention_issued_count = retention_coupons.count()
+        retention_redemptions = exclusive_redemptions.filter(
+            coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS
+        )
+        retention_redemption_count = retention_redemptions.count()
+        retention_rate = retention_redemption_count / retention_issued_count if retention_issued_count > 0 else 0
         
-        non_consolidate_redemptions = exclusive_redemptions.exclude(coupon__acquisition_method='consolidate')
-        non_consolidate_count = non_consolidate_redemptions.count()
-        stranger_acquisition_rate = non_consolidate_count / redemption_count if redemption_count > 0 else 0
+        non_retention_redemptions = exclusive_redemptions.exclude(
+            coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS
+        )
+        non_retention_count = non_retention_redemptions.count()
+        stranger_acquisition_rate = non_retention_count / redemption_count if redemption_count > 0 else 0
         
         total_coupons = Coupon.objects.filter(template=template).count()
         transfer_coupons = Coupon.objects.filter(

@@ -81,6 +81,17 @@ class TemplateAnalyticsContractTestBase(TestCase):
             coupon_type='exclusive',
             acquisition_method='transfer'
         )
+        
+        self.qr_claim_coupon = Coupon.objects.create(
+            store=self.store,
+            template=self.exclusive_template,
+            coupon_name='QR Claim Coupon',
+            coupon_detail='Test',
+            start_date=timezone.now() - timedelta(days=10),
+            expiry_date=timezone.now() + timedelta(days=20),
+            coupon_type='exclusive',
+            acquisition_method='qr_claim'
+        )
 
         # Create test user for redemptions
         self.test_user = User.objects.create_user(
@@ -101,6 +112,12 @@ class TemplateAnalyticsContractTestBase(TestCase):
             user=self.test_user,
             redeemed_at=timezone.now() - timedelta(days=3)
         )
+        
+        CouponRedemption.objects.create(
+            coupon=self.qr_claim_coupon,
+            user=self.test_user,
+            redeemed_at=timezone.now() - timedelta(days=2)
+        )
 
         # Create view logs
         Log.objects.create(
@@ -116,6 +133,28 @@ class TemplateAnalyticsContractTestBase(TestCase):
 
 class TemplateAnalyticsContractTests(TemplateAnalyticsContractTestBase):
     """Contract tests for template analytics API response schema."""
+
+    def test_retention_includes_qr_claim_and_stranger_excludes_it(self):
+        """
+        Verifies that retention cohort includes qr_claim, and stranger acquisition excludes it.
+        Retention cohort: consolidate + qr_claim.
+        """
+        response = self.client.get(
+            f'/api/merchant/coupon-templates/{self.exclusive_template.id}/analytics/?days=30'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        
+        # We created 1 consolidate coupon redeemed + 1 qr_claim coupon redeemed
+        # retention_count should include both.
+        self.assertEqual(data.get('retention_count'), 2)
+        self.assertAlmostEqual(data.get('retention_rate', 0), 1.0, places=6)
+        
+        # Total exclusive redemptions: consolidate + transfer + qr_claim = 3
+        # Stranger acquisition should exclude consolidate + qr_claim, leaving only transfer redemption.
+        self.assertEqual(data.get('redemption_count'), 3)
+        self.assertEqual(data.get('stranger_acquisition_count'), 1)
+        self.assertAlmostEqual(data.get('stranger_acquisition_rate', 0), 1 / 3, places=6)
 
     def test_exclusive_template_response_includes_count_fields(self):
         """

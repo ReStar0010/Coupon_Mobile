@@ -789,8 +789,8 @@ def get_template_analytics(request, id):
     For Exclusive templates:
     - 曝光次數 (exposure_count): Template view count
     - 轉換率 (conversion_rate): Redemptions / Exposures
-    - 留客率 (retention_rate): Consolidate redemptions / Consolidate issued
-    - 陌生獲客率 (stranger_acquisition_rate): Non-consolidate redemptions / Total redemptions
+    - 留客率 (retention_rate): (Consolidate + QR-claim) redemptions / (Consolidate + QR-claim) issued
+    - 陌生獲客率 (stranger_acquisition_rate): Non-(Consolidate + QR-claim) redemptions / Total redemptions
     - 流動率 (circulation_rate): (Transfer + Public pool) / Total coupons
     - 流動核銷率 (circulation_redemption_rate): (Transfer + Public pool redeemed) / (Transfer + Public pool)
     - 核銷率 (redemption_rate): Total redemptions / Total quantity
@@ -925,18 +925,23 @@ def get_template_analytics(request, id):
     # 2. 轉換率 (Conversion Rate): Redemptions / Exposures
     conversion_rate = exclusive_redemptions_count / exposure_count if exposure_count > 0 else 0
     
-    # 3. 留客率 (Retention Rate): 電話歸戶核銷數 / 電話歸戶發放數
-    # Count coupons issued via consolidate (電話歸戶)
-    consolidate_coupons = exclusive_coupons.filter(acquisition_method='consolidate')
-    consolidate_issued_count = consolidate_coupons.count()
-    consolidate_redemptions = exclusive_redemptions.filter(coupon__acquisition_method='consolidate')
-    consolidate_redemption_count = consolidate_redemptions.count()
-    retention_rate = consolidate_redemption_count / consolidate_issued_count if consolidate_issued_count > 0 else 0
+    # 3. 留客率 (Retention Rate): (電話歸戶 + QR領取) 核銷數 / (電話歸戶 + QR領取) 發放數
+    # Retention cohort includes:
+    # - consolidate: Merchant manual assignment via phone number
+    # - qr_claim: User directly scans merchant QR to acquire coupon
+    RETENTION_ACQUISITION_METHODS = ('consolidate', 'qr_claim')
+    retention_coupons = exclusive_coupons.filter(acquisition_method__in=RETENTION_ACQUISITION_METHODS)
+    retention_issued_count = retention_coupons.count()
+    retention_redemptions = exclusive_redemptions.filter(coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS)
+    retention_redemption_count = retention_redemptions.count()
+    retention_rate = retention_redemption_count / retention_issued_count if retention_issued_count > 0 else 0
     
-    # 4. 陌生獲客率 (Stranger Acquisition Rate): (非電話歸戶核銷數) / 總核銷數
-    non_consolidate_redemptions = exclusive_redemptions.exclude(coupon__acquisition_method='consolidate')
-    non_consolidate_redemption_count = non_consolidate_redemptions.count()
-    stranger_acquisition_rate = non_consolidate_redemption_count / exclusive_redemptions_count if exclusive_redemptions_count > 0 else 0
+    # 4. 陌生獲客率 (Stranger Acquisition Rate): 非(電話歸戶 + QR領取)核銷數 / 總核銷數
+    non_retention_redemptions = exclusive_redemptions.exclude(
+        coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS
+    )
+    non_retention_redemption_count = non_retention_redemptions.count()
+    stranger_acquisition_rate = non_retention_redemption_count / exclusive_redemptions_count if exclusive_redemptions_count > 0 else 0
     
     # 5. 流動率 (Circulation Rate): (transfer + public_pool) / 總優惠數
     total_coupons = exclusive_coupons.count()
@@ -986,16 +991,20 @@ def get_template_analytics(request, id):
         # Daily conversion rate
         day_conversion_rate = day_exclusive_count / day_exposure_count if day_exposure_count > 0 else 0
         
-        # Daily retention rate (consolidate redemptions / consolidate issued)
-        day_consolidate_redemptions = day_exclusive_redemptions.filter(coupon__acquisition_method='consolidate')
-        day_consolidate_redemption_count = day_consolidate_redemptions.count()
-        # For retention rate, we use total consolidate issued (not just in this day)
-        day_retention_rate = day_consolidate_redemption_count / consolidate_issued_count if consolidate_issued_count > 0 else 0
+        # Daily retention rate (retention cohort redemptions / retention cohort issued)
+        day_retention_redemptions = day_exclusive_redemptions.filter(
+            coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS
+        )
+        day_retention_redemption_count = day_retention_redemptions.count()
+        # For retention rate, use total retention issued (not just in this day)
+        day_retention_rate = day_retention_redemption_count / retention_issued_count if retention_issued_count > 0 else 0
         
         # Daily stranger acquisition rate
-        day_non_consolidate_redemptions = day_exclusive_redemptions.exclude(coupon__acquisition_method='consolidate')
-        day_non_consolidate_count = day_non_consolidate_redemptions.count()
-        day_stranger_rate = day_non_consolidate_count / day_exclusive_count if day_exclusive_count > 0 else 0
+        day_non_retention_redemptions = day_exclusive_redemptions.exclude(
+            coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS
+        )
+        day_non_retention_count = day_non_retention_redemptions.count()
+        day_stranger_rate = day_non_retention_count / day_exclusive_count if day_exclusive_count > 0 else 0
         
         # Daily circulation rate (transfer + public_pool / total)
         # Use total coupons for denominator (not just in this day)
@@ -1026,13 +1035,13 @@ def get_template_analytics(request, id):
         retention_trend_data.append({
             'date': current_date.isoformat(),
             'value': day_retention_rate,  # Rate value for percentage view
-            'count': day_consolidate_redemption_count  # Count value for count view
+            'count': day_retention_redemption_count  # Count value for count view
         })
         
         stranger_acquisition_trend_data.append({
             'date': current_date.isoformat(),
             'value': day_stranger_rate,  # Rate value for percentage view
-            'count': day_non_consolidate_count  # Count value for count view
+            'count': day_non_retention_count  # Count value for count view
         })
         
         circulation_trend_data.append({
@@ -1077,8 +1086,8 @@ def get_template_analytics(request, id):
         'circulation_redemption_rate': circulation_redemption_rate,
         'redemption_rate': redemption_rate,
         # Count fields (exclusive templates only)
-        'retention_count': consolidate_redemption_count,
-        'stranger_acquisition_count': non_consolidate_redemption_count,
+        'retention_count': retention_redemption_count,
+        'stranger_acquisition_count': non_retention_redemption_count,
         'redemption_count': exclusive_redemptions_count,
         'circulation_count': transfer_count,
         'circulation_redemption_count': transfer_redemption_count,
