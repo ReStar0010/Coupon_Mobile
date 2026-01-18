@@ -23,6 +23,11 @@ MANIFEST
 .cursor
 .venv
 
+Backend/.venv
+Backend/.venv/lib
+Backend/.venv/bin
+
+
 # Virtual environments
 venv/
 env/
