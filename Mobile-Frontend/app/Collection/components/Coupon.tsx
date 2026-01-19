@@ -46,10 +46,9 @@ const Coupon: React.FC<CouponProps> = ({
   const router = useRouter();
 
   const handleCouponPress = useCallback(() => {
-    // Navigate directly to redeem page for exclusive coupons (Collections)
-    // Skip the detail page to streamline the redemption flow
+    // Navigate to detail page first, then user can proceed to redeem page
     if (id) {
-      router.push(`/EasyUse/${id}/redeem?source=collection`);
+      router.push(`/EasyUse/${id}?source=collection`);
     }
   }, [router, id]);
 
