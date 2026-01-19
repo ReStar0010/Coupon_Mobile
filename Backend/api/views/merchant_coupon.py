@@ -1153,7 +1153,7 @@ def generate_unified_redemption_code_view(request):
         # Log failed attempt
         Log.objects.create(
             user=request.user,
-            action='generate_unified_redemption_code_failed',
+            action='unified_code_gen_fail',
         )
         return Response({
             'error': '此商家沒有關聯的商店'
@@ -1176,7 +1176,7 @@ def generate_unified_redemption_code_view(request):
     # Log the successful generation
     Log.objects.create(
         user=request.user,
-        action='generate_unified_redemption_code',
+        action='unified_code_gen',
     )
     
     # Return response
