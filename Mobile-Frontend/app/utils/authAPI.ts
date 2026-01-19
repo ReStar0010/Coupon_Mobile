@@ -30,6 +30,19 @@ let isRefreshing = false;
 let refreshSubscribers: Array<(token: boolean) => void> = [];
 
 /**
+ * Queued request type for handling concurrent 401 errors
+ */
+type QueuedRequest = {
+  endpoint: string;
+  options: AxiosRequestConfig;
+  resolve: (value: AxiosResponse) => void;
+  reject: (error: any) => void;
+};
+
+// Request queue for handling concurrent 401 errors
+let requestQueue: QueuedRequest[] = [];
+
+/**
  * Subscribe to the refresh token event
  * @param callback Function to call when token refresh completes
  */
@@ -44,6 +57,62 @@ const subscribeToRefresh = (callback: (token: boolean) => void): void => {
 const onRefreshComplete = (token: boolean): void => {
   refreshSubscribers.forEach((callback) => callback(token));
   refreshSubscribers = [];
+};
+
+/**
+ * Process queued requests after token refresh
+ * @param success Whether the token refresh was successful
+ */
+const processQueue = async (success: boolean): Promise<void> => {
+  if (success) {
+    // Get the new access token
+    const newAccessToken = getAccessToken();
+    
+    // Retry all queued requests with the new token
+    const queue = [...requestQueue];
+    requestQueue = [];
+    
+    devLog(`Processing ${queue.length} queued requests after successful token refresh`);
+    
+    for (const queuedRequest of queue) {
+      try {
+        const retryOptions = {
+          ...queuedRequest.options,
+          headers: {
+            ...queuedRequest.options.headers,
+            Authorization: `Bearer ${newAccessToken}`,
+          },
+        };
+        
+        const retryResponse = await axios(`${API_BASE_URL}${queuedRequest.endpoint}`, retryOptions);
+        queuedRequest.resolve(retryResponse);
+      } catch (retryError) {
+        // If retry still fails with 401, it means refresh token is also invalid
+        if (axios.isAxiosError(retryError) && retryError.response?.status === 401) {
+          devLog('Request still failed after token refresh - refresh token may be invalid');
+          // Create a generic error without exposing authentication details
+          const genericError = new Error('Request failed');
+          queuedRequest.reject(genericError);
+        } else {
+          // Other errors (network, 400, 404, 500, etc.) should be passed through
+          queuedRequest.reject(retryError);
+        }
+      }
+    }
+  } else {
+    // Token refresh failed - reject all queued requests silently
+    // Don't throw authentication errors to avoid showing them in UI
+    devLog(`Rejecting ${requestQueue.length} queued requests due to token refresh failure`);
+    
+    const queue = [...requestQueue];
+    requestQueue = [];
+    
+    for (const queuedRequest of queue) {
+      // Create a generic error without authentication details
+      const genericError = new Error('Request failed');
+      queuedRequest.reject(genericError);
+    }
+  }
 };
 
 /**
@@ -114,6 +183,10 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     if (!success) {
       devLog('Token refresh failed - clearing tokens');
       await clearTokens();
+      
+      // Process queue before emitting auth failure (will reject all requests silently)
+      await processQueue(false);
+      
       authEvents.emit({
         type: AUTH_EVENT_TYPES.AUTH_FAILURE,
         reason: 'refresh_failed',
@@ -130,6 +203,10 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     if (newAccessToken) {
       await storeTokens(newAccessToken, newRefreshToken);
       devLog('Token refresh successful');
+      
+      // Process queue after storing new tokens (will retry all requests)
+      await processQueue(true);
+      
       authEvents.emit({ type: AUTH_EVENT_TYPES.SESSION_REFRESHED });
       return true;
     }
@@ -137,11 +214,16 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     devLog('Token refresh failed - no access token in response');
     isRefreshing = false;
     onRefreshComplete(false);
+    await processQueue(false);
     return false;
   } catch (error) {
     console.error('Token refresh error:', error);
     isRefreshing = false;
     onRefreshComplete(false);
+    
+    // Process queue before emitting auth failure
+    await processQueue(false);
+    
     authEvents.emit({
       type: AUTH_EVENT_TYPES.AUTH_FAILURE,
       reason: 'refresh_error',
@@ -237,53 +319,28 @@ export const fetchAPI = async (
 
       // Check if the error is due to authentication issues
       if (axios.isAxiosError(error) && error.response?.status === 401) {
-        devLog('Access token expired, attempting to refresh...');
+        devLog('Access token expired, queueing request for retry after token refresh...');
 
-        // Try to refresh the token
-        const refreshSuccessful = await refreshAccessToken();
+        // Queue the request instead of immediately handling it
+        // This allows multiple concurrent 401 errors to be handled efficiently
+        return new Promise<AxiosResponse>((resolve, reject) => {
+          // Add request to queue
+          requestQueue.push({
+            endpoint,
+            options: axiosOptions,
+            resolve,
+            reject,
+          });
 
-        if (refreshSuccessful) {
-          // If refresh successful, retry the original request
-          devLog('Token refresh successful, retrying original request');
-          try {
-            // Get the new access token (synchronous from memory)
-            const newAccessToken = getAccessToken();
-            const retryOptions = {
-              ...axiosOptions,
-              headers: {
-                ...axiosOptions.headers,
-                Authorization: `Bearer ${newAccessToken}`,
-              },
-            };
-
-            const retryResponse = await axios(`${API_BASE_URL}${endpoint}`, retryOptions);
-            return retryResponse;
-          } catch (retryError) {
-            // If we still have auth issues after refresh, emit auth failure
-            if (axios.isAxiosError(retryError) && retryError.response?.status === 401) {
-              devLog('Authentication failed after token refresh');
-              // Auth failure event already emitted by refreshAccessToken
-              const errorData = retryError.response?.data || {};
-              const error = new Error(
-                errorData.error ||
-                  errorData.message ||
-                  `Authentication failed: ${retryError.response?.status}`
-              );
-              throw error;
-            }
-            throw retryError;
+          // Trigger token refresh if not already in progress
+          if (!isRefreshing) {
+            refreshAccessToken().catch((refreshError) => {
+              // Error already handled by refreshAccessToken (processQueue called)
+              devLog('Token refresh error in fetchAPI:', refreshError);
+            });
           }
-        } else {
-          // Refresh failed - event already emitted by refreshAccessToken
-          devLog('Token refresh failed');
-          const errorData = error.response?.data || {};
-          const authError = new Error(
-            errorData.error ||
-              errorData.message ||
-              `Authentication failed: ${error.response?.status}`
-          );
-          throw authError;
-        }
+          // If refresh is already in progress, the queue will be processed when it completes
+        });
       }
 
       // Handle other error responses

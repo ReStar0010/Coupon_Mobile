@@ -44,17 +44,14 @@ export function useSharedCoupon(fetchCouponsCallback: () => void) {
     } catch (err: any) {
       console.error('Error fetching share request:', err);
 
-      // If the error is 401 Unauthorized, it means the user is not logged in
-      // We'll still show a placeholder gift card that will redirect to login
+      // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
+      // For share tokens, we don't want to show errors or placeholders
+      // The AuthOrchestrator will handle redirecting to login if needed
       if (err.response?.status === 401) {
-        devLog('User not authenticated, showing placeholder gift');
-        setSharedCoupon({
-          coupon_id: 0,
-          coupon_name: '請先登入以查看優惠券',
-          from_user_email: '未知用戶',
-          status: 'pending',
-        });
-        setShowSharedGift(true);
+        devLog('User not authenticated for share request - AuthOrchestrator will handle redirect');
+        // Don't show any UI, let AuthOrchestrator handle it silently
+        setShowSharedGift(false);
+        setSharedCoupon(null);
       } else {
         // For other errors, don't show the gift
         setShowSharedGift(false);

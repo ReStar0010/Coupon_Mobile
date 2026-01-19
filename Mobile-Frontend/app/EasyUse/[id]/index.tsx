@@ -128,15 +128,20 @@ const CouponDetailPage: React.FC = () => {
           devLog('Error fetching coupon:', err);
           let errorMessage = '無法載入優惠券詳情。';
           if (err instanceof Error) {
-            if (err.message.includes('404')) {
+            // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
+            if (err.message.includes('401') || err.message.includes('Authentication')) {
+              // Don't set error message, let AuthOrchestrator handle silent redirect
+              errorMessage = '';
+            } else if (err.message.includes('404')) {
               errorMessage = '找不到此優惠券。';
-            } else if (err.message.includes('401')) {
-              errorMessage = '請先登入以查看此優惠券。';
             } else {
               errorMessage = `載入錯誤: ${err.message}`;
             }
           }
-          setError(errorMessage);
+          // Only set error if it's not empty (i.e., not a 401 auth error)
+          if (errorMessage) {
+            setError(errorMessage);
+          }
         } finally {
           setIsLoading(false);
         }

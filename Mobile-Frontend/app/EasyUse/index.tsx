@@ -293,8 +293,20 @@ const CouPro = () => {
       setCoupons(transformed);
     } catch (err: any) {
       console.error('Error fetching coupons:', err);
-      setError(err?.message || '載入失敗');
-      setCoupons([]);
+      
+      // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
+      // Check both status code and error message
+      const isAuthError = 
+        (err?.response?.status === 401) ||
+        (err?.message?.includes('Authentication')) ||
+        (err?.message?.includes('401'));
+      
+      if (!isAuthError) {
+        // Only set error for non-authentication errors
+        setError(err?.message || '載入失敗');
+        setCoupons([]);
+      }
+      // For 401 errors, silently let AuthOrchestrator handle the redirect
     } finally {
       setIsLoading(false);
     }

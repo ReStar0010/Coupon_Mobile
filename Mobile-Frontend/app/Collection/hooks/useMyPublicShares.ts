@@ -34,14 +34,19 @@ export function useMyPublicShares(
 
   const getErrorMessage = useCallback((err: unknown): string => {
     if (axios.isAxiosError(err)) {
+      // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
       if (err.response?.status === 401) {
-        return '請先登入或重新登入。';
+        return ''; // Return empty string to prevent UI from displaying auth errors
       }
       if (err.message) {
         return `無法載入分享記錄: ${err.message}`;
       }
     }
     if (err instanceof Error) {
+      // Also check error message for authentication-related errors
+      if (err.message.includes('Authentication') || err.message.includes('401')) {
+        return ''; // Filter authentication errors
+      }
       return err.message;
     }
     return '無法載入分享記錄，請稍後再試。';
@@ -89,8 +94,13 @@ export function useMyPublicShares(
       }
       console.error('Error fetching public shares:', err);
       if (isMountedRef.current) {
-        setError(getErrorMessage(err));
-        setPublicShares([]);
+        const errorMessage = getErrorMessage(err);
+        // Only set error if it's not empty (i.e., not a 401 auth error)
+        if (errorMessage) {
+          setError(errorMessage);
+          setPublicShares([]);
+        }
+        // For 401 errors, silently let AuthOrchestrator handle the redirect
       }
     } finally {
       if (isMountedRef.current) {
