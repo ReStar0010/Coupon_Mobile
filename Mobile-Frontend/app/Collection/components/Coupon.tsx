@@ -67,16 +67,19 @@ const Coupon: React.FC<CouponProps> = ({
 
   return (
     <Card
-      elevate
-      bordered
-      borderRadius={BORDER_RADIUS.lg}
-      padding="$4"
+      borderRadius="$6"
+      padding="$5"
       onPress={handleCouponPress}
       pressStyle={{ opacity: 0.9 }}
-      borderColor={COLORS.border}
+      borderColor="#e5e5e5"
       borderWidth={1}
-      backgroundColor={COLORS.white}
-      marginBottom="$4"
+      backgroundColor="white"
+      shadowColor="black"
+      shadowRadius={8}
+      shadowOffset={{ width: 0, height: 2 }}
+      shadowOpacity={0.08}
+      elevation={3}
+      height="auto"
     >
       <XStack gap={15} style={{ alignItems: 'center' }}>
         <Image source={imageSource} style={{ borderRadius: BORDER_RADIUS.sm }} />

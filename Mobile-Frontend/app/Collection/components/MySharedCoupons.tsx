@@ -20,7 +20,7 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
   }
 
   return (
-    <YStack gap={12} marginBottom={16}>
+    <YStack gap={12}>
       <Text fontSize={18} fontWeight="600" color="#333">
         我的公開分享 (交換池中)
       </Text>
@@ -28,11 +28,17 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
       {pendingShares.map((share) => (
         <Card
           key={share.share_id}
-          bordered
-          borderRadius="$4"
-          padding="$3"
-          borderColor="#E5E7EB"
-          backgroundColor="#F9FAFB"
+          borderRadius="$6"
+          padding="$5"
+          borderColor="#e5e5e5"
+          borderWidth={1}
+          backgroundColor="white"
+          shadowColor="black"
+          shadowRadius={8}
+          shadowOffset={{ width: 0, height: 2 }}
+          shadowOpacity={0.08}
+          elevation={3}
+          height="auto"
         >
           <XStack gap={12} alignItems="center">
             <Image

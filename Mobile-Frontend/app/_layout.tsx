@@ -34,7 +34,7 @@ export default function RootLayout() {
             <AuthProvider>
               <AuthOrchestrator>
                 <ToastProvider>
-                  <Stack screenOptions={{ headerShown: false }}>
+                  <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
                     <Stack.Screen name="index" />
                     <Stack.Screen name="Login" />
                     <Stack.Screen name="EasyUse" />

@@ -16,7 +16,7 @@ export default function RootLayout() {
       <TamaguiProvider config={config} defaultTheme="light">
         <PortalProvider shouldAddRootHost>
           <AuthProvider>
-            <Stack screenOptions={{ headerShown: false }}>
+            <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)/login" />
               <Stack.Screen name="(auth)/register" />

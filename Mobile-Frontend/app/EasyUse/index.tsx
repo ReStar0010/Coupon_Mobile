@@ -75,15 +75,19 @@ interface CouponCardProps {
 
 const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUrl, tags, onPress }) => (
   <Card
-    elevate
-    bordered
-    borderRadius="$5"
-    padding="$4"
+    borderRadius="$6"
+    padding="$5"
     onPress={onPress}
     pressStyle={{ opacity: 0.9 }}
-    borderColor="#f8f8f8"
+    borderColor="#e5e5e5"
     borderWidth={1}
-    bg="white"
+    backgroundColor="white"
+    shadowColor="black"
+    shadowRadius={8}
+    shadowOffset={{ width: 0, height: 2 }}
+    shadowOpacity={0.08}
+    elevation={3}
+    height="auto"
   >
     <XStack gap={15} style={{ alignItems: 'center' }}>
 
@@ -155,13 +159,17 @@ const GiftCard: React.FC<GiftCardProps> = ({
   isClaiming = false
 }) => (
   <Card
-    elevate
-    bordered
-    borderRadius="$5"
-    padding="$4"
-    borderColor="#FFE4B5"
-    borderWidth={2}
-    bg="white"
+    borderRadius="$6"
+    padding="$5"
+    borderColor="#e5e5e5"
+    borderWidth={1}
+    backgroundColor="white"
+    shadowColor="black"
+    shadowRadius={8}
+    shadowOffset={{ width: 0, height: 2 }}
+    shadowOpacity={0.08}
+    elevation={3}
+    height="auto"
   >
     <YStack gap={12}>
       <XStack gap={15} style={{ alignItems: 'center' }}>
@@ -219,6 +227,7 @@ const GiftCard: React.FC<GiftCardProps> = ({
         onPress={onClaim}
         disabled={isClaiming}
         opacity={isClaiming ? 0.7 : 1}
+        height="auto"
       >
         {isClaiming ? (
           <XStack alignItems="center" gap="$2">
