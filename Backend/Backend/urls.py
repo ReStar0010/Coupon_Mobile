@@ -2,7 +2,10 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from api.views.authentication import register, login, logout, user_info, verify_email, forgot_password, reset_password, refresh_token
+from api.views.authentication import (
+    register, login, logout, user_info, verify_email, forgot_password, reset_password, refresh_token,
+    verify_merchant_email, resend_merchant_verification, redirect_verify_email, redirect_reset_password
+)
 from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon, validate_unified_redemption_code
 from api.views.sharing_views import share_coupon, get_share_request, accept_share_request, share_coupon_public, get_my_public_shares
 from api.views.user_profile import (user_statistics, set_savings_goal, reset_savings_goal, 
@@ -84,6 +87,14 @@ urlpatterns = [
     path('api/logout/', logout),
     path('api/token/refresh/', refresh_token, name='token_refresh'),  # Token refresh API
     path('api/verify-email/', verify_email),
+    
+    # Merchant verification endpoints
+    path('api/merchant/verify-email/', verify_merchant_email, name='verify_merchant_email'),
+    path('api/merchant/resend-verification/', resend_merchant_verification, name='resend_merchant_verification'),
+
+    # Deep link redirect endpoints (for clickable email links)
+    path('api/merchant/redirect/verify-email', redirect_verify_email, name='redirect_verify_email'),
+    path('api/merchant/redirect/reset-password', redirect_reset_password, name='redirect_reset_password'),
 
     # Password reset endpoints
     path('api/forgot-password/', forgot_password, name='forgot_password'),

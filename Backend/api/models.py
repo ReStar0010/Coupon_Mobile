@@ -65,6 +65,69 @@ class MerchantProfile(models.Model):
     contact_person = models.CharField(max_length=100)
     contact_info = models.CharField(max_length=100, help_text="e.g., Line ID or alternative phone") # Combined contact info
 
+    # Email verification fields
+    verified = models.BooleanField(default=False)
+    email_verification_token = models.CharField(
+        max_length=64,
+        unique=True,
+        null=True,
+        blank=True
+    )
+    verification_token_created_at = models.DateTimeField(null=True, blank=True)
+    last_verification_email_sent = models.DateTimeField(null=True, blank=True)
+    verification_email_count = models.PositiveIntegerField(default=0)
+
+    def is_verification_token_valid(self) -> bool:
+        """Check if verification token is still valid (24-hour expiration)."""
+        from datetime import timedelta
+        if not self.verification_token_created_at:
+            return False
+        expiry_time = self.verification_token_created_at + timedelta(hours=24)
+        return timezone.now() < expiry_time
+
+    def can_send_verification_email(self) -> tuple[bool, str, int]:
+        """
+        Check if a verification email can be sent.
+        Returns: (allowed, message, wait_seconds)
+        """
+        from datetime import timedelta
+        now = timezone.now()
+
+        # Reset count if last send was > 1 hour ago
+        if self.last_verification_email_sent:
+            if now - self.last_verification_email_sent > timedelta(hours=1):
+                self.verification_email_count = 0
+
+        # Rate limit: max 3 per hour
+        if self.verification_email_count >= 3:
+            return (False, '已達到發送限制，請稍後再試', 0)
+
+        # Cooldown: 60 seconds between sends
+        if self.last_verification_email_sent:
+            elapsed = (now - self.last_verification_email_sent).total_seconds()
+            if elapsed < 60:
+                wait = 60 - int(elapsed)
+                return (False, f'請等待 {wait} 秒後再試', wait)
+
+        return (True, '', 0)
+
+    def generate_verification_token(self) -> str:
+        """Generate a new verification token."""
+        import secrets
+        self.email_verification_token = secrets.token_urlsafe(32)
+        self.verification_token_created_at = timezone.now()
+        self.last_verification_email_sent = timezone.now()
+        self.verification_email_count += 1
+        self.save()
+        return self.email_verification_token
+
+    def verify_email(self) -> None:
+        """Mark email as verified and clear token."""
+        self.verified = True
+        self.email_verification_token = None
+        self.verification_token_created_at = None
+        self.save()
+
     def __str__(self):
         return f"{self.user.email} - Merchant Profile"
 

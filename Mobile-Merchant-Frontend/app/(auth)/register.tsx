@@ -17,6 +17,7 @@ export default function RegisterScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [verificationRequired, setVerificationRequired] = useState(false);
 
   const handleEmailChange = (text: string) => {
     setFormData((prev) => ({ ...prev, email: text }));
@@ -101,6 +102,9 @@ export default function RegisterScreen() {
       });
       
       console.log('[Register] Registration successful:', response);
+      
+      // Check if verification is required
+      setVerificationRequired(response.verification_required || false);
       setShowSuccessModal(true);
     } catch (error: any) {
       console.error('[Register] Registration error:', error);
@@ -291,7 +295,9 @@ export default function RegisterScreen() {
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         title="註冊成功"
-        message="您的帳號已成功註冊！"
+        message={verificationRequired && formData.email
+          ? `您的帳號已成功註冊！\n\n我們已發送驗證郵件到 ${formData.email}，請點擊郵件中的連結完成驗證後即可登入。\n\n若未收到郵件，請檢查垃圾郵件資料夾。`
+          : "您的帳號已成功註冊！"}
         type="success"
         confirmText="確定"
         onConfirm={handleSuccessConfirm}

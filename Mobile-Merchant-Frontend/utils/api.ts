@@ -192,6 +192,8 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     '/forgot-password/',
     '/reset-password/',
     '/verify-email/',
+    '/merchant/verify-email/',
+    '/merchant/resend-verification/',
   ];
   return publicEndpoints.some((path) => endpoint.includes(path));
 };
@@ -428,6 +430,37 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
   return response.json();
 };
 
+// ============================================
+// TypeScript Interfaces for Auth API
+// ============================================
+
+export interface VerificationSuccessResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface VerificationErrorResponse {
+  error: 'missing_token' | 'invalid_token' | 'expired_token' | 'already_verified';
+  message: string;
+}
+
+export interface ResendVerificationResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface RateLimitErrorResponse {
+  error: 'rate_limit_exceeded';
+  message: string;
+  wait_seconds: number;
+}
+
+export interface UnverifiedErrorResponse {
+  error: 'email_not_verified';
+  message: string;
+  email: string;
+}
+
 // Auth API functions
 export const authAPI = {
   login: async (email: string, password: string) => {
@@ -494,6 +527,32 @@ export const authAPI = {
 
   getUserInfo: async () => {
     const response = await fetchAPI('/user-info/');
+    return parseResponse(response);
+  },
+
+  verifyEmail: async (token: string): Promise<VerificationSuccessResponse> => {
+    const response = await fetchAPI(`/merchant/verify-email/?token=${token}`, {
+      method: 'GET',
+      requireAuth: false,
+    });
+    return parseResponse(response);
+  },
+
+  resendVerification: async (email: string): Promise<ResendVerificationResponse> => {
+    const response = await fetchAPI('/merchant/resend-verification/', {
+      method: 'POST',
+      requireAuth: false,
+      body: JSON.stringify({ email }),
+    });
+    return parseResponse(response);
+  },
+
+  resetPassword: async (email: string, token: string, newPassword: string) => {
+    const response = await fetchAPI('/reset-password/', {
+      method: 'POST',
+      requireAuth: false,
+      body: JSON.stringify({ email, token, new_password: newPassword }),
+    });
     return parseResponse(response);
   },
 };

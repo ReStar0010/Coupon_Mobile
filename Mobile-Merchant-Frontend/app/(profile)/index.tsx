@@ -58,6 +58,7 @@ export default function MerchantProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -189,17 +190,6 @@ export default function MerchantProfileScreen() {
 
               {/* Account Actions */}
               <YStack marginTop="$6" marginBottom="$4" gap="$3">
-                {/* Delete Account Button */}
-                <Button 
-                  variant="outline" 
-                  fullWidth 
-                  onPress={() => router.push('/(profile)/delete-account')}
-                  borderColor="#EF4444"
-                  color="#EF4444"
-                >
-                  刪除帳號
-                </Button>
-
                 {/* Logout Button */}
                 <Button 
                   variant="outline" 
@@ -210,6 +200,49 @@ export default function MerchantProfileScreen() {
                 >
                   登出帳號
                 </Button>
+
+                {/* Delete Account Section - Collapsible */}
+                <YStack gap="$2">
+                  {!showDeleteAccount ? (
+                    <TouchableOpacity
+                      onPress={() => setShowDeleteAccount(true)}
+                      style={styles.showDeleteButton}
+                    >
+                      <Text fontSize="$sm" color={colors.textSecondary} style={{ textAlign: 'center' }}>
+                        進階設定
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <YStack gap="$2">
+                      <TouchableOpacity
+                        onPress={() => setShowDeleteAccount(false)}
+                        style={styles.hideDeleteButton}
+                      >
+                        <Text fontSize="$sm" color={colors.textSecondary} style={{ textAlign: 'center' }}>
+                          隱藏進階設定
+                        </Text>
+                      </TouchableOpacity>
+                      <View style={styles.deleteAccountContainer}>
+                        <Text fontSize="$xs" color={colors.textSecondary} style={{ marginBottom: 8, textAlign: 'center' }}>
+                          刪除帳號是永久性操作，無法復原
+                        </Text>
+                        <Button 
+                          variant="outline" 
+                          fullWidth 
+                          onPress={() => router.push('/(profile)/delete-account')}
+                          borderColor="#EF4444"
+                          color="#EF4444"
+                          style={styles.deleteAccountButton}
+                        >
+                          <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
+                            <MaterialIcons name="warning" size={16} color="#EF4444" />
+                            <Text color="#EF4444">刪除帳號</Text>
+                          </XStack>
+                        </Button>
+                      </View>
+                    </YStack>
+                  )}
+                </YStack>
               </YStack>
             </>
           )}
@@ -256,6 +289,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  showDeleteButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  hideDeleteButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  deleteAccountContainer: {
+    padding: 12,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  deleteAccountButton: {
+    opacity: 0.9,
   },
 });
 

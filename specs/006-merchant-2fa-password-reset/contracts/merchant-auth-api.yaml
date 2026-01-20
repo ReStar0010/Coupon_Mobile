@@ -1,0 +1,498 @@
+openapi: 3.0.3
+info:
+  title: Merchant Authentication API - 2FA & Password Reset
+  description: |
+    API endpoints for merchant email verification and password reset features.
+    These endpoints extend the existing authentication system to support merchant accounts.
+  version: 1.0.0
+  contact:
+    name: CouPro Development Team
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+  - url: https://api.coupro.pro/api
+    description: Production server
+
+tags:
+  - name: Merchant Verification
+    description: Email verification endpoints for merchant accounts
+  - name: Password Reset
+    description: Password reset endpoints (shared with consumers)
+
+paths:
+  /merchant/verify-email/:
+    get:
+      tags:
+        - Merchant Verification
+      summary: Verify merchant email address
+      description: |
+        Verifies a merchant's email address using the token sent via email.
+        This endpoint is typically accessed via deep link from the verification email.
+      operationId: verifyMerchantEmail
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: The verification token from the email link
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 64
+          example: "abc123def456..."
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationSuccessResponse'
+              example:
+                success: true
+                message: "電子郵件驗證成功！您現在可以登入。"
+        '400':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_token:
+                  value:
+                    error: "invalid_token"
+                    message: "驗證連結無效或已過期，請重新申請驗證郵件。"
+                already_verified:
+                  value:
+                    error: "already_verified"
+                    message: "此帳號已經驗證過了。"
+
+  /merchant/resend-verification/:
+    post:
+      tags:
+        - Merchant Verification
+      summary: Resend verification email
+      description: |
+        Sends a new verification email to an unverified merchant account.
+        Previous verification tokens are invalidated.
+        Rate limited to 3 requests per hour with 60-second cooldown.
+      operationId: resendMerchantVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+            example:
+              email: "merchant@example.com"
+      responses:
+        '200':
+          description: Verification email sent (or generic response for non-existent emails)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericSuccessResponse'
+              example:
+                success: true
+                message: "如果此電子郵件存在且尚未驗證，驗證郵件將會發送到該地址。"
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitResponse'
+              example:
+                error: "rate_limit_exceeded"
+                message: "請等待 45 秒後再試"
+                wait_seconds: 45
+
+  /register/:
+    post:
+      tags:
+        - Merchant Verification
+      summary: Register new merchant account
+      description: |
+        Registers a new merchant account. For merchant registrations (user_type=merchant),
+        this endpoint now sends a verification email automatically.
+        Account remains unverified until email verification is completed.
+      operationId: registerMerchant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantRegisterRequest'
+      responses:
+        '201':
+          description: Account created, verification email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterSuccessResponse'
+              example:
+                message: "註冊成功！驗證郵件已發送到您的信箱，請點擊連結完成驗證。"
+                user_id: 123
+                email: "merchant@example.com"
+                verification_required: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+  /login/:
+    post:
+      tags:
+        - Merchant Verification
+      summary: Login (with verification check)
+      description: |
+        Authenticates a user. For merchant accounts, login is blocked if
+        email is not verified. Returns specific error code for frontend handling.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '403':
+          description: Email not verified (merchant only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnverifiedErrorResponse'
+              example:
+                error: "email_not_verified"
+                message: "請先驗證您的電子郵件"
+                email: "merchant@example.com"
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /forgot-password/:
+    post:
+      tags:
+        - Password Reset
+      summary: Request password reset
+      description: |
+        Sends a password reset email to the specified address.
+        Returns generic response regardless of whether email exists (prevents enumeration).
+        Works for both merchant and consumer accounts.
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+            example:
+              email: "user@example.com"
+      responses:
+        '200':
+          description: Request processed (generic response)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericSuccessResponse'
+              example:
+                success: true
+                message: "如果此電子郵件存在，密碼重設連結將發送到該地址。"
+
+  /reset-password/:
+    post:
+      tags:
+        - Password Reset
+      summary: Reset password with token
+      description: |
+        Resets the user's password using the token from the reset email.
+        Token is valid for 24 hours. Works for both merchant and consumer accounts.
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericSuccessResponse'
+              example:
+                success: true
+                message: "密碼已成功重設，請使用新密碼登入。"
+        '400':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_token:
+                  value:
+                    error: "invalid_token"
+                    message: "重設連結無效或已過期，請重新申請。"
+                password_weak:
+                  value:
+                    error: "validation_error"
+                    message: "密碼長度至少需要8個字元。"
+
+components:
+  schemas:
+    # Request Schemas
+    ResendVerificationRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address of the unverified merchant account
+          example: "merchant@example.com"
+
+    MerchantRegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - phone
+        - contact_person
+        - store_name
+        - store_address
+        - store_lat
+        - store_lng
+        - user_type
+      properties:
+        email:
+          type: string
+          format: email
+          example: "newmerchant@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "SecurePass123"
+        phone:
+          type: string
+          maxLength: 20
+          example: "0912345678"
+        contact_person:
+          type: string
+          maxLength: 100
+          example: "張經理"
+        contact_info:
+          type: string
+          maxLength: 100
+          example: "02-12345678"
+        store_name:
+          type: string
+          maxLength: 100
+          example: "好吃餐廳"
+        store_address:
+          type: string
+          maxLength: 200
+          example: "台北市信義區xxx路123號"
+        store_lat:
+          type: number
+          format: float
+          example: 25.0330
+        store_lng:
+          type: number
+          format: float
+          example: 121.5654
+        business_hours:
+          type: string
+          example: "週一至週五 10:00-22:00"
+        user_type:
+          type: string
+          enum: [merchant]
+          example: "merchant"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "merchant@example.com"
+        password:
+          type: string
+          format: password
+          example: "password123"
+        user_type:
+          type: string
+          enum: [student, merchant]
+          description: Optional user type hint
+          example: "merchant"
+
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - email
+        - token
+        - new_password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        token:
+          type: string
+          minLength: 32
+          maxLength: 100
+          example: "abc123def456..."
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+          example: "NewSecurePass456"
+
+    # Response Schemas
+    VerificationSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "電子郵件驗證成功！您現在可以登入。"
+
+    GenericSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+
+    RegisterSuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "註冊成功！驗證郵件已發送到您的信箱，請點擊連結完成驗證。"
+        user_id:
+          type: integer
+          example: 123
+        email:
+          type: string
+          format: email
+          example: "merchant@example.com"
+        verification_required:
+          type: boolean
+          example: true
+          description: Indicates that email verification is required before login
+
+    LoginSuccessResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        refresh_token:
+          type: string
+          description: JWT refresh token
+        user_id:
+          type: integer
+          example: 123
+        email:
+          type: string
+          format: email
+          example: "merchant@example.com"
+
+    UnverifiedErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          enum: [email_not_verified]
+          example: "email_not_verified"
+        message:
+          type: string
+          example: "請先驗證您的電子郵件"
+        email:
+          type: string
+          format: email
+          description: Email address for resend functionality
+          example: "merchant@example.com"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code for frontend handling
+          example: "invalid_token"
+        message:
+          type: string
+          description: User-facing error message in Chinese
+          example: "驗證連結無效或已過期"
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "validation_error"
+        details:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email: ["此電子郵件已被註冊"]
+            password: ["密碼長度至少需要8個字元"]
+
+    RateLimitResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          enum: [rate_limit_exceeded]
+          example: "rate_limit_exceeded"
+        message:
+          type: string
+          example: "請等待 45 秒後再試"
+        wait_seconds:
+          type: integer
+          description: Seconds to wait before retry
+          example: 45
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login endpoint
+
+# Security note: Most endpoints are public (auth-related)
+# Protected endpoints use bearerAuth

@@ -17,6 +17,14 @@ export default function LoginScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorModalTitle, setErrorModalTitle] = useState('登入失敗');
+  const [errorModalType, setErrorModalType] = useState<'success' | 'error'>('error');
+  const [errorModalAutoHideDurationMs, setErrorModalAutoHideDurationMs] = useState<number | undefined>(
+    undefined
+  );
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showUnverifiedModal, setShowUnverifiedModal] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
 
   const handleEmailChange = (text: string) => {
     setFormData((prev) => ({ ...prev, email: text }));
@@ -28,6 +36,9 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!formData.email || !formData.password) {
+      setErrorModalTitle('登入失敗');
+      setErrorModalType('error');
+      setErrorModalAutoHideDurationMs(undefined);
       setErrorMessage('請輸入 Email 和密碼');
       setShowErrorModal(true);
       return;
@@ -36,6 +47,9 @@ export default function LoginScreen() {
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
+      setErrorModalTitle('登入失敗');
+      setErrorModalType('error');
+      setErrorModalAutoHideDurationMs(undefined);
       setErrorMessage('請輸入有效的 Email 格式');
       setShowErrorModal(true);
       return;
@@ -54,6 +68,17 @@ export default function LoginScreen() {
       setShowSuccessModal(true);
     } catch (error: any) {
       console.error('[Login] Login error:', error);
+      
+      // Check if error is email not verified
+      // Check response status and error field for unverified email
+      if (error?.message?.includes('email_not_verified') || 
+          error?.message?.includes('請先驗證您的電子郵件') ||
+          error?.message?.includes('電子郵件')) {
+        setUnverifiedEmail(formData.email);
+        setShowUnverifiedModal(true);
+        return;
+      }
+      
       // Extract error message, handling both Error objects and API response errors
       let errorMsg = '登入失敗，請檢查您的帳號密碼';
       if (error?.message) {
@@ -62,6 +87,9 @@ export default function LoginScreen() {
         errorMsg = error;
       }
       setErrorMessage(errorMsg);
+      setErrorModalTitle('登入失敗');
+      setErrorModalType('error');
+      setErrorModalAutoHideDurationMs(undefined);
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
@@ -93,18 +121,51 @@ export default function LoginScreen() {
     router.replace('/(auth)/forgot-password');
   };
 
+  const handleResendVerification = async () => {
+    setIsLoading(true);
+    try {
+      const { authAPI } = await import('@/utils/api');
+      await authAPI.resendVerification(unverifiedEmail);
+      setShowUnverifiedModal(false);
+      setErrorMessage('驗證郵件已重新發送，請檢查您的信箱');
+      setErrorModalTitle('已寄出驗證郵件');
+      setErrorModalType('success');
+      setErrorModalAutoHideDurationMs(2000);
+      setShowErrorModal(true);
+    } catch (error: any) {
+      console.error('[Login] Resend verification error:', error);
+      let errorMsg = '發送驗證郵件失敗，請稍後再試';
+      
+      // Check for rate limit error
+      if (error?.message?.includes('等待') || error?.message?.includes('秒')) {
+        errorMsg = error.message;
+      }
+      
+      setShowUnverifiedModal(false);
+      setErrorMessage(errorMsg);
+      setErrorModalTitle('發送失敗');
+      setErrorModalType('error');
+      setErrorModalAutoHideDurationMs(undefined);
+      setShowErrorModal(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <YStack
       flex={1}
-      backgroundColor={colors.background}
-      paddingHorizontal="$5"
-      paddingVertical="$8"
-      justifyContent="center"
-      alignItems="center"
+      style={{
+        backgroundColor: colors.background,
+        paddingHorizontal: 20,
+        paddingVertical: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
       gap="$3"
     >
       {/* Title */}
-      <XStack width="100%" justifyContent="center" alignItems="center" marginBottom="$2">
+      <XStack width="100%" style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
         <Text
           fontSize={34}
           fontWeight="800"
@@ -151,8 +212,8 @@ export default function LoginScreen() {
       </Button>
 
       {/* Register Link */}
-      <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
-        <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
+      <XStack gap={10} style={{ justifyContent: 'center', alignItems: 'center' }} width="100%">
+        <Text fontSize="$sm" color={colors.textPrimary} style={{ textAlign: 'center' }}>
           還沒有帳號嗎 ?{' '}
           <Text
             fontSize="$sm"
@@ -166,8 +227,8 @@ export default function LoginScreen() {
       </XStack>
 
       {/* Forgot Password Link */}
-      <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
-        <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
+      <XStack gap={10} style={{ justifyContent: 'center', alignItems: 'center' }} width="100%">
+        <Text fontSize="$sm" color={colors.textPrimary} style={{ textAlign: 'center' }}>
           <Text fontSize="$sm" color={colors.textPrimary}>
             忘記密碼 ?{' '}
           </Text>
@@ -197,10 +258,24 @@ export default function LoginScreen() {
       <AlertModal
         isOpen={showErrorModal}
         onClose={() => setShowErrorModal(false)}
-        title="登入失敗"
+        title={errorModalTitle}
         message={errorMessage}
-        type="error"
+        type={errorModalType}
+        autoHideDurationMs={errorModalAutoHideDurationMs}
         confirmText="確定"
+      />
+
+      {/* Unverified Email Modal */}
+      <AlertModal
+        isOpen={showUnverifiedModal}
+        onClose={() => setShowUnverifiedModal(false)}
+        title="電子郵件未驗證"
+        message="您的電子郵件尚未驗證，請先完成驗證才能登入。是否要重新發送驗證郵件？"
+        type="warning"
+        confirmText="重新發送"
+        cancelText="取消"
+        onConfirm={handleResendVerification}
+        onCancel={() => setShowUnverifiedModal(false)}
       />
     </YStack>
   );
