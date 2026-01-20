@@ -11,6 +11,7 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.Em
 
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+API_BASE_URL = os.getenv('API_BASE_URL', 'https://coupro-123.loca.lt')  # Backend API URL for email deep link redirects
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-dev-only')
 COOKIE_DOMAIN = None
 DEBUG = True

@@ -17,6 +17,12 @@ export default function LoginScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorModalTitle, setErrorModalTitle] = useState('登入失敗');
+  const [errorModalType, setErrorModalType] = useState<'success' | 'error'>('error');
+  const [errorModalAutoHideDurationMs, setErrorModalAutoHideDurationMs] = useState<number | undefined>(
+    undefined
+  );
+  const [successMessage, setSuccessMessage] = useState('');
   const [showUnverifiedModal, setShowUnverifiedModal] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
 
@@ -30,6 +36,9 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!formData.email || !formData.password) {
+      setErrorModalTitle('登入失敗');
+      setErrorModalType('error');
+      setErrorModalAutoHideDurationMs(undefined);
       setErrorMessage('請輸入 Email 和密碼');
       setShowErrorModal(true);
       return;
@@ -38,6 +47,9 @@ export default function LoginScreen() {
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
+      setErrorModalTitle('登入失敗');
+      setErrorModalType('error');
+      setErrorModalAutoHideDurationMs(undefined);
       setErrorMessage('請輸入有效的 Email 格式');
       setShowErrorModal(true);
       return;
@@ -75,6 +87,9 @@ export default function LoginScreen() {
         errorMsg = error;
       }
       setErrorMessage(errorMsg);
+      setErrorModalTitle('登入失敗');
+      setErrorModalType('error');
+      setErrorModalAutoHideDurationMs(undefined);
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
@@ -113,6 +128,9 @@ export default function LoginScreen() {
       await authAPI.resendVerification(unverifiedEmail);
       setShowUnverifiedModal(false);
       setErrorMessage('驗證郵件已重新發送，請檢查您的信箱');
+      setErrorModalTitle('已寄出驗證郵件');
+      setErrorModalType('success');
+      setErrorModalAutoHideDurationMs(2000);
       setShowErrorModal(true);
     } catch (error: any) {
       console.error('[Login] Resend verification error:', error);
@@ -125,6 +143,9 @@ export default function LoginScreen() {
       
       setShowUnverifiedModal(false);
       setErrorMessage(errorMsg);
+      setErrorModalTitle('發送失敗');
+      setErrorModalType('error');
+      setErrorModalAutoHideDurationMs(undefined);
       setShowErrorModal(true);
     } finally {
       setIsLoading(false);
@@ -134,15 +155,17 @@ export default function LoginScreen() {
   return (
     <YStack
       flex={1}
-      backgroundColor={colors.background}
-      paddingHorizontal="$5"
-      paddingVertical="$8"
-      justifyContent="center"
-      alignItems="center"
+      style={{
+        backgroundColor: colors.background,
+        paddingHorizontal: 20,
+        paddingVertical: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
       gap="$3"
     >
       {/* Title */}
-      <XStack width="100%" justifyContent="center" alignItems="center" marginBottom="$2">
+      <XStack width="100%" style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
         <Text
           fontSize={34}
           fontWeight="800"
@@ -189,8 +212,8 @@ export default function LoginScreen() {
       </Button>
 
       {/* Register Link */}
-      <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
-        <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
+      <XStack gap={10} style={{ justifyContent: 'center', alignItems: 'center' }} width="100%">
+        <Text fontSize="$sm" color={colors.textPrimary} style={{ textAlign: 'center' }}>
           還沒有帳號嗎 ?{' '}
           <Text
             fontSize="$sm"
@@ -204,8 +227,8 @@ export default function LoginScreen() {
       </XStack>
 
       {/* Forgot Password Link */}
-      <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
-        <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
+      <XStack gap={10} style={{ justifyContent: 'center', alignItems: 'center' }} width="100%">
+        <Text fontSize="$sm" color={colors.textPrimary} style={{ textAlign: 'center' }}>
           <Text fontSize="$sm" color={colors.textPrimary}>
             忘記密碼 ?{' '}
           </Text>
@@ -235,9 +258,10 @@ export default function LoginScreen() {
       <AlertModal
         isOpen={showErrorModal}
         onClose={() => setShowErrorModal(false)}
-        title="登入失敗"
+        title={errorModalTitle}
         message={errorMessage}
-        type="error"
+        type={errorModalType}
+        autoHideDurationMs={errorModalAutoHideDurationMs}
         confirmText="確定"
       />
 

@@ -11,7 +11,9 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isTokenExpired, setIsTokenExpired] = useState(false);
 
   const handleSubmit = async () => {
     setError('');
@@ -51,8 +53,15 @@ export default function ResetPassword() {
         });
       }, 2000);
     } catch (error: any) {
-      const errorMessage = error?.message || '重設失敗，請重試';
+      const errorCode = error?.response?.data?.error || error?.error;
+      const errorMessage = error?.response?.data?.message || error?.message || '重設失敗，請重試';
+      setErrorCode(errorCode);
       setError(errorMessage);
+      
+      // Check if token is expired
+      if (errorMessage.includes('過期') || errorMessage.includes('expired') || errorCode === 'expired_token') {
+        setIsTokenExpired(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -122,15 +131,36 @@ export default function ResetPassword() {
 
           {error && (
             <YStack 
-              backgroundColor="$red2" 
+              backgroundColor={isTokenExpired ? "$orange2" : "$red2"} 
               padding="$3" 
               borderRadius="$4"
               borderWidth={1}
-              borderColor="$red8"
+              borderColor={isTokenExpired ? "$orange8" : "$red8"}
+              gap="$2"
             >
-              <Text color="$red10" fontSize="$3" textAlign="center">
+              <Text color={isTokenExpired ? "$orange10" : "$red10"} fontSize="$3" textAlign="center">
                 {error}
               </Text>
+              {isTokenExpired && email && (
+                <Button
+                  backgroundColor="$orange10"
+                  color="white"
+                  marginTop="$2"
+                  onPress={async () => {
+                    try {
+                      await authAPI.forgotPassword(email as string);
+                      setError('重設密碼郵件已重新發送，請檢查您的信箱');
+                      setIsTokenExpired(false);
+                    } catch (err: any) {
+                      setError(err?.response?.data?.message || err?.message || '重新發送失敗，請稍後再試');
+                    }
+                  }}
+                  disabled={loading}
+                  size="$3"
+                >
+                  重新申請密碼重設
+                </Button>
+              )}
             </YStack>
           )}
 

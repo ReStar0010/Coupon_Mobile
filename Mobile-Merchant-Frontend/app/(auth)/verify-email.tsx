@@ -7,8 +7,10 @@ import { authAPI } from '../../utils/api';
 export default function VerifyEmail() {
   const { token, email } = useLocalSearchParams<{ token: string; email: string }>();
   const router = useRouter();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'expired'>('loading');
   const [message, setMessage] = useState('');
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
   const requestSent = useRef(false);
 
   useEffect(() => {
@@ -32,9 +34,19 @@ export default function VerifyEmail() {
           router.replace('/login');
         }, 2000);
       } catch (error: any) {
-        setStatus('error');
-        const errorMessage = error?.message || '驗證失敗，請重試';
-        setMessage(errorMessage);
+        const errorCode = error?.response?.data?.error || error?.error;
+        const errorMessage = error?.response?.data?.message || error?.message || '驗證失敗，請重試';
+        
+        // Check if token is expired
+        if (errorCode === 'expired_token' || errorCode === 'invalid_token') {
+          setStatus('expired');
+          setErrorCode(errorCode);
+          setMessage(errorMessage);
+        } else {
+          setStatus('error');
+          setErrorCode(errorCode);
+          setMessage(errorMessage);
+        }
       }
     };
 
@@ -59,6 +71,70 @@ export default function VerifyEmail() {
           <Text fontSize="$4" color="$color" textAlign="center">
             即將跳轉到登入頁面...
           </Text>
+        </YStack>
+      )}
+      
+      {status === 'expired' && (
+        <YStack alignItems="center" gap="$4" maxWidth={350}>
+          <Text fontSize="$8" color="$orange10">⚠</Text>
+          <Text fontSize="$6" fontWeight="bold" color="$orange10" textAlign="center">
+            驗證連結已過期
+          </Text>
+          <Text fontSize="$4" color="$color" textAlign="center">
+            {message}
+          </Text>
+          {email && (
+            <>
+              <Button
+                backgroundColor="$orange10"
+                color="white"
+                marginTop="$4"
+                onPress={async () => {
+                  if (!email) return;
+                  setIsResending(true);
+                  try {
+                    await authAPI.resendVerification(email);
+                    setMessage('驗證郵件已重新發送，請檢查您的信箱');
+                    setStatus('success');
+                    setTimeout(() => {
+                      router.replace('/login');
+                    }, 2000);
+                  } catch (error: any) {
+                    setMessage(error?.response?.data?.message || error?.message || '重新發送失敗，請稍後再試');
+                    setStatus('error');
+                  } finally {
+                    setIsResending(false);
+                  }
+                }}
+                disabled={isResending}
+                width={200}
+              >
+                {isResending ? '發送中...' : '重新發送驗證郵件'}
+              </Button>
+              <Button
+                variant="outlined"
+                borderColor="$gray8"
+                color="$color"
+                marginTop="$2"
+                onPress={() => router.replace('/login')}
+                disabled={isResending}
+                width={200}
+              >
+                返回登入
+              </Button>
+            </>
+          )}
+          {!email && (
+            <Button
+              backgroundColor="$orange10"
+              color="white"
+              marginTop="$4"
+              onPress={() => router.replace('/login')}
+              width={200}
+            >
+              返回登入
+            </Button>
+          )}
         </YStack>
       )}
       

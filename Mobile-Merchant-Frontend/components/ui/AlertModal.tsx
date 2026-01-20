@@ -11,9 +11,12 @@ export interface AlertModalProps {
   onClose: () => void;
   title: string;
   message: string;
-  type?: 'success' | 'error';
+  type?: 'success' | 'error' | 'warning';
+  autoHideDurationMs?: number;
   confirmText?: string;
+  cancelText?: string;
   onConfirm?: () => void;
+  onCancel?: () => void;
 }
 
 export const AlertModal: React.FC<AlertModalProps> = ({
@@ -22,8 +25,11 @@ export const AlertModal: React.FC<AlertModalProps> = ({
   title,
   message,
   type = 'success',
+  autoHideDurationMs,
   confirmText = '確定',
+  cancelText,
   onConfirm,
+  onCancel,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(50)).current;
@@ -46,16 +52,17 @@ export const AlertModal: React.FC<AlertModalProps> = ({
 
       // Auto hide after 0.8 seconds for success/error types
       if (type === 'success' || type === 'error') {
+        const durationMs = autoHideDurationMs ?? 1500;
         const hideTimer = setTimeout(() => {
           hideModal(true); // Pass true to call onConfirm after closing
-        }, 800);
+        }, durationMs);
 
         return () => clearTimeout(hideTimer);
       }
     } else {
       hideModal();
     }
-  }, [isOpen, type]);
+  }, [isOpen, type, autoHideDurationMs]);
 
   const hideModal = (shouldCallOnConfirm = false) => {
     Animated.parallel([
@@ -91,6 +98,8 @@ export const AlertModal: React.FC<AlertModalProps> = ({
       return styles.successButton;
     } else if (type === 'error') {
       return styles.errorButton;
+    } else if (type === 'warning') {
+      return styles.warningButton;
     }
     return {};
   };
@@ -130,13 +139,13 @@ export const AlertModal: React.FC<AlertModalProps> = ({
             onPress={(type === 'success' || type === 'error') ? undefined : (e) => e.stopPropagation()}
           >
           {(type === 'success' || type === 'error') ? (
-            <YStack alignItems="center" justifyContent="center" minHeight={56}>
+            <YStack style={{ alignItems: 'center', justifyContent: 'center', minHeight: 56 }}>
               <Text style={[getStatusTextStyle(), styles.statusMessageText]}>
                 {message}
               </Text>
             </YStack>
           ) : (
-            <YStack gap={12} alignItems="center" width="100%">
+            <YStack gap={12} style={{ alignItems: 'center' }} width="100%">
               {/* Title */}
               <Text style={styles.title}>
                 {title}
@@ -148,10 +157,20 @@ export const AlertModal: React.FC<AlertModalProps> = ({
               </Text>
 
               {/* Confirm Button */}
-              <XStack width="100%" marginTop={8}>
+              <XStack width="100%" style={{ marginTop: 8 }} gap={8}>
+                {!!cancelText && (
+                  <Button
+                    variant="outline"
+                    flex={1}
+                    onPress={onCancel ?? onClose}
+                  >
+                    {cancelText}
+                  </Button>
+                )}
                 <Button
                   variant="primary"
-                  fullWidth
+                  flex={cancelText ? 1 : undefined}
+                  fullWidth={!cancelText}
                   onPress={handleConfirm}
                 >
                   {confirmText}
@@ -201,6 +220,9 @@ const styles = StyleSheet.create({
   },
   errorButton: {
     backgroundColor: '#EF4444', // Red color for error (matching Mobile-Frontend)
+  },
+  warningButton: {
+    backgroundColor: '#FFFFFF', // Orange color for warning
   },
   title: {
     fontSize: 18,

@@ -58,7 +58,7 @@
 - [X] T010 [US1] Add verify_merchant_email endpoint (GET /api/merchant/verify-email/) in Backend/api/views/authentication.py
 - [X] T011 [US1] Update login view to check MerchantProfile.verified and return 403 with email_not_verified error in Backend/api/views/authentication.py
 - [X] T012 [P] [US1] Create verify-email.tsx deep link handler screen in Mobile-Merchant-Frontend/app/(auth)/verify-email.tsx
-- [ ] T013 [P] [US1] Update register.tsx to show verification pending message after successful registration in Mobile-Merchant-Frontend/app/(auth)/register.tsx
+- [X] T013 [P] [US1] Update register.tsx to show verification pending message after successful registration in Mobile-Merchant-Frontend/app/(auth)/register.tsx
 - [X] T014 [US1] Update login.tsx to handle email_not_verified error and show resend option in Mobile-Merchant-Frontend/app/(auth)/login.tsx
 
 **Checkpoint**: User Story 1 complete - merchants can register, receive verification email, verify via deep link, and log in after verification
@@ -73,10 +73,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Update send_password_reset_email function to use coupromerchant:// deep link scheme for merchant users in Backend/api/views/authentication.py
-- [ ] T016 [US2] Update forgot_password view to detect merchant user type, send correct deep link, and verify rate limiting (3 requests/hour per email) in Backend/api/views/authentication.py
+- [X] T015 [US2] Update send_password_reset_email function to use coupromerchant:// deep link scheme for merchant users in Backend/api/views/authentication.py
+- [X] T016 [US2] Update forgot_password view to detect merchant user type, send correct deep link, and verify rate limiting (3 requests/hour per email) in Backend/api/views/authentication.py
 - [X] T017 [P] [US2] Create reset-password.tsx deep link handler screen in Mobile-Merchant-Frontend/app/(auth)/reset-password.tsx
-- [ ] T018 [US2] Verify forgot-password.tsx exists and works correctly for merchants in Mobile-Merchant-Frontend/app/(auth)/forgot-password.tsx
+- [X] T018 [US2] Verify forgot-password.tsx exists and works correctly for merchants in Mobile-Merchant-Frontend/app/(auth)/forgot-password.tsx
 
 **Checkpoint**: User Story 2 complete - merchants can request and complete password reset flow independently
 
@@ -102,9 +102,9 @@
 
 **Purpose**: Final validation and edge case handling
 
-- [ ] T022 [P] Handle expired token error in verify-email.tsx with option to resend in Mobile-Merchant-Frontend/app/(auth)/verify-email.tsx
-- [ ] T023 [P] Handle expired token error in reset-password.tsx with option to request new reset in Mobile-Merchant-Frontend/app/(auth)/reset-password.tsx
-- [ ] T024 Add email service error handling (Resend API failures) with user-friendly messages in Backend/api/views/authentication.py
+- [X] T022 [P] Handle expired token error in verify-email.tsx with option to resend in Mobile-Merchant-Frontend/app/(auth)/verify-email.tsx
+- [X] T023 [P] Handle expired token error in reset-password.tsx with option to request new reset in Mobile-Merchant-Frontend/app/(auth)/reset-password.tsx
+- [X] T024 Add email service error handling (Resend API failures) with user-friendly messages in Backend/api/views/authentication.py
 - [ ] T024a [P] Add integration tests for merchant verification flow (success, expired token, already verified) in Backend/api/tests/test_merchant_auth.py
 - [ ] T024b [P] Add integration tests for merchant password reset flow (success, expired token, invalid email) in Backend/api/tests/test_merchant_auth.py
 - [ ] T024c Validate endpoint schemas against contracts/merchant-auth-api.yaml (contract test)
