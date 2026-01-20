@@ -104,6 +104,83 @@ def send_verification_email(user_email, token):
         print(f"❌ 寄送驗證郵件到 {user_email} 失敗: {e}")
         return False
 
+# Merchant verification email function
+def send_merchant_verification_email(user_email, token):
+    """Send verification email for merchant accounts using coupromerchant:// deep link scheme."""
+    verification_link = f"coupromerchant://verify-email?token={token}&email={user_email}"
+
+    subject = '請驗證您的 CouPro 商家帳號'
+    html_message = f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>驗證您的 CouPro 商家帳號</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }}
+        .button {{
+            display: inline-block;
+            background-color: #FFAD31;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 0.75rem;
+            margin: 20px 0;
+        }}
+        .footer {{
+            margin-top: 30px;
+            font-size: 12px;
+            color: #777;
+        }}
+    </style>
+</head>
+<body>
+    <h2>親愛的商家夥伴，您好！</h2>
+    <p>感謝您註冊 CouPro 商家平台。請點擊下方按鈕驗證您的電子郵件：</p>
+    
+    <a href="{verification_link}" class="button">驗證我的電子郵件</a>
+    
+    <p>若按鈕無法點擊，請複製下方連結到瀏覽器開啟：</p>
+    <p>{verification_link}</p>
+    
+    <p>若您沒有註冊 CouPro 商家帳號，請忽略此郵件。</p>
+    
+    <div class="footer">
+        <p>祝您使用愉快，<br>
+        CouPro 團隊<br>
+        <a href="mailto:coupro707@gmail.com">coupro707@gmail.com</a></p>
+    </div>
+</body>
+</html>
+'''
+    
+    from_email = "noreply@coupro.pro"
+    
+    try:
+        params = {
+            "from": from_email,
+            "to": user_email,
+            "subject": subject,
+            "html": html_message
+        }
+
+        email = resend.Emails.send(params)
+        print(email)     
+        print(f"✅ 已成功寄送商家驗證郵件到 {user_email}")
+        return True
+
+    except Exception as e:
+        print(f"❌ 寄送商家驗證郵件到 {user_email} 失敗: {e}")
+        return False
+
 # Updated password reset email function
 def send_password_reset_email(user_email, token):
 
@@ -264,7 +341,7 @@ def register(request):
             user.groups.add(merchant_group)
         
         # Create MerchantProfile
-        MerchantProfile.objects.create(
+        merchant_profile = MerchantProfile.objects.create(
             user=user,
             phone=validated_data['phone'],
             contact_person=validated_data['contact_person'],
@@ -281,8 +358,15 @@ def register(request):
             business_hours=validated_data.get('business_hours', '')
         )
         
+        # Generate verification token and send email
+        token = merchant_profile.generate_verification_token()
+        send_merchant_verification_email(email, token)
+        
         return Response({
-            'message': 'Merchant registered successfully. You can now log in.',
+            'message': '註冊成功！驗證郵件已發送到您的信箱，請點擊連結完成驗證。',
+            'user_id': user.id,
+            'email': email,
+            'verification_required': True,
             'user_type': 'merchant'
         }, status=status.HTTP_201_CREATED)
     else:
@@ -324,6 +408,100 @@ def verify_email(request):
         return Response({"message": "Email verified successfully"})
     except StudentProfile.DoesNotExist:
         return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_merchant_email(request):
+    """Verify merchant email address using token from verification email."""
+    token = request.GET.get('token')
+    if not token:
+        return Response({
+            'error': 'missing_token',
+            'message': '缺少驗證碼'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        merchant_profile = MerchantProfile.objects.get(email_verification_token=token)
+        
+        # Check if already verified
+        if merchant_profile.verified:
+            return Response({
+                'error': 'already_verified',
+                'message': '此帳號已經驗證過了。'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if token is expired
+        if not merchant_profile.is_verification_token_valid():
+            return Response({
+                'error': 'expired_token',
+                'message': '驗證連結已過期，請重新申請驗證郵件。'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Mark as verified
+        merchant_profile.verify_email()
+        
+        return Response({
+            'success': True,
+            'message': '電子郵件驗證成功！您現在可以登入。'
+        }, status=status.HTTP_200_OK)
+        
+    except MerchantProfile.DoesNotExist:
+        return Response({
+            'error': 'invalid_token',
+            'message': '驗證連結無效或已過期，請重新申請驗證郵件。'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_merchant_verification(request):
+    """Resend verification email to unverified merchant account."""
+    email = request.data.get('email')
+    
+    if not email:
+        return Response({
+            'error': 'missing_email',
+            'message': '請提供電子郵件地址'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Generic response to prevent email enumeration
+    generic_response = Response({
+        'success': True,
+        'message': '如果此電子郵件存在且尚未驗證，驗證郵件將會發送到該地址。'
+    }, status=status.HTTP_200_OK)
+    
+    try:
+        user = User.objects.get(email=email)
+        
+        # Check if user is a merchant
+        if not user.groups.filter(name='Merchant').exists():
+            return generic_response
+        
+        merchant_profile = MerchantProfile.objects.get(user=user)
+        
+        # If already verified, return generic response
+        if merchant_profile.verified:
+            return generic_response
+        
+        # Check rate limit
+        allowed, message, wait_seconds = merchant_profile.can_send_verification_email()
+        if not allowed:
+            return Response({
+                'error': 'rate_limit_exceeded',
+                'message': message,
+                'wait_seconds': wait_seconds
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        
+        # Generate new token and send email
+        token = merchant_profile.generate_verification_token()
+        send_merchant_verification_email(email, token)
+        
+        return generic_response
+        
+    except (User.DoesNotExist, MerchantProfile.DoesNotExist):
+        # Return generic response even if user doesn't exist (prevent enumeration)
+        return generic_response
 
 
 
@@ -372,6 +550,20 @@ def login(request):
             print(f"Warning: StudentProfile not found for user {user.email} during login.")
             # For now, let's allow login if profile is missing, assuming they might be non-student users
             # return Response({"error": "使用者設定檔錯誤，請聯繫管理員"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # Check merchant verification status
+        if user.groups.filter(name='Merchant').exists():
+            try:
+                merchant_profile = MerchantProfile.objects.get(user=user)
+                if not merchant_profile.verified:
+                    return Response({
+                        'error': 'email_not_verified',
+                        'message': '請先驗證您的電子郵件',
+                        'email': user.email
+                    }, status=status.HTTP_403_FORBIDDEN)
+            except MerchantProfile.DoesNotExist:
+                print(f"Warning: MerchantProfile not found for merchant user {user.email}")
+                # Allow login if profile is missing (shouldn't happen in normal flow)
 
         if check_password(password, user.password):
             # Generate both access and refresh tokens

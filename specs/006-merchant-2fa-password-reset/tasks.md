@@ -24,10 +24,10 @@
 
 **Purpose**: Database schema changes and model updates required by all user stories
 
-- [ ] T001 Add verification fields to MerchantProfile model in Backend/api/models.py
-- [ ] T002 Add helper methods (is_verification_token_valid, can_send_verification_email, generate_verification_token, verify_email) to MerchantProfile in Backend/api/models.py (NOTE: Consider reusing `generate_password_reset_token` and `is_token_valid` patterns from Backend/api/auth.py for consistency)
-- [ ] T003 Run database migrations (makemigrations && migrate)
-- [ ] T004 [P] Create merchant verification email function (send_merchant_verification_email) in Backend/api/views/authentication.py
+- [X] T001 Add verification fields to MerchantProfile model in Backend/api/models.py
+- [X] T002 Add helper methods (is_verification_token_valid, can_send_verification_email, generate_verification_token, verify_email) to MerchantProfile in Backend/api/models.py (NOTE: Consider reusing `generate_password_reset_token` and `is_token_valid` patterns from Backend/api/auth.py for consistency)
+- [X] T003 Run database migrations (makemigrations && migrate)
+- [X] T004 [P] Create merchant verification email function (send_merchant_verification_email) in Backend/api/views/authentication.py
 
 ---
 
@@ -37,9 +37,9 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Add URL routes for new merchant endpoints in Backend/Backend/urls.py
-- [ ] T006 [P] Add TypeScript interfaces for verification/reset API responses in Mobile-Merchant-Frontend/utils/api.ts
-- [ ] T007 [P] Add authAPI helper functions (verifyEmail, resendVerification, resetPassword) in Mobile-Merchant-Frontend/utils/api.ts
+- [X] T005 Add URL routes for new merchant endpoints in Backend/Backend/urls.py
+- [X] T006 [P] Add TypeScript interfaces for verification/reset API responses in Mobile-Merchant-Frontend/utils/api.ts
+- [X] T007 [P] Add authAPI helper functions (verifyEmail, resendVerification, resetPassword) in Mobile-Merchant-Frontend/utils/api.ts
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -53,13 +53,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Update merchant register view to generate verification token and send email in Backend/api/views/authentication.py
-- [ ] T009 [US1] Update register response to include verification_required flag in Backend/api/views/authentication.py
-- [ ] T010 [US1] Add verify_merchant_email endpoint (GET /api/merchant/verify-email/) in Backend/api/views/authentication.py
-- [ ] T011 [US1] Update login view to check MerchantProfile.verified and return 403 with email_not_verified error in Backend/api/views/authentication.py
-- [ ] T012 [P] [US1] Create verify-email.tsx deep link handler screen in Mobile-Merchant-Frontend/app/(auth)/verify-email.tsx
+- [X] T008 [US1] Update merchant register view to generate verification token and send email in Backend/api/views/authentication.py
+- [X] T009 [US1] Update register response to include verification_required flag in Backend/api/views/authentication.py
+- [X] T010 [US1] Add verify_merchant_email endpoint (GET /api/merchant/verify-email/) in Backend/api/views/authentication.py
+- [X] T011 [US1] Update login view to check MerchantProfile.verified and return 403 with email_not_verified error in Backend/api/views/authentication.py
+- [X] T012 [P] [US1] Create verify-email.tsx deep link handler screen in Mobile-Merchant-Frontend/app/(auth)/verify-email.tsx
 - [ ] T013 [P] [US1] Update register.tsx to show verification pending message after successful registration in Mobile-Merchant-Frontend/app/(auth)/register.tsx
-- [ ] T014 [US1] Update login.tsx to handle email_not_verified error and show resend option in Mobile-Merchant-Frontend/app/(auth)/login.tsx
+- [X] T014 [US1] Update login.tsx to handle email_not_verified error and show resend option in Mobile-Merchant-Frontend/app/(auth)/login.tsx
 
 **Checkpoint**: User Story 1 complete - merchants can register, receive verification email, verify via deep link, and log in after verification
 
@@ -75,7 +75,7 @@
 
 - [ ] T015 [US2] Update send_password_reset_email function to use coupromerchant:// deep link scheme for merchant users in Backend/api/views/authentication.py
 - [ ] T016 [US2] Update forgot_password view to detect merchant user type, send correct deep link, and verify rate limiting (3 requests/hour per email) in Backend/api/views/authentication.py
-- [ ] T017 [P] [US2] Create reset-password.tsx deep link handler screen in Mobile-Merchant-Frontend/app/(auth)/reset-password.tsx
+- [X] T017 [P] [US2] Create reset-password.tsx deep link handler screen in Mobile-Merchant-Frontend/app/(auth)/reset-password.tsx
 - [ ] T018 [US2] Verify forgot-password.tsx exists and works correctly for merchants in Mobile-Merchant-Frontend/app/(auth)/forgot-password.tsx
 
 **Checkpoint**: User Story 2 complete - merchants can request and complete password reset flow independently
@@ -90,9 +90,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Add resend_merchant_verification endpoint (POST /api/merchant/resend-verification/) with rate limiting in Backend/api/views/authentication.py
-- [ ] T020 [US3] Add resend verification button and modal to login.tsx unverified state handling in Mobile-Merchant-Frontend/app/(auth)/login.tsx
-- [ ] T021 [US3] Handle rate limit error (429) and display wait time to user in Mobile-Merchant-Frontend/app/(auth)/login.tsx
+- [X] T019 [US3] Add resend_merchant_verification endpoint (POST /api/merchant/resend-verification/) with rate limiting in Backend/api/views/authentication.py
+- [X] T020 [US3] Add resend verification button and modal to login.tsx unverified state handling in Mobile-Merchant-Frontend/app/(auth)/login.tsx
+- [X] T021 [US3] Handle rate limit error (429) and display wait time to user in Mobile-Merchant-Frontend/app/(auth)/login.tsx
 
 **Checkpoint**: User Story 3 complete - merchants can resend verification emails with proper rate limiting feedback
 
