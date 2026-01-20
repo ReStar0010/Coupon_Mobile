@@ -196,6 +196,17 @@ const isPublicEndpoint = (endpoint: string): boolean => {
   return publicEndpoints.some((path) => endpoint.includes(path));
 };
 
+/**
+ * Custom error class for authentication failures
+ * Components can check for this error type to trigger redirect to login
+ */
+export class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
+
 // Token refresh state
 let isRefreshing = false;
 let refreshSubscribers: Array<(success: boolean) => void> = [];
@@ -242,13 +253,19 @@ const refreshAccessToken = async (): Promise<boolean> => {
     }
 
     const data = await response.json();
-    if (data.access_token) {
-      await saveTokens(data.access_token, data.refresh_token || refreshToken);
+    // Support both response formats: { access_token, refresh_token } and { access, refresh }
+    const accessToken = data.access_token || data.access;
+    const newRefreshToken = data.refresh_token || data.refresh;
+    
+    if (accessToken) {
+      await saveTokens(accessToken, newRefreshToken || refreshToken);
+      console.log('[API] Token refresh successful, new tokens saved');
       isRefreshing = false;
       onRefreshComplete(true);
       return true;
     }
 
+    console.error('[API] Token refresh failed: No access token in response');
     isRefreshing = false;
     onRefreshComplete(false);
     return false;
@@ -297,6 +314,7 @@ export const fetchAPI = async (
 
     // Handle 401 Unauthorized - try to refresh token
     if (response.status === 401 && requireAuth && !isPublicEndpoint(endpoint)) {
+      console.log('[API] Received 401, attempting token refresh');
       const refreshed = await refreshAccessToken();
       
       if (refreshed) {
@@ -308,11 +326,23 @@ export const fetchAPI = async (
             ...fetchOptions,
             headers,
           });
+          
+          // If retry still returns 401, authentication has failed
+          if (response.status === 401) {
+            console.log('[API] Retry after refresh still returned 401, authentication failed');
+            await clearTokens();
+            throw new AuthenticationError('Authentication failed after token refresh. Please log in again.');
+          }
+        } else {
+          console.log('[API] Token refresh succeeded but no access token available');
+          await clearTokens();
+          throw new AuthenticationError('Token refresh succeeded but no access token available.');
         }
       } else {
         // Refresh failed, clear tokens
+        console.log('[API] Token refresh failed, clearing tokens and throwing AuthenticationError');
         await clearTokens();
-        throw new Error('Authentication failed. Please log in again.');
+        throw new AuthenticationError('Authentication failed. Please log in again.');
       }
     }
 
@@ -700,4 +730,79 @@ export const merchantAPI = {
 
 // Export helper function for use in components
 export { getAbsoluteImageUrl };
+
+// ============================================
+// Account Deletion Types & APIs (App Store Compliance)
+// ============================================
+
+export interface DeletionWarning {
+  code: 'ACTIVE_COUPONS' | 'DATA_LOSS' | 'MULTIPLE_STORES';
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+}
+
+export interface PreDeleteCheckResponse {
+  can_delete: boolean;
+  warnings: DeletionWarning[];
+  data_summary: {
+    active_coupons_count: number;
+    stores_count: number;
+    total_redemptions: number;
+    pending_transactions: number;
+  };
+}
+
+export interface DeleteAccountRequest {
+  password: string;
+  acknowledgments: string[];
+}
+
+export interface DeleteAccountResponse {
+  success: boolean;
+  message: string;
+  deleted_at: string;
+}
+
+export interface DeletionStatusResponse {
+  status: 'none' | 'pending' | 'completed' | 'failed';
+  initiated_at?: string;
+  completed_at?: string;
+  error?: string;
+}
+
+/**
+ * Account deletion API functions
+ */
+export const accountDeletionAPI = {
+  /**
+   * Get pre-deletion check (warnings and data summary)
+   */
+  async preDeleteCheck(): Promise<PreDeleteCheckResponse> {
+    const response = await fetchAPI('/merchant/account/pre-delete-check/', {
+      method: 'GET',
+    });
+    return parseResponse(response);
+  },
+
+  /**
+   * Delete merchant account
+   */
+  async deleteAccount(request: DeleteAccountRequest): Promise<DeleteAccountResponse> {
+    const response = await fetchAPI('/merchant/account/delete/', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+    return parseResponse(response);
+  },
+
+  /**
+   * Get deletion status (for network failure recovery)
+   */
+  async getDeletionStatus(): Promise<DeletionStatusResponse> {
+    const response = await fetchAPI('/merchant/account/deletion-status/', {
+      method: 'GET',
+    });
+    return parseResponse(response);
+  },
+};
 

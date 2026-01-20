@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { fetchAPI } from '../../utils/authAPI';
+import { useRouter } from 'expo-router';
+import axios from 'axios';
+import { fetchAPI, AuthenticationError } from '../../utils/authAPI';
 
 export interface TransactionHistoryItem {
   redemption_id: number;
@@ -9,6 +11,7 @@ export interface TransactionHistoryItem {
 }
 
 export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 2) => {
+  const router = useRouter();
   const [transactionHistory, setTransactionHistory] = useState<TransactionHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +36,15 @@ export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 
       }
       setIsLoading(false);
     } catch (err) {
+      // Check if it's an authentication error
+      if (err instanceof AuthenticationError || (axios.isAxiosError(err) && err.response?.status === 401)) {
+        console.error('Authentication error fetching transaction history, redirecting to login');
+        // Redirect to login immediately
+        router.replace('/Login');
+        setIsLoading(false);
+        return;
+      }
+      
       console.error('Error fetching transaction history:', err);
       setError('Failed to load transaction history');
       setIsLoading(false);

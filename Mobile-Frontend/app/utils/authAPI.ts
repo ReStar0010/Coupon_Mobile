@@ -25,6 +25,17 @@ import {
 
 const API_BASE_URL = API_URL;
 
+/**
+ * Custom error class for authentication failures
+ * Components can check for this error type to trigger redirect to login
+ */
+export class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
+
 // Token refresh state
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: boolean) => void> = [];
@@ -344,16 +355,22 @@ export const fetchAPI = async (
       }
 
       // Handle other error responses
-      const errorData = axios.isAxiosError(error) ? error.response?.data || {} : {};
-      const apiError = new Error(
-        errorData.error ||
-          errorData.message ||
-          `API request failed: ${axios.isAxiosError(error) ? error.response?.status : 'Unknown error'}`
-      );
-      throw apiError;
+      // Preserve the original error object to maintain response information for retry logic
+      if (axios.isAxiosError(error)) {
+        // For Axios errors, keep the original error to preserve response data
+        const errorData = error.response?.data || {};
+        const errorMessage = errorData.error || errorData.message || `API request failed: ${error.response?.status}`;
+        console.error('API request error:', new Error(errorMessage));
+        throw error; // Throw original Axios error to preserve response info
+      } else {
+        // For non-Axios errors, wrap in a new Error
+        const apiError = new Error('API request failed: Unknown error');
+        console.error('API request error:', apiError);
+        throw apiError;
+      }
     }
   } catch (error) {
-    console.error('API request error:', error);
+    // Error already logged in the inner catch block
     throw error;
   }
 };
@@ -549,6 +566,10 @@ export const qrClaimAPI = {
     remaining_quantity: number;
     acquisition_method: 'qr_claim';
   }> => {
+    // Generate idempotency key once for this claim operation
+    // This ensures retries use the same key and won't create duplicate coupons
+    const idempotencyKey = generateIdempotencyKey();
+    
     let lastError: any;
     const maxRetries = 2;
     const retryDelays = [1000, 2000]; // 1s, 2s delays
@@ -560,8 +581,10 @@ export const qrClaimAPI = {
           data: {
             template_id: templateId,
             session_token: sessionToken,
+            idempotency_key: idempotencyKey,
           },
         });
+        // Accept both 200 (idempotent retry) and 201 (new claim) as success
         return response.data;
       } catch (error: any) {
         lastError = error;
@@ -603,4 +626,5 @@ export default {
   onRefreshComplete,
   isPublicEndpoint,
   clearStoredTokens,
+  AuthenticationError,
 };

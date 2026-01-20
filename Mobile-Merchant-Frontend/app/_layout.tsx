@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 
 import { config } from '../tamagui.config';
 import AuthProvider from './components/providers/AuthProvider';
+import AuthRedirectHandler from './components/AuthRedirectHandler';
 
 export default function RootLayout() {
   return (

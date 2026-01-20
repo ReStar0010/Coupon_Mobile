@@ -10,6 +10,8 @@ import ThemeProvider from './components/providers/ThemeProvider';
 import AuthProvider from './components/providers/SessionProvider';
 import AuthOrchestrator from './components/providers/AuthOrchestrator';
 import ToastProvider from './components/providers/ToastProvider';
+import DismissedStoresProvider from './components/providers/DismissedStoresProvider';
+import AuthRedirectHandler from './components/AuthRedirectHandler';
 import { getApiConfig } from './config/api';
 
 // 在應用啟動時顯示後端配置
@@ -31,6 +33,7 @@ export default function RootLayout() {
       <TamaguiProvider config={config} defaultTheme="light">
         <PortalProvider shouldAddRootHost>
           <ThemeProvider>
+            <DismissedStoresProvider>
             <AuthProvider>
               <AuthOrchestrator>
                 <ToastProvider>
@@ -47,6 +50,7 @@ export default function RootLayout() {
                 </ToastProvider>
               </AuthOrchestrator>
             </AuthProvider>
+            </DismissedStoresProvider>
           </ThemeProvider>
         </PortalProvider>
       </TamaguiProvider>

@@ -58,7 +58,10 @@ export default function QRClaimScanner() {
   }, [permission, requestPermission]);
 
   const handleBarCodeScanned = useCallback(async ({ type, data }: BarcodeScanningResult) => {
-    if (!isScanning || isDisabled || isLoading) return;
+    // Check if already processing a claim - use ref for immediate check without state delay
+    if (isProcessingRef.current || !isScanning || isDisabled || isLoading) {
+      return;
+    }
     
     const now = Date.now();
     const scannedCode = data.trim();

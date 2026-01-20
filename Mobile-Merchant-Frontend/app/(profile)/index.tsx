@@ -7,7 +7,7 @@ import { Header } from '../(coupons)/components/Header';
 import { Button } from '@/components/ui';
 import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { merchantAPI, authAPI } from '@/utils/api';
+import { merchantAPI, authAPI, AuthenticationError } from '@/utils/api';
 import { useAuth } from '../components/providers/AuthProvider';
 import { Alert } from 'react-native';
 
@@ -81,6 +81,12 @@ export default function MerchantProfileScreen() {
       setStatistics(statsData);
     } catch (error) {
       console.error('Failed to load profile:', error);
+      // Check if it's an authentication error
+      if (error instanceof AuthenticationError) {
+        console.log('[Profile] Authentication error detected, redirecting to login');
+        router.replace('/(auth)/login');
+        return;
+      }
     } finally {
       setIsLoading(false);
     }
@@ -181,8 +187,20 @@ export default function MerchantProfileScreen() {
                 )}
               </View>
 
-              {/* Logout Button */}
-              <YStack marginTop="$6" marginBottom="$4">
+              {/* Account Actions */}
+              <YStack marginTop="$6" marginBottom="$4" gap="$3">
+                {/* Delete Account Button */}
+                <Button 
+                  variant="outline" 
+                  fullWidth 
+                  onPress={() => router.push('/(profile)/delete-account')}
+                  borderColor="#EF4444"
+                  color="#EF4444"
+                >
+                  刪除帳號
+                </Button>
+
+                {/* Logout Button */}
                 <Button 
                   variant="outline" 
                   fullWidth 

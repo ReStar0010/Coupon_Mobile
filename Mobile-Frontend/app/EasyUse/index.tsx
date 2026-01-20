@@ -16,6 +16,8 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const NAVIGATION_FOOTER_HEIGHT = 80; // 導航欄高度（包括 safe area）
 const BOTTOM_SHEET_MIN_HEIGHT = 60; // 最小高度（只顯示拖動指示器，在導航欄上方）
 const BOTTOM_SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.5 - NAVIGATION_FOOTER_HEIGHT; // 最大高度（50% 屏幕高度，減去導航欄高度）
+import { useDismissedStores } from '../components/providers/DismissedStoresProvider';
+import MerchantDeletedModal from '../components/MerchantDeletedModal';
 
 export type CouponType = {
   className?: string;
@@ -42,6 +44,8 @@ export type CouponType = {
   isPublicShare?: boolean;
   shareToken?: string;
   sharedBy?: string;
+  // Merchant deletion status
+  merchantDeleted?: boolean;
 };
 
 // Removed Store typing while using placeholders
@@ -261,6 +265,7 @@ const CouPro = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const { dismissStore, isStoreDismissed } = useDismissedStores();
   // Skipping backend state in placeholders mode
   const [searchQuery, setSearchQuery] = useState('');
   const [coupons, setCoupons] = useState<CouponType[]>([]);
@@ -347,6 +352,12 @@ const CouPro = () => {
       },
     })
   ).current;
+  // Merchant deleted modal state
+  const [merchantDeletedModal, setMerchantDeletedModal] = useState<{
+    isOpen: boolean;
+    storeName: string;
+    storeId: number | null;
+  }>({ isOpen: false, storeName: '', storeId: null });
 
   useEffect(() => {
     const searchParam = params.search as string;
@@ -386,6 +397,8 @@ const CouPro = () => {
         isPublicShare: coupon.is_public_share || false,
         shareToken: coupon.share_token,
         sharedBy: coupon.shared_by,
+        // Merchant deletion status
+        merchantDeleted: coupon.merchant_deleted || false,
       }));
       setCoupons(transformed);
     } catch (err: any) {
@@ -488,24 +501,29 @@ const CouPro = () => {
   }, [coupons]);
 
   const filteredCoupons = coupons.filter((coupon) => {
+    // Filter out coupons from dismissed stores (stores whose merchant deleted their account)
+    if (coupon.storeId && isStoreDismissed(coupon.storeId)) {
+      return false;
+    }
+
     if (!searchQuery) return true;
-    
+
     const query = searchQuery.toLowerCase().trim();
-    
+
     // 搜尋店家名稱
     if (coupon.storeName?.toLowerCase().includes(query)) return true;
-    
+
     // 搜尋優惠內容
     if (coupon.description?.toLowerCase().includes(query)) return true;
-    
+
     // 搜尋標籤
     if (coupon.tags && coupon.tags.length > 0) {
-      const tagMatch = coupon.tags.some(tag => 
+      const tagMatch = coupon.tags.some(tag =>
         tag.toLowerCase().includes(query)
       );
       if (tagMatch) return true;
     }
-    
+
     return false;
   });
 
@@ -521,12 +539,31 @@ const CouPro = () => {
     router.push('/OptionsMenu');
   };
 
-  const onCouponPress = (couponId?: number) => {
-    if (couponId) {
-      router.push(`/EasyUse/${couponId}`);
-    } else {
+  const onCouponPress = (coupon: CouponType) => {
+    if (!coupon.id) {
       console.error('Coupon ID is undefined, cannot navigate.');
+      return;
     }
+
+    // If merchant has deleted their account, show the notice modal
+    if (coupon.merchantDeleted && coupon.storeId) {
+      setMerchantDeletedModal({
+        isOpen: true,
+        storeName: coupon.storeName,
+        storeId: coupon.storeId,
+      });
+      return;
+    }
+
+    router.push(`/EasyUse/${coupon.id}`);
+  };
+
+  // Handle merchant deleted modal close - dismiss store and hide all its coupons
+  const handleMerchantDeletedModalClose = async () => {
+    if (merchantDeletedModal.storeId) {
+      await dismissStore(merchantDeletedModal.storeId);
+    }
+    setMerchantDeletedModal({ isOpen: false, storeName: '', storeId: null });
   };
 
   // Handle locate user button
@@ -799,6 +836,14 @@ const CouPro = () => {
           />
         </View>
       </View>
+    
+
+        {/* Merchant Deleted Modal */}
+      <MerchantDeletedModal
+        isOpen={merchantDeletedModal.isOpen}
+        onClose={handleMerchantDeletedModalClose}
+        storeName={merchantDeletedModal.storeName}
+      />
     </>
   );
 };

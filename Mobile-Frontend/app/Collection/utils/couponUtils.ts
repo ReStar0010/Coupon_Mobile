@@ -35,6 +35,8 @@ export const transformApiCoupon = (coupon: ApiCoupon): CouponType => {
     imageUrl: coupon.image_url,
     tags: coupon.tags,
     acquisitionMethod: coupon.acquisition_method,
+    storeId: coupon.store_id,
+    merchantDeleted: coupon.merchant_deleted || false,
   };
 };
 

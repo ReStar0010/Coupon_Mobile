@@ -89,6 +89,7 @@ def get_store_coupons(request):
             "is_public_share": False,
             "share_token": None,
             "shared_by": None,
+            "merchant_deleted": c.store.owner is None,
         })
 
     # Add public pool coupons
@@ -120,6 +121,7 @@ def get_store_coupons(request):
                 "is_public_share": True,
                 "share_token": share_request.token,
                 "shared_by": share_request.from_user.email,
+                "merchant_deleted": c.store.owner is None,
             })
 
     return Response(data)
@@ -181,7 +183,8 @@ def get_exclusive_coupons(request):
             "original_owner_email": c.original_owner.email if c.original_owner else None,
             "last_holder_email": c.last_holder.email if c.last_holder else None,
             "estimated_savings": c.estimated_savings,
-            "tags": [tag.display_name for tag in c.tags.all()]  # 返回標籤的顯示名稱
+            "tags": [tag.display_name for tag in c.tags.all()],  # 返回標籤的顯示名稱
+            "merchant_deleted": c.store.owner is None,
         })
     
     return Response(data)
@@ -266,7 +269,8 @@ def get_coupon_detail(request, id):
             "total_redemptions": coupon.get_redemption_count(),
             "unique_users": coupon.get_unique_users_count(),
             "can_use_today": can_use_today,
-            "tags": [tag.display_name for tag in coupon.tags.all()]  # 返回標籤的顯示名稱
+            "tags": [tag.display_name for tag in coupon.tags.all()],  # 返回標籤的顯示名稱
+            "merchant_deleted": coupon.store.owner is None,
         }
 
     else:
@@ -309,7 +313,8 @@ def get_coupon_detail(request, id):
             "last_holder_email": coupon.last_holder.email if coupon.last_holder else None,
             "estimated_savings": coupon.estimated_savings,
             "can_use_today": True,
-            "tags": [tag.display_name for tag in coupon.tags.all()]  # 返回標籤的顯示名稱
+            "tags": [tag.display_name for tag in coupon.tags.all()],  # 返回標籤的顯示名稱
+            "merchant_deleted": coupon.store.owner is None,
         }
     
     return Response(data)

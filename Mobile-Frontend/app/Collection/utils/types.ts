@@ -14,12 +14,15 @@ export type CouponType = {
   imageUrl?: string; // 店家圖片或優惠券圖片的URL
   tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
   acquisitionMethod?: string; // 取得方式 (draw, consolidate, transfer, public_pool, qr_claim)
+  storeId?: number; // 店家ID，用於判斷商家是否已刪除
+  merchantDeleted?: boolean; // 商家是否已刪除帳號
 };
 
 // 接口以匹配後端 API 回應
 export interface ApiCoupon {
   id: number;
   store_name: string;
+  store_id: number;
   coupon_name: string;
   coupon_detail: string;
   important_notes?: string;
@@ -35,6 +38,7 @@ export interface ApiCoupon {
   is_redeemed: boolean; // This is a computed property
   tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
   acquisition_method?: string; // 取得方式 (draw, consolidate, transfer, public_pool, qr_claim)
+  merchant_deleted?: boolean; // 商家是否已刪除帳號
 }
 
 // Interface for shared coupons

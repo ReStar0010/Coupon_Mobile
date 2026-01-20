@@ -26,6 +26,8 @@ export default function QRClaimScanner() {
   const [lastScannedTime, setLastScannedTime] = useState<number>(0);
   const [isDisabled, setIsDisabled] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+  // Use ref to track if a claim is currently being processed
+  const isProcessingRef = useRef<boolean>(false);
 
   // Request camera permission on mount
   useEffect(() => {
@@ -40,13 +42,19 @@ export default function QRClaimScanner() {
   }, [permission, requestPermission]);
 
   const handleBarCodeScanned = useCallback(async ({ type, data }: BarcodeScanningResult) => {
-    if (!isScanning || isDisabled || isLoading) return;
+    // Check if already processing a claim - use ref for immediate check without state delay
+    if (isProcessingRef.current || !isScanning || isDisabled || isLoading) {
+      return;
+    }
     
     // T030: Duplicate-scan prevention - prevent processing same QR code multiple times within 2 seconds
     const now = Date.now();
     if (now - lastScannedTime < 2000) {
       return;
     }
+    
+    // Immediately set processing flag to prevent any concurrent calls
+    isProcessingRef.current = true;
     setLastScannedTime(now);
     
     setIsScanning(false);
@@ -122,6 +130,8 @@ export default function QRClaimScanner() {
       setIsDisabled(false);
     } finally {
       setIsLoading(false);
+      // Reset processing flag after request completes (success or error)
+      isProcessingRef.current = false;
     }
   }, [isScanning, isDisabled, isLoading, lastScannedTime, router]);
 
@@ -225,6 +235,7 @@ export default function QRClaimScanner() {
                 setError(null);
                 setIsDisabled(false);
                 setIsScanning(true);
+                isProcessingRef.current = false; // Reset processing flag on retry
               }}
               style={styles.retryButton}
             >

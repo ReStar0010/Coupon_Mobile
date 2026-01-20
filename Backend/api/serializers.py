@@ -208,6 +208,7 @@ class ClaimCouponRequestSerializer(serializers.Serializer):
     """
     template_id = serializers.IntegerField(required=True, help_text="ID of the coupon template (from QR code)")
     session_token = serializers.CharField(required=True, max_length=100, help_text="Session token from QR code (UUID4 format)")
+    idempotency_key = serializers.CharField(required=False, max_length=64, allow_blank=True, help_text="Optional idempotency key to prevent duplicate claims on retry")
 
 
 class ClaimCouponResponseSerializer(serializers.Serializer):
@@ -220,3 +221,41 @@ class ClaimCouponResponseSerializer(serializers.Serializer):
     template_id = serializers.IntegerField(read_only=True, help_text="ID of the template this coupon was created from")
     remaining_quantity = serializers.IntegerField(read_only=True, help_text="Remaining quantity in the template after claim")
     acquisition_method = serializers.CharField(read_only=True, help_text="How the coupon was acquired")
+
+
+# Account Deletion Serializers (App Store Guideline 5.1.1 Compliance)
+
+class AccountDeletionSerializer(serializers.Serializer):
+    """
+    Serializer for merchant account deletion request.
+    """
+    password = serializers.CharField(
+        write_only=True, 
+        required=True,
+        style={'input_type': 'password'},
+        help_text="Current account password for verification"
+    )
+    acknowledgments = serializers.ListField(
+        child=serializers.CharField(),
+        required=True,
+        help_text="List of warning codes the user has acknowledged (e.g., ['ACTIVE_COUPONS', 'DATA_LOSS'])"
+    )
+
+
+class PreDeleteCheckSerializer(serializers.Serializer):
+    """
+    Serializer for pre-deletion check response.
+    """
+    can_delete = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether the account can be deleted"
+    )
+    warnings = serializers.ListField(
+        child=serializers.DictField(),
+        read_only=True,
+        help_text="List of warnings about the deletion"
+    )
+    data_summary = serializers.DictField(
+        read_only=True,
+        help_text="Summary of data that will be affected"
+    )

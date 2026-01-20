@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, Platform, Linking } from 'react-native';
 import { colors } from '@/constants/colors';
 
 // Conditionally import react-native-maps only for native platforms
@@ -116,7 +116,28 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('需要位置權限', '請在設定中開啟位置服務');
+        const appName = 'CouPro 商家端';
+        const locationPermissionMessage = Platform.OS === 'ios'
+          ? `CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。\n\n請前往「設定」>「${appName}」>「位置」，選擇「使用 App 期間」或「永遠」來開啟位置服務。`
+          : `CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。\n\n請前往「設定」>「應用程式」>「${appName}」>「權限」>「位置」，選擇「允許」來開啟位置服務。`;
+        
+        Alert.alert(
+          '需要位置權限',
+          locationPermissionMessage,
+          [
+            { text: '取消', style: 'cancel' },
+            { 
+              text: '前往設定', 
+              onPress: async () => {
+                try {
+                  await Linking.openSettings();
+                } catch (error) {
+                  console.error('Failed to open settings:', error);
+                }
+              }
+            }
+          ]
+        );
         return;
       }
 
@@ -141,7 +162,11 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       }
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert('定位錯誤', '無法獲取當前位置');
+      Alert.alert(
+        '無法獲取位置',
+        '無法獲取您目前的位置。請確認您已開啟位置服務，或您也可以直接在地圖上點擊或拖動標記來選擇店家位置。',
+        [{ text: '確定', style: 'default' }]
+      );
     }
   };
 

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { useRouter } from 'expo-router';
 import { useToast } from '../../components/providers/ToastProvider';
 import { devDebug } from '../../utils/devLogger';
-import { fetchAPI } from '../../utils/authAPI';
+import { fetchAPI, AuthenticationError } from '../../utils/authAPI';
 
 export interface StatisticsData {
   couponsUsedCount: number;
@@ -47,6 +48,7 @@ const INITIAL_STATS: StatisticsData = {
 
 export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataReturn => {
   const { showToast } = useToast();
+  const router = useRouter();
   const [stats, setStats] = useState<StatisticsData>(INITIAL_STATS);
   const [completedGoals, setCompletedGoals] = useState<CompletedGoal[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -77,9 +79,17 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
         setCompletedGoals(response.data);
       }
     } catch (err) {
+      // Check if it's an authentication error
+      if (err instanceof AuthenticationError || (axios.isAxiosError(err) && err.response?.status === 401)) {
+        devDebug('Authentication error in fetchCompletedGoals, redirecting to login');
+        if (isMountedRef.current) {
+          router.replace('/Login');
+        }
+        return;
+      }
       console.error('Error fetching completed goals:', err);
     }
-  }, []);
+  }, [router]);
 
   const fetchUserStats = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -120,6 +130,17 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
         devDebug('Request cancelled');
         return;
       }
+      
+      // Check if it's an authentication error
+      if (err instanceof AuthenticationError || (axios.isAxiosError(err) && err.response?.status === 401)) {
+        devDebug('Authentication error detected, redirecting to login');
+        if (isMountedRef.current) {
+          // Redirect to login immediately
+          router.replace('/Login');
+        }
+        return;
+      }
+      
       console.error('Error fetching user statistics:', err);
       if (isMountedRef.current) {
         setError('Failed to load your statistics. Please try again later.');

@@ -11,7 +11,7 @@ import { CouponCard } from './components/CouponCard';
 import { AddButton } from './components/AddButton';
 import { BarcodeVerificationButton } from './components/BarcodeVerificationButton';
 import { QRCodeModal } from './components/QRCodeModal';
-import { merchantAPI } from '@/utils/api';
+import { merchantAPI, AuthenticationError } from '@/utils/api';
 
 export interface Coupon {
   id: number;
@@ -22,6 +22,7 @@ export interface Coupon {
   remaining_quantity?: number;
   total_quantity?: number;
   is_active?: boolean;
+  is_sold_out?: boolean;
 }
 
 type CouponStatus = 'all' | 'active' | 'ended' | 'upcoming' | 'inactive';
@@ -61,6 +62,12 @@ export default function CouponsScreen() {
       setCoupons(data || []);
     } catch (error) {
       console.error('Failed to load coupons:', error);
+      // Check if it's an authentication error
+      if (error instanceof AuthenticationError) {
+        console.log('[Coupons] Authentication error detected, redirecting to login');
+        router.replace('/(auth)/login');
+        return;
+      }
     } finally {
       setIsLoading(false);
     }

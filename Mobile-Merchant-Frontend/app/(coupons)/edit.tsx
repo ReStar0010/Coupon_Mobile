@@ -3,8 +3,7 @@ import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/colors';
-import { Input } from '@/components/ui';
-import { Button } from '@/components/ui';
+import { Input, Button, PermissionDeniedModal } from '@/components/ui';
 import { StyleSheet, TouchableOpacity, View, TextInput, Switch, Alert, Platform } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
@@ -20,6 +19,7 @@ export default function CouponEditScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
 
   // Form state
   const [image, setImage] = useState<string | null>(null);
@@ -154,7 +154,7 @@ export default function CouponEditScreen() {
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('需要權限', '需要相簿權限才能上傳圖片');
+        setShowPermissionModal(true);
         return;
       }
 
@@ -621,6 +621,13 @@ export default function CouponEditScreen() {
           cancelTextIOS="取消"
         />
       </YStack>
+
+      {/* Permission Denied Modal */}
+      <PermissionDeniedModal
+        isOpen={showPermissionModal}
+        onClose={() => setShowPermissionModal(false)}
+        permissionType="photos"
+      />
     </SafeAreaView>
   );
 }

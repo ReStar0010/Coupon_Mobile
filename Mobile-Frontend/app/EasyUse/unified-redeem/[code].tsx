@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { unifiedRedemptionAPI } from '../../utils/authAPI';
+import { unifiedRedemptionAPI, fetchAPI } from '../../utils/authAPI';
 import Toast from '../[id]/redeem/Toast';
 import SuccessPopup from '../[id]/redeem/SuccessPopup';
 
@@ -31,6 +31,12 @@ interface StoreInfo {
   id: number;
   name: string;
   address?: string;
+}
+
+interface SuccessData {
+  couponName: string;
+  storeName: string;
+  savingsAmount?: number;
 }
 
 const DEFAULT_IMAGE_URL =
@@ -137,6 +143,13 @@ export default function UnifiedRedeemScreen() {
     setShowErrorToast(false);
     setErrorToastMessage('');
   }, []);
+
+  const handleCloseSuccessPopup = useCallback(() => {
+    setShowSuccessPopup(false);
+    setSuccessData(null);
+    // Redirect to EasyUse main page after successful redemption
+    router.push('/EasyUse');
+  }, [router]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';

@@ -254,13 +254,13 @@ def register(request):
         
         validated_data = serializer.validated_data
         
-        # Add user to Merchants group
+        # Add user to Merchant group
         try:
-            merchant_group = Group.objects.get(name='Merchants')
+            merchant_group = Group.objects.get(name='Merchant')
             user.groups.add(merchant_group)
         except Group.DoesNotExist:
-            # Create Merchants group if it doesn't exist
-            merchant_group = Group.objects.create(name='Merchants')
+            # Create Merchant group if it doesn't exist
+            merchant_group = Group.objects.create(name='Merchant')
             user.groups.add(merchant_group)
         
         # Create MerchantProfile
@@ -461,7 +461,7 @@ def user_info(request):
     """
     user = request.user
     verified_status = False # Default
-    is_merchant = user.groups.filter(name='Merchants').exists()
+    is_merchant = user.groups.filter(name='Merchant').exists()
 
     # Get verification status from student profile if it exists
     if hasattr(user, 'student_profile'):

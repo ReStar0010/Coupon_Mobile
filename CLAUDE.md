@@ -1,8 +1,12 @@
-# CouPro Development Guidelines
+﻿# CouPro Development Guidelines
 
 Auto-generated from feature plans. Last updated: 2026-01-07
 
 ## Active Technologies
+- TypeScript (Mobile Frontend - Expo/React Native), Python 3.10+ (Backend - Django) (001-appstore-comliance-fixes)
+- Backend uses Django ORM with SQLite (dev) / PostgreSQL (prod) for merchant account data (001-appstore-comliance-fixes)
+- Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework (Backend), Expo/React Native with expo-image-picker ~17.0.10 (Frontend) (001-appstore-compliance-fixes)
+- SQLite (dev) / PostgreSQL (prod) via Django ORM (001-appstore-compliance-fixes)
 
 **Backend:**
 - Language: Python 3.10+
@@ -87,17 +91,13 @@ npm run typecheck                   # TypeScript check
 - Chinese UI text for user-facing messages
 
 ## Recent Changes
+- 001-appstore-compliance-fixes: Added Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework (Backend), Expo/React Native with expo-image-picker ~17.0.10 (Frontend)
+- 001-appstore-compliance-fixes: Added TypeScript (Mobile Frontend - Expo/React Native), Python 3.10+ (Backend - Django)
 
 **002-phone-otp-verification (2026-01-07):**
 - Added Twilio SMS integration for OTP verification
-- New PhoneOTPRecord model for tracking verification attempts
-- Rate limiting: 3 OTP requests/hour, 5 verification attempts/OTP
-- Blocked direct phone updates (PUT /api/user/phone/) - must use OTP flow
 
 **001-phone-coupon-send (2026-01-05):**
-- Added pending_phone_number field to Coupon model
-- Merchants can send coupons to unregistered phone numbers
-- Auto-claim coupons when user verifies phone number
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

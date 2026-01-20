@@ -10,6 +10,8 @@ import { useRequireAuth } from '../utils/authAPI';
 import Gift from './Gift';
 import { filterCoupons } from './utils/couponUtils';
 import { COLORS } from '../constants/theme';
+import { useDismissedStores } from '../components/providers/DismissedStoresProvider';
+import MerchantDeletedModal from '../components/MerchantDeletedModal';
 
 import { useCoupons } from './hooks/useCoupons';
 import { useDailyDraw } from './hooks/useDailyDraw';
@@ -29,9 +31,10 @@ import type { CouponType, ExpiryFilter } from './utils/types';
 
 interface CouponItemProps {
   item: CouponType;
+  onMerchantDeleted?: (storeName: string, storeId: number) => void;
 }
 
-const CouponItem: React.FC<CouponItemProps> = React.memo(({ item }) => (
+const CouponItem: React.FC<CouponItemProps> = React.memo(({ item, onMerchantDeleted }) => (
   <Coupon
     key={item.id}
     couponName={item.couponName}
@@ -40,6 +43,9 @@ const CouponItem: React.FC<CouponItemProps> = React.memo(({ item }) => (
     id={item.id}
     imageUrl={item.imageUrl}
     tags={item.tags}
+    storeId={item.storeId}
+    merchantDeleted={item.merchantDeleted}
+    onMerchantDeleted={onMerchantDeleted}
   />
 ));
 
@@ -90,6 +96,7 @@ const EXPIRY_FILTER_OPTIONS: { value: ExpiryFilter; label: string }[] = [
 const Collection: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { dismissStore, isStoreDismissed } = useDismissedStores();
 
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
   const { searchQuery, handleSearchChange, clearSearch } = useSearch();
@@ -97,6 +104,13 @@ const Collection: React.FC = () => {
     isAuthenticated,
     authLoading
   );
+
+  // Merchant deleted modal state
+  const [merchantDeletedModal, setMerchantDeletedModal] = useState<{
+    isOpen: boolean;
+    storeName: string;
+    storeId: number | null;
+  }>({ isOpen: false, storeName: '', storeId: null });
   const {
     showDailyDraw,
     setShowDailyDraw,
@@ -145,17 +159,13 @@ const Collection: React.FC = () => {
     return selectedTags.map((tagName) => tagMap.get(tagName) || tagName);
   }, [selectedTags, tagMap]);
 
-  const filteredCoupons = useMemo(
-    () =>
-      filterCoupons(
-        coupons,
-        searchQuery,
-        selectedTagDisplayNames,
-        expiryFilter,
-        selectedMerchant
-      ),
-    [coupons, searchQuery, selectedTagDisplayNames, expiryFilter, selectedMerchant]
-  );
+  const filteredCoupons = useMemo(() => {
+    // First filter out dismissed stores, then apply search filter
+    const activeCoupons = coupons.filter(
+      (coupon) => !coupon.storeId || !isStoreDismissed(coupon.storeId)
+    );
+    return filterCoupons(activeCoupons, searchQuery);
+  }, [coupons, searchQuery, isStoreDismissed]);
 
   const onRefresh = useCallback(() => {
     fetchCoupons();
@@ -238,9 +248,23 @@ const Collection: React.FC = () => {
     setShowDailyDraw(false);
   }, [setShowDailyDraw]);
 
+  // Handle merchant deleted modal
+  const handleMerchantDeleted = useCallback((storeName: string, storeId: number) => {
+    setMerchantDeletedModal({ isOpen: true, storeName, storeId });
+  }, []);
+
+  const handleMerchantDeletedModalClose = useCallback(async () => {
+    if (merchantDeletedModal.storeId) {
+      await dismissStore(merchantDeletedModal.storeId);
+    }
+    setMerchantDeletedModal({ isOpen: false, storeName: '', storeId: null });
+  }, [merchantDeletedModal.storeId, dismissStore]);
+
   const renderCouponItem = useCallback(
-    ({ item }: { item: CouponType }) => <CouponItem item={item} />,
-    []
+    ({ item }: { item: CouponType }) => (
+      <CouponItem item={item} onMerchantDeleted={handleMerchantDeleted} />
+    ),
+    [handleMerchantDeleted]
   );
 
   const keyExtractor = useCallback(
@@ -396,6 +420,13 @@ const Collection: React.FC = () => {
           tags={tags}
           selectedTags={selectedTags}
           onSelectTags={setSelectedTags}
+        />
+
+        {/* Merchant Deleted Modal */}
+        <MerchantDeletedModal
+          isOpen={merchantDeletedModal.isOpen}
+          onClose={handleMerchantDeletedModalClose}
+          storeName={merchantDeletedModal.storeName}
         />
 
         <TabsFooter

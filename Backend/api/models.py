@@ -80,12 +80,12 @@ class Store(models.Model):
         ('other', '其他'),
     ]
     
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_stores', limit_choices_to={'groups__name': "Merchant"})
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='owned_stores', limit_choices_to={'groups__name': "Merchant"})
 
     # store information
     name = models.CharField(max_length=100)
-    lat = models.FloatField()
-    lng = models.FloatField()
+    lat = models.FloatField(null=True, blank=True)
+    lng = models.FloatField(null=True, blank=True)
     address = models.CharField(max_length=200)
     business_hours = models.TextField(blank=True, null=True)
     image_url = models.CharField(max_length=255, blank=True, null=True)
@@ -191,6 +191,29 @@ class QRCodeSession(models.Model):
 
     def __str__(self):
         return f"QR Session {self.id} - Template {self.template_id} - {'Active' if self.is_active else 'Inactive'}"
+
+
+class QRCodeClaim(models.Model):
+    """
+    Tracks QR code coupon claims with idempotency key to prevent duplicate claims.
+    Each idempotency key can only be used once, ensuring retry-safe coupon creation.
+    """
+    idempotency_key = models.CharField(max_length=64, unique=True, db_index=True, help_text="Unique key to prevent duplicate claims")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='qr_claims')
+    template = models.ForeignKey(CouponTemplate, on_delete=models.CASCADE, related_name='qr_claims')
+    coupon = models.ForeignKey('Coupon', on_delete=models.CASCADE, related_name='qr_claim_record')
+    claimed_at = models.DateTimeField(auto_now_add=True, help_text="When the coupon was claimed")
+    session_token = models.CharField(max_length=255, help_text="Session token from QR code")
+
+    class Meta:
+        db_table = 'api_qrcode_claim'
+        indexes = [
+            models.Index(fields=['idempotency_key'], name='qr_claim_idempotency_key_idx'),
+            models.Index(fields=['user', 'template'], name='qr_claim_user_template_idx'),
+        ]
+
+    def __str__(self):
+        return f"QR Claim {self.id} - User {self.user.email} - Template {self.template_id} - {self.claimed_at}"
 
 
 class Coupon(models.Model):
@@ -495,3 +518,41 @@ class PhoneOTPRecord(models.Model):
             user=user,
             is_verified=False
         ).delete()
+
+class AccountDeletionLog(models.Model):
+    """
+    Tracks account deletion events for audit purposes and network failure recovery.
+    Supports retry mechanism for pending deletions.
+    """
+    # Reference to deleted user (store email/id before deletion)
+    deleted_user_email = models.EmailField()
+    deleted_user_id = models.IntegerField()
+
+    # Deletion metadata
+    deleted_at = models.DateTimeField(auto_now_add=True)
+    deletion_reason = models.CharField(max_length=255, default='user_requested')
+
+    # What was preserved
+    stores_anonymized = models.IntegerField(default=0)
+    coupons_preserved = models.IntegerField(default=0)
+
+    # Network failure handling
+    initiated_at = models.DateTimeField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('completed', 'Completed'),
+            ('failed', 'Failed'),
+        ],
+        default='pending'
+    )
+    retry_count = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'account_deletion_log'
+        ordering = ['-deleted_at']
+
+    def __str__(self):
+        return f"Account Deletion: {self.deleted_user_email} ({self.status})"

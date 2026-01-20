@@ -33,7 +33,7 @@ def get_merchant_profile(request):
     user = request.user
     
     # Check if user is a merchant
-    is_merchant = user.groups.filter(name='Merchants').exists()
+    is_merchant = user.groups.filter(name='Merchant').exists()
     if not is_merchant:
         return Response({
             'error': 'User is not a merchant.'
@@ -101,7 +101,7 @@ def update_merchant_profile(request):
     user = request.user
     
     # Check if user is a merchant
-    is_merchant = user.groups.filter(name='Merchants').exists()
+    is_merchant = user.groups.filter(name='Merchant').exists()
     if not is_merchant:
         return Response({
             'error': 'User is not a merchant.'
@@ -189,7 +189,7 @@ def get_merchant_statistics(request):
     user = request.user
     
     # Check if user is a merchant
-    is_merchant = user.groups.filter(name='Merchants').exists()
+    is_merchant = user.groups.filter(name='Merchant').exists()
     if not is_merchant:
         return Response({
             'error': 'User is not a merchant.'

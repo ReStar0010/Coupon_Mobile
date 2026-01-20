@@ -1,7 +1,7 @@
 import React from 'react';
 import { YStack, XStack, Text } from 'tamagui';
 import { colors } from '@/constants/colors';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, StyleSheet, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
 
@@ -35,7 +35,7 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
       activeOpacity={isSoldOut ? 1 : 0.85}
     >
       <YStack
-        backgroundColor={colors.white}
+        backgroundColor={isSoldOut ? colors.background : colors.white}
         borderRadius="$4"
         padding="$4"
         borderWidth={1}
@@ -71,6 +71,10 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
           </XStack>
         </XStack>
 
+        {/* Date Range */}
+        <Text fontSize="$sm" color={colors.textSecondary} marginBottom="$1.5">
+          {coupon.startDate} ~ {coupon.endDate}
+        </Text>
         {/* Date Range */}
         <Text fontSize="$sm" color={colors.textSecondary} marginBottom="$1.5">
           {coupon.startDate} ~ {coupon.endDate}
