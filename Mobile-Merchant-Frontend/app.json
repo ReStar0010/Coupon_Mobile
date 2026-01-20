@@ -30,6 +30,14 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。",
+          "locationAlwaysPermission": "CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。",
+          "locationWhenInUsePermission": "CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。"
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "CouPro 需要存取您的照片,以便讓您上傳商店標誌、商品圖片或優惠券圖片至您的商家資料。"

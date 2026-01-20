@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Modal, TouchableOpacity, StyleSheet, Animated, Linking } from 'react-native';
+import { Modal, TouchableOpacity, StyleSheet, Animated, Linking, Platform } from 'react-native';
 import { YStack, Text, XStack } from 'tamagui';
 import { colors } from '@/constants/colors';
 import { Button } from './Button';
@@ -55,16 +55,35 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
     });
   };
 
-  const messages = {
-    photos: {
-      title: '需要照片權限',
-      description: 'CouPro 需要存取您的照片,以便讓您上傳商店標誌、商品圖片或優惠券圖片至您的商家資料。請在設定中開啟此權限。',
-    },
-    camera: {
-      title: '需要相機權限',
-      description: 'CouPro 需要存取您的相機,以便讓您拍攝照片上傳至您的商家資料。請在設定中開啟此權限。',
-    },
+  const getPermissionInstructions = () => {
+    const appName = 'CouPro 商家端';
+    if (Platform.OS === 'ios') {
+      return {
+        photos: {
+          title: '需要照片權限',
+          description: `CouPro 需要存取您的照片，以便讓您上傳商店標誌、商品圖片或優惠券圖片至您的商家資料。\n\n請前往「設定」>「${appName}」>「照片」，選擇「所有照片」或「選取的照片」來開啟此權限。`,
+        },
+        camera: {
+          title: '需要相機權限',
+          description: `CouPro 需要存取您的相機，以便讓您拍攝照片上傳至您的商家資料。\n\n請前往「設定」>「${appName}」>「相機」，開啟相機權限。`,
+        },
+      };
+    } else {
+      // Android
+      return {
+        photos: {
+          title: '需要照片權限',
+          description: `CouPro 需要存取您的照片，以便讓您上傳商店標誌、商品圖片或優惠券圖片至您的商家資料。\n\n請前往「設定」>「應用程式」>「${appName}」>「權限」>「照片和影片」，選擇「允許」來開啟此權限。`,
+        },
+        camera: {
+          title: '需要相機權限',
+          description: `CouPro 需要存取您的相機，以便讓您拍攝照片上傳至您的商家資料。\n\n請前往「設定」>「應用程式」>「${appName}」>「權限」>「相機」，選擇「允許」來開啟此權限。`,
+        },
+      };
+    }
   };
+
+  const messages = getPermissionInstructions();
 
   const handleOpenSettings = async () => {
     try {
