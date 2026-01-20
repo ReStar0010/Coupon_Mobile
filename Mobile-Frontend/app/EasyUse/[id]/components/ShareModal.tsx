@@ -107,15 +107,20 @@ const ShareModal: React.FC<ShareModalProps> = ({
                       justifyContent: 'center',
                       alignItems: 'center',
                       opacity: isSharing ? 0.7 : 1,
+                      paddingHorizontal: 8,
                     }}
                     disabled={isSharing}
                   >
-                    <XStack gap="$2" style={{ alignItems: 'center' }}> 
+                    <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}> 
                       {isSharing && <ActivityIndicator size="small" color="#333" />}
                       <Text 
                         color="#333" 
-                        fontSize="$5" 
+                        fontSize={14}
                         fontWeight="600"
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.8}
+                        textAlign="center"
                       >
                         {isSharing ? '分享中...' : '分享到隨取即用'}
                       </Text>
@@ -134,15 +139,18 @@ const ShareModal: React.FC<ShareModalProps> = ({
                       borderWidth: 2,
                       borderColor: '#6366f1',
                       opacity: isSharing ? 0.7 : 1,
+                      paddingHorizontal: 8,
                     }}
                     disabled={isSharing}
                   >
-                    <XStack gap="$2" style={{ alignItems: 'center' }}>
+                    <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
                       {isSharing && <ActivityIndicator size="small" color="#333" />}
                       <Text 
                         color="#333" 
-                        fontSize="$5" 
+                        fontSize={14}
                         fontWeight="600"
+                        numberOfLines={1}
+                        textAlign="center"
                       >
                         {isSharing ? '生成中...' : '分享連結'}
                       </Text>

@@ -272,25 +272,26 @@ export default function RedeemPage() {
       let errorMessage = '發生錯誤，請稍後再試';
 
       if (error instanceof Error) {
-        if (error.message.includes('401')) {
-          errorMessage = '登入已過期或未登入，請重新登入';
-          // Show toast and then redirect
-          setErrorToastMessage(errorMessage);
-          setShowErrorToast(true);
-          setTimeout(() => {
-            router.push('/Login');
-          }, 3000);
+        // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
+        if (error.message.includes('401') || error.message.includes('Authentication')) {
+          // Don't show any error message, let AuthOrchestrator handle silent redirect
+          setErrorToastMessage('');
+          setShowErrorToast(false);
         } else if (error.message.includes('400')) {
           errorMessage = '兌換碼錯誤或已使用';
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
         } else if (error.message.includes('404')) {
           errorMessage = '找不到此優惠券';
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
         } else {
           errorMessage = error.message;
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
         }
-      }
-
-      // Show error toast instead of setting message state
-      if (!(error instanceof Error) || !error.message.includes('401')) {
+      } else {
+        // For non-Error objects, show the error
         setErrorToastMessage(errorMessage);
         setShowErrorToast(true);
       }

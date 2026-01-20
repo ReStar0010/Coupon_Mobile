@@ -64,7 +64,7 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
           {!result ? (
             <>
               <Text 
-                color="$color" 
+                color="$color12" 
                 marginBottom="$4" 
                 fontSize="$7" 
                 fontWeight="bold"
@@ -75,17 +75,17 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
               {isLoading ? (
                 <YStack marginBottom="$4" alignItems="center">
                   <Spinner size="large" color="#FFAD31" />
-                  <Text color="$color" marginTop="$2">抽獎中，請稍候...</Text>
+                  <Text color="$color11" marginTop="$2">抽獎中，請稍候...</Text>
                 </YStack>
               ) : templatesAvailable === 0 && isLoadingTemplates ? (
                 <YStack marginBottom="$4" alignItems="center">
                   <Spinner size="large" color="#FFAD31" />
-                  <Text color="$color" marginTop="$2">正在載入可用優惠，請稍候...</Text>
+                  <Text color="$color11" marginTop="$2">正在載入可用優惠，請稍候...</Text>
                 </YStack>
               ) : templatesAvailable === 0 ? (
-                <Text color="$color" marginBottom="$4">目前沒有可用的優惠券</Text>
+                <Text color="$color11" marginBottom="$4">目前沒有可用的優惠券</Text>
               ) : (
-                <Text marginBottom="$4" fontSize="$4" color="$gray10">
+                <Text marginBottom="$4" fontSize="$4" color="$color11">
                   目前有 {templatesAvailable} 個優惠可抽
                 </Text>
               )}
@@ -94,16 +94,18 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
                 onPress={onDraw}
                 disabled={isLoading || templatesAvailable === 0}
                 width="100%"
-                backgroundColor={isLoading || templatesAvailable === 0 ? '$gray8' : '#FFAD31'}
-                borderRadius="$3"
-                paddingHorizontal="$6"
-                paddingVertical="$3"
+                bg={isLoading || templatesAvailable === 0 ? '#666666' : '#FFAD31'}
+                height={48}
+                style={{ borderRadius: 12 }}
+                borderWidth={0}
                 pressStyle={{ opacity: 0.7 }}
+                opacity={isLoading || templatesAvailable === 0 ? 0.6 : 1}
               >
                 <Text 
-                  color={isLoading || templatesAvailable === 0 ? '$gray11' : '#000'} 
-                  fontSize="$6" 
+                  color={isLoading || templatesAvailable === 0 ? '#FFFFFF' : '#000000'}
+                  fontSize={18}
                   fontWeight="600"
+                  style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
                 >
                   {isLoading
                     ? '抽獎中...'
@@ -118,8 +120,10 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
                 marginTop="$4"
                 backgroundColor="transparent"
                 pressStyle={{ opacity: 0.7 }}
+                color="$color11"
+                fontSize="$4"
               >
-                <Text fontSize="$4" color="$gray10">下次再抽</Text>
+                下次再抽
               </Button>
             </>
           ) : (
@@ -128,7 +132,7 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
               <Text 
                 fontSize="$8" 
                 fontWeight="bold" 
-                color="$color" 
+                color="$color12" 
                 marginBottom="$8"
                 textAlign="center"
               >
@@ -138,10 +142,10 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
               <YStack marginBottom="$6" gap="$4">
                 {/* Usage Date Row */}
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="$5" color="$gray10" fontWeight="500">
+                  <Text fontSize="$5" color="$color11" fontWeight="500">
                     使用日期
                   </Text>
-                  <Text fontSize="$5" color="$color" fontWeight="600">
+                  <Text fontSize="$5" color="$color12" fontWeight="600">
                     {new Date().toLocaleDateString('zh-TW')}
                   </Text>
                 </XStack>
@@ -150,12 +154,12 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
 
                 {/* Result Info Row */}
                 <XStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="$5" color="$gray10" fontWeight="500">
+                  <Text fontSize="$5" color="$color11" fontWeight="500">
                     {result.success ? '獲得優惠券' : '結果'}
                   </Text>
                   <Text 
                     fontSize="$5" 
-                    color="$color" 
+                    color="$color12" 
                     fontWeight="600"
                     maxWidth={180}
                     textAlign="right"
@@ -172,12 +176,18 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
               <Button
                 onPress={onDrawComplete}
                 width="100%"
-                backgroundColor="#FFAD31"
-                borderRadius="$4"
-                paddingVertical="$4"
+                bg="#FFAD31"
+                height={48}
+                style={{ borderRadius: 12 }}
+                borderWidth={0}
                 pressStyle={{ opacity: 0.8 }}
               >
-                <Text color="#000" fontSize="$6" fontWeight="bold">
+                <Text 
+                  color="#000000"
+                  fontSize={18}
+                  fontWeight="bold"
+                  style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
+                >
                   完成
                 </Text>
               </Button>

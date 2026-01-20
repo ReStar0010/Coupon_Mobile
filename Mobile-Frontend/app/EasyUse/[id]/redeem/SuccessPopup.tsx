@@ -110,7 +110,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
           {/* Content */}
           <View style={{ marginBottom: 40 }}>
             {/* Discount Value Row */}
-            {discountValue !== undefined && (
+            {/* {discountValue !== undefined && (
               <View style={{
                 flexDirection: 'row',
                 justifyContent: 'space-between',
@@ -134,7 +134,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                   {formatDiscountValue(discountValue)}
                 </Text>
               </View>
-            )}
+            )} */}
 
             {/* Redemption Timestamp Row */}
             <View style={{

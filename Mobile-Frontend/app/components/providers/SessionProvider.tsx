@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { devDebug, devLog } from '../../utils/devLogger';
 import { authEvents, AUTH_EVENT_TYPES } from '../../utils/authEvents';
-import { initStorage, hasValidRefreshToken, clearTokens, getAccessToken } from '../../utils/tokenUtils';
+import { initStorage, hasValidRefreshToken, clearTokens } from '../../utils/tokenUtils';
 
 /**
  * Authentication Context Type
@@ -46,9 +46,9 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       // Load tokens from AsyncStorage into memory cache
       await initStorage();
 
-      // Now check token from memory (synchronous)
-      const token = getAccessToken();
-      const hasToken = !!token;
+      // Use refresh token as single source of truth for authentication status
+      // Access token may expire, but refresh token presence indicates logged-in state
+      const hasToken = hasValidRefreshToken();
 
       devDebug('[AuthProvider] Auth check result:', {
         hasToken,
