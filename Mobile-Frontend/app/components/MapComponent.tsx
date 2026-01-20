@@ -25,6 +25,7 @@ type MapComponentProps = {
   className?: string;
   setStoreSearch?: (storeName: string) => void;
   searchQuery?: string; // Add search query prop
+  mapRef?: React.MutableRefObject<any>; // Expose map ref for external control
 };
 
 export type Store = {
@@ -55,6 +56,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
   className = '',
   setStoreSearch,
   searchQuery = '', // Add searchQuery with default empty string
+  mapRef: externalMapRef,
 }) => {
   const router = useRouter();
   
@@ -79,7 +81,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
   } | null>(null);
   const [mapRegion, setMapRegion] = useState<typeof defaultRegion>(defaultRegion);
   const [isMapReady, setIsMapReady] = useState(false);
-  const mapRef = useRef<any>(null);
+  const internalMapRef = useRef<any>(null);
+  const mapRef = externalMapRef || internalMapRef;
 
   // Get user's current location
   useEffect(() => {
@@ -266,15 +269,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         ))}
       </MapView>
 
-      {/* Custom locate user button */}
-      <View style={styles.locationButtonContainer}>
-        <TouchableOpacity
-          style={styles.locationButton}
-          onPress={goToUserLocation}
-          activeOpacity={0.8}>
-          <Text style={styles.locationButtonText}>📍</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Custom locate user button - removed, will be added in parent component */}
 
       {!isMapReady && (
         <View style={styles.loadingContainer}>
@@ -382,7 +377,7 @@ const styles = StyleSheet.create({
   },
   locationButtonContainer: {
     position: 'absolute',
-    top: 20,
+    bottom: 20, // Position at bottom right of map
     right: 20,
     zIndex: 1000,
   },

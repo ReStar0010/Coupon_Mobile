@@ -1,15 +1,21 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { Image, Text, View, ScrollView, Input, Button, XStack, H4, YStack, Card, Spinner } from 'tamagui';
 import { fetchAPI, isUserLoggedIn } from '../utils/authAPI';
-import { TouchableOpacity, Alert } from 'react-native';
+import { TouchableOpacity, Alert, Animated, PanResponder, Dimensions, Platform } from 'react-native';
 import { AlignJustify, Search, MoreHorizontalIcon, X } from 'lucide-react-native';
 import TabsFooter from '../components/TabsFooter';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapComponent, { type Store } from '../components/MapComponent';
 import { BackendIndicator } from '../components/BackendIndicator';
 import { devLog } from '../utils/devLogger';
+import * as Location from 'expo-location';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const NAVIGATION_FOOTER_HEIGHT = 80; // 導航欄高度（包括 safe area）
+const BOTTOM_SHEET_MIN_HEIGHT = 60; // 最小高度（只顯示拖動指示器，在導航欄上方）
+const BOTTOM_SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.5 - NAVIGATION_FOOTER_HEIGHT; // 最大高度（50% 屏幕高度，減去導航欄高度）
 
 export type CouponType = {
   className?: string;
@@ -110,7 +116,7 @@ const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUr
         </Text>
 
         {tags && tags.length > 0 && (
-          <XStack gap={6} flexWrap="wrap" marginTop={4}>
+          <XStack gap={6} flexWrap="wrap" style={{ marginTop: 4 }}>
             {tags.map((tag, index) => (
               <View
                 key={index}
@@ -183,7 +189,7 @@ const GiftCard: React.FC<GiftCardProps> = ({
         />
 
         <YStack gap={8} flex={1} style={{ flexShrink: 1 }}>
-          <XStack gap={8} alignItems="center">
+          <XStack gap={8} style={{ alignItems: 'center' }}>
             <Text fontSize={12} color="#FFAD31" fontWeight="600">
               公開交換池禮物
             </Text>
@@ -220,17 +226,22 @@ const GiftCard: React.FC<GiftCardProps> = ({
         </XStack>
       )}
 
-      <Button
-        backgroundColor="#FFAD31"
-        borderRadius="$3"
-        paddingVertical="$3"
+      <TouchableOpacity
         onPress={onClaim}
         disabled={isClaiming}
-        opacity={isClaiming ? 0.7 : 1}
-        height="auto"
+        style={{
+          backgroundColor: '#FFAD31',
+          borderRadius: 8,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          opacity: isClaiming ? 0.7 : 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        activeOpacity={0.8}
       >
         {isClaiming ? (
-          <XStack alignItems="center" gap="$2">
+          <XStack style={{ alignItems: 'center' }} gap="$2">
             <Spinner size="small" color="#000" />
             <Text color="#000" fontSize={16} fontWeight="bold">
               領取中...
@@ -241,7 +252,7 @@ const GiftCard: React.FC<GiftCardProps> = ({
             領取禮物
           </Text>
         )}
-      </Button>
+      </TouchableOpacity>
     </YStack>
   </Card>
 );
@@ -259,6 +270,83 @@ const CouPro = () => {
   const [stores, setStores] = useState<Store[]>([]);
   const [claimingToken, setClaimingToken] = useState<string | null>(null);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const mapRef = useRef<any>(null);
+  
+  // Bottom sheet animation
+  // Initial position: panel shows only MIN_HEIGHT at bottom
+  // translateY = MAX_HEIGHT - MIN_HEIGHT means panel is at minimum (only showing bottom part)
+  // translateY = 0 means panel is fully expanded
+  const INITIAL_TRANSLATE_Y = BOTTOM_SHEET_MAX_HEIGHT - BOTTOM_SHEET_MIN_HEIGHT;
+  const panY = useRef(new Animated.Value(INITIAL_TRANSLATE_Y)).current;
+  const startTranslateY = useRef(INITIAL_TRANSLATE_Y);
+  
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // 只響應向上或向下的拖動
+        return Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderGrant: () => {
+        // 保存開始拖動時的位置
+        const currentValue = (panY as any).__getValue ? (panY as any).__getValue() : INITIAL_TRANSLATE_Y;
+        startTranslateY.current = currentValue;
+        panY.setOffset(currentValue);
+        panY.setValue(0);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // gestureState.dy < 0 means dragging up (expanding) - translateY decreases
+        // gestureState.dy > 0 means dragging down (collapsing) - translateY increases
+        const newTranslateY = startTranslateY.current - gestureState.dy;
+        
+        // 限制拖動範圍
+        if (newTranslateY >= 0 && newTranslateY <= INITIAL_TRANSLATE_Y) {
+          panY.setValue(-gestureState.dy);
+        } else if (newTranslateY < 0) {
+          // 超過上限，設置為 0
+          panY.setValue(-startTranslateY.current);
+        } else if (newTranslateY > INITIAL_TRANSLATE_Y) {
+          // 超過下限，設置為最大值
+          panY.setValue(INITIAL_TRANSLATE_Y - startTranslateY.current);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        // 計算最終位置
+        const finalTranslateY = startTranslateY.current - gestureState.dy;
+        
+        // 使用拖動距離、速度和位置來決定是否展開
+        const dragThreshold = 50;
+        const velocityThreshold = 0.5;
+        const midPoint = INITIAL_TRANSLATE_Y / 2;
+        
+        // 判斷是否應該展開
+        const shouldExpand = 
+          gestureState.dy < -dragThreshold || // 向上拖動超過閾值
+          (gestureState.dy < 0 && finalTranslateY < midPoint) || // 向上拖動且超過中點
+          (gestureState.vy < -velocityThreshold); // 快速向上滑動
+        
+        panY.flattenOffset();
+        
+        if (shouldExpand) {
+          // 展開到底部面板
+          Animated.spring(panY, {
+            toValue: 0,
+            useNativeDriver: false,
+            tension: 50,
+            friction: 8,
+          }).start();
+        } else {
+          // 收起到最小高度
+          Animated.spring(panY, {
+            toValue: INITIAL_TRANSLATE_Y,
+            useNativeDriver: false,
+            tension: 50,
+            friction: 8,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     const searchParam = params.search as string;
@@ -441,147 +529,276 @@ const CouPro = () => {
     }
   };
 
+  // Handle locate user button
+  const handleLocateUser = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        Alert.alert('提示', '定位功能僅適用於移動設備');
+        return;
+      }
+
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('需要位置權限', '請在設定中開啟位置服務');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      const userPos = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      };
+
+      // Animate map to user location
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(userPos, 1000);
+      } else {
+        Alert.alert('錯誤', '地圖尚未準備就緒');
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert('定位錯誤', '無法獲取當前位置');
+    }
+  };
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       {__DEV__ && <BackendIndicator />}
       
-      <YStack flex={1}>
-        {/* Header */}
-        <YStack gap={15} style={{
-          backgroundColor: 'white',
-          paddingHorizontal: 15,
-          paddingTop: insets.top + 10,
-          paddingBottom: 10,
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.08,
-          shadowRadius: 18,
-          elevation: 6, // for Android
+      <View style={{ flex: 1 }}>
+        {/* Full Screen Map */}
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <MapComponent stores={stores} searchQuery={searchQuery} mapRef={mapRef} />
+        </View>
+
+        {/* Search Bar - Absolute Positioned at Top */}
+        <View style={{
+          position: 'absolute',
+          top: insets.top + 10,
+          left: 15,
+          right: 15,
+          zIndex: 1000,
         }}>
-          <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <XStack gap={13} style={{ alignItems: 'center' }}>
-              <LogoIcon />
-              <H4 color="#000000" fontSize={24} fontWeight={'bold'}>
-                CouPro
-              </H4>
+          <YStack gap={10} style={{
+            backgroundColor: 'white',
+            borderRadius: 12,
+            paddingHorizontal: 15,
+            paddingVertical: 10,
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 8,
+          }}>
+            <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <XStack gap={13} style={{ alignItems: 'center' }}>
+                <LogoIcon />
+                <H4 color="#000000" fontSize={24} fontWeight={'bold'}>
+                  CouPro
+                </H4>
+              </XStack>
+
+              <TouchableOpacity onPress={onMenuIconClick} activeOpacity={0.7}>
+                <AlignJustify color='black' />
+              </TouchableOpacity>
             </XStack>
 
-            <TouchableOpacity onPress={onMenuIconClick} activeOpacity={0.7}>
-              <AlignJustify color='black' />
-            </TouchableOpacity>
-          </XStack>
-
-          {/* Search Bar */}
-          <XStack gap={12} style={{
-            backgroundColor: 'white',
-            borderColor: '#a8a8a8',
-            borderWidth: 1,
-            borderRadius: 10,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            alignItems: 'center'
-          }}>
-            {/* <SearchIcon /> */}
-            <Search color='#a8a8a8' />
-            <Input
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder=""
-              style={{ flex: 1 }}
-              unstyled
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
-                <X color='#a8a8a8'></X>
-              </TouchableOpacity>
-            )}
-          </XStack>
-        </YStack>
-
-        <View style={{ height: 200 }}>
-          <MapComponent stores={stores} searchQuery={searchQuery} />
-        </View>
-
-        <View flex={1} gap={13}>
-          {/* Main Content */}
-          <ScrollView style={{ flex: 1 }}>
-
-            <YStack gap={13} style={{ paddingHorizontal: 13, paddingVertical: 30 }}>
-              {/* Coupon Cards */}
-              {isLoading ? (
-                <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                  <Text color="#6b7280">載入中…</Text>
-                </View>
-              ) : error ? (
-                <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                  <Text color="#ef4444">{error}</Text>
-                </View>
-              ) : filteredCoupons.length === 0 ? (
-                <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                  <Text color="#6b7280">目前沒有可用的優惠券。</Text>
-                </View>
-              ) : (
-                filteredCoupons.map((coupon) => (
-                  coupon.couponType === 'gift' && coupon.shareToken ? (
-                    <GiftCard
-                      key={`gift-${coupon.id}`}
-                      storeName={coupon.storeName}
-                      couponName={coupon.couponName}
-                      description={coupon.description}
-                      imageUrl={coupon.imageUrl}
-                      tags={coupon.tags}
-                      shareToken={coupon.shareToken}
-                      sharedBy={coupon.sharedBy || '未知用戶'}
-                      onClaim={() => handleClaimGift(coupon.shareToken!)}
-                      isClaiming={claimingToken === coupon.shareToken}
-                    />
-                  ) : (
-                    <CouponCard
-                      key={coupon.id}
-                      storeName={coupon.storeName}
-                      description={coupon.description}
-                      imageUrl={coupon.imageUrl}
-                      tags={coupon.tags}
-                      id={coupon.id}
-                      onPress={() => onCouponPress(coupon.id)}
-                    />
-                  )
-                ))
-              )}
-            </YStack>
-          </ScrollView>
-        </View>
-        
-        {/* Scan to Claim Coupon Button */}
-        <View style={{ paddingHorizontal: 13, paddingBottom: 10 }}>
-          <TouchableOpacity
-            onPress={() => router.push('/EasyUse/qr-claim')}
-            style={{
-              backgroundColor: '#ffad31',
-              paddingVertical: 14,
-              paddingHorizontal: 24,
+            {/* Search Bar */}
+            <XStack gap={12} style={{
+              backgroundColor: '#f5f5f5',
+              borderColor: '#e0e0e0',
+              borderWidth: 1,
               borderRadius: 10,
-              alignItems: 'center',
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              alignItems: 'center'
+            }}>
+              <Search color='#a8a8a8' size={20} />
+              <Input
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="搜尋店家或優惠券..."
+                style={{ flex: 1, fontSize: 16 }}
+                unstyled
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                  <X color='#a8a8a8' size={20} />
+                </TouchableOpacity>
+              )}
+            </XStack>
+          </YStack>
+        </View>
+
+        {/* Bottom Sheet - Draggable Panel */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            bottom: NAVIGATION_FOOTER_HEIGHT, // Position above navigation footer
+            left: 0,
+            right: 0,
+            height: BOTTOM_SHEET_MAX_HEIGHT + BOTTOM_SHEET_MIN_HEIGHT, // Total height includes min height
+            transform: [{ translateY: panY }],
+            zIndex: 999,
+          }}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: 'white',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 10,
+            overflow: 'hidden',
+          }}>
+            {/* Drag Handle - Only this area responds to drag gestures */}
+            <View 
+              style={{
+                paddingTop: 12,
+                paddingBottom: 8,
+                alignItems: 'center',
+                borderBottomWidth: 1,
+                borderBottomColor: '#e5e5e5',
+              }}
+              {...panResponder.panHandlers}
+            >
+              <View style={{
+                width: 40,
+                height: 10,
+                backgroundColor: '#d0d0d0',
+                borderRadius: 5,
+              }} />
+            </View>
+
+            {/* Content Area */}
+            <View style={{ flex: 1 }}>
+              <ScrollView 
+                style={{ flex: 1, paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+              >
+                <YStack gap={13} style={{ paddingHorizontal: 15, paddingTop: 20 }}>
+                  {/* Scan to Claim Coupon Button */}
+                  <TouchableOpacity
+                    onPress={() => router.push('/EasyUse/qr-claim')}
+                    style={{
+                      backgroundColor: '#ffad31',
+                      paddingVertical: 16,
+                      paddingHorizontal: 24,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 10,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: '#000', fontSize: 16, fontWeight: '700' }}>
+                      掃描 QR Code 領取優惠券
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Coupon Cards */}
+                  {isLoading ? (
+                    <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+                      <Spinner size="large" color="#FFAD31" />
+                      <Text color="#6b7280" style={{ marginTop: 16 }}>載入中…</Text>
+                    </View>
+                  ) : error ? (
+                    <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+                      <Text color="#ef4444" fontSize={16}>{error}</Text>
+                    </View>
+                  ) : filteredCoupons.length === 0 ? (
+                    <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+                      <Text color="#6b7280" fontSize={16}>目前沒有可用的優惠券。</Text>
+                    </View>
+                  ) : (
+                    filteredCoupons.map((coupon) => (
+                      coupon.couponType === 'gift' && coupon.shareToken ? (
+                        <GiftCard
+                          key={`gift-${coupon.id}`}
+                          storeName={coupon.storeName}
+                          couponName={coupon.couponName}
+                          description={coupon.description}
+                          imageUrl={coupon.imageUrl}
+                          tags={coupon.tags}
+                          shareToken={coupon.shareToken}
+                          sharedBy={coupon.sharedBy || '未知用戶'}
+                          onClaim={() => handleClaimGift(coupon.shareToken!)}
+                          isClaiming={claimingToken === coupon.shareToken}
+                        />
+                      ) : (
+                        <CouponCard
+                          key={coupon.id}
+                          storeName={coupon.storeName}
+                          description={coupon.description}
+                          imageUrl={coupon.imageUrl}
+                          tags={coupon.tags}
+                          id={coupon.id}
+                          onPress={() => onCouponPress(coupon.id)}
+                        />
+                      )
+                    ))
+                  )}
+                </YStack>
+              </ScrollView>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Locate User Button - Top Right (below search bar) */}
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity
+            onPress={handleLocateUser}
+            style={{
+              position: 'absolute',
+              top: insets.top + 150, // Below search bar
+              right: 20,
+              backgroundColor: '#FFAD31',
+              borderRadius: 25,
+              width: 50,
+              height: 50,
               justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: {
+                width: 0,
+                height: 2,
+              },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+              elevation: 5,
+              zIndex: 1002, // Above bottom sheet and navigation
             }}
             activeOpacity={0.8}
           >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-              掃描 QR Code 領取優惠券
-            </Text>
+            <Text style={{ fontSize: 24 }}>📍</Text>
           </TouchableOpacity>
-        </View>
-        
-        {/* Bottom Navigation */}
-        <TabsFooter
-          activeTab="home"
-          onHomePress={() => router.push('/EasyUse')}
-          onCollectionPress={() => router.push('/Collection')}
-          onStatisticsPress={() => router.push('/Statistics')}
-        />
-      </YStack >
+        )}
 
+        {/* Bottom Navigation - Always visible at bottom of screen */}
+        <View style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'white',
+          borderTopWidth: 1,
+          borderTopColor: '#e5e5e5',
+          zIndex: 1001, // Above bottom sheet
+        }}>
+          <TabsFooter
+            activeTab="home"
+            onHomePress={() => router.push('/EasyUse')}
+            onCollectionPress={() => router.push('/Collection')}
+            onStatisticsPress={() => router.push('/Statistics')}
+          />
+        </View>
+      </View>
     </>
   );
 };
