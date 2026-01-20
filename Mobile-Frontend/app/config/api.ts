@@ -1,85 +1,54 @@
 /**
  * API 配置
- * 
- * 使用方式：
- * 1. 修改 BACKEND_MODE 來切換不同的後端
- * 2. 如果使用 'local-network'，請設置 YOUR_LOCAL_IP
- * 
- * 模式說明：
- * - 'production': 使用 Render.com 生產環境
- * - 'local': 使用 localhost (僅適用於模擬器/瀏覽器)
- * - 'local-network': 使用本地網絡 IP (適用於 Expo Go 在真實設備上)
+ * 模式: 'production' | 'local' | 'local-network'
  */
+type BackendMode = 'production' | 'local' | 'local-network';
 
-// ============================================
-// 🔧 配置區域 - 在這裡修改後端設置
-// ============================================
+const PROD_FALLBACK_URL = 'https://coupon-mobile.onrender.com';
 
-// 選擇後端模式：'production' | 'local' | 'local-network'
-const BACKEND_MODE = 'local-network' as 'production' | 'local' | 'local-network';
+// 1. 集中讀取與處理環境變數
+const ENV = {
+  MODE: (process.env.EXPO_PUBLIC_BACKEND_MODE ?? 'production') as BackendMode,
+  PORT: Number(process.env.EXPO_PUBLIC_LOCAL_PORT ?? 8000),
+  HOST: (process.env.EXPO_PUBLIC_LOCAL_HOST ?? '').trim(),
+  PROD_URL: (process.env.EXPO_PUBLIC_API_URL ?? '').trim(),
+};
 
-// 如果使用 'local-network'，請設置您的本地 IP 地址或 localtunnel URL
-// 
-// 選項 1: 使用本地 IP 地址
-//   Windows: 在 PowerShell 中運行 `ipconfig` 查看 IPv4 地址
-//   Mac/Linux: 在終端中運行 `ifconfig` 或 `ip addr` 查看 IP 地址
-//   例如: '192.168.1.100'
-//
-// 選項 2: 使用 localtunnel (推薦用於真實設備測試)
-//   1. 安裝: npm install -g localtunnel
-//   2. 啟動後端: cd Backend && python manage.py runserver 8000
-//   3. 創建 tunnel: lt --port 8000 --subdomain your-subdomain
-//   4. 將獲得的 URL (例如: your-subdomain.loca.lt) 填入下方
-//   注意: 只需要域名部分，不需要 https:// 前綴
-const YOUR_LOCAL_IP = 'coupro-123.loca.lt'; // 替換為您的實際 IP 地址或 localtunnel URL
+// 2. 工具函數：標準化 URL (移除結尾斜線，確保有 protocol)
+const normalizeUrl = (url: string): string => {
+  if (!url) return '';
+  const hasProtocol = url.startsWith('http://') || url.startsWith('https://');
+  return (hasProtocol ? url : `https://${url}`).replace(/\/+$/, '');
+};
 
-// ============================================
-// 自動配置（不需要修改）
-// ============================================
+// 3. 核心邏輯：解析 Base URL
+const resolveBaseUrl = (): string => {
+  switch (ENV.MODE) {
+    case 'local':
+      return `http://localhost:${ENV.PORT}`;
 
-let API_BASE_URL: string;
+    case 'local-network': {
+      if (!ENV.HOST) {
+        throw new Error('[API Config] Missing EXPO_PUBLIC_LOCAL_HOST for local-network mode.');
+      }
+      // 判斷是否為 Tunnel (包含 domain 特徵或已指定 protocol)
+      const isTunnel = /^(http|https):|\.(loca\.lt|ngrok)/.test(ENV.HOST);
+      return isTunnel ? normalizeUrl(ENV.HOST) : `http://${ENV.HOST}:${ENV.PORT}`;
+    }
 
-switch (BACKEND_MODE) {
-  case 'production':
-    // 優先使用環境變數，如果沒有則使用生產環境 URL
-    API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://coupon-mobile.onrender.com';
-    break;
-  
-  case 'local':
-    // 使用 localhost（僅適用於模擬器或瀏覽器）
-    API_BASE_URL = 'http://localhost:8000';
-    break;
-  
-  case 'local-network':
-    // 使用本地網絡 IP（適用於 Expo Go 在真實設備上）
-    // 如果是 tunnel URL (.loca.lt 或 .ngrok)，不需要添加端口
-    const isTunnel = YOUR_LOCAL_IP.includes('.loca.lt') || YOUR_LOCAL_IP.includes('.ngrok');
-    API_BASE_URL = isTunnel 
-      ? `https://${YOUR_LOCAL_IP}`      // Tunnel：不需要端口
-      : `http://${YOUR_LOCAL_IP}:8000`; // 本地 IP：需要端口和 http
-    break;
-  
-  default:
-    API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://coupon-mobile.onrender.com';
-}
+    case 'production':
+    default:
+      return normalizeUrl(ENV.PROD_URL || PROD_FALLBACK_URL);
+  }
+};
+
+const API_BASE_URL = resolveBaseUrl();
 
 export const API_URL = `${API_BASE_URL}/api`;
 
-// 導出用於調試
-export const getApiConfig = () => ({
-  mode: BACKEND_MODE,
-  baseUrl: API_BASE_URL,
-  apiUrl: API_URL,
-});
+// 4. 調試與 Log (僅在非 Production 顯示)
+export const getApiConfig = () => ({ mode: ENV.MODE, baseUrl: API_BASE_URL, apiUrl: API_URL });
 
-// 在開發模式下打印當前配置
 if (process.env.NODE_ENV !== 'production') {
-  const config = getApiConfig();
-  console.log('\n' + '='.repeat(50));
-  console.log('🔧 當前後端配置');
-  console.log('='.repeat(50));
-  console.log(`模式: ${config.mode}`);
-  console.log(`Base URL: ${config.baseUrl}`);
-  console.log(`API URL: ${config.apiUrl}`);
-  console.log('='.repeat(50) + '\n');
+  console.log('\n🔧 [API Config]', JSON.stringify(getApiConfig(), null, 2), '\n');
 }
