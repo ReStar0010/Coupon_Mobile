@@ -1,0 +1,580 @@
+# OpenAPI 3.0 - Admin Moderation API Contract
+# Feature: 007-ugc-compliance
+
+openapi: 3.0.3
+info:
+  title: Admin Moderation API
+  description: API endpoints for admin content moderation dashboard (UGC compliance)
+  version: 1.0.0
+
+paths:
+  /api/admin/moderation/queue/:
+    get:
+      summary: Get moderation queue
+      description: Retrieve pending content reports for moderation (admin only)
+      operationId: getModerationQueue
+      tags:
+        - Admin Moderation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, reviewed, dismissed, all]
+            default: pending
+          description: Filter by report status
+        - name: content_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [coupon, store]
+          description: Filter by content type
+        - name: hours_old
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter reports older than N hours
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Moderation queue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationQueueResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/moderation/reports/{report_id}/:
+    get:
+      summary: Get report details
+      description: Retrieve detailed information about a specific report
+      operationId: getReportDetails
+      tags:
+        - Admin Moderation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDetailResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not an admin
+        '404':
+          description: Report not found
+
+  /api/admin/moderation/reports/{report_id}/action/:
+    post:
+      summary: Take moderation action
+      description: Approve, remove content, or suspend merchant for a report
+      operationId: takeModerationAction
+      tags:
+        - Admin Moderation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationActionRequest'
+      responses:
+        '200':
+          description: Action completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                already_reviewed:
+                  value:
+                    error: "此舉報已被審核"
+                invalid_action:
+                  value:
+                    error: "無效的操作"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not an admin
+        '404':
+          description: Report not found
+
+  /api/admin/moderation/escalations/:
+    get:
+      summary: Get escalated reports
+      description: Get reports approaching or past 24-hour SLA
+      operationId: getEscalatedReports
+      tags:
+        - Admin Moderation
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Escalated reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EscalatedReportsResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not an admin
+
+  /api/admin/moderation/merchants/{merchant_id}/violations/:
+    get:
+      summary: Get merchant violation history
+      description: Retrieve violation history for a specific merchant
+      operationId: getMerchantViolations
+      tags:
+        - Admin Moderation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Merchant violation history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantViolationsResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not an admin
+        '404':
+          description: Merchant not found
+
+  /api/admin/moderation/stats/:
+    get:
+      summary: Get moderation statistics
+      description: Get overview statistics for moderation dashboard
+      operationId: getModerationStats
+      tags:
+        - Admin Moderation
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Moderation statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationStatsResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not an admin
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ModerationQueueResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Total number of reports
+        pending_count:
+          type: integer
+          description: Number of pending reports
+        escalated_count:
+          type: integer
+          description: Number of reports past 20 hours
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModerationQueueItem'
+
+    ModerationQueueItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Report ID
+        content_type:
+          type: string
+          description: Type of reported content
+        content_id:
+          type: integer
+          description: ID of reported content
+        content_preview:
+          $ref: '#/components/schemas/ContentPreview'
+        reason:
+          type: string
+          description: Report reason code
+        reason_display:
+          type: string
+          description: Report reason (Chinese)
+        reporter_info:
+          $ref: '#/components/schemas/ReporterInfo'
+        report_count:
+          type: integer
+          description: Total reports for this content
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        hours_since_report:
+          type: number
+          description: Hours since report submitted
+        is_escalated:
+          type: boolean
+          description: Past 20-hour threshold
+
+    ContentPreview:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [coupon, store]
+        id:
+          type: integer
+        name:
+          type: string
+        image_url:
+          type: string
+          nullable: true
+        merchant_id:
+          type: integer
+        merchant_name:
+          type: string
+
+    ReporterInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+
+    ReportDetailResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        content_type:
+          type: string
+        content_id:
+          type: integer
+        content_detail:
+          $ref: '#/components/schemas/ContentDetail'
+        reason:
+          type: string
+        reason_display:
+          type: string
+        details:
+          type: string
+          description: Additional details from reporter
+        reporter:
+          $ref: '#/components/schemas/ReporterInfo'
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        reviewed_by:
+          $ref: '#/components/schemas/AdminInfo'
+        related_reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelatedReport'
+          description: Other reports for same content
+        merchant_violation_count:
+          type: integer
+          description: Current violation count for merchant
+        actions_taken:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionTaken'
+
+    ContentDetail:
+      type: object
+      properties:
+        type:
+          type: string
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        image_url:
+          type: string
+          nullable: true
+        is_hidden:
+          type: boolean
+          description: Whether content is currently hidden
+        merchant:
+          $ref: '#/components/schemas/MerchantInfo'
+
+    MerchantInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        store_name:
+          type: string
+        violation_count:
+          type: integer
+        suspension_flagged:
+          type: boolean
+
+    AdminInfo:
+      type: object
+      nullable: true
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+
+    RelatedReport:
+      type: object
+      properties:
+        id:
+          type: integer
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+
+    ActionTaken:
+      type: object
+      properties:
+        action:
+          type: string
+        action_display:
+          type: string
+        admin:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    ModerationActionRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [approve, remove, suspend]
+          description: |
+            Action to take:
+            - approve: Dismiss report as unfounded
+            - remove: Remove/hide the content
+            - suspend: Flag merchant for suspension review
+        notes:
+          type: string
+          maxLength: 1000
+          description: Optional admin notes/justification
+
+    ModerationActionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Action record ID
+        report_id:
+          type: integer
+        action:
+          type: string
+        action_display:
+          type: string
+        content_hidden:
+          type: boolean
+          description: Whether content was hidden (for remove action)
+        violation_recorded:
+          type: boolean
+          description: Whether violation was recorded
+        suspension_flagged:
+          type: boolean
+          description: Whether merchant was flagged for suspension
+        merchant_notified:
+          type: boolean
+          description: Whether merchant was notified
+        message:
+          type: string
+          example: "操作已完成"
+
+    EscalatedReportsResponse:
+      type: object
+      properties:
+        warning_threshold:
+          type: integer
+          description: Hours for warning (20)
+        critical_threshold:
+          type: integer
+          description: Hours for critical (24)
+        warning:
+          type: array
+          items:
+            $ref: '#/components/schemas/EscalatedReportItem'
+          description: Reports between 20-24 hours
+        critical:
+          type: array
+          items:
+            $ref: '#/components/schemas/EscalatedReportItem'
+          description: Reports past 24 hours
+
+    EscalatedReportItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        content_type:
+          type: string
+        reason_display:
+          type: string
+        hours_since_report:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+
+    MerchantViolationsResponse:
+      type: object
+      properties:
+        merchant_id:
+          type: integer
+        merchant_name:
+          type: string
+        violation_count:
+          type: integer
+        suspension_flagged:
+          type: boolean
+        suspension_flagged_at:
+          type: string
+          format: date-time
+          nullable: true
+        violations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ViolationItem'
+
+    ViolationItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        violation_type:
+          type: string
+        violation_type_display:
+          type: string
+        report_id:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ModerationStatsResponse:
+      type: object
+      properties:
+        pending_reports:
+          type: integer
+        escalated_reports:
+          type: integer
+        reports_today:
+          type: integer
+        reports_this_week:
+          type: integer
+        avg_response_hours:
+          type: number
+          description: Average hours to review a report
+        merchants_flagged:
+          type: integer
+          description: Merchants flagged for suspension review
+        top_report_reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportReasonStat'
+
+    ReportReasonStat:
+      type: object
+      properties:
+        reason:
+          type: string
+        reason_display:
+          type: string
+        count:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message (Chinese)

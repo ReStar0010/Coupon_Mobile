@@ -1,0 +1,278 @@
+# OpenAPI 3.0 - EULA Acceptance API Contract
+# Feature: 007-ugc-compliance
+
+openapi: 3.0.3
+info:
+  title: EULA Acceptance API
+  description: API endpoints for merchant EULA acceptance flow (UGC compliance)
+  version: 1.0.0
+
+paths:
+  /api/merchant/eula/status/:
+    get:
+      summary: Get EULA acceptance status
+      description: Check if merchant has accepted current EULA version
+      operationId: getEulaStatus
+      tags:
+        - EULA
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: EULA acceptance status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EulaStatusResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not a merchant account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/merchant/eula/accept/:
+    post:
+      summary: Accept EULA
+      description: Record merchant's acceptance of current EULA version
+      operationId: acceptEula
+      tags:
+        - EULA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EulaAcceptRequest'
+      responses:
+        '201':
+          description: EULA accepted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EulaAcceptResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                version_mismatch:
+                  value:
+                    error: "EULA 版本不符，請重新載入"
+                already_accepted:
+                  value:
+                    error: "您已接受此版本的使用條款"
+                agreement_required:
+                  value:
+                    error: "請勾選同意使用條款"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not a merchant account
+
+  /api/merchant/eula/content/:
+    get:
+      summary: Get EULA content
+      description: Retrieve current EULA text and content guidelines
+      operationId: getEulaContent
+      tags:
+        - EULA
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: EULA content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EulaContentResponse'
+        '401':
+          description: Unauthorized
+
+  /api/content-guidelines/:
+    get:
+      summary: Get content guidelines (public)
+      description: Retrieve content guidelines and penalty information (no auth required)
+      operationId: getContentGuidelines
+      tags:
+        - EULA
+      responses:
+        '200':
+          description: Content guidelines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentGuidelinesResponse'
+
+  /api/privacy-policy/:
+    get:
+      summary: Get privacy policy (public)
+      description: Retrieve privacy policy (no auth required)
+      operationId: getPrivacyPolicy
+      tags:
+        - Legal
+      responses:
+        '200':
+          description: Privacy policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyPolicyResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    EulaStatusResponse:
+      type: object
+      properties:
+        has_accepted:
+          type: boolean
+          description: Whether merchant has accepted EULA
+        accepted_version:
+          type: string
+          nullable: true
+          description: Version merchant has accepted (null if never accepted)
+        current_version:
+          type: string
+          description: Current EULA version
+        needs_acceptance:
+          type: boolean
+          description: Whether merchant needs to accept (new or updated EULA)
+        accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When merchant accepted (null if never accepted)
+
+    EulaAcceptRequest:
+      type: object
+      required:
+        - version
+        - agreed
+      properties:
+        version:
+          type: string
+          description: EULA version being accepted
+          example: "1.0.0"
+        agreed:
+          type: boolean
+          description: Must be true to confirm acceptance
+
+    EulaAcceptResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Acceptance record ID
+        version:
+          type: string
+          description: Accepted version
+        accepted_at:
+          type: string
+          format: date-time
+        message:
+          type: string
+          description: Success message
+          example: "已接受使用條款"
+
+    EulaContentResponse:
+      type: object
+      properties:
+        version:
+          type: string
+          description: Current EULA version
+        title:
+          type: string
+          description: EULA title
+          example: "使用者條款與內容規範"
+        content:
+          type: string
+          description: Full EULA text (markdown format)
+        content_guidelines:
+          type: string
+          description: Content guidelines section
+        penalties:
+          type: string
+          description: Penalties and consequences section
+        last_updated:
+          type: string
+          format: date-time
+          description: When EULA was last updated
+
+    ContentGuidelinesResponse:
+      type: object
+      properties:
+        prohibited_content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProhibitedContentItem'
+        penalties:
+          type: array
+          items:
+            $ref: '#/components/schemas/PenaltyItem'
+        support_contact:
+          type: string
+          description: Support email for questions
+
+    ProhibitedContentItem:
+      type: object
+      properties:
+        category:
+          type: string
+          description: Category name
+        description:
+          type: string
+          description: Description of prohibited content
+        examples:
+          type: array
+          items:
+            type: string
+          description: Example prohibited items
+
+    PenaltyItem:
+      type: object
+      properties:
+        violation_count:
+          type: string
+          description: Number of violations
+        consequence:
+          type: string
+          description: What happens
+
+    PrivacyPolicyResponse:
+      type: object
+      properties:
+        version:
+          type: string
+          description: Privacy policy version
+        title:
+          type: string
+          description: Title
+          example: "隱私權政策"
+        content:
+          type: string
+          description: Full privacy policy text (markdown format)
+        last_updated:
+          type: string
+          format: date-time
+        contact_email:
+          type: string
+          description: Contact email for privacy concerns
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message (Chinese)
