@@ -27,6 +27,7 @@ export default function RootLayout() {
               <Stack.Screen name="(coupons)/edit" />
               <Stack.Screen name="(profile)/index" />
               <Stack.Screen name="(profile)/edit" />
+              <Stack.Screen name="OptionsMenu/ContentGuidelines" />
             </Stack>
             <StatusBar style="auto" />
           </AuthProvider>

@@ -204,7 +204,7 @@ class ContentGuidelinesView(APIView):
         return Response({
             'prohibited_content': self._parse_prohibited_content(guidelines_content),
             'penalties': self._get_penalty_items(),
-            'support_contact': 'support@coupro.com'
+            'support_contact': 'coupro707@gmail.com'
         })
 
     def _parse_prohibited_content(self, content):

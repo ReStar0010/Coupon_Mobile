@@ -13,6 +13,7 @@ import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
+import { fetchAPI, parseResponse } from '@/utils/api';
 
 interface ContentGuideline {
   category: string;
@@ -34,6 +35,16 @@ interface GuidelinesData {
   appeal_process: string;
 }
 
+// Backend API response structure
+interface BackendGuidelinesResponse {
+  prohibited_content: ContentGuideline[];
+  penalties: Array<{
+    violation_count: string;
+    consequence: string;
+  }>;
+  support_contact?: string;
+}
+
 export default function ContentGuidelinesScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -49,13 +60,29 @@ export default function ContentGuidelinesScreen() {
       setLoading(true);
       setError(null);
 
-      // Fetch content guidelines from API
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/content-guidelines/`
-      );
-      const data = await response.json();
+      // Fetch content guidelines from API (public endpoint, no auth required)
+      const response = await fetchAPI('/content-guidelines/', {
+        method: 'GET',
+        requireAuth: false,
+      });
 
-      setGuidelinesData(data);
+      // Parse response
+      const backendData: BackendGuidelinesResponse = await parseResponse(response);
+
+      // Transform backend data to frontend format
+      const transformedData: GuidelinesData = {
+        title: 'CouPro 內容規範',
+        introduction: '為了維護平台的良好環境，請確保您上傳的內容符合以下規範。違反規範的內容將被移除，並可能導致帳號受到限制。',
+        prohibited_content: backendData.prohibited_content || [],
+        reporting_process: '使用者可以透過內容頁面的「檢舉」功能，向平台舉報不當內容。我們會在 24 小時內審查所有檢舉。',
+        penalties: backendData.penalties?.map((penalty) => ({
+          threshold: penalty.violation_count,
+          consequence: penalty.consequence,
+        })) || [],
+        appeal_process: '如果您認為內容被錯誤移除，可以透過 coupro707@gmail.com 聯繫我們進行申訴。',
+      };
+
+      setGuidelinesData(transformedData);
     } catch (err: any) {
       console.error('Failed to load content guidelines:', err);
       setError('無法載入內容規範，請稍後再試');

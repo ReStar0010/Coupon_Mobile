@@ -94,10 +94,11 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
         agreed: true,
       });
 
-      // Success
+      // Success - onSuccess already handles closing the modal and resolving the promise
       resetForm();
+      // Only call onSuccess, which will close the modal and resolve the promise correctly
+      // Don't call onClose() as it would resolve the promise as false
       onSuccess();
-      onClose();
     } catch (err: any) {
       const errorMessage =
         err?.response?.data?.error || err?.message || '接受條款失敗，請稍後再試';
@@ -119,7 +120,12 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
   };
 
   return (
-    <Modal visible={visible} transparent={true} animationType="slide">
+    <Modal 
+      visible={visible} 
+      transparent={true} 
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           {/* Header */}
@@ -137,7 +143,7 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
               <Text style={styles.loadingText}>載入中...</Text>
             </View>
           ) : eulaContent ? (
-            <>
+            <View style={styles.contentWrapper}>
               {/* Scrollable EULA Content */}
               <ScrollView
                 ref={scrollViewRef}
@@ -145,6 +151,7 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
                 contentContainerStyle={styles.contentContainer}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
+                showsVerticalScrollIndicator={true}
               >
                 <Text style={styles.versionText}>版本: {eulaContent.version}</Text>
                 <Text style={styles.dateText}>
@@ -233,7 +240,7 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
                   </TouchableOpacity>
                 </View>
               </View>
-            </>
+            </View>
           ) : (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error || '無法載入使用條款'}</Text>
@@ -257,10 +264,12 @@ const styles = {
   },
   modalContainer: {
     width: width * 0.9,
+    height: height * 0.85,
     maxHeight: height * 0.85,
     backgroundColor: '#fff',
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: 'hidden' as const,
+    flexDirection: 'column' as const,
   },
   header: {
     flexDirection: 'row' as const,
@@ -291,8 +300,13 @@ const styles = {
     fontSize: 16,
     color: '#666',
   },
+  contentWrapper: {
+    flex: 1,
+    minHeight: 0,
+  },
   contentScrollView: {
     flex: 1,
+    minHeight: 0, // Important for ScrollView in flex container
   },
   contentContainer: {
     padding: 16,

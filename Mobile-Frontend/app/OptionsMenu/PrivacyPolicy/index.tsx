@@ -139,7 +139,7 @@ export default function PrivacyPolicyScreen() {
                 如對本隱私政策有任何疑問，請聯繫：
               </Text>
               <Text fontSize="$sm" color={colors.primary} fontWeight="500">
-                support@coupro.app
+                coupro707@gmail.com
               </Text>
             </YStack>
           </YStack>

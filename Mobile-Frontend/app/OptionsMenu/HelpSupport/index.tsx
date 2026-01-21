@@ -17,7 +17,7 @@ export default function HelpSupportScreen() {
   const router = useRouter();
 
   const handleEmailPress = async () => {
-    const email = 'support@coupro.app';
+    const email = 'coupro707@gmail.com';
     const url = `mailto:${email}`;
     
     const canOpen = await Linking.canOpenURL(url);
@@ -99,7 +99,7 @@ export default function HelpSupportScreen() {
                     電子郵件
                   </Text>
                   <Text fontSize="$sm" color={colors.textSecondary} marginTop="$1">
-                    support@coupro.app
+                    coupro707@gmail.com
                   </Text>
                 </YStack>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />

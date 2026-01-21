@@ -253,7 +253,7 @@ def send_content_removal_notification(
         <p><strong>違規記錄：</strong>目前累計 {violation_count} 次違規</p>
         <p><em>提醒：累計 {threshold} 次違規將導致帳號審查。</em></p>
         <hr>
-        <p>如有疑問，請聯繫客服：{getattr(settings, 'SUPPORT_EMAIL', 'support@coupro.app')}</p>
+        <p>如有疑問，請聯繫客服：{getattr(settings, 'SUPPORT_EMAIL', 'coupro707@gmail.com')}</p>
         """
 
         resend.Emails.send({

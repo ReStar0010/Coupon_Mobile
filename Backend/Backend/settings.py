@@ -189,6 +189,6 @@ REPORT_DUPLICATE_WINDOW_HOURS = 24   # Hours before same user can re-report same
 REPORT_RETENTION_DAYS = 7            # Days to retain resolved reports
 
 # Admin email for escalation alerts
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin@coupro.app')
-SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'support@coupro.app')
-SUPPORT_URL = os.getenv('SUPPORT_URL', 'https://coupro.app/support')
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'duankayne@gmail.com')
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'coupro707@gmail.com')
+SUPPORT_URL = os.getenv('SUPPORT_URL', 'https://coupro-terms.vercel.app/support.html')
