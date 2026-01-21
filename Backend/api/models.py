@@ -1,8 +1,39 @@
 from django.db import models
 from django.contrib.auth.models import User  # Import Django's default User model
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 import random
 import uuid
+
+# UGC Compliance: Report reason choices
+REPORT_REASONS = [
+    ('inappropriate', '不當內容'),      # Inappropriate content
+    ('misleading', '誤導資訊'),         # Misleading information
+    ('illegal', '違法商品'),            # Illegal goods
+    ('spam', '垃圾訊息'),               # Spam
+    ('other', '其他'),                  # Other
+]
+
+# UGC Compliance: Report status choices
+REPORT_STATUS = [
+    ('pending', '待審核'),              # Pending
+    ('reviewed', '已審核'),             # Reviewed (action taken)
+    ('dismissed', '已駁回'),            # Dismissed (no action)
+]
+
+# UGC Compliance: Moderation action choices
+MODERATION_ACTIONS = [
+    ('approve', '核准'),              # Approve (dismiss report)
+    ('remove', '移除內容'),           # Remove content
+    ('suspend', '暫停帳號'),          # Suspend merchant account
+]
+
+# UGC Compliance: Violation type choices
+VIOLATION_TYPES = [
+    ('content_removed', '內容移除'),     # Content was removed
+    ('account_suspended', '帳號暫停'),   # Account suspended
+]
 
 # Profile model for password reset functionality
 class PasswordResetProfile(models.Model):
@@ -127,6 +158,11 @@ class MerchantProfile(models.Model):
         self.email_verification_token = None
         self.verification_token_created_at = None
         self.save()
+
+    # UGC Compliance: Violation tracking fields
+    violation_count = models.PositiveIntegerField(default=0, help_text="Denormalized violation counter")
+    suspension_flagged = models.BooleanField(default=False, help_text="Flagged for suspension review")
+    suspension_flagged_at = models.DateTimeField(null=True, blank=True, help_text="When flagged for suspension")
 
     def __str__(self):
         return f"{self.user.email} - Merchant Profile"
@@ -619,3 +655,221 @@ class AccountDeletionLog(models.Model):
 
     def __str__(self):
         return f"Account Deletion: {self.deleted_user_email} ({self.status})"
+
+
+# =============================================================================
+# UGC Compliance Models (Apple Guideline 1.2)
+# =============================================================================
+
+class ContentReport(models.Model):
+    """
+    Consumer report of merchant content (coupon or store).
+    Supports content reporting mechanism required by Apple Guideline 1.2.
+    """
+    reporter = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='content_reports',
+        help_text="Consumer who submitted the report"
+    )
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        help_text="Django ContentType for generic relation"
+    )
+    object_id = models.PositiveIntegerField(
+        db_index=True,
+        help_text="ID of the reported content"
+    )
+    content_object = GenericForeignKey('content_type', 'object_id')
+    reason = models.CharField(
+        max_length=20,
+        choices=REPORT_REASONS,
+        help_text="Report reason category"
+    )
+    details = models.TextField(
+        blank=True,
+        help_text="Optional additional details"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=REPORT_STATUS,
+        default='pending',
+        db_index=True,
+        help_text="Report processing status"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="When report was submitted"
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When report was reviewed"
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_reports',
+        help_text="Admin who reviewed"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'created_at'], name='report_status_created_idx'),
+            models.Index(fields=['reporter', 'content_type', 'object_id'], name='report_reporter_content_idx'),
+        ]
+
+    def __str__(self) -> str:
+        return f"Report #{self.id} - {self.get_reason_display()}"
+
+
+class BlockedMerchant(models.Model):
+    """
+    Consumer's blocked merchant store.
+    Allows consumers to block merchants so their content is hidden from feed/search.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='blocked_merchants',
+        help_text="Consumer who blocked"
+    )
+    store = models.ForeignKey(
+        Store,
+        on_delete=models.CASCADE,
+        related_name='blocked_by',
+        help_text="Blocked merchant store"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When block was created"
+    )
+
+    class Meta:
+        unique_together = ['user', 'store']
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"{self.user.username} blocked {self.store.name}"
+
+
+class EULAAcceptance(models.Model):
+    """
+    Record of merchant EULA acceptance.
+    Required before merchants can upload content (Apple Guideline 1.2).
+    """
+    merchant = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='eula_acceptances',
+        help_text="Merchant who accepted"
+    )
+    version = models.CharField(
+        max_length=20,
+        help_text="EULA version string (e.g., '1.0.0')"
+    )
+    accepted_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When acceptance occurred"
+    )
+    ip_address = models.GenericIPAddressField(
+        help_text="IP address at acceptance"
+    )
+
+    class Meta:
+        unique_together = ['merchant', 'version']
+        ordering = ['-accepted_at']
+
+    def __str__(self) -> str:
+        return f"{self.merchant.username} accepted EULA v{self.version}"
+
+
+class ModerationAction(models.Model):
+    """
+    Admin action on reported content.
+    Audit log of administrator actions for Apple Guideline 1.2 compliance.
+    """
+    report = models.ForeignKey(
+        ContentReport,
+        on_delete=models.CASCADE,
+        related_name='actions',
+        help_text="Associated report"
+    )
+    admin = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='moderation_actions',
+        help_text="Admin who took action"
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=MODERATION_ACTIONS,
+        help_text="Action type taken"
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text="Admin notes/justification"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When action was taken"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"Action #{self.id} - {self.get_action_display()}"
+
+
+class ViolationRecord(models.Model):
+    """
+    Merchant violation history for suspension tracking.
+    10 violations triggers suspension review (Apple Guideline 1.2).
+    """
+    merchant = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='violations',
+        help_text="Merchant with violation"
+    )
+    report = models.ForeignKey(
+        ContentReport,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='violations',
+        help_text="Originating report"
+    )
+    action = models.ForeignKey(
+        ModerationAction,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='violations',
+        help_text="Action that created violation"
+    )
+    violation_type = models.CharField(
+        max_length=20,
+        choices=VIOLATION_TYPES,
+        help_text="Type of violation"
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional context"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When violation was recorded"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"Violation #{self.id} - {self.merchant.username}"

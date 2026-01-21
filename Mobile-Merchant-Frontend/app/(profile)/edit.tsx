@@ -10,6 +10,8 @@ import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { getAbsoluteImageUrl } from '@/utils/api';
 import LocationPicker from '@/app/components/LocationPicker';
+import EULAModal from '@/app/components/EULAModal';
+import { useEULACheck } from '@/app/hooks/useEULACheck';
 
 interface EditableFieldProps {
   label: string;
@@ -132,8 +134,18 @@ export default function ProfileEditScreen() {
     }
   };
 
+  // EULA check hook
+  const { checkEULA, eulaModalVisible, hideEULAModal, onEULAAccepted } = useEULACheck();
+
   const pickImage = async () => {
     try {
+      // Check EULA acceptance first (UGC Compliance)
+      const eulaAccepted = await checkEULA();
+      if (!eulaAccepted) {
+        // User cancelled EULA or not accepted
+        return;
+      }
+
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -372,6 +384,13 @@ export default function ProfileEditScreen() {
         isOpen={showPermissionModal}
         onClose={() => setShowPermissionModal(false)}
         permissionType="photos"
+      />
+
+      {/* EULA Modal (UGC Compliance) */}
+      <EULAModal
+        visible={eulaModalVisible}
+        onClose={hideEULAModal}
+        onSuccess={onEULAAccepted}
       />
     </SafeAreaView>
   );

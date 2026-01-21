@@ -259,3 +259,193 @@ class PreDeleteCheckSerializer(serializers.Serializer):
         read_only=True,
         help_text="Summary of data that will be affected"
     )
+
+
+# =============================================================================
+# UGC Compliance Serializers (Apple Guideline 1.2)
+# =============================================================================
+
+from .models import REPORT_REASONS, REPORT_STATUS, MODERATION_ACTIONS, VIOLATION_TYPES
+
+
+class ContentReportCreateSerializer(serializers.Serializer):
+    """
+    Serializer for creating a content report.
+    POST /api/content/{type}/{id}/report/
+    """
+    reason = serializers.ChoiceField(
+        choices=REPORT_REASONS,
+        help_text="Report reason category"
+    )
+    details = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=1000,
+        help_text="Optional additional details"
+    )
+
+
+class ContentReportSerializer(serializers.Serializer):
+    """
+    Serializer for content report responses.
+    """
+    id = serializers.IntegerField(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    reason_display = serializers.SerializerMethodField()
+    status = serializers.CharField(read_only=True)
+    status_display = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField(read_only=True)
+    reviewed_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    content_type = serializers.CharField(source='content_type.model', read_only=True)
+    object_id = serializers.IntegerField(read_only=True)
+
+    def get_reason_display(self, obj) -> str:
+        return dict(REPORT_REASONS).get(obj.reason, obj.reason)
+
+    def get_status_display(self, obj) -> str:
+        return dict(REPORT_STATUS).get(obj.status, obj.status)
+
+
+class BlockedMerchantCreateSerializer(serializers.Serializer):
+    """
+    Serializer for blocking a merchant.
+    POST /api/user/blocked-merchants/
+    """
+    store_id = serializers.IntegerField(help_text="ID of the store to block")
+
+
+class BlockedMerchantSerializer(serializers.Serializer):
+    """
+    Serializer for blocked merchant responses.
+    """
+    id = serializers.IntegerField(read_only=True)
+    store_id = serializers.IntegerField(source='store.id', read_only=True)
+    store_name = serializers.CharField(source='store.name', read_only=True)
+    store_image_url = serializers.CharField(source='store.image_url', read_only=True, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+
+class EULAAcceptSerializer(serializers.Serializer):
+    """
+    Serializer for accepting EULA.
+    POST /api/merchant/eula/accept/
+    """
+    version = serializers.CharField(max_length=20, help_text="EULA version to accept")
+    agreed = serializers.BooleanField(help_text="Must be true to accept")
+
+    def validate_agreed(self, value):
+        if not value:
+            raise serializers.ValidationError("您必須同意使用條款才能繼續")
+        return value
+
+
+class EULAStatusSerializer(serializers.Serializer):
+    """
+    Serializer for EULA status response.
+    GET /api/merchant/eula/status/
+    """
+    has_accepted = serializers.BooleanField(read_only=True)
+    accepted_version = serializers.CharField(read_only=True, allow_null=True)
+    current_version = serializers.CharField(read_only=True)
+    needs_acceptance = serializers.BooleanField(read_only=True)
+
+
+class EULAContentSerializer(serializers.Serializer):
+    """
+    Serializer for EULA content response.
+    GET /api/merchant/eula/content/
+    """
+    version = serializers.CharField(read_only=True)
+    content = serializers.CharField(read_only=True)
+    content_guidelines = serializers.CharField(read_only=True)
+
+
+class ModerationActionCreateSerializer(serializers.Serializer):
+    """
+    Serializer for creating a moderation action.
+    POST /api/admin/moderation/reports/{id}/action/
+    """
+    action = serializers.ChoiceField(
+        choices=MODERATION_ACTIONS,
+        help_text="Action type to take"
+    )
+    notes = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=2000,
+        help_text="Admin notes/justification"
+    )
+
+
+class ModerationActionSerializer(serializers.Serializer):
+    """
+    Serializer for moderation action responses.
+    """
+    id = serializers.IntegerField(read_only=True)
+    report_id = serializers.IntegerField(source='report.id', read_only=True)
+    admin_email = serializers.CharField(source='admin.email', read_only=True)
+    action = serializers.CharField(read_only=True)
+    action_display = serializers.SerializerMethodField()
+    notes = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def get_action_display(self, obj) -> str:
+        return dict(MODERATION_ACTIONS).get(obj.action, obj.action)
+
+
+class ViolationRecordSerializer(serializers.Serializer):
+    """
+    Serializer for violation record responses.
+    """
+    id = serializers.IntegerField(read_only=True)
+    merchant_id = serializers.IntegerField(source='merchant.id', read_only=True)
+    merchant_email = serializers.CharField(source='merchant.email', read_only=True)
+    violation_type = serializers.CharField(read_only=True)
+    violation_type_display = serializers.SerializerMethodField()
+    notes = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def get_violation_type_display(self, obj) -> str:
+        return dict(VIOLATION_TYPES).get(obj.violation_type, obj.violation_type)
+
+
+class ModerationQueueItemSerializer(serializers.Serializer):
+    """
+    Serializer for moderation queue items.
+    GET /api/admin/moderation/queue/
+    """
+    id = serializers.IntegerField(read_only=True)
+    reporter_email = serializers.CharField(source='reporter.email', read_only=True)
+    content_type = serializers.CharField(source='content_type.model', read_only=True)
+    object_id = serializers.IntegerField(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    reason_display = serializers.SerializerMethodField()
+    details = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    hours_since_report = serializers.SerializerMethodField()
+    is_escalated = serializers.SerializerMethodField()
+
+    def get_reason_display(self, obj) -> str:
+        return dict(REPORT_REASONS).get(obj.reason, obj.reason)
+
+    def get_hours_since_report(self, obj) -> float:
+        from django.utils import timezone
+        delta = timezone.now() - obj.created_at
+        return round(delta.total_seconds() / 3600, 1)
+
+    def get_is_escalated(self, obj) -> bool:
+        from django.conf import settings
+        hours = self.get_hours_since_report(obj)
+        return hours >= getattr(settings, 'ESCALATION_HOURS_WARNING', 20)
+
+
+class ModerationStatsSerializer(serializers.Serializer):
+    """
+    Serializer for moderation dashboard statistics.
+    GET /api/admin/moderation/stats/
+    """
+    pending_count = serializers.IntegerField(read_only=True)
+    escalated_count = serializers.IntegerField(read_only=True)
+    reviewed_today = serializers.IntegerField(read_only=True)
+    avg_response_hours = serializers.FloatField(read_only=True, allow_null=True)
