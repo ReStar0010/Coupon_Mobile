@@ -25,6 +25,18 @@ from api.views.events import track_template_view
 from api.views.phone_otp import send_otp, verify_otp
 from api.views.qr_claim import generate_qr_session, invalidate_qr_session, claim_coupon_via_qr
 from api.views.account_deletion import pre_delete_check, delete_account, get_deletion_status
+from api.views.content_moderation import (
+    ReportContentView, ReportStatusView, UserReportsView,
+    BlockMerchantView, UnblockMerchantView, BlockedMerchantsListView, BlockStatusView
+)
+from api.views.eula_acceptance import (
+    EULAStatusView, EULAAcceptView, EULAContentView,
+    ContentGuidelinesView, PrivacyPolicyView
+)
+from api.views.admin_moderation import (
+    ModerationQueueView, ReportDetailView, ModerationActionView,
+    EscalatedReportsView, MerchantViolationsView, ModerationStatsView
+)
 
 from django.http import HttpResponse
 from django.urls import re_path
@@ -157,6 +169,34 @@ urlpatterns = [
 
     # Ping from cron-job.org to keep the server alive
     path('api/ping/', lambda request: HttpResponse("Pong!")),  # Ping endpoint for cron-job.org
+
+    # UGC Compliance: Content Reporting (User Story 1)
+    path('api/content/<str:content_type>/<int:content_id>/report/', ReportContentView.as_view(), name='report_content'),
+    path('api/content/<str:content_type>/<int:content_id>/report/status/', ReportStatusView.as_view(), name='report_status'),
+    path('api/user/reports/', UserReportsView.as_view(), name='user_reports'),
+
+    # UGC Compliance: Merchant Blocking (User Story 2)
+    path('api/user/blocked-merchants/', BlockedMerchantsListView.as_view(), name='blocked_merchants_list'),
+    path('api/user/blocked-merchants/add/', BlockMerchantView.as_view(), name='block_merchant'),
+    path('api/user/blocked-merchants/<int:store_id>/', UnblockMerchantView.as_view(), name='unblock_merchant'),
+    path('api/store/<int:store_id>/block-status/', BlockStatusView.as_view(), name='block_status'),
+
+    # UGC Compliance: EULA Acceptance (User Story 3)
+    path('api/merchant/eula/status/', EULAStatusView.as_view(), name='eula_status'),
+    path('api/merchant/eula/accept/', EULAAcceptView.as_view(), name='eula_accept'),
+    path('api/merchant/eula/content/', EULAContentView.as_view(), name='eula_content'),
+
+    # UGC Compliance: Public Legal Content (User Story 5)
+    path('api/content-guidelines/', ContentGuidelinesView.as_view(), name='content_guidelines'),
+    path('api/privacy-policy/', PrivacyPolicyView.as_view(), name='privacy_policy'),
+
+    # UGC Compliance: Admin Moderation Dashboard (User Story 4)
+    path('api/admin/moderation/queue/', ModerationQueueView.as_view(), name='moderation_queue'),
+    path('api/admin/moderation/reports/<int:report_id>/', ReportDetailView.as_view(), name='report_detail'),
+    path('api/admin/moderation/reports/<int:report_id>/action/', ModerationActionView.as_view(), name='moderation_action'),
+    path('api/admin/moderation/escalations/', EscalatedReportsView.as_view(), name='escalated_reports'),
+    path('api/admin/moderation/merchants/<int:merchant_id>/violations/', MerchantViolationsView.as_view(), name='merchant_violations'),
+    path('api/admin/moderation/stats/', ModerationStatsView.as_view(), name='moderation_stats'),
 ]
 
 # Serve media files in development

@@ -170,3 +170,25 @@ SIMPLE_JWT = {
 # SMS Configuration (Twilio)
 # Set to True in development to log OTP to console instead of sending SMS
 SMS_DEV_MODE = True
+
+# =============================================================================
+# UGC Compliance Settings (Apple Guideline 1.2)
+# =============================================================================
+CURRENT_EULA_VERSION = '1.0.0'
+EULA_CONTENT_PATH = 'static/eula_zh.txt'
+GUIDELINES_CONTENT_PATH = 'static/guidelines_zh.txt'
+PRIVACY_POLICY_PATH = 'static/privacy_zh.txt'
+
+# Moderation escalation thresholds (in hours)
+ESCALATION_HOURS_WARNING = 20      # Hours before first escalation alert
+ESCALATION_HOURS_CRITICAL = 24     # Hours before critical alert
+
+# Violation and report settings
+VIOLATION_SUSPENSION_THRESHOLD = 10  # Violations before suspension flag
+REPORT_DUPLICATE_WINDOW_HOURS = 24   # Hours before same user can re-report same content
+REPORT_RETENTION_DAYS = 7            # Days to retain resolved reports
+
+# Admin email for escalation alerts
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'duankayne@gmail.com')
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'coupro707@gmail.com')
+SUPPORT_URL = os.getenv('SUPPORT_URL', 'https://coupro-terms.vercel.app/support.html')

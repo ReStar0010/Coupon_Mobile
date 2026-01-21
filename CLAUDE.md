@@ -7,6 +7,7 @@ Auto-generated from feature plans. Last updated: 2026-01-07
 - Backend uses Django ORM with SQLite (dev) / PostgreSQL (prod) for merchant account data (001-appstore-comliance-fixes)
 - Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework (Backend), Expo/React Native with expo-image-picker ~17.0.10 (Frontend) (001-appstore-compliance-fixes)
 - SQLite (dev) / PostgreSQL (prod) via Django ORM (001-appstore-compliance-fixes)
+- Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework 3.x, Expo/React Native, Tamagui UI, Resend API (email), rest_framework_simplejwt (auth) (007-ugc-compliance)
 
 **Backend:**
 - Language: Python 3.10+
@@ -91,11 +92,11 @@ npm run typecheck                   # TypeScript check
 - Chinese UI text for user-facing messages
 
 ## Recent Changes
+- 007-ugc-compliance: Added Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework 3.x, Expo/React Native, Tamagui UI, Resend API (email), rest_framework_simplejwt (auth)
 - 001-appstore-compliance-fixes: Added Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework (Backend), Expo/React Native with expo-image-picker ~17.0.10 (Frontend)
 - 001-appstore-compliance-fixes: Added TypeScript (Mobile Frontend - Expo/React Native), Python 3.10+ (Backend - Django)
 
 **002-phone-otp-verification (2026-01-07):**
-- Added Twilio SMS integration for OTP verification
 
 **001-phone-coupon-send (2026-01-05):**
 

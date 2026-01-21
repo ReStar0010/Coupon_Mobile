@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Share2, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Share2, MapPin, ShieldBan, ShieldCheck } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
 import { 
@@ -20,6 +20,8 @@ import {
 } from 'tamagui';
 import SuccessPopup from './redeem/SuccessPopup';
 import ShareModal from './components/ShareModal';
+import ReportButton from '../../components/ReportButton';
+import { useBlockedMerchants } from '../../components/providers/BlockedMerchantsProvider';
 import { isUserLoggedIn, fetchAPI } from '../../utils/authAPI';
 import { devLog } from '../../utils/devLogger';
 
@@ -66,6 +68,10 @@ const CouponDetailPage: React.FC = () => {
     redeemedAt?: string;
     redemptionId?: number;
   } | null>(null);
+  const [isBlockingStore, setIsBlockingStore] = useState(false);
+
+  // Blocked Merchants context
+  const { isStoreBlocked, blockStore, unblockStore } = useBlockedMerchants();
 
   // Track template view event
   const trackTemplateView = async (templateId: number, couponId: number) => {
@@ -354,6 +360,84 @@ const CouponDetailPage: React.FC = () => {
     setShowShareModal(false);
   };
 
+  const handleBlockMerchant = () => {
+    if (!coupon?.store_id || !coupon?.store_name) {
+      Alert.alert('錯誤', '無法封鎖此商家');
+      return;
+    }
+
+    const isBlocked = isStoreBlocked(coupon.store_id);
+
+    if (isBlocked) {
+      // Unblock confirmation
+      Alert.alert(
+        '解除封鎖',
+        `確定要解除封鎖「${coupon.store_name}」嗎？`,
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '確定',
+            onPress: async () => {
+              setIsBlockingStore(true);
+              try {
+                const success = await unblockStore(coupon.store_id);
+                if (success) {
+                  Alert.alert('成功', '已解除封鎖');
+                } else {
+                  Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
+                }
+              } catch (error) {
+                Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
+              } finally {
+                setIsBlockingStore(false);
+              }
+            },
+          },
+        ],
+      );
+    } else {
+      // Block confirmation
+      Alert.alert(
+        '封鎖商家',
+        `確定要封鎖「${coupon.store_name}」嗎？\n\n封鎖後，此商家的優惠券將不會出現在您的動態中。`,
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '確定封鎖',
+            style: 'destructive',
+            onPress: async () => {
+              setIsBlockingStore(true);
+              try {
+                const success = await blockStore(coupon.store_id);
+                if (success) {
+                  Alert.alert(
+                    '已封鎖',
+                    '該商家的優惠券將不會再出現在您的動態中',
+                    [
+                      {
+                        text: '確定',
+                        onPress: () => {
+                          // Go back to EasyUse page
+                          router.push('/EasyUse');
+                        },
+                      },
+                    ],
+                  );
+                } else {
+                  Alert.alert('錯誤', '封鎖失敗，請稍後再試');
+                }
+              } catch (error) {
+                Alert.alert('錯誤', '封鎖失敗，請稍後再試');
+              } finally {
+                setIsBlockingStore(false);
+              }
+            },
+          },
+        ],
+      );
+    }
+  };
+
   const openGoogleMaps = () => {
     if (coupon?.store_location?.lat && coupon?.store_location?.lng) {
       const { lat, lng } = coupon.store_location;
@@ -426,13 +510,13 @@ const CouponDetailPage: React.FC = () => {
     <YStack flex={1} bg="#f0f0f0">
       <ScrollView flex={1}>
         {/* Header with Back and Share buttons */}
-        <XStack 
-          px="$5" 
-          pt="$8" 
-          pb="$4" 
-          style={{ 
-            justifyContent: sourceParam === 'collection' ? 'space-between' : 'flex-start', 
-            alignItems: 'center' 
+        <XStack
+          px="$5"
+          pt="$8"
+          pb="$4"
+          style={{
+            justifyContent: 'space-between',
+            alignItems: 'center'
           }}
         >
           <Button
@@ -443,21 +527,32 @@ const CouponDetailPage: React.FC = () => {
             <ArrowLeft size={24} color="#333" />
           </Button>
           
-          {sourceParam === 'collection' && (
-            <Button
-              onPress={handleShare}
-              bg="#FFAD31"
-              px="$4"
-              py="$2"
-              style={{
-                borderRadius: 12,
-              }}
-            >
-              <Text color="#333" fontWeight="600" fontSize="$4">
-                分享
-              </Text>
-            </Button>
-          )}
+          <XStack gap="$3" alignItems="center">
+            {/* Report Button - visible for all users */}
+            <ReportButton
+              contentType="coupon"
+              contentId={Number(id)}
+              contentName={coupon?.coupon_name}
+              variant="icon-only"
+            />
+
+            {/* Share Button - only in collection view */}
+            {sourceParam === 'collection' && (
+              <Button
+                onPress={handleShare}
+                bg="#FFAD31"
+                px="$4"
+                py="$2"
+                style={{
+                  borderRadius: 12,
+                }}
+              >
+                <Text color="#333" fontWeight="600" fontSize="$4">
+                  分享
+                </Text>
+              </Button>
+            )}
+          </XStack>
         </XStack>
 
         {/* Main Content */}
@@ -516,6 +611,44 @@ const CouponDetailPage: React.FC = () => {
                     </View>
                   ))}
                 </XStack>
+              )}
+
+              {/* Block/Unblock Merchant Button */}
+              {coupon?.store_id && (
+                <Button
+                  size="$3"
+                  onPress={handleBlockMerchant}
+                  disabled={isBlockingStore}
+                  bg={isStoreBlocked(coupon.store_id) ? "$gray5" : "$red9"}
+                  pressStyle={{ opacity: 0.8 }}
+                  marginTop="$2"
+                  style={{
+                    borderRadius: 8,
+                    minWidth: 120,
+                  }}
+                >
+                  {isBlockingStore ? (
+                    <Spinner size="small" color="$white" />
+                  ) : (
+                    <XStack alignItems="center" gap="$2">
+                      {isStoreBlocked(coupon.store_id) ? (
+                        <>
+                          <ShieldCheck size={16} color="white" />
+                          <Text color="white" fontSize="$3" fontWeight="500">
+                            已封鎖
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldBan size={16} color="white" />
+                          <Text color="white" fontSize="$3" fontWeight="500">
+                            封鎖商家
+                          </Text>
+                        </>
+                      )}
+                    </XStack>
+                  )}
+                </Button>
               )}
             </YStack>
           </Card>

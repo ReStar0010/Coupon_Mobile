@@ -8,7 +8,7 @@ from django.db.models import Count
 from drf_yasg.utils import swagger_auto_schema
 
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
-from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store
+from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant
 
 @api_view(['GET'])
 @permission_classes([AllowAny])  # 允許匿名訪問
@@ -24,12 +24,23 @@ def get_store_coupons(request):
 
     now = timezone.now()
 
+    # UGC Compliance: Get blocked store IDs for authenticated users
+    blocked_store_ids = []
+    if request.user.is_authenticated:
+        blocked_store_ids = list(
+            BlockedMerchant.objects.filter(user=request.user).values_list('store_id', flat=True)
+        )
+
     # Query 1: Store coupons (existing logic)
     store_coupons = Coupon.objects.filter(
         coupon_type='store',
         expiry_date__gt=now,
         start_date__lte=now
     ).select_related('store').prefetch_related('tags')  # Optimize DB query
+
+    # UGC Compliance: Exclude blocked merchants
+    if blocked_store_ids:
+        store_coupons = store_coupons.exclude(store_id__in=blocked_store_ids)
 
     # 取得這些 coupon 關聯的所有 store IDs
     store_ids = store_coupons.values_list('store_id', flat=True).distinct()
@@ -58,6 +69,10 @@ def get_store_coupons(request):
         start_date__lte=now,
         current_holder__isnull=True  # Ensure not already claimed
     ).select_related('store').prefetch_related('tags', 'share_requests')
+
+    # UGC Compliance: Exclude blocked merchants from public pool as well
+    if blocked_store_ids:
+        public_pool_coupons = public_pool_coupons.exclude(store_id__in=blocked_store_ids)
 
     data = []
 
@@ -139,14 +154,23 @@ def get_exclusive_coupons(request):
 
     now = timezone.now()
 
+    # UGC Compliance: Get blocked store IDs
+    blocked_store_ids = list(
+        BlockedMerchant.objects.filter(user=request.user).values_list('store_id', flat=True)
+    )
+
     # 查詢：未過期、已開始，且屬於當前用戶的專屬優惠券
     # 包括用戶是原始擁有者或當前持有者的券
     exclusive_coupons = Coupon.objects.filter(
         coupon_type='exclusive',
         expiry_date__gt=now,
-        start_date__lte=now, 
+        start_date__lte=now,
         current_holder=request.user,  # 當前持有者是請求的用戶
     ).select_related('store', 'template').prefetch_related('tags')  # Optimize DB query
+
+    # UGC Compliance: Exclude blocked merchants
+    if blocked_store_ids:
+        exclusive_coupons = exclusive_coupons.exclude(store_id__in=blocked_store_ids)
     
     # Filter out redeemed coupons
     unredeemed_coupons = []

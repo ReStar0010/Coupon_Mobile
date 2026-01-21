@@ -1,0 +1,245 @@
+# OpenAPI 3.0 - Blocked Merchant API Contract
+# Feature: 007-ugc-compliance
+
+openapi: 3.0.3
+info:
+  title: Blocked Merchant API
+  description: API endpoints for consumer merchant blocking (UGC compliance)
+  version: 1.0.0
+
+paths:
+  /api/user/blocked-merchants/:
+    get:
+      summary: Get blocked merchants list
+      description: Retrieve list of merchants blocked by the current user
+      operationId: getBlockedMerchants
+      tags:
+        - Merchant Blocking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Number of blocked merchants to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: List of blocked merchants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockedMerchantsResponse'
+        '401':
+          description: Unauthorized
+
+    post:
+      summary: Block a merchant
+      description: Add a merchant store to the user's block list
+      operationId: blockMerchant
+      tags:
+        - Merchant Blocking
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockMerchantRequest'
+      responses:
+        '201':
+          description: Merchant blocked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockMerchantResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                already_blocked:
+                  value:
+                    error: "您已封鎖此商家"
+                invalid_store:
+                  value:
+                    error: "商家不存在"
+        '401':
+          description: Unauthorized
+
+  /api/user/blocked-merchants/{store_id}/:
+    delete:
+      summary: Unblock a merchant
+      description: Remove a merchant store from the user's block list
+      operationId: unblockMerchant
+      tags:
+        - Merchant Blocking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: store_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Store ID to unblock
+      responses:
+        '200':
+          description: Merchant unblocked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnblockMerchantResponse'
+        '404':
+          description: Block record not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "此商家不在您的封鎖名單中"
+        '401':
+          description: Unauthorized
+
+  /api/store/{store_id}/block-status/:
+    get:
+      summary: Check if merchant is blocked
+      description: Check if a specific merchant store is blocked by current user
+      operationId: checkBlockStatus
+      tags:
+        - Merchant Blocking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: store_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Store ID to check
+      responses:
+        '200':
+          description: Block status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockStatusResponse'
+        '401':
+          description: Unauthorized
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    BlockMerchantRequest:
+      type: object
+      required:
+        - store_id
+      properties:
+        store_id:
+          type: integer
+          description: Store ID to block
+
+    BlockMerchantResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Block record ID
+        store_id:
+          type: integer
+          description: Blocked store ID
+        store_name:
+          type: string
+          description: Blocked store name
+        created_at:
+          type: string
+          format: date-time
+        message:
+          type: string
+          description: Success message
+          example: "已封鎖此商家"
+
+    UnblockMerchantResponse:
+      type: object
+      properties:
+        store_id:
+          type: integer
+          description: Unblocked store ID
+        message:
+          type: string
+          description: Success message
+          example: "已解除封鎖"
+
+    BlockedMerchantsResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Total number of blocked merchants
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BlockedMerchantItem'
+
+    BlockedMerchantItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Block record ID
+        store:
+          $ref: '#/components/schemas/StoreBasicInfo'
+        created_at:
+          type: string
+          format: date-time
+          description: When the merchant was blocked
+
+    StoreBasicInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        image_url:
+          type: string
+          nullable: true
+        store_type:
+          type: string
+
+    BlockStatusResponse:
+      type: object
+      properties:
+        is_blocked:
+          type: boolean
+          description: Whether the merchant is blocked
+        blocked_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When blocked (null if not blocked)
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message (Chinese)

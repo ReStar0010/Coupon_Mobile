@@ -313,7 +313,25 @@ def get_coupon_template(request, id):
 def create_coupon_template(request):
     """
     Create a new coupon template for the authenticated merchant's store.
+    
+    UGC Compliance: Requires EULA acceptance before creating content.
     """
+    # Check EULA acceptance (UGC Compliance - User Story 3)
+    from ..models import EULAAcceptance
+    from django.conf import settings
+    
+    CURRENT_EULA_VERSION = getattr(settings, 'CURRENT_EULA_VERSION', '1.0.0')
+    has_valid_eula = EULAAcceptance.objects.filter(
+        merchant=request.user,
+        version=CURRENT_EULA_VERSION
+    ).exists()
+    
+    if not has_valid_eula:
+        return Response(
+            {'error': '請先接受使用條款才能建立優惠券'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     store = get_merchant_store(request.user)
     if not store:
         return Response({
@@ -716,7 +734,25 @@ def upload_image(request):
     Upload an image file for merchant use.
     Accepts multipart/form-data with 'image' field.
     Returns the URL of the uploaded image.
+    
+    UGC Compliance: Requires EULA acceptance before first upload.
     """
+    # Check EULA acceptance (UGC Compliance - User Story 3)
+    from ..models import EULAAcceptance
+    from django.conf import settings
+    
+    CURRENT_EULA_VERSION = getattr(settings, 'CURRENT_EULA_VERSION', '1.0.0')
+    has_valid_eula = EULAAcceptance.objects.filter(
+        merchant=request.user,
+        version=CURRENT_EULA_VERSION
+    ).exists()
+    
+    if not has_valid_eula:
+        return Response(
+            {'error': '請先接受使用條款才能上傳內容'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     # Check if file is present
     if 'image' not in request.FILES:
         return Response({

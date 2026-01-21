@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Toast from "react-native-toast-message";
 import { useRouter } from "expo-router";
+import { TouchableOpacity } from "react-native";
 import { LoginFormContainer } from "./components/LoginFormContainer";
 import { fetchAPI, storeLoginData } from "app/utils/authAPI";
 import { devLog, devError } from "app/utils/devLogger";
@@ -132,6 +133,17 @@ export default function Index() {
             setMode={setMode}
           />
         </View>
+
+        {/* Privacy Policy Link (UGC Compliance) */}
+        <TouchableOpacity 
+          onPress={() => router.push('/OptionsMenu/PrivacyPolicy')}
+          style={{ marginTop: 24 }}
+        >
+          <Text fontSize="$sm" color="#007AFF" textAlign="center">
+            隱私政策
+          </Text>
+        </TouchableOpacity>
+
         <Toast config={toastConfig} />
       </YStack>
     </YStack>

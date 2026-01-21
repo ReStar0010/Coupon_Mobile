@@ -11,6 +11,8 @@ import * as ImagePicker from 'expo-image-picker';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { DeleteModal } from './components/DeleteModal';
 import { merchantAPI, getAbsoluteImageUrl } from '@/utils/api';
+import EULAModal from '@/app/components/EULAModal';
+import { useEULACheck } from '@/app/hooks/useEULACheck';
 
 export default function CouponEditScreen() {
   const router = useRouter();
@@ -149,8 +151,18 @@ export default function CouponEditScreen() {
     }
   };
 
+  // EULA check hook
+  const { checkEULA, eulaModalVisible, hideEULAModal, onEULAAccepted } = useEULACheck();
+
   const handleImageUpload = async () => {
     try {
+      // Check EULA acceptance first (UGC Compliance)
+      const eulaAccepted = await checkEULA();
+      if (!eulaAccepted) {
+        // User cancelled EULA or not accepted
+        return;
+      }
+
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -627,6 +639,13 @@ export default function CouponEditScreen() {
         isOpen={showPermissionModal}
         onClose={() => setShowPermissionModal(false)}
         permissionType="photos"
+      />
+
+      {/* EULA Modal (UGC Compliance) */}
+      <EULAModal
+        visible={eulaModalVisible}
+        onClose={hideEULAModal}
+        onSuccess={onEULAAccepted}
       />
     </SafeAreaView>
   );

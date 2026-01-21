@@ -191,6 +191,19 @@ export default function MerchantProfileScreen() {
               {/* Account Actions */}
               <YStack marginTop="$6" marginBottom="$4" gap="$3">
                 {/* Logout Button */}
+                {/* Content Guidelines Button (UGC Compliance) */}
+                <Button 
+                  variant="outline" 
+                  fullWidth 
+                  onPress={() => router.push('/OptionsMenu/ContentGuidelines')}
+                  style={styles.contentGuidelinesButton}
+                >
+                  <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
+                    <MaterialIcons name="info-outline" size={18} color={colors.primary} />
+                    <Text color={colors.primary}>內容規範</Text>
+                  </XStack>
+                </Button>
+
                 <Button 
                   variant="outline" 
                   fullWidth 

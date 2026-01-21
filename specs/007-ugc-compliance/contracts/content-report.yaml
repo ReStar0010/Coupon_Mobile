@@ -1,0 +1,233 @@
+# OpenAPI 3.0 - Content Report API Contract
+# Feature: 007-ugc-compliance
+
+openapi: 3.0.3
+info:
+  title: Content Report API
+  description: API endpoints for consumer content reporting (UGC compliance)
+  version: 1.0.0
+
+paths:
+  /api/content/{content_type}/{content_id}/report/:
+    post:
+      summary: Submit content report
+      description: Submit a report for inappropriate merchant content (coupon or store)
+      operationId: submitContentReport
+      tags:
+        - Content Moderation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: content_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [coupon, store]
+          description: Type of content being reported
+        - name: content_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the content being reported
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentReportRequest'
+      responses:
+        '201':
+          description: Report submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentReportResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_reason:
+                  value:
+                    error: "請選擇舉報原因"
+                duplicate_report:
+                  value:
+                    error: "您已在24小時內舉報過此內容"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Content not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/reports/:
+    get:
+      summary: Get user's submitted reports
+      description: Retrieve list of reports submitted by the current user
+      operationId: getUserReports
+      tags:
+        - Content Moderation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, reviewed, dismissed]
+          description: Filter by report status
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Number of reports to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: List of user's reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserReportsResponse'
+        '401':
+          description: Unauthorized
+
+  /api/content/{content_type}/{content_id}/report/status/:
+    get:
+      summary: Check if user has reported content
+      description: Check if current user has already reported this specific content
+      operationId: checkReportStatus
+      tags:
+        - Content Moderation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: content_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [coupon, store]
+        - name: content_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Report status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportStatusResponse'
+        '401':
+          description: Unauthorized
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ContentReportRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          enum: [inappropriate, misleading, illegal, spam, other]
+          description: |
+            Report reason category:
+            - inappropriate: 不當內容
+            - misleading: 誤導資訊
+            - illegal: 違法商品
+            - spam: 垃圾訊息
+            - other: 其他
+        details:
+          type: string
+          maxLength: 1000
+          description: Optional additional details about the report
+
+    ContentReportResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Report ID
+        content_type:
+          type: string
+          description: Type of reported content
+        content_id:
+          type: integer
+          description: ID of reported content
+        reason:
+          type: string
+          description: Report reason code
+        reason_display:
+          type: string
+          description: Report reason display text (Chinese)
+        status:
+          type: string
+          enum: [pending, reviewed, dismissed]
+        created_at:
+          type: string
+          format: date-time
+        message:
+          type: string
+          description: Success message
+          example: "感謝您的舉報，我們會盡快審核"
+
+    UserReportsResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Total number of reports
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentReportResponse'
+
+    ReportStatusResponse:
+      type: object
+      properties:
+        has_reported:
+          type: boolean
+          description: Whether user has reported this content
+        report_id:
+          type: integer
+          nullable: true
+          description: Report ID if exists
+        can_report_again:
+          type: boolean
+          description: Whether user can submit another report (24h cooldown passed)
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message (Chinese)

@@ -11,6 +11,9 @@ import {
   Smartphone,
   ScrollText,
   LogOut,
+  ShieldBan,
+  HelpCircle,
+  Shield,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -53,6 +56,18 @@ const OptionsMenu: React.FC = () => {
 
   const handlePhoneSettings = useCallback(() => {
     router.push('/OptionsMenu/PhoneSettings');
+  }, [router]);
+
+  const handleBlockedMerchants = useCallback(() => {
+    router.push('/OptionsMenu/BlockedMerchants');
+  }, [router]);
+
+  const handleHelpSupport = useCallback(() => {
+    router.push('/OptionsMenu/HelpSupport');
+  }, [router]);
+
+  const handlePrivacyPolicy = useCallback(() => {
+    router.push('/OptionsMenu/PrivacyPolicy');
   }, [router]);
 
   // 登出功能 - AuthOrchestrator 處理導航
@@ -120,6 +135,17 @@ const OptionsMenu: React.FC = () => {
           </ListItem>
           <Separator />
           <ListItem
+            icon={ShieldBan}
+            iconAfter={ChevronRight}
+            bg="white"
+            hoverTheme
+            pressTheme
+            size="$6"
+            onPress={handleBlockedMerchants}>
+            <ListItem.Text>封鎖的商家</ListItem.Text>
+          </ListItem>
+          <Separator />
+          <ListItem
             icon={Phone}
             iconAfter={ChevronRight}
             bg="white"
@@ -133,13 +159,35 @@ const OptionsMenu: React.FC = () => {
           <ListItem
             icon={ScrollText}
             iconAfter={ChevronRight}
-            style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
             bg="white"
             hoverTheme
             pressTheme
             size="$6"
             onPress={handleTerms}>
             <ListItem.Text>服務條款</ListItem.Text>
+          </ListItem>
+          <Separator />
+          <ListItem
+            icon={HelpCircle}
+            iconAfter={ChevronRight}
+            bg="white"
+            hoverTheme
+            pressTheme
+            size="$6"
+            onPress={handleHelpSupport}>
+            <ListItem.Text>幫助與支援</ListItem.Text>
+          </ListItem>
+          <Separator />
+          <ListItem
+            icon={Shield}
+            iconAfter={ChevronRight}
+            style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
+            bg="white"
+            hoverTheme
+            pressTheme
+            size="$6"
+            onPress={handlePrivacyPolicy}>
+            <ListItem.Text>隱私政策</ListItem.Text>
           </ListItem>
         </YStack>
 
