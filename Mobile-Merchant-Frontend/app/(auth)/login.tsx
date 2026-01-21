@@ -70,11 +70,14 @@ export default function LoginScreen() {
       console.error('[Login] Login error:', error);
       
       // Check if error is email not verified
-      // Check response status and error field for unverified email
-      if (error?.message?.includes('email_not_verified') || 
+      // Check error.error field first (from parseResponse special handling)
+      // Then check message for backward compatibility
+      if (error?.error === 'email_not_verified' || 
+          error?.message?.includes('email_not_verified') || 
           error?.message?.includes('請先驗證您的電子郵件') ||
           error?.message?.includes('電子郵件')) {
-        setUnverifiedEmail(formData.email);
+        // Use email from error object if available, otherwise use form email
+        setUnverifiedEmail(error?.email || formData.email);
         setShowUnverifiedModal(true);
         return;
       }

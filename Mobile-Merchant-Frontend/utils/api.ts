@@ -77,17 +77,17 @@ export const getApiConfig = () => ({
 // Helper function to convert relative media URL to absolute URL
 const getAbsoluteImageUrl = (imageUrl: string | null | undefined): string | null => {
   if (!imageUrl) return null;
-  
+
   // If already an absolute URL (starts with http:// or https://), return as is
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
     return imageUrl;
   }
-  
+
   // If it's a relative path (starts with /), prepend base URL
   if (imageUrl.startsWith('/')) {
     return `${BASE_URL}${imageUrl}`;
   }
-  
+
   // Otherwise, assume it's a relative path and prepend base URL with /media/
   return `${BASE_URL}/media/${imageUrl}`;
 };
@@ -148,7 +148,7 @@ export const saveTokens = async (accessToken: string, refreshToken: string) => {
     hasAccessToken: !!accessToken,
     hasRefreshToken: !!refreshToken,
   });
-  
+
   try {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
@@ -174,7 +174,7 @@ export const getRefreshToken = (): string | null => {
 export const clearTokens = async () => {
   tokenStorage.access_token = null;
   tokenStorage.refresh_token = null;
-  
+
   try {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
@@ -258,7 +258,7 @@ const refreshAccessToken = async (): Promise<boolean> => {
     // Support both response formats: { access_token, refresh_token } and { access, refresh }
     const accessToken = data.access_token || data.access;
     const newRefreshToken = data.refresh_token || data.refresh;
-    
+
     if (accessToken) {
       await saveTokens(accessToken, newRefreshToken || refreshToken);
       console.log('[API] Token refresh successful, new tokens saved');
@@ -289,7 +289,7 @@ export const fetchAPI = async (
   options: FetchOptions = {}
 ): Promise<Response> => {
   const { requireAuth = true, ...fetchOptions } = options;
-  
+
   // Build headers
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -308,7 +308,7 @@ export const fetchAPI = async (
   try {
     const url = `${API_BASE_URL}${endpoint}`;
     console.log('[API] Making request to:', url);
-    
+
     let response = await fetch(url, {
       ...fetchOptions,
       headers,
@@ -318,7 +318,7 @@ export const fetchAPI = async (
     if (response.status === 401 && requireAuth && !isPublicEndpoint(endpoint)) {
       console.log('[API] Received 401, attempting token refresh');
       const refreshed = await refreshAccessToken();
-      
+
       if (refreshed) {
         // Retry request with new token
         const newAccessToken = getAccessToken();
@@ -328,7 +328,7 @@ export const fetchAPI = async (
             ...fetchOptions,
             headers,
           });
-          
+
           // If retry still returns 401, authentication has failed
           if (response.status === 401) {
             console.log('[API] Retry after refresh still returned 401, authentication failed');
@@ -357,7 +357,7 @@ export const fetchAPI = async (
       name: error?.name,
       stack: error?.stack,
     });
-    
+
     // Provide more helpful error messages
     if (error?.message === 'Network request failed' || error?.message?.includes('Network')) {
       const helpfulMessage = `無法連接到服務器。請檢查：
@@ -367,7 +367,7 @@ export const fetchAPI = async (
 4. 如果使用 Android 模擬器，請使用 10.0.2.2 代替 localhost`;
       throw new Error(helpfulMessage);
     }
-    
+
     throw error;
   }
 };
@@ -383,16 +383,24 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
       const text = await response.text().catch(() => 'Unknown error');
       errorData = { error: text || `HTTP ${response.status}` };
     }
-    
+
     console.error('[API] Response error:', {
       status: response.status,
       statusText: response.statusText,
       errorData,
     });
-    
+
     // Extract error message from various possible formats
     // Handle Django REST Framework error format
     if (typeof errorData === 'object' && errorData !== null) {
+      // Special handling for email_not_verified error - preserve original structure
+      if (errorData.error === 'email_not_verified') {
+        const unverifiedError: any = new Error(errorData.message || '請先驗證您的電子郵件');
+        unverifiedError.error = 'email_not_verified';
+        unverifiedError.email = errorData.email;
+        throw unverifiedError;
+      }
+
       // Check for field-specific errors (e.g., {phone: ['This field is required.']})
       const fieldErrors: string[] = [];
       for (const [key, value] of Object.entries(errorData)) {
@@ -404,27 +412,27 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
           fieldErrors.push(`${key}: ${value[0]}`);
         }
       }
-      
+
       if (fieldErrors.length > 0) {
         throw new Error(fieldErrors.join('\n'));
       }
-      
+
       // Check for general error fields
-      const errorMessage = 
-        errorData.error || 
-        errorData.message || 
+      const errorMessage =
+        errorData.error ||
+        errorData.message ||
         errorData.detail ||
         errorData.non_field_errors?.[0] ||
         `HTTP ${response.status}: ${response.statusText}`;
-      
+
       throw new Error(errorMessage);
     }
-    
+
     // If errorData is a string
     if (typeof errorData === 'string') {
       throw new Error(errorData);
     }
-    
+
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
   return response.json();
@@ -475,11 +483,11 @@ export const authAPI = {
       user_id: number;
       message: string;
     }>(response);
-    
+
     if (data.access_token && data.refresh_token) {
       await saveTokens(data.access_token, data.refresh_token);
     }
-    
+
     return data;
   },
 
@@ -711,7 +719,7 @@ export const merchantAPI = {
   // Tags
   getTags: async () => {
     const response = await fetchAPI('/tags/');
-    return parseResponse<Array<{id: number, name: string, display_name: string}>>(response);
+    return parseResponse<Array<{ id: number, name: string, display_name: string }>>(response);
   },
 
   // QR Code Session
@@ -745,12 +753,12 @@ export const merchantAPI = {
   uploadImage: async (imageUri: string): Promise<string> => {
     // Create FormData for multipart/form-data request
     const formData = new FormData();
-    
+
     // Extract filename from URI
     const filename = imageUri.split('/').pop() || 'image.jpg';
     const match = /\.(\w+)$/.exec(filename);
     const type = match ? `image/${match[1]}` : 'image/jpeg';
-    
+
     // For React Native, we need to create a file object
     // @ts-ignore - React Native FormData accepts objects with uri, type, name
     formData.append('image', {
@@ -758,30 +766,30 @@ export const merchantAPI = {
       type: type,
       name: filename,
     } as any);
-    
+
     // Get access token for authentication
     const accessToken = getAccessToken();
-    
+
     // Build headers (don't set Content-Type, let FormData set it with boundary)
     const headers: HeadersInit = {};
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
-    
+
     // Make request
     const url = `${API_BASE_URL}/merchant/upload-image/`;
     console.log('[API] Uploading image to:', url);
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers,
       body: formData,
     });
-    
+
     // Parse response
     const result = await parseResponse(response);
     const relativeUrl = result.image_url;
-    
+
     // Convert relative URL to absolute URL for image display
     return getAbsoluteImageUrl(relativeUrl) || relativeUrl;
   },
