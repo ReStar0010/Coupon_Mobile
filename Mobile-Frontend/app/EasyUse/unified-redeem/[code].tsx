@@ -144,13 +144,6 @@ export default function UnifiedRedeemScreen() {
     setErrorToastMessage('');
   }, []);
 
-  const handleCloseSuccessPopup = useCallback(() => {
-    setShowSuccessPopup(false);
-    setSuccessData(null);
-    // Redirect to EasyUse main page after successful redemption
-    router.push('/EasyUse');
-  }, [router]);
-
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
     try {
