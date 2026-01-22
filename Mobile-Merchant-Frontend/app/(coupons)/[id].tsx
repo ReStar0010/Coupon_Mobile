@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { YStack, XStack } from 'tamagui';
+import { YStack } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
@@ -22,27 +22,6 @@ export default function CouponRedemptionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState('');
-
-  const handleConfirm = async () => {
-    if (!phoneNumber.trim()) {
-      alert('請輸入電話號碼');
-      return;
-    }
-    
-    if (!id) {
-      alert('無效的優惠券 ID');
-      return;
-    }
-
-    try {
-      await merchantAPI.redeem(parseInt(id), phoneNumber);
-      alert('核銷成功！');
-      setPhoneNumber('');
-    } catch (error: any) {
-      console.error('Redemption error:', error);
-      alert(error?.message || '核銷失敗，請稍後再試');
-    }
-  };
 
   const handleSendCoupon = async () => {
     if (!phoneNumber.trim()) {
@@ -97,30 +76,16 @@ export default function CouponRedemptionScreen() {
             生成 QR Code
           </Button>
 
-          {/* Action Buttons */}
-          <XStack gap="$3" width="100%">
-            {/* Redeem Button */}
-            <Button
-              variant="primary"
-              flex={1}
-              onPress={handleConfirm}
-              disabled={!phoneNumber.trim()}
-              opacity={!phoneNumber.trim() ? 0.6 : 1}
-            >
-              核銷
-            </Button>
-
-            {/* Send Coupon Button */}
-            <Button
-              variant="secondary"
-              flex={1}
-              onPress={handleSendCoupon}
-              disabled={!phoneNumber.trim()}
-              opacity={!phoneNumber.trim() ? 0.6 : 1}
-            >
-              發送優惠券
-            </Button>
-          </XStack>
+          {/* Send Coupon Button */}
+          <Button
+            variant="secondary"
+            width="100%"
+            onPress={handleSendCoupon}
+            disabled={!phoneNumber.trim()}
+            opacity={!phoneNumber.trim() ? 0.6 : 1}
+          >
+            發送優惠券
+          </Button>
         </YStack>
       </YStack>
     </SafeAreaView>
