@@ -321,5 +321,8 @@ const styles = StyleSheet.create({
   deleteAccountButton: {
     opacity: 0.9,
   },
+  contentGuidelinesButton: {
+    // Additional styles for content guidelines button if needed
+  },
 });
 

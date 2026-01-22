@@ -8,7 +8,7 @@ import { StyleSheet, TouchableOpacity, View, TextInput, Alert, Platform } from '
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { getAbsoluteImageUrl } from '@/utils/api';
+import { getAbsoluteImageUrl, MerchantProfileResponse } from '@/utils/api';
 import LocationPicker from '@/app/components/LocationPicker';
 import EULAModal from '@/app/components/EULAModal';
 import { useEULACheck } from '@/app/hooks/useEULACheck';
@@ -116,7 +116,7 @@ export default function ProfileEditScreen() {
     try {
       setIsLoading(true);
       const { merchantAPI } = await import('@/utils/api');
-      const data = await merchantAPI.getProfile();
+      const data: MerchantProfileResponse = await merchantAPI.getProfile();
       if (data.store) {
         setStoreName(data.store.name || '');
         setAddress(data.store.address || '');

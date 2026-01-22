@@ -469,6 +469,30 @@ export interface UnverifiedErrorResponse {
   email: string;
 }
 
+// ============================================
+// TypeScript Interfaces for Merchant API
+// ============================================
+
+export interface MerchantProfileResponse {
+  merchant: {
+    id: number;
+    email: string;
+    phone?: string;
+    contact_person?: string;
+    contact_info?: string;
+  };
+  store?: {
+    id: number;
+    name?: string;
+    address?: string;
+    lat?: number;
+    lng?: number;
+    business_hours?: string;
+    image_url?: string;
+    store_type?: string;
+  };
+}
+
 // Auth API functions
 export const authAPI = {
   login: async (email: string, password: string) => {
@@ -568,9 +592,9 @@ export const authAPI = {
 // Merchant API functions
 export const merchantAPI = {
   // Profile
-  getProfile: async () => {
+  getProfile: async (): Promise<MerchantProfileResponse> => {
     const response = await fetchAPI('/merchant/profile/');
-    return parseResponse(response);
+    return parseResponse<MerchantProfileResponse>(response);
   },
 
   updateProfile: async (data: {
