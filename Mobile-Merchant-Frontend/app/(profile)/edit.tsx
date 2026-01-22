@@ -3,7 +3,7 @@ import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
-import { Button, PermissionDeniedModal } from '@/components/ui';
+import { Button, PermissionDeniedModal, AlertModal } from '@/components/ui';
 import { StyleSheet, TouchableOpacity, View, TextInput, Alert, Platform } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
@@ -104,6 +104,9 @@ export default function ProfileEditScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -215,14 +218,19 @@ export default function ProfileEditScreen() {
         store_type: type,
         image_url: imageUrl,
       });
-      alert('資料已更新');
-      router.replace('/(profile)/');
+      setShowSuccessModal(true);
     } catch (error: any) {
       console.error('Failed to save profile:', error);
-      alert(error?.message || '儲存失敗，請稍後再試');
+      setErrorMessage(error?.message || '儲存失敗，請稍後再試');
+      setShowErrorModal(true);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSuccessConfirm = () => {
+    setShowSuccessModal(false);
+    router.replace('/(profile)/');
   };
 
   return (
@@ -391,6 +399,27 @@ export default function ProfileEditScreen() {
         visible={eulaModalVisible}
         onClose={hideEULAModal}
         onSuccess={onEULAAccepted}
+      />
+
+      {/* Success Modal */}
+      <AlertModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title=""
+        message="資料已更新"
+        type="success"
+        autoHideDurationMs={1500}
+        onConfirm={handleSuccessConfirm}
+      />
+
+      {/* Error Modal */}
+      <AlertModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title=""
+        message={errorMessage}
+        type="error"
+        autoHideDurationMs={2000}
       />
     </SafeAreaView>
   );
