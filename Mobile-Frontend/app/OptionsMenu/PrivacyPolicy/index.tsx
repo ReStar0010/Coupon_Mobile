@@ -10,9 +10,16 @@ import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors } from '@/constants/colors';
+import { COLORS } from 'app/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchAPI } from '@/utils/authAPI';
+
+const colors = {
+  primary: COLORS.primary,
+  background: COLORS.background,
+  border: COLORS.border,
+  textPrimary: COLORS.text.primary,
+  textSecondary: COLORS.text.secondary,
+}
 
 interface PrivacyPolicyData {
   title: string;
@@ -54,7 +61,7 @@ export default function PrivacyPolicyScreen() {
       <XStack
         paddingHorizontal="$4"
         paddingVertical="$3"
-        backgroundColor={colors.primary}
+        backgroundolor={colors.primary}
         alignItems="center"
         borderBottomWidth={1}
         borderBottomColor={colors.border}
@@ -72,7 +79,7 @@ export default function PrivacyPolicyScreen() {
         {loading ? (
           <YStack flex={1} justifyContent="center" alignItems="center" padding="$8">
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text fontSize="$sm" color={colors.textSecondary} marginTop="$4">
+            <Text fontSize={14} color={colors.textSecondary} marginTop="$4">
               載入中...
             </Text>
           </YStack>
@@ -83,7 +90,7 @@ export default function PrivacyPolicyScreen() {
               {error}
             </Text>
             <TouchableOpacity onPress={loadPrivacyPolicy} style={styles.retryButton}>
-              <Text fontSize="$sm" color={colors.primary} fontWeight="600">
+              <Text fontSize={14} color={colors.primary} fontWeight="600">
                 重試
               </Text>
             </TouchableOpacity>
@@ -98,7 +105,7 @@ export default function PrivacyPolicyScreen() {
               borderWidth={1}
               borderColor={colors.border}
             >
-              <Text fontSize="$sm" color={colors.textSecondary}>
+              <Text fontSize={14} color={colors.textSecondary}>
                 最後更新：{new Date(policyData.last_updated).toLocaleDateString('zh-TW', {
                   year: 'numeric',
                   month: 'long',
@@ -118,7 +125,7 @@ export default function PrivacyPolicyScreen() {
               <Text fontSize="$lg" fontWeight="600" color={colors.textPrimary} marginBottom="$3">
                 {policyData.title}
               </Text>
-              <Text fontSize="$sm" color={colors.textPrimary} lineHeight={24}>
+              <Text fontSize={14} color={colors.textPrimary} lineHeight={24}>
                 {policyData.content}
               </Text>
             </YStack>
@@ -135,10 +142,10 @@ export default function PrivacyPolicyScreen() {
               <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
                 聯絡我們
               </Text>
-              <Text fontSize="$sm" color={colors.textSecondary} lineHeight={20}>
+              <Text fontSize={14} color={colors.textSecondary} lineHeight={20}>
                 如對本隱私政策有任何疑問，請聯繫：
               </Text>
-              <Text fontSize="$sm" color={colors.primary} fontWeight="500">
+              <Text fontSize={14} color={colors.primary} fontWeight="500">
                 coupro707@gmail.com
               </Text>
             </YStack>

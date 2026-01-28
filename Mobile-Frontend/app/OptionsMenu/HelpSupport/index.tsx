@@ -10,8 +10,16 @@ import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity, Linking, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors } from '@/constants/colors';
+import { COLORS } from 'app/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+
+const colors = {
+  primary: COLORS.primary,
+  background: COLORS.background,
+  border: COLORS.border,
+  textPrimary: COLORS.text.primary,
+  textSecondary: COLORS.text.secondary,
+} as const;
 
 export default function HelpSupportScreen() {
   const router = useRouter();
@@ -98,7 +106,7 @@ export default function HelpSupportScreen() {
                   <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
                     電子郵件
                   </Text>
-                  <Text fontSize="$sm" color={colors.textSecondary} marginTop="$1">
+                  <Text fontSize={14} color={colors.textSecondary} marginTop="$1">
                     coupro707@gmail.com
                   </Text>
                 </YStack>
@@ -131,7 +139,7 @@ export default function HelpSupportScreen() {
                   <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
                     線上支援中心
                   </Text>
-                  <Text fontSize="$sm" color={colors.textSecondary} marginTop="$1">
+                  <Text fontSize={14} color={colors.textSecondary} marginTop="$1">
                     coupro.app/support
                   </Text>
                 </YStack>
@@ -154,28 +162,28 @@ export default function HelpSupportScreen() {
             </Text>
 
             <YStack gap="$2">
-              <Text fontSize="$sm" fontWeight="600" color={colors.textPrimary}>
+              <Text fontSize={14} fontWeight="600" color={colors.textPrimary}>
                 如何使用優惠券？
               </Text>
-              <Text fontSize="$sm" color={colors.textSecondary} lineHeight={20}>
+              <Text fontSize={14} color={colors.textSecondary} lineHeight={20}>
                 在首頁瀏覽優惠券，點擊「領取」按鈕後，前往商店出示兌換碼或 QR Code 即可使用。
               </Text>
             </YStack>
 
             <YStack gap="$2">
-              <Text fontSize="$sm" fontWeight="600" color={colors.textPrimary}>
+              <Text fontSize={14} fontWeight="600" color={colors.textPrimary}>
                 如何舉報不當內容？
               </Text>
-              <Text fontSize="$sm" color={colors.textSecondary} lineHeight={20}>
+              <Text fontSize={14} color={colors.textSecondary} lineHeight={20}>
                 在優惠券或商店頁面點擊「舉報」按鈕，選擇舉報原因並提交即可。
               </Text>
             </YStack>
 
             <YStack gap="$2">
-              <Text fontSize="$sm" fontWeight="600" color={colors.textPrimary}>
+              <Text fontSize={14} fontWeight="600" color={colors.textPrimary}>
                 如何封鎖商家？
               </Text>
-              <Text fontSize="$sm" color={colors.textSecondary} lineHeight={20}>
+              <Text fontSize={14} color={colors.textSecondary} lineHeight={20}>
                 在商店頁面點擊「封鎖商家」，確認後該商家的內容將不再顯示於您的動態中。
               </Text>
             </YStack>
@@ -189,10 +197,10 @@ export default function HelpSupportScreen() {
             borderWidth={1}
             borderColor={colors.border}
           >
-            <Text fontSize="$sm" color={colors.textSecondary} textAlign="center" lineHeight={20}>
+            <Text fontSize={14} color={colors.textSecondary} textAlign="center" lineHeight={20}>
               客服回覆時間：週一至週五 09:00-18:00
             </Text>
-            <Text fontSize="$sm" color={colors.textSecondary} textAlign="center" lineHeight={20}>
+            <Text fontSize={14} color={colors.textSecondary} textAlign="center" lineHeight={20}>
               （國定假日除外）
             </Text>
           </YStack>

@@ -139,7 +139,7 @@ export default function Index() {
           onPress={() => router.push('/OptionsMenu/PrivacyPolicy')}
           style={{ marginTop: 24 }}
         >
-          <Text fontSize="$sm" color="#007AFF" textAlign="center">
+          <Text fontSize={14} color="#007AFF" textAlign="center">
             隱私政策
           </Text>
         </TouchableOpacity>
