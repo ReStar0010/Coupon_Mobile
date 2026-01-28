@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import { Modal, TouchableWithoutFeedback, ActivityIndicator, Share, Alert, Platform } from 'react-native';
 import { X, Share2 } from 'lucide-react-native';
 import { 
   YStack, 
@@ -14,17 +14,39 @@ interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCouProShare: () => void;
-  onLinkShare: () => void;
+  onLinkShare: () => Promise<string | undefined | null>;
   isSharing?: boolean;
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({
+const ShareModal = ({
   isOpen,
   onClose,
   onCouProShare,
   onLinkShare,
-  isSharing = false
-}) => {
+  isSharing = false,
+}: ShareModalProps) => {
+  const handleNativeLinkShare = async () => {
+    try {
+      const shareLink = await onLinkShare();
+      if (!shareLink) {
+        Alert.alert('分享失敗', '無法生成分享連結，請稍後再試');
+        return;
+      }
+
+      // iOS/Android 對 Share payload 顯示方式不同；同時給 message+url 會被顯示成「兩段/兩個連結」
+      await Share.share(
+        Platform.select({
+          ios: { url: shareLink },
+          default: { message: shareLink },
+        })!,
+      );
+
+      onClose();
+    } catch (e) {
+      Alert.alert('分享失敗', '無法開啟系統分享面板，請稍後再試');
+    }
+  };
+
   return (
     <Modal
       visible={isOpen}
@@ -120,7 +142,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                         numberOfLines={1}
                         adjustsFontSizeToFit
                         minimumFontScale={0.8}
-                        textAlign="center"
+                        style={{ textAlign: 'center' }}
                       >
                         {isSharing ? '分享中...' : '分享到隨取即用'}
                       </Text>
@@ -128,7 +150,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                   </Button>
 
                   <Button
-                    onPress={onLinkShare}
+                    onPress={handleNativeLinkShare}
                     bg="#FFAD31"
                     flex={1}
                     height={50}
@@ -150,7 +172,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                         fontSize={14}
                         fontWeight="600"
                         numberOfLines={1}
-                        textAlign="center"
+                        style={{ textAlign: 'center' }}
                       >
                         {isSharing ? '生成中...' : '分享連結'}
                       </Text>

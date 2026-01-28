@@ -24,6 +24,7 @@ import ReportButton from '../../components/ReportButton';
 import { useBlockedMerchants } from '../../components/providers/BlockedMerchantsProvider';
 import { isUserLoggedIn, fetchAPI } from '../../utils/authAPI';
 import { devLog } from '../../utils/devLogger';
+import StatCard from '../../Statistics/components/StatCard';
 
 export type CouponDetailType = {
   id: number;
@@ -305,7 +306,7 @@ const CouponDetailPage: React.FC = () => {
     }
   };
 
-  const handleLinkShare = async () => {
+  const handleLinkShare = async (): Promise<string | undefined> => {
     if (!coupon?.id) {
       Alert.alert('錯誤', '無法分享：優惠券ID不存在');
       return;
@@ -322,13 +323,8 @@ const CouponDetailPage: React.FC = () => {
       });
 
       if (response.data.share_link) {
-        // Copy the share link to clipboard
-        await Clipboard.setStringAsync(response.data.share_link);
-        
-        setShowShareModal(false);
-        Alert.alert('分享成功', '分享連結已複製到剪貼簿，可以傳送給朋友了！');
-        
-        devLog("Share link generated and copied:", response.data.share_link);
+        devLog("Share link generated:", response.data.share_link);
+        return response.data.share_link as string;
       } else {
         throw new Error('Failed to generate share link');
       }
@@ -351,6 +347,7 @@ const CouponDetailPage: React.FC = () => {
       }
       
       Alert.alert('分享失敗', errorMessage);
+      return;
     } finally {
       setIsSharing(false);
     }
@@ -536,6 +533,28 @@ const CouponDetailPage: React.FC = () => {
               variant="icon-only"
             />
 
+            {/* Block/Unblock Merchant - icon in header */}
+            {coupon?.store_id && (
+              <Button
+                size="$2"
+                onPress={handleBlockMerchant}
+                disabled={isBlockingStore}
+                bg="transparent"
+                p="$2"
+                chromeless
+              >
+                {isBlockingStore ? (
+                  <Spinner size="small" color="#666" />
+                ) : (
+                  isStoreBlocked(coupon.store_id) ? (
+                    <ShieldCheck size={22} color="#666" />
+                  ) : (
+                    <ShieldBan size={22} color="#666" />
+                  )
+                )}
+              </Button>
+            )}
+
             {/* Share Button - only in collection view */}
             {sourceParam === 'collection' && (
               <Button
@@ -559,16 +578,16 @@ const CouponDetailPage: React.FC = () => {
         <YStack px="$5" gap="$5" pb={130}>
           {/* Store Info Card - Main coupon display */}
           <Card 
-            bg="#fff" 
             p="$6"
-            style={{
-              borderRadius: 20,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 4
-            }}
+            backgroundColor="white"
+            borderRadius="$6"
+            borderWidth={1}
+            borderColor="#e5e5e5"
+            shadowColor="black"
+            shadowRadius={8}
+            shadowOffset={{ width: 0, height: 2 }}
+            shadowOpacity={0.08}
+            elevation={3}
           >
             <YStack gap="$4" style={{ alignItems: 'center' }}>
               <Text
@@ -612,123 +631,42 @@ const CouponDetailPage: React.FC = () => {
                   ))}
                 </XStack>
               )}
-
-              {/* Block/Unblock Merchant Button */}
-              {coupon?.store_id && (
-                <Button
-                  size="$3"
-                  onPress={handleBlockMerchant}
-                  disabled={isBlockingStore}
-                  bg={isStoreBlocked(coupon.store_id) ? "$gray5" : "$red9"}
-                  pressStyle={{ opacity: 0.8 }}
-                  marginTop="$2"
-                  style={{
-                    borderRadius: 8,
-                    minWidth: 120,
-                  }}
-                >
-                  {isBlockingStore ? (
-                    <Spinner size="small" color="$white" />
-                  ) : (
-                    <XStack alignItems="center" gap="$2">
-                      {isStoreBlocked(coupon.store_id) ? (
-                        <>
-                          <ShieldCheck size={16} color="white" />
-                          <Text color="white" fontSize="$3" fontWeight="500">
-                            已封鎖
-                          </Text>
-                        </>
-                      ) : (
-                        <>
-                          <ShieldBan size={16} color="white" />
-                          <Text color="white" fontSize="$3" fontWeight="500">
-                            封鎖商家
-                          </Text>
-                        </>
-                      )}
-                    </XStack>
-                  )}
-                </Button>
-              )}
             </YStack>
           </Card>
 
           {/* Info Cards Row */}
           <XStack gap="$4">
             {/* Expiry Date Card */}
-            <Card 
-              bg="#fff" 
-              flex={1}
-              p="$4"
-              style={{ 
-                borderRadius: 16,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 6,
-                elevation: 3
-              }}
-            >
-              <YStack gap="$3" style={{ alignItems: 'flex-start' }}>
-                <Text color="#666" fontSize="$3" fontWeight="500">
-                  有效日期
-                </Text>
-                <Text 
-                  color="#333" 
-                  fontSize="$8" 
-                  fontWeight="bold" 
-                >
-                  {coupon?.expiry_date ? formatDate(coupon.expiry_date) : '2024\n07/13'}
-                </Text>
-              </YStack>
-            </Card>
+            <StatCard
+              title="有效日期"
+              value={coupon?.expiry_date ? formatDate(coupon.expiry_date) : '2024\n07/13'}
+            />
 
             {/* Source Card */}
-            <Card 
-              bg="#fff" 
-              flex={1}
-              p="$4"
-              style={{ 
-                borderRadius: 16,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 6,
-                elevation: 3
-              }}
-            >
-              <YStack gap="$3" style={{ alignItems: 'flex-start' }}>
-                <Text color="#666" fontSize="$3" fontWeight="500">
-                  來自
-                </Text>
-                <Text
-                  color="#333"
-                  fontSize="$6"
-                  fontWeight="bold"
-                  numberOfLines={2}
-                >
-                  {coupon?.coupon_type === 'store'
-                    ? coupon?.store_name
-                    : coupon?.coupon_type === 'exclusive' && coupon?.last_holder_email
-                      ? coupon.last_holder_email
-                      : 'CouPro'}
-                </Text>
-              </YStack>
-            </Card>
+            <StatCard
+              title="來自"
+              value={
+                (coupon?.coupon_type === 'store'
+                  ? coupon?.store_name
+                  : coupon?.coupon_type === 'exclusive' && coupon?.last_holder_email
+                    ? coupon.last_holder_email
+                    : 'CouPro') ?? 'CouPro'
+              }
+            />
           </XStack>
 
           {/* Detail Card */}
           <Card 
-            bg="#fff" 
             p="$6"
-            style={{
-              borderRadius: 20,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 4
-            }}
+            backgroundColor="white"
+            borderRadius="$6"
+            borderWidth={1}
+            borderColor="#e5e5e5"
+            shadowColor="black"
+            shadowRadius={8}
+            shadowOffset={{ width: 0, height: 2 }}
+            shadowOpacity={0.08}
+            elevation={3}
           >
             <YStack gap="$6" style={{ alignItems: 'flex-start' }}>
               <Text color="#333" fontSize="$6" fontWeight="600" > 
