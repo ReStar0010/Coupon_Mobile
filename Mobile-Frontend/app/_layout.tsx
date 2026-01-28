@@ -13,6 +13,7 @@ import ToastProvider from './components/providers/ToastProvider';
 import DismissedStoresProvider from './components/providers/DismissedStoresProvider';
 import AuthRedirectHandler from './components/AuthRedirectHandler';
 import { getApiConfig } from './config/api';
+import BlockedMerchantsProvider from './components/providers/BlockedMerchantsProvider';
 
 // 在應用啟動時顯示後端配置
 if (__DEV__) {
@@ -34,6 +35,7 @@ export default function RootLayout() {
         <PortalProvider shouldAddRootHost>
           <ThemeProvider>
             <DismissedStoresProvider>
+              <BlockedMerchantsProvider>
             <AuthProvider>
               <AuthOrchestrator>
                 <ToastProvider>
@@ -48,8 +50,9 @@ export default function RootLayout() {
                   </Stack>
                   <StatusBar style="auto" />
                 </ToastProvider>
-              </AuthOrchestrator>
+              </AuthOrchestrator> 
             </AuthProvider>
+            </BlockedMerchantsProvider>
             </DismissedStoresProvider>
           </ThemeProvider>
         </PortalProvider>

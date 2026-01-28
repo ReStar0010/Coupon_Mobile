@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { YStack, XStack, Text, Switch } from 'tamagui';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, View, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
-import { colors } from '@/constants/colors';
-import { Header } from '../components/Header';
-import { merchantAPI } from '@/utils/api';
-import TrendChart from '../../(profile)/components/TrendChart';
+import React, { useState, useEffect } from "react";
+import { YStack, XStack, Text, Switch } from "tamagui";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import {
+  StyleSheet,
+  View,
+  ActivityIndicator,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { colors } from "@/constants/colors";
+import { Header } from "../components/Header";
+import { merchantAPI } from "@/utils/api";
+import TrendChart from "../../(profile)/components/TrendChart";
 
 interface TrendData {
   current: number;
@@ -46,7 +52,14 @@ interface AnalyticsData {
 
 type TimeRange = 3 | 7 | 30 | 90;
 
-type MetricType = 'exposure_count' | 'conversion_rate' | 'retention_rate' | 'stranger_acquisition_rate' | 'circulation_rate' | 'circulation_redemption_rate' | 'redemption_rate';
+type MetricType =
+  | "exposure_count"
+  | "conversion_rate"
+  | "retention_rate"
+  | "stranger_acquisition_rate"
+  | "circulation_rate"
+  | "circulation_redemption_rate"
+  | "redemption_rate";
 
 interface MetricCardProps {
   label: string;
@@ -57,17 +70,24 @@ interface MetricCardProps {
   onPress?: () => void;
 }
 
-function MetricCard({ label, value, isPercentage = false, metricType, isSelected = false, onPress }: MetricCardProps) {
-  const displayValue = isPercentage 
-    ? typeof value === 'number' 
-      ? `${(value * 100).toFixed(0)}%` 
-      : value === null 
-        ? '數據不足' 
-        : value
-    : typeof value === 'number'
-      ? value.toLocaleString('zh-TW')
+function MetricCard({
+  label,
+  value,
+  isPercentage = false,
+  metricType,
+  isSelected = false,
+  onPress,
+}: MetricCardProps) {
+  const displayValue = isPercentage
+    ? typeof value === "number"
+      ? `${(value * 100).toFixed(0)}%`
       : value === null
-        ? '數據不足'
+        ? "數據不足"
+        : value
+    : typeof value === "number"
+      ? value.toLocaleString("zh-TW")
+      : value === null
+        ? "數據不足"
         : value;
 
   return (
@@ -90,18 +110,19 @@ export default function TemplateAnalyticsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const templateId = params.id ? parseInt(params.id as string, 10) : null;
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>(30);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>('exposure_count');
-  const [templateName, setTemplateName] = useState<string>('');
+  const [selectedMetric, setSelectedMetric] =
+    useState<MetricType>("exposure_count");
+  const [templateName, setTemplateName] = useState<string>("");
   const [isStoreTemplate, setIsStoreTemplate] = useState<boolean>(false);
 
   const loadAnalytics = async () => {
     if (!templateId) {
-      setError('無效的模板 ID');
+      setError("無效的模板 ID");
       setIsLoading(false);
       return;
     }
@@ -109,22 +130,25 @@ export default function TemplateAnalyticsScreen() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // Load template name and check type
       try {
         const templateData = await merchantAPI.getTemplate(templateId);
-        setTemplateName(templateData.coupon_name || '');
+        setTemplateName(templateData.coupon_name || "");
         // Check if this is a store template (EasyUse - total_quantity == 0)
         setIsStoreTemplate(templateData.total_quantity === 0);
       } catch (err) {
-        console.error('Failed to load template name:', err);
+        console.error("Failed to load template name:", err);
       }
-      
-      const data = await merchantAPI.getTemplateAnalytics(templateId, timeRange);
+
+      const data = await merchantAPI.getTemplateAnalytics(
+        templateId,
+        timeRange,
+      );
       setAnalytics(data);
     } catch (err: any) {
-      console.error('Failed to load analytics:', err);
-      setError(err.message || '載入數據失敗');
+      console.error("Failed to load analytics:", err);
+      setError(err.message || "載入數據失敗");
     } finally {
       setIsLoading(false);
     }
@@ -138,19 +162,32 @@ export default function TemplateAnalyticsScreen() {
   useEffect(() => {
     if (isStoreTemplate) {
       // For store templates, default to exposure_count
-      if (selectedMetric !== 'exposure_count' && selectedMetric !== 'conversion_rate') {
-        setSelectedMetric('exposure_count');
+      if (
+        selectedMetric !== "exposure_count" &&
+        selectedMetric !== "conversion_rate"
+      ) {
+        setSelectedMetric("exposure_count");
       }
     } else {
       // For exclusive templates, default to exposure_count
-      if (!['exposure_count', 'conversion_rate', 'retention_rate', 'stranger_acquisition_rate', 'circulation_rate', 'circulation_redemption_rate', 'redemption_rate'].includes(selectedMetric)) {
-        setSelectedMetric('exposure_count');
+      if (
+        ![
+          "exposure_count",
+          "conversion_rate",
+          "retention_rate",
+          "stranger_acquisition_rate",
+          "circulation_rate",
+          "circulation_redemption_rate",
+          "redemption_rate",
+        ].includes(selectedMetric)
+      ) {
+        setSelectedMetric("exposure_count");
       }
     }
   }, [isStoreTemplate, selectedMetric]);
 
   const formatCurrency = (value: number) => {
-    return `$${value.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    return `$${value.toLocaleString("zh-TW", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
   const formatPercentage = (value: number) => {
@@ -159,18 +196,21 @@ export default function TemplateAnalyticsScreen() {
 
   const getMetricLabel = (metric: MetricType): string => {
     const labels: Record<MetricType, string> = {
-      exposure_count: '曝光次數',
-      conversion_rate: '轉換率',
-      retention_rate: '留客率',
-      stranger_acquisition_rate: '陌生獲客率',
-      circulation_rate: '流動率',
-      circulation_redemption_rate: '流動核銷率',
-      redemption_rate: '核銷率',
+      exposure_count: "曝光次數",
+      conversion_rate: "轉換率",
+      retention_rate: "留客率",
+      stranger_acquisition_rate: "陌生獲客率",
+      circulation_rate: "流動率",
+      circulation_redemption_rate: "流動核銷率",
+      redemption_rate: "核銷率",
     };
     return labels[metric];
   };
 
-  const getTrendData = (metric: MetricType, data: AnalyticsData): TrendData | null => {
+  const getTrendData = (
+    metric: MetricType,
+    data: AnalyticsData,
+  ): TrendData | null => {
     // Check trends in data.trends
     if (data.trends && data.trends[metric]) {
       return data.trends[metric];
@@ -181,39 +221,39 @@ export default function TemplateAnalyticsScreen() {
   const getCurrentValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
-      if (metric === 'exposure_count') {
-        return trendData.current.toLocaleString('zh-TW');
+      if (metric === "exposure_count") {
+        return trendData.current.toLocaleString("zh-TW");
       } else {
         return formatPercentage(trendData.current);
       }
     }
-    
+
     // Fallback to direct values
     switch (metric) {
-      case 'exposure_count':
-        return (data.exposure_count || 0).toLocaleString('zh-TW');
-      case 'conversion_rate':
+      case "exposure_count":
+        return (data.exposure_count || 0).toLocaleString("zh-TW");
+      case "conversion_rate":
         return formatPercentage(data.conversion_rate || 0);
-      case 'retention_rate':
+      case "retention_rate":
         return formatPercentage(data.retention_rate || 0);
-      case 'stranger_acquisition_rate':
+      case "stranger_acquisition_rate":
         return formatPercentage(data.stranger_acquisition_rate || 0);
-      case 'circulation_rate':
+      case "circulation_rate":
         return formatPercentage(data.circulation_rate || 0);
-      case 'circulation_redemption_rate':
+      case "circulation_redemption_rate":
         return formatPercentage(data.circulation_redemption_rate || 0);
-      case 'redemption_rate':
+      case "redemption_rate":
         return formatPercentage(data.redemption_rate || 0);
       default:
-        return '0';
+        return "0";
     }
   };
 
   const getAverageValue = (metric: MetricType, data: AnalyticsData): string => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
-      if (metric === 'exposure_count') {
-        return trendData.average.toLocaleString('zh-TW');
+      if (metric === "exposure_count") {
+        return trendData.average.toLocaleString("zh-TW");
       } else {
         return formatPercentage(trendData.average);
       }
@@ -222,7 +262,10 @@ export default function TemplateAnalyticsScreen() {
     return getCurrentValue(metric, data);
   };
 
-  const getTrendDataCount = (metric: MetricType, data: AnalyticsData): number => {
+  const getTrendDataCount = (
+    metric: MetricType,
+    data: AnalyticsData,
+  ): number => {
     const trendData = getTrendData(metric, data);
     if (trendData) {
       return trendData.daily_data.length;
@@ -230,16 +273,25 @@ export default function TemplateAnalyticsScreen() {
     return 0;
   };
 
-  const TimeRangeButton = ({ days, label }: { days: TimeRange; label: string }) => {
+  const TimeRangeButton = ({
+    days,
+    label,
+  }: {
+    days: TimeRange;
+    label: string;
+  }) => {
     const isSelected = timeRange === days;
     return (
       <TouchableOpacity
-        style={[styles.timeRangeButton, isSelected && styles.timeRangeButtonSelected]}
+        style={[
+          styles.timeRangeButton,
+          isSelected && styles.timeRangeButtonSelected,
+        ]}
         onPress={() => setTimeRange(days)}
       >
         <Text
           fontSize="$sm"
-          fontWeight={isSelected ? '700' : '400'}
+          fontWeight={isSelected ? "700" : "400"}
           color={isSelected ? colors.white : colors.textPrimary}
         >
           {label}
@@ -250,10 +302,23 @@ export default function TemplateAnalyticsScreen() {
 
   if (!templateId) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: colors.white }}
+        edges={["top"]}
+      >
         <YStack flex={1} backgroundColor={colors.white}>
-          <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+          <Header
+            onLogoPress={() => router.push("/(coupons)/")}
+            showMenu={false}
+          />
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 40,
+            }}
+          >
             <Text color={colors.error}>無效的模板 ID</Text>
           </View>
         </YStack>
@@ -262,22 +327,48 @@ export default function TemplateAnalyticsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.white }}
+      edges={["top"]}
+    >
       <YStack flex={1} backgroundColor={colors.white}>
-        <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
+        <Header
+          onLogoPress={() => router.push("/(coupons)/")}
+          showMenu={false}
+        />
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: 24,
+          }}
           showsVerticalScrollIndicator={false}
         >
           {isLoading ? (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 40,
+              }}
+            >
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : error ? (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-              <Text color={colors.error} marginBottom="$4">{error}</Text>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 40,
+              }}
+            >
+              <Text color={colors.error} marginBottom="$4">
+                {error}
+              </Text>
               <TouchableOpacity
                 style={styles.retryButton}
                 onPress={loadAnalytics}
@@ -288,13 +379,20 @@ export default function TemplateAnalyticsScreen() {
           ) : analytics ? (
             <>
               {/* Title */}
-              <Text fontSize={24} fontWeight="700" color={colors.textPrimary} marginBottom="$2">
-                {templateName ? `${templateName} 統計數據` : '統計數據'}
+              <Text
+                fontSize={24}
+                fontWeight="700"
+                color={colors.textPrimary}
+                marginBottom="$2"
+              >
+                {templateName ? `${templateName} 統計數據` : "統計數據"}
               </Text>
 
               {/* Toggle Switch: 張數 / 百分比 */}
               <XStack alignItems="center" gap="$3" marginBottom="$4">
-                <Text fontSize="$md" color={colors.textSecondary}>百分比</Text>
+                <Text fontSize="$md" color={colors.textSecondary}>
+                  百分比
+                </Text>
                 <Switch
                   checked={false}
                   onCheckedChange={() => {
@@ -303,7 +401,9 @@ export default function TemplateAnalyticsScreen() {
                   }}
                   size="$4"
                 />
-                <Text fontSize="$md" color={colors.textSecondary}>張數</Text>
+                <Text fontSize="$md" color={colors.textSecondary}>
+                  張數
+                </Text>
               </XStack>
 
               {/* Time Range Selector */}
@@ -319,86 +419,94 @@ export default function TemplateAnalyticsScreen() {
                 {isStoreTemplate ? (
                   // Store template (EasyUse): Show exposure and conversion
                   <XStack gap="$3">
-                    <MetricCard 
-                      label="曝光次數" 
+                    <MetricCard
+                      label="曝光次數"
                       value={analytics.exposure_count || 0}
                       metricType="exposure_count"
-                      isSelected={selectedMetric === 'exposure_count'}
-                      onPress={() => setSelectedMetric('exposure_count')}
+                      isSelected={selectedMetric === "exposure_count"}
+                      onPress={() => setSelectedMetric("exposure_count")}
                     />
-                    <MetricCard 
-                      label="轉換率" 
+                    <MetricCard
+                      label="轉換率"
                       value={analytics.conversion_rate || 0}
                       isPercentage
                       metricType="conversion_rate"
-                      isSelected={selectedMetric === 'conversion_rate'}
-                      onPress={() => setSelectedMetric('conversion_rate')}
+                      isSelected={selectedMetric === "conversion_rate"}
+                      onPress={() => setSelectedMetric("conversion_rate")}
                     />
                   </XStack>
                 ) : (
                   // Exclusive template: Show all metrics
                   <>
                     <XStack gap="$3">
-                      <MetricCard 
-                        label="曝光次數" 
+                      <MetricCard
+                        label="曝光次數"
                         value={analytics.exposure_count || 0}
                         metricType="exposure_count"
-                        isSelected={selectedMetric === 'exposure_count'}
-                        onPress={() => setSelectedMetric('exposure_count')}
+                        isSelected={selectedMetric === "exposure_count"}
+                        onPress={() => setSelectedMetric("exposure_count")}
                       />
-                      <MetricCard 
-                        label="轉換率" 
-                        value={analytics.conversion_rate || 0} 
+                      <MetricCard
+                        label="轉換率"
+                        value={analytics.conversion_rate || 0}
                         isPercentage
                         metricType="conversion_rate"
-                        isSelected={selectedMetric === 'conversion_rate'}
-                        onPress={() => setSelectedMetric('conversion_rate')}
+                        isSelected={selectedMetric === "conversion_rate"}
+                        onPress={() => setSelectedMetric("conversion_rate")}
                       />
                     </XStack>
                     <XStack gap="$3">
-                      <MetricCard 
-                        label="核銷率" 
-                        value={analytics.redemption_rate || 0} 
+                      <MetricCard
+                        label="核銷率"
+                        value={analytics.redemption_rate || 0}
                         isPercentage
                         metricType="redemption_rate"
-                        isSelected={selectedMetric === 'redemption_rate'}
-                        onPress={() => setSelectedMetric('redemption_rate')}
+                        isSelected={selectedMetric === "redemption_rate"}
+                        onPress={() => setSelectedMetric("redemption_rate")}
                       />
                     </XStack>
                     <XStack gap="$3">
-                      <MetricCard 
-                        label="留客率" 
-                        value={analytics.retention_rate || 0} 
+                      <MetricCard
+                        label="留客率"
+                        value={analytics.retention_rate || 0}
                         isPercentage
                         metricType="retention_rate"
-                        isSelected={selectedMetric === 'retention_rate'}
-                        onPress={() => setSelectedMetric('retention_rate')}
+                        isSelected={selectedMetric === "retention_rate"}
+                        onPress={() => setSelectedMetric("retention_rate")}
                       />
-                      <MetricCard 
-                        label="陌生獲客率" 
-                        value={analytics.stranger_acquisition_rate || 0} 
+                      <MetricCard
+                        label="陌生獲客率"
+                        value={analytics.stranger_acquisition_rate || 0}
                         isPercentage
                         metricType="stranger_acquisition_rate"
-                        isSelected={selectedMetric === 'stranger_acquisition_rate'}
-                        onPress={() => setSelectedMetric('stranger_acquisition_rate')}
+                        isSelected={
+                          selectedMetric === "stranger_acquisition_rate"
+                        }
+                        onPress={() =>
+                          setSelectedMetric("stranger_acquisition_rate")
+                        }
                       />
                     </XStack>
                     <XStack gap="$3">
-                      <MetricCard 
-                        label="流動率" 
-                        value={analytics.circulation_rate || 0} 
+                      <MetricCard
+                        label="流動率"
+                        value={analytics.circulation_rate || 0}
                         isPercentage
                         metricType="circulation_rate"
-                        isSelected={selectedMetric === 'circulation_rate'}
-                        onPress={() => setSelectedMetric('circulation_rate')}
+                        isSelected={selectedMetric === "circulation_rate"}
+                        onPress={() => setSelectedMetric("circulation_rate")}
                       />
-                      <MetricCard 
-                        label="流動核銷率" 
-                        value={analytics.circulation_redemption_rate || 0} 
+                      <MetricCard
+                        label="流動核銷率"
+                        value={analytics.circulation_redemption_rate || 0}
                         isPercentage
                         metricType="circulation_redemption_rate"
-                        isSelected={selectedMetric === 'circulation_redemption_rate'}
-                        onPress={() => setSelectedMetric('circulation_redemption_rate')}
+                        isSelected={
+                          selectedMetric === "circulation_redemption_rate"
+                        }
+                        onPress={() =>
+                          setSelectedMetric("circulation_redemption_rate")
+                        }
                       />
                     </XStack>
                   </>
@@ -407,7 +515,12 @@ export default function TemplateAnalyticsScreen() {
 
               {/* Trend Chart Section */}
               <View style={styles.sectionCard}>
-                <Text fontSize="$lg" fontWeight="700" color={colors.textPrimary} marginBottom="$3">
+                <Text
+                  fontSize="18"
+                  fontWeight="700"
+                  color={colors.textPrimary}
+                  marginBottom="$3"
+                >
                   {getMetricLabel(selectedMetric)}趨勢
                 </Text>
                 <YStack gap="$2" marginBottom="$3">
@@ -415,7 +528,11 @@ export default function TemplateAnalyticsScreen() {
                     <Text fontSize="$sm" color={colors.textSecondary}>
                       目前{getMetricLabel(selectedMetric)}
                     </Text>
-                    <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
+                    <Text
+                      fontSize="$md"
+                      fontWeight="600"
+                      color={colors.textPrimary}
+                    >
                       {getCurrentValue(selectedMetric, analytics)}
                     </Text>
                   </XStack>
@@ -423,19 +540,22 @@ export default function TemplateAnalyticsScreen() {
                     <Text fontSize="$sm" color={colors.textSecondary}>
                       近{timeRange}天平均
                     </Text>
-                    <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
+                    <Text
+                      fontSize="$md"
+                      fontWeight="600"
+                      color={colors.textPrimary}
+                    >
                       {getAverageValue(selectedMetric, analytics)}
                     </Text>
                   </XStack>
                 </YStack>
                 {/* Trend Chart */}
-                <TrendChart 
-                  data={getTrendData(selectedMetric, analytics)} 
-                  isPercentage={selectedMetric !== 'exposure_count'}
-                  yAxisSuffix={selectedMetric === 'exposure_count' ? '' : '%'}
+                <TrendChart
+                  data={getTrendData(selectedMetric, analytics)}
+                  isPercentage={selectedMetric !== "exposure_count"}
+                  yAxisSuffix={selectedMetric === "exposure_count" ? "" : "%"}
                 />
               </View>
-
             </>
           ) : null}
         </ScrollView>
@@ -452,7 +572,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -472,8 +592,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   timeRangeButtonSelected: {
     backgroundColor: colors.primary,
@@ -484,7 +604,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -498,16 +618,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: 8,
     minHeight: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   rankBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
     backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   retryButton: {
     backgroundColor: colors.primary,
@@ -516,4 +636,3 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 });
-

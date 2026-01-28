@@ -10,16 +10,16 @@ import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity, Linking, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS } from 'app/constants/theme';
+import { tokens } from '@/app/constants/token';
 import { Ionicons } from '@expo/vector-icons';
 
 const colors = {
-  primary: COLORS.primary,
-  background: COLORS.background,
-  border: COLORS.border,
-  textPrimary: COLORS.text.primary,
-  textSecondary: COLORS.text.secondary,
-} as const;
+  primary: tokens.color.primary,
+  background: tokens.color.background,
+  border: tokens.color.border,
+  textPrimary: tokens.color.textPrimary,
+  textSecondary: tokens.color.textSecondary,
+}
 
 export default function HelpSupportScreen() {
   const router = useRouter();
@@ -37,7 +37,7 @@ export default function HelpSupportScreen() {
   };
 
   const handleWebsitePress = async () => {
-    const url = 'https://coupro.app/support';
+    const url = 'https://coupro-terms.vercel.app/support.html';
     
     const canOpen = await Linking.canOpenURL(url);
     if (canOpen) {
@@ -61,7 +61,7 @@ export default function HelpSupportScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text fontSize="$lg" fontWeight="600" color="#fff" marginLeft="$2">
+        <Text fontSize="18" fontWeight="600" color="#fff" marginLeft="$2">
           幫助與支援
         </Text>
       </XStack>
@@ -140,7 +140,7 @@ export default function HelpSupportScreen() {
                     線上支援中心
                   </Text>
                   <Text fontSize={14} color={colors.textSecondary} marginTop="$1">
-                    coupro.app/support
+                    coupro-terms.vercel.app/support.html
                   </Text>
                 </YStack>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />

@@ -3,11 +3,11 @@ import Toast from "react-native-toast-message";
 import { useRouter } from "expo-router";
 import { TouchableOpacity } from "react-native";
 import { LoginFormContainer } from "./components/LoginFormContainer";
-import { fetchAPI, storeLoginData } from "app/utils/authAPI";
-import { devLog, devError } from "app/utils/devLogger";
+import { fetchAPI, storeLoginData } from "@/app/utils/authAPI";
+import { devLog, devError } from "@/app/utils/devLogger";
 import { YStack, View, Text } from 'tamagui';
 import { BackendIndicator } from '../components/BackendIndicator';
-import { toastConfig } from '../config/toastConfig';
+import { toastConfig } from '@/app/config/toastConfig';
 
 export default function Index() {
   const [email, setEmail] = useState("");

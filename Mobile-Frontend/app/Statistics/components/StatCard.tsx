@@ -28,7 +28,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value }) => {
           fontSize={16} 
           fontWeight="500" 
           color="#666666"
-          lineHeight={22}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+          numberOfLines={2}
         >
           {title}
         </Text>
@@ -39,7 +41,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value }) => {
             fontSize={32} 
             fontWeight="800" 
             color="#1a1a1a"
-            lineHeight={56}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+            numberOfLines={1}
           >
             {value}
           </Text>

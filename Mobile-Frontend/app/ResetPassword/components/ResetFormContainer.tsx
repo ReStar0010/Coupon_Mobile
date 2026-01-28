@@ -1,9 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
-import Toast from 'react-native-toast-message';
-import { FormHeader } from 'app/components/forms/FormHeader';
-import { FormInput } from 'app/components/forms/FormInput';
-import { FormButton } from 'app/components/forms/FormButton';
+import { FormHeader } from '@/app/components/forms/FormHeader';
+import { FormInput } from '@/app/components/forms/FormInput';
+import { FormButton } from '@/app/components/forms/FormButton';
 
 interface ResetFormContainterProps {
   password: string;

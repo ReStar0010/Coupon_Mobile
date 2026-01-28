@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, RefreshControl, Alert } from 'react-native';
-import { View, Text, Card, Button, Spinner, XStack, YStack } from 'tamagui';
-import { router } from 'expo-router';
+import { RefreshControl, Alert } from 'react-native';
+import { XStack, View, Text, Card, Button, Spinner, YStack, ScrollView, H4 } from 'tamagui';
+import { Stack, useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBlockedMerchants } from '../../components/providers/BlockedMerchantsProvider';
-import PageHeader from '../../components/PageHeader';
-import Container from '../../components/Container';
 
 export default function BlockedMerchantsScreen() {
   const { blockedMerchants, isLoading, unblockStore, refresh } = useBlockedMerchants();
   const [refreshing, setRefreshing] = useState(false);
   const [unblocking, setUnblocking] = useState<number | null>(null);
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     refresh();
@@ -53,24 +55,40 @@ export default function BlockedMerchantsScreen() {
   };
 
   return (
-    <Container>
-      <PageHeader title="封鎖的商家" />
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+
       <ScrollView
+        px="$4"
+        py="$6"
+        style={{ paddingTop: insets.top + 10 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <YStack padding="$4" gap="$3">
+        {/* Header with back button and title */}
+        <XStack gap={'$3'} items="center">
+          <ChevronLeft size={24} onPress={() => router.push('/OptionsMenu')} color={'black'} />
+          <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
+            封鎖的商家
+          </H4>
+        </XStack>
+
+        <YStack mt="$5" gap="$3">
           {isLoading && !refreshing && blockedMerchants.length === 0 ? (
-            <View padding="$4" alignItems="center">
+            <View p="$4" ai="center">
               <Spinner size="large" />
-              <Text marginTop="$2" color="$gray10">載入中...</Text>
+              <Text mt="$2" color="$gray10">
+                載入中...
+              </Text>
             </View>
           ) : blockedMerchants.length === 0 ? (
             <Card padding="$4" backgroundColor="$background">
-              <YStack alignItems="center" gap="$2">
-                <Text fontSize="$5" fontWeight="600">沒有封鎖的商家</Text>
-                <Text fontSize="$3" color="$gray10" textAlign="center">
+              <YStack ai="center" gap="$2">
+                <Text fontSize="$5" fontWeight="600">
+                  沒有封鎖的商家
+                </Text>
+                <Text fontSize="$3" color="$gray10" ta="center">
                   當您封鎖商家時，他們的優惠券將不會出現在您的動態中
                 </Text>
               </YStack>
@@ -78,12 +96,12 @@ export default function BlockedMerchantsScreen() {
           ) : (
             blockedMerchants.map((blocked) => (
               <Card key={blocked.id} padding="$3" backgroundColor="$background">
-                <XStack justifyContent="space-between" alignItems="center" gap="$3">
+                <XStack jc="space-between" ai="center" gap="$3">
                   <YStack flex={1}>
                     <Text fontSize="$5" fontWeight="600">
                       {blocked.store.name}
                     </Text>
-                    <Text fontSize="$2" color="$gray10" marginTop="$1">
+                    <Text fontSize="$2" color="$gray10" mt="$1">
                       封鎖於 {new Date(blocked.created_at).toLocaleDateString('zh-TW')}
                     </Text>
                   </YStack>
@@ -105,7 +123,6 @@ export default function BlockedMerchantsScreen() {
           )}
         </YStack>
       </ScrollView>
-    </Container>
+    </>
   );
 }
-

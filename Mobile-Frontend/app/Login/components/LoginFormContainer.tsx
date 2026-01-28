@@ -1,11 +1,9 @@
 import React from 'react';
-import { Text } from 'tamagui';
-import { FormHeader } from 'app/components/forms/FormHeader';
-import { FormInput } from 'app/components/forms/FormInput';
-import { FormButton } from 'app/components/forms/FormButton';
-import { LinkText } from 'app/components/forms/LinkText';
+import { FormHeader } from '@/app/components/forms/FormHeader';
+import { FormInput } from '@/app/components/forms/FormInput';
+import { FormButton } from '@/app/components/forms/FormButton';
+import { LinkText } from '@/app/components/forms/LinkText';
 import { YStack } from 'tamagui';
-import { API_URL } from 'app/config/api';
 
 interface LoginFormContainerProps {
   email: string;

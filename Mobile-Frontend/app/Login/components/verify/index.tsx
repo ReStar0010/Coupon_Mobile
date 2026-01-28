@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { devDebug } from 'app/utils/devLogger';
-import { fetchAPI } from 'app/utils/authAPI';
+import { devDebug } from '@/app/utils/devLogger';
+import { fetchAPI } from '@/app/utils/authAPI';
 
 export default function VerifyEmailPage() {
   const params = useLocalSearchParams();

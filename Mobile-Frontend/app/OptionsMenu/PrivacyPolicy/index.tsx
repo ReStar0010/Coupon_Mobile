@@ -10,15 +10,15 @@ import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS } from 'app/constants/theme';
+import { tokens } from '@/app/constants/token';
 import { Ionicons } from '@expo/vector-icons';
 
 const colors = {
-  primary: COLORS.primary,
-  background: COLORS.background,
-  border: COLORS.border,
-  textPrimary: COLORS.text.primary,
-  textSecondary: COLORS.text.secondary,
+  primary: tokens.color.primary,
+  background: tokens.color.background,
+  border: tokens.color.border,
+  textPrimary: tokens.color.textPrimary,
+  textSecondary: tokens.color.textSecondary,
 }
 
 interface PrivacyPolicyData {
@@ -61,7 +61,7 @@ export default function PrivacyPolicyScreen() {
       <XStack
         paddingHorizontal="$4"
         paddingVertical="$3"
-        backgroundolor={colors.primary}
+        backgroundColor={colors.primary}
         alignItems="center"
         borderBottomWidth={1}
         borderBottomColor={colors.border}
@@ -69,7 +69,7 @@ export default function PrivacyPolicyScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text fontSize="$lg" fontWeight="600" color="#fff" marginLeft="$2">
+        <Text fontSize="18" fontWeight="600" color="#fff" marginLeft="$2">
           隱私政策
         </Text>
       </XStack>
@@ -122,7 +122,7 @@ export default function PrivacyPolicyScreen() {
               borderWidth={1}
               borderColor={colors.border}
             >
-              <Text fontSize="$lg" fontWeight="600" color={colors.textPrimary} marginBottom="$3">
+              <Text fontSize="18" fontWeight="600" color={colors.textPrimary} marginBottom="$3">
                 {policyData.title}
               </Text>
               <Text fontSize={14} color={colors.textPrimary} lineHeight={24}>
