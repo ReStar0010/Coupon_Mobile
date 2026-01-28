@@ -22,6 +22,7 @@ if (Platform.OS !== 'web') {
 type MapComponentProps = {
   stores?: Store[];
   onStoreSelect?: (storeId: number) => void;
+  onStorePress?: (store: Store | null) => void;
   className?: string;
   setStoreSearch?: (storeName: string) => void;
   searchQuery?: string; // Add search query prop
@@ -53,6 +54,7 @@ const { width, height } = Dimensions.get('window');
 const MapComponent: React.FC<MapComponentProps> = ({
   stores = [],
   onStoreSelect,
+  onStorePress,
   className = '',
   setStoreSearch,
   searchQuery = '', // Add searchQuery with default empty string
@@ -138,12 +140,17 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
   const onMarkerPress = (store: Store) => {
     setSelectedStore(store);
+    onStorePress?.(store);
+    onStoreSelect?.(store.id);
+    // 點擊 marker 時，直接用店名填入搜尋欄，讓父層同步篩選優惠券
+    setStoreSearch?.(store.name);
     // Also show an alert with the store name for immediate feedback
     // Alert.alert('店家資訊', store.name);
   };
 
   const onMapPress = () => {
     setSelectedStore(null);
+    onStorePress?.(null);
   };
 
   const navigateToCoupons = (storeId: number, storeName: string) => {

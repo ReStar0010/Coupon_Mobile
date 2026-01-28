@@ -58,12 +58,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.cokayne.MobileFrontend",
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyCXBdaCHpBHbabUouRrQvLmeRXbnGhRNK4"
-        }
-      }
+      "package": "com.cokayne.MobileFrontend"
     },
     "extra": {
       "router": {},

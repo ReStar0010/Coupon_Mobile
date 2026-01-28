@@ -3,7 +3,6 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      "react-native-worklets/plugin",
       [
         '@tamagui/babel-plugin',
         {
@@ -13,7 +12,8 @@ module.exports = function (api) {
           disableExtraction: process.env.NODE_ENV === 'development',
         },
       ],
-
+      // Reanimated plugin must be listed LAST
+      'react-native-reanimated/plugin',
     ]
   };
 };

@@ -13,6 +13,7 @@
     "get-ip": "node scripts/get-local-ip.js"
   },
   "dependencies": {
+    "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tamagui/babel-plugin": "^1.136.6",
     "@tamagui/config": "^1.136.6",
@@ -20,7 +21,7 @@
     "@tamagui/metro-plugin": "^1.136.6",
     "@tamagui/portal": "^1.136.6",
     "axios": "^1.11.0",
-    "expo": "~54.0.31",
+    "expo": "~54.0.32",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.10",
@@ -36,7 +37,9 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
     "react-native-maps": "1.20.1",
+    "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-shadow-2": "^7.1.2",
@@ -50,6 +53,7 @@
   "private": true,
   "devDependencies": {
     "@types/react": "~19.1.10",
+    "baseline-browser-mapping": "^2.9.18",
     "typescript": "~5.9.2"
   }
 }
