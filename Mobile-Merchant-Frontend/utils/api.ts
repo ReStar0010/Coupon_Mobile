@@ -412,6 +412,13 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         throw unverifiedError;
       }
 
+      // Special handling for 403 wrong_client_type (user tried to log in on wrong app)
+      if (response.status === 403 && errorData.error === 'wrong_client_type') {
+        const wrongClientError: any = new Error(errorData.message || '請使用正確的 App 登入');
+        wrongClientError.error = 'wrong_client_type';
+        throw wrongClientError;
+      }
+
       // Special handling for 403 "User is not a merchant" error
       // This happens when a non-merchant user tries to access merchant endpoints
       if (response.status === 403 && (
@@ -546,7 +553,7 @@ export const authAPI = {
     const response = await fetchAPI('/login/', {
       method: 'POST',
       requireAuth: false,
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, client_type: 'merchant' }),
     });
     const data = await parseResponse<{
       access_token: string;

@@ -94,6 +94,16 @@ export default function LoginScreen() {
     } catch (error: any) {
       console.error('[Login] Login error:', error);
       
+      // Check if error is wrong client type (user account tried to log in on merchant app)
+      if (error?.error === 'wrong_client_type') {
+        setErrorMessage('此帳號為一般使用者，請使用使用者端 App 登入');
+        setErrorModalTitle('登入失敗');
+        setErrorModalType('error');
+        setErrorModalAutoHideDurationMs(undefined);
+        setShowErrorModal(true);
+        return;
+      }
+      
       // Check if error is email not verified
       // Check error.error field first (from parseResponse special handling)
       // Then check message for backward compatibility

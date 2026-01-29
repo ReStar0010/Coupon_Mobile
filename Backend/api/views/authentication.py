@@ -985,15 +985,22 @@ def resend_merchant_verification(request):
                 }
             )
         ),
-        401: "Invalid credentials"
+        400: "Bad request - missing or invalid client_type",
+        401: "Invalid credentials",
+        403: "wrong_client_type - account type does not match client (use other app)",
     }
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    email = request.data.get('email')
-    password = request.data.get('password')
-   
+    serializer = LoginSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    validated = serializer.validated_data
+    email = validated['email']
+    password = validated['password']
+    client_type = validated['client_type']
+
     try:
         # Find user by username (which we set to email)
         user = User.objects.get(email=email)
@@ -1026,6 +1033,19 @@ def login(request):
                 # Allow login if profile is missing (shouldn't happen in normal flow)
 
         if check_password(password, user.password):
+            # Enforce client_type vs account type: merchant account only on merchant app, user only on user app
+            is_merchant = user.groups.filter(name='Merchant').exists()
+            if client_type == 'merchant' and not is_merchant:
+                return Response({
+                    'error': 'wrong_client_type',
+                    'message': '此帳號為一般使用者，請使用使用者端 App 登入',
+                }, status=status.HTTP_403_FORBIDDEN)
+            if client_type == 'user' and is_merchant:
+                return Response({
+                    'error': 'wrong_client_type',
+                    'message': '此帳號為商家帳號，請使用商家端 App 登入',
+                }, status=status.HTTP_403_FORBIDDEN)
+
             # Generate both access and refresh tokens
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)

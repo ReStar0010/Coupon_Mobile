@@ -74,7 +74,8 @@ class StatisticsTester:
                 f"{self.base_url}/api/login/",
                 json={
                     "email": MERCHANT_EMAIL,
-                    "password": MERCHANT_PASSWORD
+                    "password": MERCHANT_PASSWORD,
+                    "client_type": "merchant",
                 }
             )
             if response.status_code == 200:

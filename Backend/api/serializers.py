@@ -17,6 +17,11 @@ class RefreshRedeemCodeSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(help_text="user's registered email")
     password = serializers.CharField(help_text="user's password", style={'input_type': 'password'})
+    client_type = serializers.ChoiceField(
+        choices=['merchant', 'user'],
+        required=True,
+        help_text="merchant = 商家端 App；user = 使用者端 App",
+    )
 
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(help_text="Email to send the reset link")

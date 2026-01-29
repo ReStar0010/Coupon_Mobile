@@ -21,16 +21,22 @@ export default function Index() {
     try {
       const response = await fetchAPI('/login/', {
         method: 'POST',
-        data: { email, password },
+        data: { email, password, client_type: 'user' },
       });
       devLog("Login successful");
       await storeLoginData(response.data);
       router.replace("/EasyUse");
-    } catch (err) {
+    } catch (err: unknown) {
       devError("Login error:", err);
+      const axiosErr = err as { response?: { status?: number; data?: { error?: string } } };
+      const isWrongClient =
+        axiosErr?.response?.status === 403 &&
+        axiosErr?.response?.data?.error === 'wrong_client_type';
       Toast.show({
         type: 'failRed',
-        text1: '登入失敗，請檢查您的帳號或密碼',
+        text1: isWrongClient
+          ? '此帳號為商家帳號，請使用商家端 App 登入'
+          : '登入失敗，請檢查您的帳號或密碼',
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true,
