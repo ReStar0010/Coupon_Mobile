@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { YStack, XStack, Text } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '@/constants/colors';
 import { Header } from '../components/Header';
@@ -15,6 +15,7 @@ export default function QRCodeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
+  const isFocusedRef = useRef(false);
 
   // Generate QR code session on mount
   useEffect(() => {
@@ -30,28 +31,38 @@ export default function QRCodeScreen() {
     };
   }, [id]);
 
-  // Poll remaining quantity only while this QR code screen is open and QR is displayed.
-  // Does not run on other screens (coupon list/detail); stops on unmount when merchant leaves.
+  // Poll remaining quantity only while this screen is focused (stops when user leaves).
   const POLL_INTERVAL_MS = 3000;
-  useEffect(() => {
-    if (!id || !qrCodeData || !sessionId) return;
-
-    const pollRemaining = async () => {
-      try {
-        const template = await merchantAPI.getTemplate(parseInt(id));
-        const remaining = (template as { remaining_quantity?: number }).remaining_quantity;
-        if (typeof remaining === 'number' && remaining <= 0) {
-          await invalidateSession(sessionId);
-          router.replace('/(coupons)/');
-        }
-      } catch (err) {
-        // Ignore poll errors (e.g. network); will retry next interval
+  useFocusEffect(
+    useCallback(() => {
+      isFocusedRef.current = true;
+      if (!id || !qrCodeData || !sessionId) {
+        return () => {
+          isFocusedRef.current = false;
+        };
       }
-    };
 
-    const intervalId = setInterval(pollRemaining, POLL_INTERVAL_MS);
-    return () => clearInterval(intervalId);
-  }, [id, qrCodeData, sessionId]);
+      const pollRemaining = async () => {
+        try {
+          const template = await merchantAPI.getTemplate(parseInt(id));
+          const remaining = (template as { remaining_quantity?: number }).remaining_quantity;
+          if (typeof remaining === 'number' && remaining <= 0) {
+            if (!isFocusedRef.current) return;
+            await invalidateSession(sessionId);
+            router.replace('/(coupons)/');
+          }
+        } catch (err) {
+          // Ignore poll errors (e.g. network); will retry next interval
+        }
+      };
+
+      const intervalId = setInterval(pollRemaining, POLL_INTERVAL_MS);
+      return () => {
+        clearInterval(intervalId);
+        isFocusedRef.current = false;
+      };
+    }, [id, qrCodeData, sessionId])
+  );
 
   const generateQRSession = async () => {
     if (!id) {
