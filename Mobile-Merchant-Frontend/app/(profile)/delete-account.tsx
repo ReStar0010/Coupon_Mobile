@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Button } from '@/components/ui';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { accountDeletionAPI, type PreDeleteCheckResponse, type DeletionWarning } from '@/utils/api';
@@ -291,8 +292,9 @@ export default function DeleteAccountScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      <YStack flex={1} backgroundColor={colors.background}>
-        {/* Header */}
+      <DismissKeyboardView>
+        <YStack flex={1} backgroundColor={colors.background}>
+          {/* Header */}
         {step !== 'success' && step !== 'loading' && (
           <XStack
             paddingHorizontal="$4"
@@ -313,6 +315,7 @@ export default function DeleteAccountScreen() {
         <ScrollView
           contentContainerStyle={{ padding: 20 }}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
         >
           {step === 'loading' && (
             <YStack alignItems="center" justifyContent="center" padding="$8">
@@ -332,7 +335,8 @@ export default function DeleteAccountScreen() {
           )}
           {step === 'success' && renderSuccessStep()}
         </ScrollView>
-      </YStack>
+        </YStack>
+      </DismissKeyboardView>
     </SafeAreaView>
   );
 }

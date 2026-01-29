@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Button, PermissionDeniedModal, AlertModal } from '@/components/ui';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { StyleSheet, TouchableOpacity, View, TextInput, Alert, Platform } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
@@ -252,8 +253,9 @@ export default function ProfileEditScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      <YStack flex={1} backgroundColor={colors.background}>
-        {/* Header */}
+      <DismissKeyboardView>
+        <YStack flex={1} backgroundColor={colors.background}>
+          {/* Header */}
         <XStack
           paddingHorizontal="$4"
           paddingVertical="$3"
@@ -282,6 +284,7 @@ export default function ProfileEditScreen() {
           paddingBottom="$4"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
+          keyboardDismissMode="on-drag"
         >
           {/* Merchant Logo and Name Section */}
           <View style={styles.merchantSection}>
@@ -402,7 +405,8 @@ export default function ProfileEditScreen() {
             </Button>
           </View>
         </ScrollView>
-      </YStack>
+        </YStack>
+      </DismissKeyboardView>
 
       {/* Permission Denied Modal */}
       <PermissionDeniedModal

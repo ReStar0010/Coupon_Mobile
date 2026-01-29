@@ -5,6 +5,7 @@ import { YStack, XStack, H4, Text, Card, Button } from 'tamagui';
 import { ChevronLeft, Clock, RefreshCw, AlertCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import OTPInput from '../../components/OTPInput';
+import { DismissKeyboardView } from '../../components/DismissKeyboardView';
 import {
   verifyOtp,
   sendOtp,
@@ -194,7 +195,8 @@ export default function OTPVerifyScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <YStack flex={1} px="$4" py="$6" gap="$4" style={{ paddingTop: insets.top + 10 }}>
+      <DismissKeyboardView>
+        <YStack flex={1} px="$4" py="$6" gap="$4" style={{ paddingTop: insets.top + 10 }}>
         <XStack gap="$3" alignItems="center">
           <ChevronLeft size={24} onPress={() => router.back()} />
           <H4 fontWeight="bold">輸入驗證碼</H4>
@@ -310,7 +312,8 @@ export default function OTPVerifyScreen() {
             </YStack>
           </YStack>
         </Card>
-      </YStack>
+        </YStack>
+      </DismissKeyboardView>
     </>
   );
 }

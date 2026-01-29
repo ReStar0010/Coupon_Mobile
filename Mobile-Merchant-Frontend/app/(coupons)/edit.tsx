@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Input, Button, PermissionDeniedModal } from '@/components/ui';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { StyleSheet, TouchableOpacity, View, TextInput, Switch, Alert, Platform } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
@@ -382,8 +383,9 @@ export default function CouponEditScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
-      <YStack flex={1} backgroundColor={colors.white}>
-        {/* Header with Back and Delete */}
+      <DismissKeyboardView>
+        <YStack flex={1} backgroundColor={colors.white}>
+          {/* Header with Back and Delete */}
         <XStack
           paddingHorizontal="$4"
           paddingVertical="$3"
@@ -410,6 +412,7 @@ export default function CouponEditScreen() {
           paddingBottom="$4"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardDismissMode="on-drag"
         >
           {/* Image Upload Section */}
           <YStack gap="$3" marginBottom="$4">
@@ -663,7 +666,8 @@ export default function CouponEditScreen() {
           confirmTextIOS="完成"
           cancelTextIOS="取消"
         />
-      </YStack>
+        </YStack>
+      </DismissKeyboardView>
 
       {/* Permission Denied Modal */}
       <PermissionDeniedModal

@@ -3,6 +3,7 @@ import { YStack, Text, XStack, ScrollView } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Input, Button, AlertModal } from '@/components/ui';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { colors } from '@/constants/colors';
 import { RegisterFormData } from '@/types';
 import LocationPicker from '@/app/components/LocationPicker';
@@ -156,20 +157,22 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      <YStack
-        flex={1}
-        backgroundColor={colors.background}
-      >
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingTop: 20,
-            paddingBottom: 40,
-            gap: 12,
-          }}
-          showsVerticalScrollIndicator={true}
-          keyboardShouldPersistTaps="handled"
+      <DismissKeyboardView>
+        <YStack
+          flex={1}
+          backgroundColor={colors.background}
         >
+          <ScrollView
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 20,
+              paddingBottom: 40,
+              gap: 12,
+            }}
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
           {/* Title */}
           <XStack width="100%" justifyContent="center" alignItems="center" marginTop="$2" marginBottom="$4">
             <Text
@@ -312,8 +315,9 @@ export default function RegisterScreen() {
         type="error"
         confirmText="確定"
       />
-        </ScrollView>
-      </YStack>
+          </ScrollView>
+        </YStack>
+      </DismissKeyboardView>
     </SafeAreaView>
   );
 }

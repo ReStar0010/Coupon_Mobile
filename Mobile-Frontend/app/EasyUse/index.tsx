@@ -6,6 +6,7 @@ import { fetchAPI, isUserLoggedIn } from '../utils/authAPI';
 import { TouchableOpacity, Alert, Dimensions, Platform, Linking, StyleSheet } from 'react-native';
 import { AlignJustify, Search, X } from 'lucide-react-native';
 import TabsFooter from '../components/TabsFooter';
+import { DismissKeyboardView } from '../components/DismissKeyboardView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapComponent, { type Store } from '../components/MapComponent';
 import { BackendIndicator } from '../components/BackendIndicator';
@@ -761,7 +762,8 @@ const CouPro = () => {
       <Stack.Screen options={{ headerShown: false }} />
       {__DEV__ && <BackendIndicator />}
 
-      <View style={styles.container}>
+      <DismissKeyboardView>
+        <View style={styles.container}>
         {/* Full Screen Map */}
         <View style={styles.mapContainer}>
           <MapComponent
@@ -1028,7 +1030,8 @@ const CouPro = () => {
             onStatisticsPress={() => router.push('/Statistics')}
           />
         </View>
-      </View>
+        </View>
+      </DismissKeyboardView>
 
       {/* Merchant Deleted Modal */}
       <MerchantDeletedModal

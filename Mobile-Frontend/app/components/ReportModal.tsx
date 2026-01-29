@@ -18,6 +18,8 @@ import {
   Dimensions,
   ActivityIndicator,
   ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import {
   submitReport,
@@ -99,15 +101,16 @@ const ReportModal: React.FC<ReportModalProps> = ({
       transparent={true}
       animationType="fade"
       onRequestClose={handleClose}>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingHorizontal: 20,
-        }}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+          }}>
+          <View
           style={{
             backgroundColor: '#fff',
             borderRadius: 20,
@@ -122,7 +125,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
           }}>
           <ScrollView
             contentContainerStyle={{ padding: 24 }}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="on-drag">
             {/* Header */}
             <View style={{ marginBottom: 20 }}>
               <Text
@@ -318,8 +322,9 @@ const ReportModal: React.FC<ReportModalProps> = ({
               </TouchableOpacity>
             </View>
           </ScrollView>
+          </View>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };

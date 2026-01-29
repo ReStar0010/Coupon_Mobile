@@ -12,6 +12,7 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import { DismissKeyboardView } from '../../../components/DismissKeyboardView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Send, Camera as CameraIcon } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
@@ -344,9 +345,10 @@ export default function RedeemPage() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f0f0f0' }}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}>
+      <DismissKeyboardView>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}>
         
         {/* Header with Back Button */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 }}>
@@ -654,7 +656,8 @@ export default function RedeemPage() {
             </View>
           )}
         </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </DismissKeyboardView>
 
       {/* Success Confirmation Popup */}
       <SuccessPopup

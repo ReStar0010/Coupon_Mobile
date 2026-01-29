@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Text, Button, YStack, Input } from 'tamagui';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { authAPI } from '../../utils/api';
 
 export default function ResetPassword() {
@@ -84,11 +85,12 @@ export default function ResetPassword() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+    <DismissKeyboardView>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardDismissMode="on-drag">
         <YStack flex={1} padding="$4" gap="$4" justifyContent="center" backgroundColor="$background">
           <YStack gap="$2" marginBottom="$4">
             <Text fontSize="$8" fontWeight="bold" color="$color">
@@ -188,8 +190,9 @@ export default function ResetPassword() {
             </Button>
           </YStack>
         </YStack>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </DismissKeyboardView>
   );
 }
 

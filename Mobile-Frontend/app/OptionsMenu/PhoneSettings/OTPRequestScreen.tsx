@@ -5,6 +5,7 @@ import { YStack, XStack, H4, Text, Card, Button } from 'tamagui';
 import { ChevronLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormInput } from '../../components/forms/FormInput';
+import { DismissKeyboardView } from '../../components/DismissKeyboardView';
 import {
   sendOtp,
   isValidPhoneNumber,
@@ -97,7 +98,8 @@ export default function OTPRequestScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <YStack flex={1} px="$4" py="$6" gap="$4" style={{ paddingTop: insets.top + 10 }}>
+      <DismissKeyboardView>
+        <YStack flex={1} px="$4" py="$6" gap="$4" style={{ paddingTop: insets.top + 10 }}>
         <XStack gap="$3" alignItems="center">
           <ChevronLeft size={24} onPress={() => router.back()} />
           <H4 fontWeight="bold">驗證手機號碼</H4>
@@ -173,7 +175,8 @@ export default function OTPRequestScreen() {
             </YStack>
           </YStack>
         </Card>
-      </YStack>
+        </YStack>
+      </DismissKeyboardView>
     </>
   );
 }

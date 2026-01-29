@@ -5,6 +5,7 @@ import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import { colors } from '@/constants/colors';
 import { Header } from './components/Header';
 import { Input } from '@/components/ui';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { Button } from '@/components/ui';
 import { merchantAPI } from '@/utils/api';
 
@@ -100,11 +101,12 @@ export default function CouponRedemptionScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
-      <View style={styles.mainContainer}>
-        <Header onLogoPress={() => router.push('/(coupons)/')} />
-        
-        {/* Main Content */}
-        <View style={styles.mainContent}>
+      <DismissKeyboardView>
+        <View style={styles.mainContainer}>
+          <Header onLogoPress={() => router.push('/(coupons)/')} />
+          
+          {/* Main Content */}
+          <View style={styles.mainContent}>
           {/* Phone Number Input */}
           <Input
             placeholder="輸入電話號碼"
@@ -134,8 +136,9 @@ export default function CouponRedemptionScreen() {
           >
             發送優惠券
           </Button>
+          </View>
         </View>
-      </View>
+      </DismissKeyboardView>
     </SafeAreaView>
   );
 }

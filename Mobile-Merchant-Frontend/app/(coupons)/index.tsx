@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '@/constants/colors';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
 import { FilterButton } from './components/FilterButton';
@@ -271,17 +272,19 @@ export default function CouponsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
-      <YStack flex={1} backgroundColor={colors.white}>
-        <Header 
-          onMenuPress={() => router.push('/(profile)/')}
-        />
-        <ScrollView
-        flex={1}
-        paddingHorizontal="$4"
-        paddingTop="$3"
-        paddingBottom="$20"
-        showsVerticalScrollIndicator={false}
-      >
+      <DismissKeyboardView>
+        <YStack flex={1} backgroundColor={colors.white}>
+          <Header 
+            onMenuPress={() => router.push('/(profile)/')}
+          />
+          <ScrollView
+            flex={1}
+            paddingHorizontal="$4"
+            paddingTop="$3"
+            paddingBottom="$20"
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="on-drag"
+          >
         {/* Search Bar */}
         <SearchBar
           value={searchQuery}
@@ -381,24 +384,25 @@ export default function CouponsScreen() {
             })
           )}
         </YStack>
-        </ScrollView>
+          </ScrollView>
         
-        {/* Barcode Verification Button */}
-        <YStack
-          position="absolute"
-          bottom={insets.bottom}
-          left={0}
-          right={0}
-          paddingHorizontal="$4"
-          paddingBottom="$4"
-          backgroundColor={colors.white}
-        >
-          <BarcodeVerificationButton 
-            onPress={handleBarcodeVerificationPress} 
-            isLoading={isGeneratingCode}
-          />
+          {/* Barcode Verification Button */}
+          <YStack
+            position="absolute"
+            bottom={insets.bottom}
+            left={0}
+            right={0}
+            paddingHorizontal="$4"
+            paddingBottom="$4"
+            backgroundColor={colors.white}
+          >
+            <BarcodeVerificationButton 
+              onPress={handleBarcodeVerificationPress} 
+              isLoading={isGeneratingCode}
+            />
+          </YStack>
         </YStack>
-      </YStack>
+      </DismissKeyboardView>
       
       {/* QR Code Modal */}
       <QRCodeModal

@@ -9,6 +9,7 @@ import {
   XStack, YStack, View, ListItem, H4, Separator, Dialog, Fieldset, Label, Input, Unspaced, Adapt } from 'tamagui';
 import { X, Pencil, ChevronLeft, ChevronDown } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
+import { DismissKeyboardView } from '../../components/DismissKeyboardView';
 
 const UserData: React.FC = () => {
 
@@ -20,7 +21,8 @@ const UserData: React.FC = () => {
     <>
       <Stack.Screen options={{ headerShown: true }} />
 
-      <View flex="1" px="$4" py="$6" gap={13}>
+      <DismissKeyboardView>
+        <View flex="1" px="$4" py="$6" gap={13}>
         {/* Header with back button and title */}
         <XStack gap={13} items="center">
           <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />
@@ -56,7 +58,8 @@ const UserData: React.FC = () => {
 
         <DialogInstance></DialogInstance>
 
-      </View>
+        </View>
+      </DismissKeyboardView>
     </>
   );
 };

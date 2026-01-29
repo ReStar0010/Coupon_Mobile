@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Modal, Dimensions, TouchableOpacity, FlatList } from 'react-native';
+import { Modal, Dimensions, TouchableOpacity, FlatList, TouchableWithoutFeedback, Keyboard, View } from 'react-native';
 import { YStack, XStack, Text, Input } from 'tamagui';
 import { Search, X } from 'lucide-react-native';
 import { COLORS, BORDER_RADIUS } from '../../constants/theme';
@@ -81,7 +81,9 @@ export function MerchantFilterSheet({
             paddingBottom: insets.bottom,
           }}
         >
-          <YStack gap={16} padding={16}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={{ flex: 1 }}>
+              <YStack gap={16} padding={16}>
             {/* Header */}
             <XStack
               alignItems="center"
@@ -193,7 +195,9 @@ export function MerchantFilterSheet({
               style={{ maxHeight: SCREEN_HEIGHT * 0.5 }}
               showsVerticalScrollIndicator={false}
             />
-          </YStack>
+              </YStack>
+            </View>
+          </TouchableWithoutFeedback>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>

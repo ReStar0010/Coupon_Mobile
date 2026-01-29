@@ -7,6 +7,7 @@ import { fetchAPI, storeLoginData } from "@/app/utils/authAPI";
 import { devLog, devError } from "@/app/utils/devLogger";
 import { YStack, View, Text } from 'tamagui';
 import { BackendIndicator } from '../components/BackendIndicator';
+import { DismissKeyboardView } from '../components/DismissKeyboardView';
 import { toastConfig } from '@/app/config/toastConfig';
 
 export default function Index() {
@@ -111,12 +112,13 @@ export default function Index() {
   return (
     <YStack flex={1} bg="#f5f5f5">
       {__DEV__ && <BackendIndicator />}
-      <YStack 
-        flex={1}
-        items="center" 
-        style={{ justifyContent: 'center' }}
-        p="$4"
-      >
+      <DismissKeyboardView>
+        <YStack 
+          flex={1}
+          items="center" 
+          style={{ justifyContent: 'center' }}
+          p="$4"
+        >
         <View width="100%" style={{ maxWidth: 320 }} mx="auto">
           <LoginFormContainer
             email={email}
@@ -145,7 +147,8 @@ export default function Index() {
         </TouchableOpacity>
 
         <Toast config={toastConfig} />
-      </YStack>
+        </YStack>
+      </DismissKeyboardView>
     </YStack>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
 import { View, ScrollView, SafeAreaView } from "react-native";
+import { DismissKeyboardView } from "@/app/components/DismissKeyboardView";
 import { ResetFormContainer } from "./components/ResetFormContainer";
 import { fetchAPI } from "@/app/utils/authAPI";
 import { devLog, devError } from "@/app/utils/devLogger";
@@ -79,8 +80,12 @@ export default function Index() {
 
   return (
     <SafeAreaView className="min-h-screen bg-login-bg">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 items-center justify-center p-4">
+      <DismissKeyboardView>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardDismissMode="on-drag"
+        >
+          <View className="flex-1 items-center justify-center p-4">
           <View className="w-full max-w-[320px] mx-auto">
             <ResetFormContainer
               password={password}
@@ -91,8 +96,9 @@ export default function Index() {
             />
           </View>
           <Toast config={toastConfig} />
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </DismissKeyboardView>
     </SafeAreaView>
   );
 }

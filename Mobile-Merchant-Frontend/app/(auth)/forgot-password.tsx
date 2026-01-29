@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { YStack, Text, XStack } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { Input, Button, AlertModal } from '@/components/ui';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { colors } from '@/constants/colors';
 import { ForgotPasswordFormData } from '@/types';
 
@@ -60,16 +61,17 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <YStack
-      flex={1}
-      backgroundColor={colors.background}
-      paddingHorizontal="$5"
-      paddingVertical="$8"
-      justifyContent="center"
-      alignItems="center"
-      gap="$3"
-    >
-      {/* Title */}
+    <DismissKeyboardView>
+      <YStack
+        flex={1}
+        backgroundColor={colors.background}
+        paddingHorizontal="$5"
+        paddingVertical="$8"
+        justifyContent="center"
+        alignItems="center"
+        gap="$3"
+      >
+        {/* Title */}
       <XStack width="100%" justifyContent="center" alignItems="center" marginBottom="$2">
         <Text
           fontSize={34}
@@ -138,7 +140,8 @@ export default function ForgotPasswordScreen() {
         type="error"
         confirmText="確定"
       />
-    </YStack>
+      </YStack>
+    </DismissKeyboardView>
   );
 }
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { YStack, Text, XStack } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { Input, Button, AlertModal } from '@/components/ui';
+import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { colors } from '@/constants/colors';
 import { LoginFormData } from '@/types';
 import { useAuth } from '@/app/components/providers/AuthProvider';
@@ -180,18 +181,19 @@ export default function LoginScreen() {
   };
 
   return (
-    <YStack
-      flex={1}
-      style={{
-        backgroundColor: colors.background,
-        paddingHorizontal: 20,
-        paddingVertical: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-      gap="$3"
-    >
-      {/* Title */}
+    <DismissKeyboardView>
+      <YStack
+        flex={1}
+        style={{
+          backgroundColor: colors.background,
+          paddingHorizontal: 20,
+          paddingVertical: 32,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+        gap="$3"
+      >
+        {/* Title */}
       <XStack width="100%" style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
         <Text
           fontSize={34}
@@ -304,7 +306,8 @@ export default function LoginScreen() {
         onConfirm={handleResendVerification}
         onCancel={() => setShowUnverifiedModal(false)}
       />
-    </YStack>
+      </YStack>
+    </DismissKeyboardView>
   );
 }
 
