@@ -320,6 +320,7 @@ export default function CouponsScreen() {
                     redemptionCount: coupon.redemption_count || 0,
                     enableSoldOutUI: isCollectionsType,
                     remainingQuantity: isCollectionsType ? coupon.remaining_quantity : undefined,
+                    isExclusiveCoupon: isCollectionsType,
                   }}
                   onEdit={() => {
                     router.push(`/(coupons)/edit?id=${coupon.id}`);

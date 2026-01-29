@@ -14,6 +14,7 @@ interface CouponCardProps {
     redemptionCount: number;
     enableSoldOutUI?: boolean; // Only Collections-type coupons should use Sold Out UI
     remainingQuantity?: number;
+    isExclusiveCoupon?: boolean; // true = 專屬優惠 (can open QR/send page), false = 隨取即用 (cannot)
   };
   onEdit: () => void;
 }
@@ -25,14 +26,17 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
     typeof coupon.remainingQuantity === "number" &&
     coupon.remainingQuantity <= 0;
 
+  const canOpenRedemptionPage =
+    !isSoldOut && coupon.isExclusiveCoupon !== false;
+
   return (
     <TouchableOpacity
       onPress={() => {
-        // Only allow entering the phone/QR entry screen when not sold out.
-        if (isSoldOut) return;
+        // Only allow entering the phone/QR entry screen for 專屬優惠 and when not sold out.
+        if (!canOpenRedemptionPage) return;
         router.push(`/(coupons)/${coupon.id}`);
       }}
-      activeOpacity={isSoldOut ? 1 : 0.85}
+      activeOpacity={canOpenRedemptionPage ? 0.85 : 1}
     >
       <YStack
         backgroundColor={isSoldOut ? colors.background : colors.white}
@@ -85,10 +89,6 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
           </XStack>
         </XStack>
 
-        {/* Date Range */}
-        <Text fontSize="$sm" color={colors.textSecondary} marginBottom="$1.5">
-          {coupon.startDate} ~ {coupon.endDate}
-        </Text>
         {/* Date Range */}
         <Text fontSize="$sm" color={colors.textSecondary} marginBottom="$1.5">
           {coupon.startDate} ~ {coupon.endDate}
