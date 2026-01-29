@@ -669,6 +669,9 @@ def merchant_redeem(request):
                     'error': 'This coupon has already been redeemed.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
+            # Savings amount for achievement list (use template amount; fallback to 0)
+            savings_amount = template.estimated_savings or 0
+
             # Create redemption
             CouponRedemption.objects.create(
                 coupon=coupon,
@@ -676,6 +679,16 @@ def merchant_redeem(request):
                 savings_amount=template.estimated_savings
             )
             
+            # Update user statistics (成就列表: total_savings, monthly_savings, coupons_used_count)
+            try:
+                user_profile.update_monthly_savings()
+                user_profile.coupons_used_count += 1
+                user_profile.total_savings += savings_amount
+                user_profile.monthly_savings += savings_amount
+                user_profile.save()
+            except AttributeError:
+                pass
+
             # Log the redemption
             Log.objects.create(
                 user=user,
