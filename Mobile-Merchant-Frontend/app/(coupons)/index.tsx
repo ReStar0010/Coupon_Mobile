@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import { Alert, TouchableOpacity, StyleSheet, Text as RNText, View } from 'react-native';
 import { colors } from '@/constants/colors';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { Header } from './components/Header';
@@ -54,7 +54,6 @@ const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
 
 export default function CouponsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<CouponStatus>('active');
@@ -277,130 +276,121 @@ export default function CouponsScreen() {
           <Header 
             onMenuPress={() => router.push('/(profile)/')}
           />
+
+          {/* Fixed: Search, Type tabs, Filters (same level as Header) */}
+          <YStack paddingHorizontal="$4" paddingTop="$3">
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="搜尋優惠券..."
+            />
+
+            {/* Type Tabs: 全部 | 隨取即用 | 專屬優惠 (pure RN so text renders) */}
+            <View style={styles.typeTabsRow}>
+              {TYPE_OPTIONS.map((option) => {
+                const isSelected = typeFilter === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => setTypeFilter(option.value)}
+                    activeOpacity={0.7}
+                    style={styles.typeTabTouchable}
+                  >
+                    <View
+                      style={[
+                        styles.typeTabInner,
+                        isSelected ? styles.typeTabInnerSelected : styles.typeTabInnerUnselected,
+                      ]}
+                    >
+                      <RNText
+                        style={[
+                          styles.typeTabLabel,
+                          isSelected ? styles.typeTabLabelSelected : styles.typeTabLabelUnselected,
+                        ]}
+                      >
+                        {option.label}
+                      </RNText>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Filter Section */}
+            <XStack gap="$2" marginTop="$3" marginBottom="$4" alignItems="center">
+              <FilterButton
+                label="狀態"
+                selectedValue={getStatusFilterLabel()}
+                onPress={handleStatusFilterPress}
+              />
+              <FilterButton
+                label="日期"
+                selectedValue={getDateFilterLabel()}
+                onPress={handleDateFilterPress}
+              />
+              <XStack flex={1} />
+              <AddButton
+                onPress={() => {
+                  router.push('/(coupons)/edit');
+                }}
+              />
+            </XStack>
+
+            {/* Barcode Verification - same level as filter row */}
+            <YStack marginBottom="$4">
+              <BarcodeVerificationButton
+                onPress={handleBarcodeVerificationPress}
+                isLoading={isGeneratingCode}
+              />
+            </YStack>
+          </YStack>
+
+          {/* Scrollable: Coupon list only */}
           <ScrollView
             flex={1}
             paddingHorizontal="$4"
-            paddingTop="$3"
-            paddingBottom="$20"
+            paddingBottom="$4"
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
+            // bounces={false}
+            // overScrollMode="never"
+            decelerationRate={0.999}
+            scrollEventThrottle={16}
           >
-        {/* Search Bar */}
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="搜尋優惠券..."
-        />
-
-        {/* Type Tabs: 全部 | 隨取即用 | 專屬優惠 (風格與狀態/日期 FilterButton 一致) */}
-        <XStack marginTop="$3" gap="$2">
-          {TYPE_OPTIONS.map((option) => {
-            const isSelected = typeFilter === option.value;
-            return (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => setTypeFilter(option.value)}
-                activeOpacity={0.7}
-                style={styles.tabTouchable}
-              >
-                <XStack
-                  flex={1}
-                  paddingVertical="$2.5"
-                  paddingHorizontal="$3"
-                  justifyContent="center"
-                  alignItems="center"
-                  backgroundColor={isSelected ? colors.primary : colors.background}
-                  borderWidth={1}
-                  borderColor={isSelected ? colors.primary : colors.border}
-                  borderRadius="$4"
-                >
-                  <Text
-                    fontSize="$md"
-                    fontWeight="600"
-                    color={isSelected ? colors.white : colors.textPrimary}
-                  >
-                    {option.label}
-                  </Text>
-                </XStack>
-              </TouchableOpacity>
-            );
-          })}
-        </XStack>
-
-        {/* Filter Section */}
-        <XStack gap="$2" marginTop="$3" marginBottom="$4" alignItems="center">
-          <FilterButton
-            label="狀態"
-            selectedValue={getStatusFilterLabel()}
-            onPress={handleStatusFilterPress}
-          />
-          <FilterButton
-            label="日期"
-            selectedValue={getDateFilterLabel()}
-            onPress={handleDateFilterPress}
-          />
-          <XStack flex={1} />
-          <AddButton
-            onPress={() => {
-              router.push('/(coupons)/edit');
-            }}
-          />
-        </XStack>
-
-        {/* Coupon Cards */}
-        <YStack gap="$3">
-          {isLoading ? (
-            <Text textAlign="center" color={colors.textSecondary} padding="$4">
-              載入中...
-            </Text>
-          ) : filteredCoupons.length === 0 ? (
-            <Text textAlign="center" color={colors.textSecondary} padding="$4">
-              尚無優惠券
-            </Text>
-          ) : (
-            filteredCoupons.map((coupon) => {
-              // Collections-only: in this app, total_quantity > 0 indicates "專屬優惠" (Collections).
-              // Other types (e.g., 隨取即用) should NOT show Sold Out UI.
-              const isCollectionsType = (coupon.total_quantity ?? 0) > 0;
-
-              return (
-                <CouponCard
-                  key={coupon.id}
-                  coupon={{
-                    id: String(coupon.id),
-                    title: coupon.coupon_name,
-                    startDate: new Date(coupon.start_date).toLocaleDateString('zh-TW'),
-                    endDate: new Date(coupon.end_date).toLocaleDateString('zh-TW'),
-                    redemptionCount: coupon.redemption_count || 0,
-                    enableSoldOutUI: isCollectionsType,
-                    remainingQuantity: isCollectionsType ? coupon.remaining_quantity : undefined,
-                    isExclusiveCoupon: isCollectionsType,
-                  }}
-                  onEdit={() => {
-                    router.push(`/(coupons)/edit?id=${coupon.id}`);
-                  }}
-                />
-              );
-            })
-          )}
-        </YStack>
+            <YStack gap="$3">
+              {isLoading ? (
+                <Text textAlign="center" color={colors.textSecondary} padding="$4">
+                  載入中...
+                </Text>
+              ) : filteredCoupons.length === 0 ? (
+                <Text textAlign="center" color={colors.textSecondary} padding="$4">
+                  尚無優惠券
+                </Text>
+              ) : (
+                filteredCoupons.map((coupon) => {
+                  const isCollectionsType = (coupon.total_quantity ?? 0) > 0;
+                  return (
+                    <CouponCard
+                      key={coupon.id}
+                      coupon={{
+                        id: String(coupon.id),
+                        title: coupon.coupon_name,
+                        startDate: new Date(coupon.start_date).toLocaleDateString('zh-TW'),
+                        endDate: new Date(coupon.end_date).toLocaleDateString('zh-TW'),
+                        redemptionCount: coupon.redemption_count || 0,
+                        enableSoldOutUI: isCollectionsType,
+                        remainingQuantity: isCollectionsType ? coupon.remaining_quantity : undefined,
+                        isExclusiveCoupon: isCollectionsType,
+                      }}
+                      onEdit={() => {
+                        router.push(`/(coupons)/edit?id=${coupon.id}`);
+                      }}
+                    />
+                  );
+                })
+              )}
+            </YStack>
           </ScrollView>
-        
-          {/* Barcode Verification Button */}
-          <YStack
-            position="absolute"
-            bottom={insets.bottom}
-            left={0}
-            right={0}
-            paddingHorizontal="$4"
-            paddingBottom="$4"
-            backgroundColor={colors.white}
-          >
-            <BarcodeVerificationButton 
-              onPress={handleBarcodeVerificationPress} 
-              isLoading={isGeneratingCode}
-            />
-          </YStack>
         </YStack>
       </DismissKeyboardView>
       
@@ -415,8 +405,40 @@ export default function CouponsScreen() {
 }
 
 const styles = StyleSheet.create({
-  tabTouchable: {
+  typeTabsRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 8,
+  },
+  typeTabTouchable: {
     flex: 1,
+  },
+  typeTabInner: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    minHeight: 44,
+  },
+  typeTabInnerSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  typeTabInnerUnselected: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+  },
+  typeTabLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  typeTabLabelSelected: {
+    color: colors.white,
+  },
+  typeTabLabelUnselected: {
+    color: colors.textPrimary,
   },
 });
 
