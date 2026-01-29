@@ -30,6 +30,28 @@ export default function QRCodeScreen() {
     };
   }, [id]);
 
+  // Poll remaining quantity while QR is shown; when exhausted, go back to coupon list (優惠項目)
+  const POLL_INTERVAL_MS = 3000;
+  useEffect(() => {
+    if (!id || !qrCodeData || !sessionId) return;
+
+    const pollRemaining = async () => {
+      try {
+        const template = await merchantAPI.getTemplate(parseInt(id));
+        const remaining = (template as { remaining_quantity?: number }).remaining_quantity;
+        if (typeof remaining === 'number' && remaining <= 0) {
+          await invalidateSession(sessionId);
+          router.replace('/(coupons)/');
+        }
+      } catch (err) {
+        // Ignore poll errors (e.g. network); will retry next interval
+      }
+    };
+
+    const intervalId = setInterval(pollRemaining, POLL_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [id, qrCodeData, sessionId]);
+
   const generateQRSession = async () => {
     if (!id) {
       setError('無效的優惠券 ID');

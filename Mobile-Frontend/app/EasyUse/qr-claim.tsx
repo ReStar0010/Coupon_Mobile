@@ -59,7 +59,7 @@ export default function QRClaimScanner() {
 
   const handleBarCodeScanned = useCallback(async ({ type, data }: BarcodeScanningResult) => {
     // Check if already processing a claim - use ref for immediate check without state delay
-    if (isProcessingRef.current || !isScanning || isDisabled || isLoading) {
+    if (scanLockRef.current || !isScanning || isDisabled || isLoading) {
       return;
     }
     

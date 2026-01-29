@@ -549,6 +549,14 @@ export const unifiedRedemptionAPI = {
 };
 
 /**
+ * Generate a unique idempotency key for QR claim operations.
+ * One key per claim call so retries within the same call reuse it and avoid duplicate coupons.
+ */
+function generateIdempotencyKey(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 15)}`;
+}
+
+/**
  * QR Code Claim API functions
  */
 export const qrClaimAPI = {
