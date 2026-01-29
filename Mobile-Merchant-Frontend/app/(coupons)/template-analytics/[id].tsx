@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { YStack, XStack, Text, Switch } from "tamagui";
+import { YStack, XStack, Text } from "tamagui";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -388,22 +388,39 @@ export default function TemplateAnalyticsScreen() {
                 {templateName ? `${templateName} 統計數據` : "統計數據"}
               </Text>
 
-              {/* Toggle Switch: 張數 / 百分比 */}
-              <XStack alignItems="center" gap="$3" marginBottom="$4">
-                <Text fontSize="$md" color={colors.textSecondary}>
-                  百分比
-                </Text>
-                <Switch
-                  checked={false}
-                  onCheckedChange={() => {
-                    // Navigate to count view
-                    router.push(`/template-analytics-count/${templateId}`);
-                  }}
-                  size="$4"
-                />
-                <Text fontSize="$md" color={colors.textSecondary}>
-                  張數
-                </Text>
+              {/* Toggle: 百分比 / 張數（與時間區間按鈕一致風格） */}
+              <XStack gap="$2" marginBottom="$4">
+                <TouchableOpacity
+                  style={[
+                    styles.timeRangeButton,
+                    true && styles.timeRangeButtonSelected,
+                  ]}
+                  onPress={() => {}}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    fontSize="$sm"
+                    fontWeight="700"
+                    color={colors.white}
+                  >
+                    百分比
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.timeRangeButton]}
+                  onPress={() =>
+                    router.push(`/template-analytics-count/${templateId}`)
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    fontSize="$sm"
+                    fontWeight="400"
+                    color={colors.textPrimary}
+                  >
+                    張數
+                  </Text>
+                </TouchableOpacity>
               </XStack>
 
               {/* Time Range Selector */}
