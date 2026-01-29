@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { TextInput, View, StyleSheet } from 'react-native';
+import { TextInput, View, StyleSheet, Platform } from 'react-native';
 import { XStack } from 'tamagui';
 
 interface OTPInputProps {
@@ -26,6 +26,8 @@ interface OTPInputProps {
  * - Backspace navigates to previous box
  * - Auto-submit when 6th digit entered
  * - Support paste of full 6-digit code
+ * - iOS One-Time Code AutoFill: hidden field receives SMS OTP so user can tap
+ *   the keyboard suggestion ("From Messages") to fill the code without typing.
  */
 export const OTPInput: React.FC<OTPInputProps> = ({
   length = 6,
@@ -37,13 +39,33 @@ export const OTPInput: React.FC<OTPInputProps> = ({
 }) => {
   const [otp, setOtp] = useState<string[]>(Array(length).fill(''));
   const inputs = useRef<(TextInput | null)[]>([]);
+  const autoFillInputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
-    // Focus first input on mount
     if (!disabled) {
-      inputs.current[0]?.focus();
+      // On iOS, focus the hidden AutoFill field first so the keyboard shows
+      // "From Messages" / one-time code suggestion when SMS arrives.
+      if (Platform.OS === 'ios') {
+        autoFillInputRef.current?.focus();
+      } else {
+        inputs.current[0]?.focus();
+      }
     }
   }, [disabled]);
+
+  /** When iOS AutoFill or paste fills the hidden field with 6 digits. */
+  const handleAutoFillChange = (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, length);
+    if (digits.length === length) {
+      const digitArr = digits.split('');
+      setOtp(digitArr);
+      onChange?.(digits);
+      inputs.current[length - 1]?.focus();
+      if (autoSubmit) {
+        onComplete(digits);
+      }
+    }
+  };
 
   const handleChange = (text: string, index: number) => {
     // Handle paste of full code
@@ -105,35 +127,60 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   };
 
   return (
-    <XStack gap="$2" justifyContent="center">
-      {otp.map((digit, index) => (
-        <View key={index} style={styles.inputContainer}>
-          <TextInput
-            ref={(ref) => (inputs.current[index] = ref)}
-            style={[
-              styles.input,
-              error && styles.inputError,
-              disabled && styles.inputDisabled,
-              digit && styles.inputFilled,
-            ]}
-            value={digit}
-            onChangeText={(text) => handleChange(text, index)}
-            onKeyPress={(e) => handleKeyPress(e, index)}
-            onFocus={() => handleFocus(index)}
-            keyboardType="number-pad"
-            maxLength={1}
-            selectTextOnFocus
-            editable={!disabled}
-            autoComplete="one-time-code"
-            textContentType="oneTimeCode"
-          />
-        </View>
-      ))}
-    </XStack>
+    <>
+      {/* Hidden input for iOS One-Time Code AutoFill (keyboard suggestion from SMS).
+          iOS fills this with the full code when user taps "From Messages". */}
+      {Platform.OS === 'ios' && (
+        <TextInput
+          ref={autoFillInputRef}
+          style={styles.hiddenInput}
+          value=""
+          onChangeText={handleAutoFillChange}
+          keyboardType="number-pad"
+          maxLength={length}
+          editable={!disabled}
+          autoComplete="one-time-code"
+          textContentType="oneTimeCode"
+          accessibilityLabel="One-time code from SMS"
+        />
+      )}
+      <XStack gap="$2" justifyContent="center">
+        {otp.map((digit, index) => (
+          <View key={index} style={styles.inputContainer}>
+            <TextInput
+              ref={(ref) => (inputs.current[index] = ref)}
+              style={[
+                styles.input,
+                error && styles.inputError,
+                disabled && styles.inputDisabled,
+                digit && styles.inputFilled,
+              ]}
+              value={digit}
+              onChangeText={(text) => handleChange(text, index)}
+              onKeyPress={(e) => handleKeyPress(e, index)}
+              onFocus={() => handleFocus(index)}
+              keyboardType="number-pad"
+              maxLength={1}
+              selectTextOnFocus
+              editable={!disabled}
+              autoComplete={Platform.OS === 'android' ? 'sms-otp' : undefined}
+              textContentType={Platform.OS === 'ios' ? undefined : 'oneTimeCode'}
+            />
+          </View>
+        ))}
+      </XStack>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
+  hiddenInput: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+    zIndex: -1,
+  },
   inputContainer: {
     width: 45,
     height: 55,
