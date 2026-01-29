@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Alert } from 'react-native';
+import { Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '@/constants/colors';
 import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
@@ -27,6 +27,14 @@ export interface Coupon {
 
 type CouponStatus = 'all' | 'active' | 'ended' | 'upcoming' | 'inactive';
 type DateFilter = 'all' | 'today' | 'thisWeek' | 'thisMonth';
+/** 優惠類型：全部 / 隨取即用 (total_quantity=0) / 專屬優惠 (total_quantity>0) */
+type TypeFilter = 'all' | 'store' | 'exclusive';
+
+const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'store', label: '隨取即用' },
+  { value: 'exclusive', label: '專屬優惠' },
+];
 
 const STATUS_OPTIONS: { value: CouponStatus; label: string }[] = [
   { value: 'all', label: '全部' },
@@ -47,7 +55,8 @@ export default function CouponsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<CouponStatus>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<CouponStatus>('active');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -170,11 +179,18 @@ export default function CouponsScreen() {
     }
   };
 
-  // Filter coupons based on search query, status, and date
+  // Filter coupons based on search query, type, status, and date
   const filteredCoupons = coupons.filter((coupon) => {
     // Search filter
     const matchesSearch = coupon.coupon_name.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
+
+    // Type filter: 隨取即用 = total_quantity 0, 專屬優惠 = total_quantity > 0
+    if (typeFilter !== 'all') {
+      const isExclusive = (coupon.total_quantity ?? 0) > 0;
+      if (typeFilter === 'store' && isExclusive) return false;
+      if (typeFilter === 'exclusive' && !isExclusive) return false;
+    }
 
     // Status filter
     if (statusFilter !== 'all') {
@@ -273,6 +289,41 @@ export default function CouponsScreen() {
           placeholder="搜尋優惠券..."
         />
 
+        {/* Type Tabs: 全部 | 隨取即用 | 專屬優惠 (風格與狀態/日期 FilterButton 一致) */}
+        <XStack marginTop="$3" gap="$2">
+          {TYPE_OPTIONS.map((option) => {
+            const isSelected = typeFilter === option.value;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => setTypeFilter(option.value)}
+                activeOpacity={0.7}
+                style={styles.tabTouchable}
+              >
+                <XStack
+                  flex={1}
+                  paddingVertical="$2.5"
+                  paddingHorizontal="$3"
+                  justifyContent="center"
+                  alignItems="center"
+                  backgroundColor={isSelected ? colors.primary : colors.background}
+                  borderWidth={1}
+                  borderColor={isSelected ? colors.primary : colors.border}
+                  borderRadius="$4"
+                >
+                  <Text
+                    fontSize="$md"
+                    fontWeight="600"
+                    color={isSelected ? colors.white : colors.textPrimary}
+                  >
+                    {option.label}
+                  </Text>
+                </XStack>
+              </TouchableOpacity>
+            );
+          })}
+        </XStack>
+
         {/* Filter Section */}
         <XStack gap="$2" marginTop="$3" marginBottom="$4" alignItems="center">
           <FilterButton
@@ -358,4 +409,10 @@ export default function CouponsScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  tabTouchable: {
+    flex: 1,
+  },
+});
 
