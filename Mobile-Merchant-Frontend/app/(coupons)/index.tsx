@@ -335,29 +335,18 @@ export default function CouponsScreen() {
                 }}
               />
             </XStack>
-
-            {/* Barcode Verification - same level as filter row */}
-            <YStack marginBottom="$4">
-              <BarcodeVerificationButton
-                onPress={handleBarcodeVerificationPress}
-                isLoading={isGeneratingCode}
-              />
-            </YStack>
           </YStack>
 
           {/* Scrollable: Coupon list only */}
           <ScrollView
             flex={1}
             paddingHorizontal="$4"
-            paddingBottom="$4"
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
-            // bounces={false}
-            // overScrollMode="never"
             decelerationRate={0.999}
             scrollEventThrottle={16}
           >
-            <YStack gap="$3">
+            <YStack gap="$3" style={{ paddingBottom: 80 }}>
               {isLoading ? (
                 <Text textAlign="center" color={colors.textSecondary} padding="$4">
                   載入中...
@@ -391,6 +380,19 @@ export default function CouponsScreen() {
               )}
             </YStack>
           </ScrollView>
+
+          {/* Floating barcode verification button at bottom, above ScrollView */}
+          <View
+            style={[
+              styles.floatingButtonContainer,
+              { paddingHorizontal: 16, paddingBottom: 20 },
+            ]}
+          >
+            <BarcodeVerificationButton
+              onPress={handleBarcodeVerificationPress}
+              isLoading={isGeneratingCode}
+            />
+          </View>
         </YStack>
       </DismissKeyboardView>
       
@@ -405,6 +407,15 @@ export default function CouponsScreen() {
 }
 
 const styles = StyleSheet.create({
+  floatingButtonContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    elevation: 8,
+    backgroundColor: colors.white,
+  },
   typeTabsRow: {
     flexDirection: 'row',
     marginTop: 12,
