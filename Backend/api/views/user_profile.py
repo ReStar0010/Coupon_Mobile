@@ -77,7 +77,8 @@ def coupon_history(request):
                 'coupon_name': coupon.coupon_name,
                 'coupon_detail': coupon.coupon_detail,
                 'used_date': redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
-                'estimated_savings': coupon.estimated_savings
+                'estimated_savings': coupon.estimated_savings,
+                'expiry_date': coupon.expiry_date.isoformat() if coupon.expiry_date else None,
             })
         
         return Response({

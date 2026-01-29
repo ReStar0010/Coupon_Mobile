@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { ChevronLeft, Calendar, MapPin, Clock } from 'lucide-react-native';
+import { ChevronLeft, Calendar, MapPin, Clock, Tag, FileText, CalendarCheck } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth } from '../../../utils/authAPI';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,13 @@ interface CouponDetail {
   coupon_id: number;
   store_name: string;
   used_date: string;
+  coupon_name?: string;
+  coupon_detail?: string;
+  estimated_savings?: number;
+  expiry_date?: string;
+  /** @deprecated Use coupon_name */
   coupon_title?: string;
+  /** @deprecated Use estimated_savings */
   discount_amount?: number;
   original_price?: number;
   final_price?: number;
@@ -128,6 +134,19 @@ const CouponHistoryDetail: React.FC = () => {
   }
 
   const formattedDate = formatDate(couponDetail.used_date);
+  const couponName = couponDetail.coupon_name ?? couponDetail.coupon_title;
+  const savingsAmount = couponDetail.estimated_savings ?? couponDetail.discount_amount;
+
+  const formatExpiryDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return `${date.getFullYear()}年${(date.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}月${date.getDate().toString().padStart(2, '0')}日`;
+    } catch (e) {
+      return dateString;
+    }
+  };
 
   return (
     <View flex={1} bg="#f5f5f5">
@@ -169,19 +188,19 @@ const CouponHistoryDetail: React.FC = () => {
               <Text fontSize={24} fontWeight="bold" color="#333333" style={{ textAlign: 'center' }}>
                 {couponDetail.store_name}
               </Text>
-              {couponDetail.coupon_title && (
+              {couponName && (
                 <Text fontSize={16} color="#707070" style={{ textAlign: 'center' }}>
-                  {couponDetail.coupon_title}
+                  {couponName}
                 </Text>
               )}
             </YStack>
 
             {/* Savings Info */}
-            {couponDetail.discount_amount && (
+            {(savingsAmount != null && savingsAmount !== '') && (
               <YStack items="center" p="$3" bg="#f0f9ff" rounded="$3">
                 <Text fontSize={14} color="#0369a1">您節省了</Text>
                 <Text fontSize={32} fontWeight="bold" color="#0369a1">
-                  ${couponDetail.discount_amount}
+                  ${Number(savingsAmount)}
                 </Text>
               </YStack>
             )}
@@ -198,8 +217,30 @@ const CouponHistoryDetail: React.FC = () => {
         >
           <YStack gap="$4">
             <Text fontSize={18} fontWeight="bold" color="#333333">使用詳情</Text>
-            
-            {/* Date */}
+
+            {/* Coupon Name */}
+            {couponName && (
+              <XStack items="center" gap="$3">
+                <Tag size={20} color="#707070" />
+                <YStack flex={1}>
+                  <Text fontSize={14} color="#707070">優惠名稱</Text>
+                  <Text fontSize={16} color="#333333">{couponName}</Text>
+                </YStack>
+              </XStack>
+            )}
+
+            {/* Coupon Detail */}
+            {couponDetail.coupon_detail && (
+              <XStack items="flex-start" gap="$3">
+                <FileText size={20} color="#707070" style={{ marginTop: 2 }} />
+                <YStack flex={1}>
+                  <Text fontSize={14} color="#707070">優惠內容</Text>
+                  <Text fontSize={16} color="#333333">{couponDetail.coupon_detail}</Text>
+                </YStack>
+              </XStack>
+            )}
+
+            {/* Date of use */}
             <XStack items="center" gap="$3">
               <Calendar size={20} color="#707070" />
               <YStack>
@@ -211,6 +252,19 @@ const CouponHistoryDetail: React.FC = () => {
                 </Text>
               </YStack>
             </XStack>
+
+            {/* Coupon expiry */}
+            {couponDetail.expiry_date && (
+              <XStack items="center" gap="$3">
+                <CalendarCheck size={20} color="#707070" />
+                <YStack>
+                  <Text fontSize={14} color="#707070">優惠券到期日</Text>
+                  <Text fontSize={16} color="#333333">
+                    {formatExpiryDate(couponDetail.expiry_date)}
+                  </Text>
+                </YStack>
+              </XStack>
+            )}
 
             {/* Store */}
             <XStack items="center" gap="$3">
@@ -254,11 +308,11 @@ const CouponHistoryDetail: React.FC = () => {
                 </XStack>
               )}
               
-              {couponDetail.discount_amount && (
+              {savingsAmount != null && savingsAmount !== '' && (
                 <XStack style={{ justifyContent: 'space-between' }}>
                   <Text fontSize={16} color="#16a34a">優惠折扣</Text>
                   <Text fontSize={16} color="#16a34a">
-                    -${couponDetail.discount_amount}
+                    -${Number(savingsAmount)}
                   </Text>
                 </XStack>
               )}
