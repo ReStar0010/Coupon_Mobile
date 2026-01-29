@@ -222,26 +222,15 @@ const CouponDetailPage: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     try {
-      console.log('Formatting date string:', dateString);
-      if (!dateString) return '2024\n07/13';
-      
+      if (!dateString) return '2024/07/13';
       const date = new Date(dateString);
-      console.log('Parsed date:', date);
-      
-      if (isNaN(date.getTime())) {
-        console.log('Invalid date, using fallback');
-        return '2024\n07/13';
-      }
-      
+      if (isNaN(date.getTime())) return '2024/07/13';
       const year = date.getFullYear();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const day = date.getDate().toString().padStart(2, '0');
-      const formatted = `${year}\n${month}/${day}`;
-      console.log('Formatted date result:', formatted);
-      return formatted;
-    } catch (e) {
-      console.log('Date formatting error:', e);
-      return '2024\n07/13';
+      return `${year}/${month}/${day}`;
+    } catch {
+      return '2024/07/13';
     }
   };
 
@@ -589,24 +578,22 @@ const CouponDetailPage: React.FC = () => {
             shadowOpacity={0.08}
             elevation={3}
           >
-            <YStack gap="$4" style={{ alignItems: 'center' }}>
+            <YStack gap="$3" style={{ alignItems: 'center' }}>
               <Text
                 color="#333"
                 fontSize="$9"
                 fontWeight="bold"
-                style={{ 
-                  textAlign: 'center',
-                }}
+                lineHeight={36}
+                style={{ textAlign: 'center', letterSpacing: 0.3 }}
               >
                 {coupon?.store_name || '魚樂鮮魷魚羹'}
               </Text>
               <Text
-                color="#333"
+                color="#555"
                 fontSize="$5"
                 fontWeight="500"
-                style={{ 
-                  textAlign: 'center',
-                }}
+                lineHeight={24}
+                style={{ textAlign: 'center' }}
                 numberOfLines={2}
               >
                 {coupon?.coupon_name || '來店消費滿120送 滷蛋一顆'}
@@ -639,7 +626,8 @@ const CouponDetailPage: React.FC = () => {
             {/* Expiry Date Card */}
             <StatCard
               title="有效日期"
-              value={coupon?.expiry_date ? formatDate(coupon.expiry_date) : '2024\n07/13'}
+              value={coupon?.expiry_date ? formatDate(coupon.expiry_date) : '2024/07/13'}
+              valueSingleLine
             />
 
             {/* Source Card */}
@@ -657,7 +645,7 @@ const CouponDetailPage: React.FC = () => {
 
           {/* Detail Card */}
           <Card 
-            p="$6"
+            p="$5"
             backgroundColor="white"
             borderRadius="$6"
             borderWidth={1}
@@ -668,8 +656,8 @@ const CouponDetailPage: React.FC = () => {
             shadowOpacity={0.08}
             elevation={3}
           >
-            <YStack gap="$6" style={{ alignItems: 'flex-start' }}>
-              <Text color="#333" fontSize="$6" fontWeight="600" > 
+            <YStack gap="$4" style={{ alignItems: 'flex-start' }}>
+              <Text color="#333" fontSize="$5" fontWeight="600" lineHeight={26}>
                 {coupon?.coupon_detail ? 
                   coupon.coupon_detail.split('\n').map((line, index) => (
                     <Text key={index}>
@@ -682,11 +670,11 @@ const CouponDetailPage: React.FC = () => {
               </Text>
 
               {(coupon?.important_notes || !coupon) && (
-                <YStack gap="$3" width="100%">
-                  <Text color="#666" fontSize="$4" fontWeight="500">
+                <YStack gap="$2" width="100%">
+                  <Text color="#666" fontSize="$4" fontWeight="600" lineHeight={22}>
                     注意事項：
                   </Text>
-                  <YStack gap="$2">
+                  <YStack gap="$1.5">
                     {coupon?.important_notes ? 
                       coupon.important_notes.split(/\r?\n/).map((rawLine, index) => {
                         const line = rawLine.trim();
@@ -694,7 +682,7 @@ const CouponDetailPage: React.FC = () => {
 
                         if (!match) {
                           return (
-                            <Text key={index} color="#666" fontSize="$3">
+                            <Text key={index} color="#666" fontSize="$3" lineHeight={20}>
                               {line}
                             </Text>
                           );
@@ -703,10 +691,10 @@ const CouponDetailPage: React.FC = () => {
                         const [, number, text] = match;
                         return (
                           <XStack key={index} gap="$2">
-                            <Text color="#666" fontSize="$3" fontWeight="500">
+                            <Text color="#666" fontSize="$3" fontWeight="500" lineHeight={20}>
                               {number}.
                             </Text>
-                            <Text color="#666" fontSize="$3" flex={1} >
+                            <Text color="#666" fontSize="$3" flex={1} lineHeight={20}>
                               {text || ''}
                             </Text>
                           </XStack>
@@ -714,8 +702,8 @@ const CouponDetailPage: React.FC = () => {
                       }) :
                       [
                         <XStack key="1" gap="$2">
-                          <Text color="#666" fontSize="$3" fontWeight="500">1.</Text>
-                          <Text color="#666" fontSize="$3" flex={1}>測試用</Text>
+                          <Text color="#666" fontSize="$3" fontWeight="500" lineHeight={20}>1.</Text>
+                          <Text color="#666" fontSize="$3" flex={1} lineHeight={20}>測試用</Text>
                         </XStack>
                       ]
                     }

@@ -4,9 +4,11 @@ import { YStack, Text, Card } from 'tamagui';
 interface StatCardProps {
   title: string;
   value: string;
+  /** 為 true 時強制 value 單行顯示不換行（如日期） */
+  valueSingleLine?: boolean;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, valueSingleLine = false }) => {
   return (
     <Card
       flex={1}
@@ -25,9 +27,10 @@ const StatCard: React.FC<StatCardProps> = ({ title, value }) => {
       <YStack flex={1} style={{ justifyContent: 'space-between' }}>
         {/* Title */}
         <Text 
-          fontSize={16} 
+          fontSize={15} 
           fontWeight="500" 
           color="#666666"
+          lineHeight={22}
           adjustsFontSizeToFit
           minimumFontScale={0.75}
           numberOfLines={2}
@@ -36,14 +39,15 @@ const StatCard: React.FC<StatCardProps> = ({ title, value }) => {
         </Text>
 
         {/* Value */}
-        <YStack style={{ justifyContent: 'center', alignItems: 'flex-start' }}>
+        <YStack style={{ justifyContent: 'center', alignItems: 'flex-start' }} flex={1}>
           <Text 
-            fontSize={32} 
-            fontWeight="800" 
+            fontSize={valueSingleLine ? 22 : 26} 
+            fontWeight="700" 
             color="#1a1a1a"
+            lineHeight={valueSingleLine ? 28 : 34}
             adjustsFontSizeToFit
             minimumFontScale={0.6}
-            numberOfLines={1}
+            numberOfLines={valueSingleLine ? 1 : 2}
           >
             {value}
           </Text>
