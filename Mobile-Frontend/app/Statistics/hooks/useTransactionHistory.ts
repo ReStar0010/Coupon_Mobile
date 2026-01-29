@@ -8,6 +8,7 @@ export interface TransactionHistoryItem {
   coupon_id: number;
   store_name: string;
   used_date: string;
+  estimated_savings?: number;
 }
 
 export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 2) => {

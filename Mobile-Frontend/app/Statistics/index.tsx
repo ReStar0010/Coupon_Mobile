@@ -265,6 +265,11 @@ const Statistics: React.FC = () => {
                       <ListItem.Subtitle fontSize={12} color="#707070">
                         {formatDate(item.used_date)}
                       </ListItem.Subtitle>
+                      {item.estimated_savings != null && !Number.isNaN(item.estimated_savings) ? (
+                        <Text fontSize={12} color="#22c55e" style={{ marginTop: 2 }}>
+                          節省 {Number(item.estimated_savings)} 元
+                        </Text>
+                      ) : null}
                       <ChevronRight size={16} color="#333333" />
                     </ListItem>
                     {index < transactionHistory.length - 1 && <Separator />}

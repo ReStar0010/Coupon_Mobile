@@ -31,6 +31,7 @@ export default function CouponEditScreen() {
   const [couponContent, setCouponContent] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [notes, setNotes] = useState('');
+  const [estimatedSavings, setEstimatedSavings] = useState('');
   const [couponType, setCouponType] = useState<'隨取即用' | '專屬優惠'>('專屬優惠');
   const [limitPerDay, setLimitPerDay] = useState(false);
   const [drawProbability, setDrawProbability] = useState('50');
@@ -47,6 +48,7 @@ export default function CouponEditScreen() {
     couponName: string;
     couponContent: string;
     notes: string;
+    estimatedSavings: string;
     image: string | null;
     quantity: string;
     startTime: string;
@@ -128,16 +130,25 @@ export default function CouponEditScreen() {
         setDrawProbability(String(Math.round(data.draw_probability * 100)));
       }
       
+      // Load estimated savings (優惠金額) if available
+      if (data.estimated_savings != null && data.estimated_savings !== '') {
+        setEstimatedSavings(String(data.estimated_savings));
+      } else {
+        setEstimatedSavings('');
+      }
+      
       // Store original data for change detection
       const originalImageUrl = getAbsoluteImageUrl(data.image_url) || null;
       const originalQuantity = type === '專屬優惠' ? String(totalQty) : '1';
       const originalStartTime = data.start_date ? formatDateTime(new Date(data.start_date)) : '';
       const originalEndTime = data.end_date ? formatDateTime(new Date(data.end_date)) : '';
       
+      const originalEstimatedSavings = data.estimated_savings != null && data.estimated_savings !== '' ? String(data.estimated_savings) : '';
       setOriginalData({
         couponName: data.coupon_name || '',
         couponContent: data.coupon_detail || '',
         notes: data.important_notes || '',
+        estimatedSavings: originalEstimatedSavings,
         image: originalImageUrl,
         quantity: originalQuantity,
         startTime: originalStartTime,
@@ -251,11 +262,17 @@ export default function CouponEditScreen() {
         }
       };
       
+      // Parse 優惠金額: non-negative number or undefined if empty/invalid
+      const parsedSavings = estimatedSavings.trim() === '' ? null : parseFloat(estimatedSavings);
+      const estimatedSavingsValue =
+        parsedSavings != null && !Number.isNaN(parsedSavings) && parsedSavings >= 0 ? parsedSavings : null;
+
       const couponData = {
         coupon_name: couponName,
         coupon_detail: couponContent,
         important_notes: notes,
         image_url: image || '',
+        ...(estimatedSavingsValue != null && { estimated_savings: estimatedSavingsValue }),
         // 優惠數量：專屬優惠類型使用輸入的數量，隨取即用類型設為 0 或 undefined（根據後端需求）
         total_quantity: couponType === '專屬優惠' ? (parseInt(quantity) || 1) : 0,
         // 核銷碼：自動生成隨機的六位數字
@@ -276,6 +293,7 @@ export default function CouponEditScreen() {
             couponName,
             couponContent,
             notes,
+            estimatedSavings,
             image: image || null,
             quantity: couponType === '專屬優惠' ? quantity : '1',
             startTime,
@@ -353,6 +371,7 @@ export default function CouponEditScreen() {
       couponName !== originalData.couponName ||
       couponContent !== originalData.couponContent ||
       notes !== originalData.notes ||
+      estimatedSavings !== originalData.estimatedSavings ||
       image !== originalData.image ||
       currentQuantity !== originalData.quantity ||
       startTime !== originalData.startTime ||
@@ -444,6 +463,18 @@ export default function CouponEditScreen() {
               onChangeText={setCouponContent}
               placeholder="輸入優惠內容"
               multiline
+            />
+
+            {/* 優惠金額 (元) - 選填，兌換後會計入使用者的節省總金額 */}
+            <FormField
+              label="優惠金額 (元)"
+              value={estimatedSavings}
+              onChangeText={(text) => {
+                const numericValue = text.replace(/[^0-9.]/g, '');
+                setEstimatedSavings(numericValue);
+              }}
+              placeholder="選填，例：100"
+              keyboardType="numeric"
             />
 
             {/* 優惠數量 - 只在專屬優惠類型時顯示 */}
