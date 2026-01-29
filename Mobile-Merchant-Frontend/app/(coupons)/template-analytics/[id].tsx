@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { YStack, XStack, Text } from "tamagui";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
   StyleSheet,
   View,
@@ -119,6 +119,7 @@ export default function TemplateAnalyticsScreen() {
     useState<MetricType>("exposure_count");
   const [templateName, setTemplateName] = useState<string>("");
   const [isStoreTemplate, setIsStoreTemplate] = useState<boolean>(false);
+  const isFirstFocus = useRef(true);
 
   const loadAnalytics = async () => {
     if (!templateId) {
@@ -157,6 +158,18 @@ export default function TemplateAnalyticsScreen() {
   useEffect(() => {
     loadAnalytics();
   }, [timeRange, templateId]);
+
+  // Refetch when screen gains focus (e.g. returning from 張數 page) so data stays in sync
+  useFocusEffect(
+    useCallback(() => {
+      if (!templateId) return;
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      loadAnalytics();
+    }, [timeRange, templateId])
+  );
 
   // Auto-switch selected metric based on template type
   useEffect(() => {

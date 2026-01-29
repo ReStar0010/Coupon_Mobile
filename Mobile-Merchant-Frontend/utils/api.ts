@@ -209,6 +209,17 @@ export class AuthenticationError extends Error {
   }
 }
 
+/**
+ * Custom error class for merchant authorization failures
+ * Thrown when user is authenticated but not a merchant (403 Forbidden)
+ */
+export class MerchantAuthorizationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MerchantAuthorizationError';
+  }
+}
+
 // Token refresh state
 let isRefreshing = false;
 let refreshSubscribers: Array<(success: boolean) => void> = [];
@@ -401,6 +412,20 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         throw unverifiedError;
       }
 
+      // Special handling for 403 "User is not a merchant" error
+      // This happens when a non-merchant user tries to access merchant endpoints
+      if (response.status === 403 && (
+        errorData.error === 'User is not a merchant.' ||
+        errorData.message === 'User is not a merchant.' ||
+        errorData.error?.includes('not a merchant') ||
+        errorData.message?.includes('not a merchant')
+      )) {
+        console.error('[API] User is not a merchant, clearing tokens and throwing MerchantAuthorizationError');
+        // Clear tokens since user is not authorized for merchant endpoints
+        await clearTokens();
+        throw new MerchantAuthorizationError('您不是商家用戶，無法使用商家功能。');
+      }
+
       // Check for field-specific errors (e.g., {phone: ['This field is required.']})
       const fieldErrors: string[] = [];
       for (const [key, value] of Object.entries(errorData)) {
@@ -467,6 +492,28 @@ export interface UnverifiedErrorResponse {
   error: 'email_not_verified';
   message: string;
   email: string;
+}
+
+export interface UserInfoResponse {
+  id: number;
+  email: string;
+  verified: boolean;
+  is_merchant: boolean;
+  message: string;
+  date_joined: string;
+  merchant_profile?: {
+    phone?: string;
+    contact_person?: string;
+    contact_info?: string;
+  };
+  store?: {
+    id: number;
+    name?: string;
+    address?: string;
+    lat?: number;
+    lng?: number;
+    business_hours?: string;
+  };
 }
 
 // ============================================
@@ -557,9 +604,9 @@ export const authAPI = {
     }
   },
 
-  getUserInfo: async () => {
+  getUserInfo: async (): Promise<UserInfoResponse> => {
     const response = await fetchAPI('/user-info/');
-    return parseResponse(response);
+    return parseResponse<UserInfoResponse>(response);
   },
 
   verifyEmail: async (token: string): Promise<VerificationSuccessResponse> => {

@@ -61,6 +61,30 @@ export default function LoginScreen() {
       const response = await authAPI.login(formData.email, formData.password);
       console.log('[Login] Login successful:', response);
       
+      // Verify user is a merchant after login
+      try {
+        const userInfo = await authAPI.getUserInfo();
+        console.log('[Login] User info:', userInfo);
+        
+        // Check if user is a merchant
+        if (!userInfo.is_merchant) {
+          // User is not a merchant, clear tokens and show error
+          const { clearTokens } = await import('@/utils/api');
+          await clearTokens();
+          await checkAuth();
+          setErrorMessage('此帳號不是商家帳號，無法使用商家應用程式。');
+          setErrorModalTitle('登入失敗');
+          setErrorModalType('error');
+          setErrorModalAutoHideDurationMs(undefined);
+          setShowErrorModal(true);
+          return;
+        }
+      } catch (userInfoError: any) {
+        console.error('[Login] Failed to verify merchant status:', userInfoError);
+        // If we can't verify merchant status, still allow login but log warning
+        // The merchant endpoints will catch this and handle appropriately
+      }
+      
       // Immediately refresh auth state after successful login
       await checkAuth();
       console.log('[Login] Auth state refreshed');

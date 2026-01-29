@@ -7,7 +7,7 @@ import { Header } from '../(coupons)/components/Header';
 import { Button } from '@/components/ui';
 import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { merchantAPI, authAPI, AuthenticationError } from '@/utils/api';
+import { merchantAPI, authAPI, AuthenticationError, MerchantAuthorizationError } from '@/utils/api';
 import { useAuth } from '../components/providers/AuthProvider';
 import { Alert } from 'react-native';
 
@@ -86,6 +86,23 @@ export default function MerchantProfileScreen() {
       if (error instanceof AuthenticationError) {
         console.log('[Profile] Authentication error detected, redirecting to login');
         router.replace('/(auth)/login');
+        return;
+      }
+      // Check if user is not a merchant
+      if (error instanceof MerchantAuthorizationError) {
+        console.log('[Profile] User is not a merchant, redirecting to login');
+        Alert.alert(
+          '權限不足',
+          '您不是商家用戶，無法使用商家功能。',
+          [
+            {
+              text: '確定',
+              onPress: () => {
+                router.replace('/(auth)/login');
+              },
+            },
+          ]
+        );
         return;
       }
     } finally {

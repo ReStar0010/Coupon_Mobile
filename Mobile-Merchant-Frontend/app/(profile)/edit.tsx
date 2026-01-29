@@ -8,7 +8,7 @@ import { StyleSheet, TouchableOpacity, View, TextInput, Alert, Platform } from '
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { getAbsoluteImageUrl, MerchantProfileResponse } from '@/utils/api';
+import { getAbsoluteImageUrl, MerchantProfileResponse, MerchantAuthorizationError, AuthenticationError } from '@/utils/api';
 import LocationPicker from '@/app/components/LocationPicker';
 import EULAModal from '@/app/components/EULAModal';
 import { useEULACheck } from '@/app/hooks/useEULACheck';
@@ -132,6 +132,23 @@ export default function ProfileEditScreen() {
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
+      // Check if user is not a merchant or authentication failed
+      if (error instanceof MerchantAuthorizationError || error instanceof AuthenticationError) {
+        Alert.alert(
+          '權限不足',
+          error instanceof MerchantAuthorizationError 
+            ? '您不是商家用戶，無法使用商家功能。'
+            : '請重新登入。',
+          [
+            {
+              text: '確定',
+              onPress: () => {
+                router.replace('/(auth)/login');
+              },
+            },
+          ]
+        );
+      }
     } finally {
       setIsLoading(false);
     }

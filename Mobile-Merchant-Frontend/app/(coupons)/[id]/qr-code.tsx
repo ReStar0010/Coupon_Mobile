@@ -30,7 +30,8 @@ export default function QRCodeScreen() {
     };
   }, [id]);
 
-  // Poll remaining quantity while QR is shown; when exhausted, go back to coupon list (優惠項目)
+  // Poll remaining quantity only while this QR code screen is open and QR is displayed.
+  // Does not run on other screens (coupon list/detail); stops on unmount when merchant leaves.
   const POLL_INTERVAL_MS = 3000;
   useEffect(() => {
     if (!id || !qrCodeData || !sessionId) return;
