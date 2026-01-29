@@ -832,7 +832,7 @@ def get_template_analytics(request, id):
     - 陌生獲客率 (stranger_acquisition_rate): Non-(Consolidate + QR-claim) redemptions / Total redemptions
     - 流動率 (circulation_rate): (Transfer + Public pool) / Total coupons
     - 流動核銷率 (circulation_redemption_rate): (Transfer + Public pool redeemed) / (Transfer + Public pool)
-    - 核銷率 (redemption_rate): Total redemptions / Total quantity
+    - 核銷率 (redemption_rate): Total redemptions / Issued count (已核銷數 / 已發出數)
     """
     user = request.user
     
@@ -878,15 +878,16 @@ def get_template_analytics(request, id):
     
     # For store templates (EasyUse), return exposure and conversion statistics
     if is_store_template:
-        # 曝光次數 (Exposure Count): Template view count
+        # 曝光次數 (Exposure Count): Template view count within selected time range
         template_view_logs = template_logs.filter(action='template_view')
-        exposure_count = template_view_logs.count()
+        template_view_logs_in_range = template_view_logs.filter(timestamp__gte=time_threshold)
+        exposure_count = template_view_logs_in_range.count()
         
-        # 轉換率 (Conversion Rate): Redemptions / Exposures
-        # For store templates, count all redemptions (not filtered by time range for total)
+        # 轉換率 (Conversion Rate): Redemptions / Exposures within selected time range
         total_redemptions = CouponRedemption.objects.filter(
             coupon__template=template,
-            coupon__coupon_type='store'
+            coupon__coupon_type='store',
+            redeemed_at__gte=time_threshold,
         ).count()
         conversion_rate = total_redemptions / exposure_count if exposure_count > 0 else 0
         
@@ -900,7 +901,7 @@ def get_template_analytics(request, id):
             day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()))
             day_end = day_start + timedelta(days=1)
             
-            # Daily exposures
+            # Daily exposures (template_view_logs already filtered by template; filter by day)
             day_exposures = template_view_logs.filter(
                 timestamp__gte=day_start,
                 timestamp__lt=day_end
@@ -934,10 +935,20 @@ def get_template_analytics(request, id):
         # Calculate averages
         exposure_avg = sum([d['value'] for d in exposure_trend_data]) / len(exposure_trend_data) if exposure_trend_data else 0
         conversion_avg = sum([d['value'] for d in conversion_trend_data]) / len(conversion_trend_data) if conversion_trend_data else 0
-        
+        # Redemption count trend (for 張數 view): daily_data uses count per day
+        redemption_trend_data = [
+            {'date': d['date'], 'value': d['count']}
+            for d in conversion_trend_data
+        ]
+        redemption_avg = (
+            sum(d['count'] for d in conversion_trend_data) / len(conversion_trend_data)
+            if conversion_trend_data else 0
+        )
+
         return Response({
             'exposure_count': exposure_count,
             'conversion_rate': conversion_rate,
+            'redemption_count': total_redemptions,
             'trends': {
                 'exposure_count': {
                     'current': exposure_count,
@@ -948,17 +959,28 @@ def get_template_analytics(request, id):
                     'current': conversion_rate,
                     'average': conversion_avg,
                     'daily_data': conversion_trend_data
+                },
+                'redemption_count': {
+                    'current': total_redemptions,
+                    'average': redemption_avg,
+                    'daily_data': redemption_trend_data
                 }
             }
         }, status=status.HTTP_200_OK)
     
-    # Calculate metrics for exclusive templates
+    # Calculate metrics for exclusive templates (aggregates within selected time range)
     exclusive_coupons = template_coupons.filter(coupon_type='exclusive')
-    exclusive_redemptions = template_redemptions.filter(coupon__coupon_type='exclusive')
+    exclusive_redemptions = template_redemptions.filter(
+        coupon__coupon_type='exclusive',
+        redeemed_at__gte=time_threshold,
+    )
     exclusive_redemptions_count = exclusive_redemptions.count()
     
-    # 1. 曝光次數 (Exposure Count): Template view count
-    template_view_logs = template_logs.filter(action='template_view')
+    # 1. 曝光次數 (Exposure Count): Template view count within selected time range
+    template_view_logs = template_logs.filter(
+        action='template_view',
+        timestamp__gte=time_threshold,
+    )
     exposure_count = template_view_logs.count()
     
     # 2. 轉換率 (Conversion Rate): Redemptions / Exposures
@@ -983,18 +1005,18 @@ def get_template_analytics(request, id):
     stranger_acquisition_rate = non_retention_redemption_count / exclusive_redemptions_count if exclusive_redemptions_count > 0 else 0
     
     # 5. 流動率 (Circulation Rate): (transfer + public_pool) / 總優惠數
-    total_coupons = exclusive_coupons.count()
+    total_coupons = exclusive_coupons.count()  # 已發出數 (issued count)
     transfer_coupons = exclusive_coupons.filter(acquisition_method__in=['transfer', 'public_pool'])
     transfer_count = transfer_coupons.count()
     circulation_rate = transfer_count / total_coupons if total_coupons > 0 else 0
-    
+
     # 6. 流動核銷率 (Circulation Redemption Rate): (transfer + public_pool 且已核銷) / 轉手優惠數
     transfer_redemptions = exclusive_redemptions.filter(coupon__acquisition_method__in=['transfer', 'public_pool'])
     transfer_redemption_count = transfer_redemptions.count()
     circulation_redemption_rate = transfer_redemption_count / transfer_count if transfer_count > 0 else 0
-    
-    # 7. 核銷率 (Redemption Rate): 已核銷數量 / 總數量
-    redemption_rate = exclusive_redemptions_count / template.total_quantity if template.total_quantity > 0 else 0
+
+    # 7. 核銷率 (Redemption Rate): 已核銷數量 / 已發出數量（非總配額，避免低估核銷率）
+    redemption_rate = exclusive_redemptions_count / total_coupons if total_coupons > 0 else 0
     
     # Calculate trend data for all metrics (daily data)
     current_date = time_threshold.date()
@@ -1057,8 +1079,8 @@ def get_template_analytics(request, id):
         day_transfer_redemption_count = day_transfer_redemptions.count()
         day_circulation_redemption_rate = day_transfer_redemption_count / transfer_count if transfer_count > 0 else 0
         
-        # Daily redemption rate (已核銷數量 / 總數量)
-        day_redemption_rate = day_exclusive_count / template.total_quantity if template.total_quantity > 0 else 0
+        # Daily redemption rate (當日核銷數 / 已發出數量，與整體核銷率分母一致)
+        day_redemption_rate = day_exclusive_count / total_coupons if total_coupons > 0 else 0
         
         exposure_trend_data.append({
             'date': current_date.isoformat(),
