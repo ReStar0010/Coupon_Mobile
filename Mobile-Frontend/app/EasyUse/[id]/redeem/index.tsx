@@ -297,6 +297,9 @@ export default function RedeemPage() {
       }
       
       setInputError(true);
+      if (codeToUse === undefined) {
+        setRedeemCode('');
+      }
     } finally {
       setIsLoading(false);
     }
