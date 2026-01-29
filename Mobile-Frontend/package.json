@@ -2,6 +2,7 @@
   "name": "Mobile-Frontend",
   "version": "1.0.0",
   "scripts": {
+    "generate:tamagui": "tamagui generate",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "start": "expo start",
@@ -52,6 +53,7 @@
   "main": "expo-router/entry",
   "private": true,
   "devDependencies": {
+    "@tamagui/cli": "^1.136.6",
     "@types/react": "~19.1.10",
     "baseline-browser-mapping": "^2.9.18",
     "typescript": "~5.9.2"
