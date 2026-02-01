@@ -574,12 +574,12 @@ export const authAPI = {
     password: string;
     user_type: 'merchant';
     phone: string;
-    contact_person: string;
+    contact_person?: string;
     contact_info?: string;
-    store_name: string;
-    store_address: string;
-    store_lat: number;
-    store_lng: number;
+    store_name?: string;
+    store_address?: string;
+    store_lat?: number;
+    store_lng?: number;
     business_hours?: string;
   }) => {
     const response = await fetchAPI('/register/', {
@@ -587,7 +587,7 @@ export const authAPI = {
       requireAuth: false,
       body: JSON.stringify(formData),
     });
-    return parseResponse(response);
+    return parseResponse<{ verification_required?: boolean }>(response);
   },
 
   forgotPassword: async (email: string) => {

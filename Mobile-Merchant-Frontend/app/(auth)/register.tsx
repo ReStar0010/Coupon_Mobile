@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { StyleSheet } from "react-native";
 import { YStack, Text, XStack, ScrollView } from "tamagui";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -172,26 +173,15 @@ export default function RegisterScreen() {
       edges={["top"]}
     >
       <DismissKeyboardView>
-        <YStack flex={1} backgroundColor={colors.background}>
+        <YStack flex={1} style={styles.mainStack}>
           <ScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingTop: 20,
-              paddingBottom: 40,
-              gap: 12,
-            }}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
             {/* Title */}
-            <XStack
-              width="100%"
-              justifyContent="center"
-              alignItems="center"
-              marginTop="$2"
-              marginBottom="$4"
-            >
+            <XStack width="100%" style={styles.titleRow}>
               <Text
                 fontSize={34}
                 fontWeight="800"
@@ -268,7 +258,7 @@ export default function RegisterScreen() {
             />
 
             {/* Location Picker */}
-            <YStack width="100%" gap="$2" marginTop="$2">
+            <YStack width="100%" gap="$2" style={styles.locationSection}>
               <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
                 選擇店家位置（選填）
               </Text>
@@ -305,16 +295,11 @@ export default function RegisterScreen() {
             </Button>
 
             {/* Login Link */}
-            <XStack
-              gap={10}
-              justifyContent="center"
-              alignItems="center"
-              width="100%"
-            >
+            <XStack gap={10} width="100%" style={styles.loginLinkRow}>
               <Text
                 fontSize="$sm"
                 color={colors.textPrimary}
-                textAlign="center"
+                style={styles.loginLinkText}
               >
                 已經有帳號了嗎 ?{" "}
                 <Text
@@ -358,3 +343,36 @@ export default function RegisterScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  mainStack: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    gap: 12,
+  },
+  titleRow: {
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  locationSection: {
+    width: "100%",
+    marginTop: 8,
+  },
+  loginLinkRow: {
+    gap: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  loginLinkText: {
+    textAlign: "center",
+  },
+});

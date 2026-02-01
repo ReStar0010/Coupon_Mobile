@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  SafeAreaView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Dimensions,
-} from 'react-native';
+import { View, Text, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Dimensions, } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
