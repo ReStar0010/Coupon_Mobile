@@ -295,6 +295,7 @@ def get_coupon_detail(request, id):
             "can_use_today": can_use_today,
             "tags": [tag.display_name for tag in coupon.tags.all()],  # 返回標籤的顯示名稱
             "merchant_deleted": coupon.store.owner is None,
+            "acquisition_method": getattr(coupon, "acquisition_method", None) or None,  # store coupons typically null
         }
 
     else:
@@ -339,6 +340,7 @@ def get_coupon_detail(request, id):
             "can_use_today": True,
             "tags": [tag.display_name for tag in coupon.tags.all()],  # 返回標籤的顯示名稱
             "merchant_deleted": coupon.store.owner is None,
+            "acquisition_method": coupon.acquisition_method,
         }
     
     return Response(data)

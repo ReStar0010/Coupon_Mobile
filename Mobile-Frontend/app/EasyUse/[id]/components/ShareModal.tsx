@@ -144,7 +144,7 @@ const ShareModal = ({
                         minimumFontScale={0.8}
                         style={{ textAlign: 'center' }}
                       >
-                        {isSharing ? '分享中...' : '分享到隨取即用'}
+                        {isSharing ? '分享中...' : '分享到 CouPro'}
                       </Text>
                     </XStack>
                   </Button>

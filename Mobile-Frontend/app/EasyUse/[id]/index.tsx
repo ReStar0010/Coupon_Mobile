@@ -4,20 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Share2, MapPin, ShieldBan, ShieldCheck } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
-import { 
-  YStack, 
-  XStack, 
-  ScrollView, 
-  Card, 
-  Text, 
-  Button, 
-  Spinner,
-  View,
-  H1,
-  H2,
-  H3,
-  Paragraph
-} from 'tamagui';
+import { YStack, XStack, ScrollView, Card, Text, Button, Spinner, View, H1, H2, H3, Paragraph } from 'tamagui';
 import SuccessPopup from './redeem/SuccessPopup';
 import ShareModal from './components/ShareModal';
 import ReportButton from '../../components/ReportButton';
@@ -48,7 +35,40 @@ export type CouponDetailType = {
   is_redeemed: boolean;
   can_use_today: boolean;
   tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
+  /** 取得方式：draw=抽優惠券, consolidate=電話歸戶, transfer=私人轉讓, public_pool=公共池領取, qr_claim=QR Code 領取；store 券通常為 null */
+  acquisition_method?: string | null;
 };
+
+/** 後端 ACQUISITION_METHOD_CHOICES 對應顯示文字（與 Backend api/models Coupon 一致） */
+const ACQUISITION_LABELS: Record<string, string> = {
+  draw: '抽優惠券',
+  consolidate: '電話歸戶',
+  transfer: '私人轉讓',
+  public_pool: '公共池領取',
+  qr_claim: 'QR Code 領取',
+};
+
+function getSourceDisplayText(coupon: CouponDetailType | null): string {
+  if (!coupon) return 'CouPro';
+  if (coupon.coupon_type === 'store') {
+    return coupon.store_name ?? 'CouPro';
+  }
+  // exclusive: 依取得方式顯示來源
+  switch (coupon.acquisition_method) {
+    case 'consolidate':
+      return coupon.store_name ?? ACQUISITION_LABELS.consolidate; // 電話歸戶：顯示歸戶的店家
+    case 'transfer':
+      return coupon.last_holder_email ?? ACQUISITION_LABELS.transfer; // 私人轉讓：顯示轉讓人
+    case 'qr_claim':
+      return coupon.store_name ?? ACQUISITION_LABELS.qr_claim; // QR 領取：顯示 QR 所在店家
+    case 'draw':
+    case 'public_pool':
+      return ACQUISITION_LABELS[coupon.acquisition_method] ?? coupon.acquisition_method;
+    default:
+      if (coupon.last_holder_email) return coupon.last_holder_email;
+      return 'CouPro';
+  }
+}
 
 const CouponDetailPage: React.FC = () => {
   const router = useRouter();
@@ -630,16 +650,10 @@ const CouponDetailPage: React.FC = () => {
               valueSingleLine
             />
 
-            {/* Source Card */}
+            {/* Source Card: 依取得方式顯示來源（store=店家名；exclusive=acquisition_method 對應中文或 last_holder） */}
             <StatCard
               title="來自"
-              value={
-                (coupon?.coupon_type === 'store'
-                  ? coupon?.store_name
-                  : coupon?.coupon_type === 'exclusive' && coupon?.last_holder_email
-                    ? coupon.last_holder_email
-                    : 'CouPro') ?? 'CouPro'
-              }
+              value={getSourceDisplayText(coupon)}
             />
           </XStack>
 
