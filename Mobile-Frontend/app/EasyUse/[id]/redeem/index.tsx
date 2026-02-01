@@ -1,17 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  SafeAreaView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Dimensions,
-} from 'react-native';
+import { View, Text, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Dimensions, } from 'react-native';
 import { DismissKeyboardView } from '../../../components/DismissKeyboardView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Send, Camera as CameraIcon } from 'lucide-react-native';
@@ -19,13 +7,14 @@ import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } f
 import SuccessPopup from './SuccessPopup';
 import Toast from './Toast';
 import { devLog } from '../../../utils/devLogger';
-import { fetchAPI, unifiedRedemptionAPI } from '../../../utils/authAPI';
+import { fetchAPI } from '../../../utils/authAPI';
 
 // Define the coupon interface
 interface Coupon {
   id: number;
   store_name: string;
   coupon_detail: string;
+  coupon_name?: string;
   coupon_type: 'store' | 'exclusive';
   // Add other properties as needed
 }
@@ -57,24 +46,18 @@ export default function RedeemPage() {
   const lastScannedTimeRef = useRef<number>(0);
   const lastScannedCodeRef = useRef<string>('');
 
-  const { width } = Dimensions.get('window');
-
   const onGoBackContainerClick = useCallback(() => {
-    if (source === 'collection') {
-      router.replace('/Collection');
-      return;
-    }
-    router.replace(`/EasyUse/${id}`);
-  }, [router, id, source]);
+    router.back();
+  }, [router]);
 
   const handleCloseSuccessPopup = useCallback(() => {
     setShowSuccessConfirmation(false);
     setRedemptionData(null);
-    // Redirect based on source: Collection or EasyUse
+    // Redirect based on source: Collection or EasyUse (replace to avoid stacking)
     if (source === 'collection') {
-      router.push('/Collection');
+      router.replace('/Collection');
     } else {
-      router.push('/EasyUse');
+      router.replace('/EasyUse');
     }
   }, [router, source]);
 
@@ -125,50 +108,104 @@ export default function RedeemPage() {
     }
   };
 
+  const handleSubmitCode = useCallback(async (codeToUse?: string) => {
+    const code = codeToUse ?? redeemCode;
+    if (!code || code.length < 1) {
+      return;
+    }
+
+    setInputError(false);
+    setMessage('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetchAPI(`/redeem/${id}/`, {
+        method: 'POST',
+        data: { redeem_code: code },
+      });
+
+      // Process the successful response
+      devLog('兌換成功', response.data);
+
+      // Store redemption data
+      setRedemptionData({
+        couponName: response.data.coupon_name,
+        discountValue: response.data.savings_amount,
+        redeemedAt: response.data.redeemed_at,
+        redemptionId: response.data.redemption_id,
+      });
+
+      setInputError(false);
+      setShowSuccessConfirmation(true);
+      setRedeemCode('');
+    } catch (error) {
+      console.error('處理錯誤:', error);
+
+      let errorMessage = '發生錯誤，請稍後再試';
+
+      if (error instanceof Error) {
+        // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
+        if (error.message.includes('401') || error.message.includes('Authentication')) {
+          setErrorToastMessage('');
+          setShowErrorToast(false);
+        } else if (error.message.includes('400')) {
+          errorMessage = '兌換碼錯誤或已使用';
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
+        } else if (error.message.includes('404')) {
+          errorMessage = '找不到此優惠券';
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
+        } else {
+          errorMessage = error.message;
+          setErrorToastMessage(errorMessage);
+          setShowErrorToast(true);
+        }
+      } else {
+        setErrorToastMessage(errorMessage);
+        setShowErrorToast(true);
+      }
+
+      setInputError(true);
+      if (codeToUse === undefined) {
+        setRedeemCode('');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id, redeemCode]);
+
   const handleBarCodeScanned = useCallback(async ({ type, data }: BarcodeScanningResult) => {
     if (!isScanning) return;
-    
-    // Prevent processing same QR code multiple times within 3 seconds
+
     const now = Date.now();
     const scannedCode = data.trim();
-    
+
     if (scannedCode === lastScannedCodeRef.current && now - lastScannedTimeRef.current < 3000) {
       devLog('Duplicate scan prevented:', scannedCode);
       return;
     }
-    
+
     lastScannedTimeRef.current = now;
     lastScannedCodeRef.current = scannedCode;
     setIsScanning(false);
     devLog('Barcode scanned:', { type, data });
-    
-    // Check if this is a unified redemption code (6-digit numeric)
+
     const isUnifiedCode = /^\d{6}$/.test(scannedCode);
-    
-    // Close camera after scanning
     setIsCameraActive(false);
-    
-    // Clear any previous errors
     setInputError(false);
     setMessage('');
-    if (showErrorToast) {
-      setShowErrorToast(false);
-      setErrorToastMessage('');
-    }
-    
+    setShowErrorToast(false);
+    setErrorToastMessage('');
+
     if (isUnifiedCode) {
-      // Unified redemption code - directly redeem the current coupon
-      // No need to navigate to selection screen since user already selected the coupon
       await handleSubmitCode(scannedCode);
     } else {
-      // Regular coupon-specific code - auto-redeem immediately
       const upperCode = scannedCode.toUpperCase();
       setRedeemCode(upperCode);
-      
-      // Auto-redeem immediately after scanning
       await handleSubmitCode(upperCode);
     }
-  }, [isScanning, showErrorToast, id, handleSubmitCode]);
+  }, [isScanning, handleSubmitCode]);
 
   useEffect(() => {
     const fetchCoupon = async () => {
@@ -196,6 +233,7 @@ export default function RedeemPage() {
     }
   }, [id, router]);
 
+
   // Auto-fill and auto-redeem unified redemption code if provided
   useEffect(() => {
     if (unifiedCode && !redeemCode && coupon && !isLoading && !showSuccessConfirmation) {
@@ -204,6 +242,7 @@ export default function RedeemPage() {
       handleSubmitCode(unifiedCode);
     }
   }, [unifiedCode, redeemCode, coupon, isLoading, showSuccessConfirmation, handleSubmitCode]);
+
 
   // Auto-redeem on manual input with debounce (1 second after user stops typing)
   // Handles both regular codes and unified codes (6-digit) - both redeem directly
@@ -237,76 +276,7 @@ export default function RedeemPage() {
     };
   }, []);
 
-  const handleSubmitCode = useCallback(async (codeToUse?: string) => {
-    const code = codeToUse || redeemCode;
-    if (!code || code.length < 1) {
-      return;
-    }
-
-    setInputError(false);
-    setMessage('');
-    setIsLoading(true);
-
-    try {
-      const response = await fetchAPI(`/redeem/${id}/`, {
-        method: 'POST',
-        data: { redeem_code: code },
-      });
-
-      // Process the successful response
-      devLog('兌換成功', response.data);
-      
-      // Store redemption data
-      setRedemptionData({
-        couponName: response.data.coupon_name,
-        discountValue: response.data.savings_amount,
-        redeemedAt: response.data.redeemed_at,
-        redemptionId: response.data.redemption_id,
-      });
-      
-      setInputError(false);
-      setShowSuccessConfirmation(true);
-      setRedeemCode('');
-    } catch (error) {
-      console.error('處理錯誤:', error);
-
-      let errorMessage = '發生錯誤，請稍後再試';
-
-      if (error instanceof Error) {
-        // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
-        if (error.message.includes('401') || error.message.includes('Authentication')) {
-          // Don't show any error message, let AuthOrchestrator handle silent redirect
-          setErrorToastMessage('');
-          setShowErrorToast(false);
-        } else if (error.message.includes('400')) {
-          errorMessage = '兌換碼錯誤或已使用';
-          setErrorToastMessage(errorMessage);
-          setShowErrorToast(true);
-        } else if (error.message.includes('404')) {
-          errorMessage = '找不到此優惠券';
-          setErrorToastMessage(errorMessage);
-          setShowErrorToast(true);
-        } else {
-          errorMessage = error.message;
-          setErrorToastMessage(errorMessage);
-          setShowErrorToast(true);
-        }
-      } else {
-        // For non-Error objects, show the error
-        setErrorToastMessage(errorMessage);
-        setShowErrorToast(true);
-      }
-      
-      setInputError(true);
-      if (codeToUse === undefined) {
-        setRedeemCode('');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id, redeemCode, router]);
-
-  const handleInputChange = (text: string) => {
+   const handleInputChange = (text: string) => {
     // Allow more flexible input, not just 6 characters
     const filteredText = text.slice(0, 20).toUpperCase(); // Allow up to 20 characters
     setRedeemCode(filteredText);
@@ -323,21 +293,21 @@ export default function RedeemPage() {
 
   if (!coupon && !message) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-gray-100">
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0' }}>
         <ActivityIndicator size="large" color="#FFAD31" />
-        <Text className="text-sec-black mt-4">載入中...</Text>
+        <Text style={{ color: '#333', marginTop: 16 }}>載入中...</Text>
       </SafeAreaView>
     );
   }
 
   if (!coupon && message) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-gray-100 px-4">
-        <Text className="text-center text-lg text-red-500">{message}</Text>
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0', paddingHorizontal: 20 }}>
+        <Text style={{ textAlign: 'center', fontSize: 18, color: '#ef4444' }}>{message}</Text>
         <TouchableOpacity
           onPress={onGoBackContainerClick}
-          className="mt-4 rounded-lg bg-gray-300 px-4 py-2">
-          <Text className="font-semibold text-gray-700">返回</Text>
+          style={{ marginTop: 16, borderRadius: 8, backgroundColor: '#d1d5db', paddingHorizontal: 16, paddingVertical: 8 }}>
+          <Text style={{ fontWeight: '600', color: '#374151' }}>返回</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );

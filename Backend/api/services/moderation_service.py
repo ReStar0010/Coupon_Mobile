@@ -75,7 +75,7 @@ def send_escalation_email(warning_reports: list, critical_reports: list) -> bool
         import resend
 
         resend.api_key = settings.RESEND_API_KEY
-        admin_email = getattr(settings, 'ADMIN_EMAIL', 'admin@coupro.app')
+        admin_email = getattr(settings, 'ADMIN_EMAIL', 'admin@coupro.pro')
 
         # Build email content
         subject = "[CouPro] 內容審核警報"
@@ -103,7 +103,7 @@ def send_escalation_email(warning_reports: list, critical_reports: list) -> bool
         html_content += "<p>請儘快登入管理後台處理這些報告。</p>"
 
         resend.Emails.send({
-            "from": "CouPro <noreply@coupro.app>",
+            "from": "CouPro <noreply@coupro.pro>",
             "to": [admin_email],
             "subject": subject,
             "html": html_content,
@@ -190,7 +190,7 @@ def send_suspension_flag_notification(merchant, violation_count: int) -> bool:
         import resend
 
         resend.api_key = settings.RESEND_API_KEY
-        admin_email = getattr(settings, 'ADMIN_EMAIL', 'admin@coupro.app')
+        admin_email = getattr(settings, 'ADMIN_EMAIL', 'admin@coupro.pro')
 
         html_content = f"""
         <h2>商家帳號需要審查</h2>
@@ -203,7 +203,7 @@ def send_suspension_flag_notification(merchant, violation_count: int) -> bool:
         """
 
         resend.Emails.send({
-            "from": "CouPro <noreply@coupro.app>",
+            "from": "CouPro <noreply@coupro.pro>",
             "to": [admin_email],
             "subject": f"[CouPro] 商家帳號需要審查 - {merchant.email}",
             "html": html_content,
@@ -257,7 +257,7 @@ def send_content_removal_notification(
         """
 
         resend.Emails.send({
-            "from": "CouPro <noreply@coupro.app>",
+            "from": "CouPro <noreply@coupro.pro>",
             "to": [merchant.email],
             "subject": f"[CouPro] 您的{content_type_zh}已被移除",
             "html": html_content,

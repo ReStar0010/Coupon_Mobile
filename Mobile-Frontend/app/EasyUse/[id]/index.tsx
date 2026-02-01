@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Location from 'expo-location';
 import { ArrowLeft, Share2, MapPin, ShieldBan, ShieldCheck } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
@@ -331,12 +332,15 @@ const CouponDetailPage: React.FC = () => {
         method: 'POST',
       });
 
-      if (response.data.share_link) {
-        devLog("Share link generated:", response.data.share_link);
-        return response.data.share_link as string;
-      } else {
-        throw new Error('Failed to generate share link');
+      // Prefer Universal Link (https) so pasted text is clickable; fallback to custom scheme
+      const webLink = response.data.share_link_web as string | undefined;
+      const schemeLink = response.data.share_link as string | undefined;
+      const link = webLink ?? schemeLink;
+      if (link) {
+        devLog("Share link generated:", link);
+        return link;
       }
+      throw new Error('Failed to generate share link');
     } catch (err: any) {
       console.error('Error sharing link:', err);
       
@@ -533,7 +537,7 @@ const CouponDetailPage: React.FC = () => {
             <ArrowLeft size={24} color="#333" />
           </Button>
           
-          <XStack gap="$3" alignItems="center">
+          <XStack gap="$3" style={{ alignItems: 'center' }}>
             {/* Report Button - visible for all users */}
             <ReportButton
               contentType="coupon"
@@ -620,7 +624,7 @@ const CouponDetailPage: React.FC = () => {
               </Text>
               
               {coupon?.tags && coupon.tags.length > 0 && (
-                <XStack gap={6} flexWrap="wrap" justifyContent="center" marginTop={8}>
+                <XStack gap={6} style={{ flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
                   {coupon.tags.map((tag, index) => (
                     <View
                       key={index}

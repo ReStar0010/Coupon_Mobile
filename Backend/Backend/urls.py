@@ -7,7 +7,16 @@ from api.views.authentication import (
     verify_merchant_email, resend_merchant_verification, redirect_verify_email, redirect_reset_password
 )
 from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon, validate_unified_redemption_code
-from api.views.sharing_views import share_coupon, get_share_request, accept_share_request, share_coupon_public, get_my_public_shares
+from api.views.sharing_views import (
+    share_coupon,
+    get_share_request,
+    accept_share_request,
+    share_coupon_public,
+    get_my_public_shares,
+    collection_landing,
+    apple_app_site_association,
+    assetlinks_json,
+)
 from api.views.user_profile import (user_statistics, set_savings_goal, reset_savings_goal, 
                                   coupon_history, coupon_history_detail, completed_goals, add_completed_goal,
                                   user_phone)
@@ -85,6 +94,13 @@ urlpatterns = [
     path('api/coupon/daily-draw/', draw_coupon, name='daily_draw'),
     path('api/coupon/draw-history/', draw_history, name='draw_history'),
     path('api/last-draw/', get_last_draw_time, name='get_last_draw_time'),
+
+    # Universal Link fallback pages (https://coupro.pro/collection/<token> and /c/<token>)
+    path('collection/<str:token>/', collection_landing, name='collection_landing'),
+    path('c/<str:token>/', collection_landing, name='collection_landing_short'),
+    # iOS/Android verification (https://coupro.pro/.well-known/...)
+    path('.well-known/apple-app-site-association', apple_app_site_association, name='apple_app_site_association'),
+    path('.well-known/assetlinks.json', assetlinks_json, name='assetlinks_json'),
 
     # Coupon sharing endpoints
     path('api/coupon/<int:coupon_id>/share/', share_coupon, name='share_coupon'),

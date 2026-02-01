@@ -1,8 +1,11 @@
+import json
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponse
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
@@ -33,12 +36,97 @@ def share_coupon(request, coupon_id):
     # Log the share action
     Log.objects.create(action="share", user=request.user, coupon=coupon)
     
-    # Build the deep link for mobile app
-    # Uses the app's custom URL scheme defined in app.json (scheme: "CouPro")
-    # This will open the app directly to the Collection page with the share token
+    # Deep link: custom scheme (for in-app / native share) and Universal Link (clickable in messages)
+    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro').rstrip('/')
     share_link = f"CouPro://Collection?token={token}"
+    share_link_web = f"{base_url}/collection/{token}"
 
-    return Response({'share_link': share_link, 'token': token})
+    return Response({
+        'share_link': share_link,
+        'share_link_web': share_link_web,
+        'token': token,
+    })
+
+
+def collection_landing(request, token):
+    """
+    Universal Link fallback page: https://coupro.pro/collection/<token>
+    Renders HTML with Smart App Banner (iOS), Open Graph, and JS to try app then fallback to stores.
+    """
+    share_request = get_object_or_404(CouponShareRequest, token=token)
+    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro').rstrip('/')
+    page_url = f"{base_url}/collection/{token}"
+    coupon_name = share_request.coupon.coupon_name or "優惠券"
+    title = f"CouPro － {coupon_name} 分享"
+    description = f"有人透過 CouPro 與您分享「{coupon_name}」。開啟 App 即可領取。"
+
+    app_store_id = getattr(settings, 'COUPRO_APP_STORE_ID', '') or ''
+    app_store_url = f"https://apps.apple.com/app/id{app_store_id}" if app_store_id else "#"
+    play_store_id = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
+    play_store_url = f"https://play.google.com/store/apps/details?id={play_store_id}"
+
+    return render(request, 'collection_landing.html', {
+        'token': token,
+        'page_url': page_url,
+        'title': title,
+        'description': description,
+        'app_store_id': app_store_id,
+        'app_store_url': app_store_url,
+        'play_store_url': play_store_url,
+    })
+
+
+def apple_app_site_association(request):
+    """
+    iOS Universal Links: serve AASA at https://coupro.pro/.well-known/apple-app-site-association
+    No file extension; Content-Type: application/json.
+    """
+    team_id = getattr(settings, 'COUPRO_IOS_TEAM_ID', '') or ''
+    bundle_id = 'com.cokayne.MobileFrontend'
+    if not team_id:
+        payload = {'applinks': {'apps': [], 'details': []}}
+    else:
+        payload = {
+            'applinks': {
+                'apps': [],
+                'details': [
+                    {
+                        'appID': f'{team_id}.{bundle_id}',
+                        'paths': ['/collection/*', '/c/*'],
+                    }
+                ],
+            }
+        }
+    return HttpResponse(
+        json.dumps(payload),
+        content_type='application/json',
+    )
+
+
+def assetlinks_json(request):
+    """
+    Android App Links: serve at https://coupro.pro/.well-known/assetlinks.json
+    """
+    package_name = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
+    sha256_raw = getattr(settings, 'COUPRO_ANDROID_SHA256', '') or ''
+    sha256_list = [s.strip() for s in sha256_raw.split(',') if s.strip()]
+    if not sha256_list:
+        payload = []
+    else:
+        payload = [
+            {
+                'relation': ['delegate_permission/common.handle_all_urls'],
+                'target': {
+                    'namespace': 'android_app',
+                    'package_name': package_name,
+                    'sha256_cert_fingerprints': sha256_list,
+                },
+            }
+        ]
+    return HttpResponse(
+        json.dumps(payload),
+        content_type='application/json',
+    )
 
 
 @api_view(['POST'])

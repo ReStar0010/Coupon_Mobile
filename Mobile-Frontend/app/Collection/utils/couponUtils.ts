@@ -50,7 +50,7 @@ export const generateShareLink = async (couponId: number): Promise<string | null
       withCredentials: true,
     });
 
-    return response.data.share_link;
+    return (response.data.share_link_web ?? response.data.share_link) ?? null;
   } catch (err: any) {
     console.error('Error sharing coupon:', err);
     throw err;
