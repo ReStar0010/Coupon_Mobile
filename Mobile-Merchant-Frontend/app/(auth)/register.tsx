@@ -1,23 +1,23 @@
-import React, { useState } from 'react';
-import { YStack, Text, XStack, ScrollView } from 'tamagui';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Input, Button, AlertModal } from '@/components/ui';
-import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
-import { colors } from '@/constants/colors';
-import { RegisterFormData } from '@/types';
-import LocationPicker from '@/app/components/LocationPicker';
+import React, { useState } from "react";
+import { YStack, Text, XStack, ScrollView } from "tamagui";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Input, Button, AlertModal } from "@/components/ui";
+import { DismissKeyboardView } from "@/app/components/DismissKeyboardView";
+import { colors } from "@/constants/colors";
+import { RegisterFormData } from "@/types";
+import LocationPicker from "@/app/components/LocationPicker";
 
 export default function RegisterScreen() {
   const router = useRouter();
   const [formData, setFormData] = useState<RegisterFormData>({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
   const [verificationRequired, setVerificationRequired] = useState(false);
 
   const handleEmailChange = (text: string) => {
@@ -28,21 +28,28 @@ export default function RegisterScreen() {
     setFormData((prev) => ({ ...prev, password: text }));
   };
 
+  /** 台灣手機號碼：09 開頭，共 10 碼數字 */
+  const TAIWAN_PHONE_REGEX = /^09\d{8}$/;
+  const handlePhoneChange = (text: string) => {
+    const digitsOnly = text.replace(/\D/g, "").slice(0, 10);
+    setMerchantData((prev) => ({ ...prev, phone: digitsOnly }));
+  };
+
   const [merchantData, setMerchantData] = useState({
-    phone: '',
-    contactPerson: '',
-    contactInfo: '',
-    storeName: '',
-    storeAddress: '',
+    phone: "",
+    contactPerson: "",
+    contactInfo: "",
+    storeName: "",
+    storeAddress: "",
     storeLat: 0,
     storeLng: 0,
-    businessHours: '',
+    businessHours: "",
   });
   const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
 
   const handleRegister = async () => {
     if (!formData.email || !formData.password) {
-      setErrorMessage('請輸入 Email 和密碼');
+      setErrorMessage("請輸入 Email 和密碼");
       setShowErrorModal(true);
       return;
     }
@@ -50,48 +57,50 @@ export default function RegisterScreen() {
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setErrorMessage('請輸入有效的 Email 格式');
+      setErrorMessage("請輸入有效的 Email 格式");
       setShowErrorModal(true);
       return;
     }
 
     // Password validation
     if (formData.password.length < 6) {
-      setErrorMessage('密碼長度至少需要 6 個字元');
+      setErrorMessage("密碼長度至少需要 6 個字元");
       setShowErrorModal(true);
       return;
     }
 
-    // Validate merchant-specific fields
-    if (!merchantData.phone || !merchantData.contactPerson || !merchantData.storeName || !merchantData.storeAddress) {
-      setErrorMessage('請填寫所有必填欄位（電話、聯絡人、店家名稱、地址）');
+    // 必填：電話號碼
+    if (!merchantData.phone) {
+      setErrorMessage("請輸入電話號碼");
       setShowErrorModal(true);
       return;
     }
 
-    // Validate location selection
-    if (!hasSelectedLocation || merchantData.storeLat === 0 || merchantData.storeLng === 0) {
-      setErrorMessage('請在地圖上選擇店家位置');
+    // 台灣手機號碼格式：0912345678（09 開頭，共 10 碼）
+    if (!TAIWAN_PHONE_REGEX.test(merchantData.phone)) {
+      setErrorMessage(
+        "請輸入正確的台灣手機號碼（09 開頭，共 10 碼，例如：0912345678）",
+      );
       setShowErrorModal(true);
       return;
     }
 
     setIsLoading(true);
     try {
-      const { authAPI } = await import('@/utils/api');
-      console.log('[Register] Sending registration request:', {
+      const { authAPI } = await import("@/utils/api");
+      console.log("[Register] Sending registration request:", {
         email: formData.email,
-        user_type: 'merchant',
+        user_type: "merchant",
         hasPhone: !!merchantData.phone,
         hasContactPerson: !!merchantData.contactPerson,
         hasStoreName: !!merchantData.storeName,
         hasStoreAddress: !!merchantData.storeAddress,
       });
-      
+
       const response = await authAPI.register({
         email: formData.email,
         password: formData.password,
-        user_type: 'merchant',
+        user_type: "merchant",
         phone: merchantData.phone,
         contact_person: merchantData.contactPerson,
         contact_info: merchantData.contactInfo,
@@ -101,31 +110,33 @@ export default function RegisterScreen() {
         store_lng: merchantData.storeLng,
         business_hours: merchantData.businessHours,
       });
-      
-      console.log('[Register] Registration successful:', response);
-      
+
+      console.log("[Register] Registration successful:", response);
+
       // Check if verification is required
       setVerificationRequired(response.verification_required || false);
       setShowSuccessModal(true);
     } catch (error: any) {
-      console.error('[Register] Registration error:', error);
+      console.error("[Register] Registration error:", error);
       // Extract error message, handling both Error objects and API response errors
-      let errorMsg = '註冊失敗，請稍後再試';
+      let errorMsg = "註冊失敗，請稍後再試";
       if (error?.message) {
         errorMsg = error.message;
         // If error message contains field-specific errors, format them nicely
-        if (typeof error.message === 'object') {
+        if (typeof error.message === "object") {
           const errorObj = error.message;
           const fieldErrors = Object.entries(errorObj)
             .map(([field, messages]: [string, any]) => {
-              const fieldName = field.replace(/_/g, ' ');
-              const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+              const fieldName = field.replace(/_/g, " ");
+              const msg = Array.isArray(messages)
+                ? messages.join(", ")
+                : messages;
               return `${fieldName}: ${msg}`;
             })
-            .join('\n');
+            .join("\n");
           errorMsg = fieldErrors || errorMsg;
         }
-      } else if (typeof error === 'string') {
+      } else if (typeof error === "string") {
         errorMsg = error;
       }
       setErrorMessage(errorMsg);
@@ -138,12 +149,12 @@ export default function RegisterScreen() {
   const handleSuccessConfirm = () => {
     setShowSuccessModal(false);
     // Use replace instead of back since we used replace to navigate here
-    router.replace('/(auth)/login');
+    router.replace("/(auth)/login");
   };
 
   const handleLoginPress = () => {
     // Use replace instead of back since we used replace to navigate here
-    router.replace('/(auth)/login');
+    router.replace("/(auth)/login");
   };
 
   const handleLocationSelect = (latitude: number, longitude: number) => {
@@ -156,12 +167,12 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={["top"]}
+    >
       <DismissKeyboardView>
-        <YStack
-          flex={1}
-          backgroundColor={colors.background}
-        >
+        <YStack flex={1} backgroundColor={colors.background}>
           <ScrollView
             contentContainerStyle={{
               paddingHorizontal: 20,
@@ -173,152 +184,177 @@ export default function RegisterScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
-          {/* Title */}
-          <XStack width="100%" justifyContent="center" alignItems="center" marginTop="$2" marginBottom="$4">
-            <Text
-              fontSize={34}
-              fontWeight="800"
-              color={colors.textPrimary}
-              style={{ lineHeight: 42.5 }}
+            {/* Title */}
+            <XStack
+              width="100%"
+              justifyContent="center"
+              alignItems="center"
+              marginTop="$2"
+              marginBottom="$4"
+            >
+              <Text
+                fontSize={34}
+                fontWeight="800"
+                color={colors.textPrimary}
+                style={{ lineHeight: 42.5 }}
+              >
+                註冊
+              </Text>
+            </XStack>
+
+            {/* Email Input */}
+            <Input
+              placeholder="Email（必填）"
+              value={formData.email}
+              onChangeText={handleEmailChange}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              editable={!isLoading}
+              width="100%"
+            />
+
+            {/* Password Input */}
+            <Input
+              placeholder="密碼（必填）"
+              value={formData.password}
+              onChangeText={handlePasswordChange}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="password"
+              editable={!isLoading}
+              width="100%"
+            />
+
+            {/* Merchant-specific fields */}
+            <Input
+              placeholder="電話號碼（必填，例：0912345678）"
+              value={merchantData.phone}
+              onChangeText={handlePhoneChange}
+              keyboardType="phone-pad"
+              maxLength={10}
+              editable={!isLoading}
+              width="100%"
+            />
+
+            <Input
+              placeholder="聯絡人姓名（選填）"
+              value={merchantData.contactPerson}
+              onChangeText={(text) =>
+                setMerchantData((prev) => ({ ...prev, contactPerson: text }))
+              }
+              editable={!isLoading}
+              width="100%"
+            />
+
+            <Input
+              placeholder="店家名稱（選填）"
+              value={merchantData.storeName}
+              onChangeText={(text) =>
+                setMerchantData((prev) => ({ ...prev, storeName: text }))
+              }
+              editable={!isLoading}
+              width="100%"
+            />
+
+            <Input
+              placeholder="店家地址（選填）"
+              value={merchantData.storeAddress}
+              onChangeText={(text) =>
+                setMerchantData((prev) => ({ ...prev, storeAddress: text }))
+              }
+              editable={!isLoading}
+              width="100%"
+            />
+
+            {/* Location Picker */}
+            <YStack width="100%" gap="$2" marginTop="$2">
+              <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
+                選擇店家位置（選填）
+              </Text>
+              <LocationPicker
+                onLocationSelect={handleLocationSelect}
+                height={250}
+              />
+              {!hasSelectedLocation && (
+                <Text fontSize="$sm" color={colors.textSecondary}>
+                  請在地圖上點擊或拖動標記來選擇位置
+                </Text>
+              )}
+            </YStack>
+
+            <Input
+              placeholder="營業時間（選填）"
+              value={merchantData.businessHours}
+              onChangeText={(text) =>
+                setMerchantData((prev) => ({ ...prev, businessHours: text }))
+              }
+              editable={!isLoading}
+              width="100%"
+            />
+
+            {/* Register Button */}
+            <Button
+              variant="primary"
+              fullWidth
+              onPress={handleRegister}
+              disabled={isLoading}
+              opacity={isLoading ? 0.6 : 1}
             >
               註冊
-            </Text>
-          </XStack>
+            </Button>
 
-      {/* Email Input */}
-      <Input
-        placeholder="輸入 Email"
-        value={formData.email}
-        onChangeText={handleEmailChange}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="email"
-        editable={!isLoading}
-        width="100%"
-      />
+            {/* Login Link */}
+            <XStack
+              gap={10}
+              justifyContent="center"
+              alignItems="center"
+              width="100%"
+            >
+              <Text
+                fontSize="$sm"
+                color={colors.textPrimary}
+                textAlign="center"
+              >
+                已經有帳號了嗎 ?{" "}
+                <Text
+                  fontSize="$sm"
+                  color={colors.primary}
+                  onPress={handleLoginPress}
+                  style={{ textDecorationLine: "underline" }}
+                >
+                  登入
+                </Text>
+              </Text>
+            </XStack>
 
-      {/* Password Input */}
-      <Input
-        placeholder="輸入密碼"
-        value={formData.password}
-        onChangeText={handlePasswordChange}
-        secureTextEntry
-        autoCapitalize="none"
-        autoComplete="password"
-        editable={!isLoading}
-        width="100%"
-      />
+            {/* Success Modal */}
+            <AlertModal
+              isOpen={showSuccessModal}
+              onClose={() => setShowSuccessModal(false)}
+              title="註冊成功"
+              message={
+                verificationRequired && formData.email
+                  ? `您的帳號已成功註冊！\n\n我們已發送驗證郵件到 ${formData.email}，請點擊郵件中的連結完成驗證後即可登入。\n\n若未收到郵件，請檢查垃圾郵件資料夾。`
+                  : "您的帳號已成功註冊！"
+              }
+              type="success"
+              confirmText="確定"
+              onConfirm={handleSuccessConfirm}
+            />
 
-      {/* Merchant-specific fields */}
-      <Input
-        placeholder="電話號碼"
-        value={merchantData.phone}
-        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, phone: text }))}
-        keyboardType="phone-pad"
-        editable={!isLoading}
-        width="100%"
-      />
-
-      <Input
-        placeholder="聯絡人姓名"
-        value={merchantData.contactPerson}
-        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, contactPerson: text }))}
-        editable={!isLoading}
-        width="100%"
-      />
-
-      <Input
-        placeholder="店家名稱"
-        value={merchantData.storeName}
-        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, storeName: text }))}
-        editable={!isLoading}
-        width="100%"
-      />
-
-      <Input
-        placeholder="店家地址"
-        value={merchantData.storeAddress}
-        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, storeAddress: text }))}
-        editable={!isLoading}
-        width="100%"
-      />
-
-      {/* Location Picker */}
-      <YStack width="100%" gap="$2" marginTop="$2">
-        <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
-          選擇店家位置 *
-        </Text>
-        <LocationPicker
-          onLocationSelect={handleLocationSelect}
-          height={250}
-        />
-        {!hasSelectedLocation && (
-          <Text fontSize="$sm" color={colors.textSecondary}>
-            請在地圖上點擊或拖動標記來選擇位置
-          </Text>
-        )}
-      </YStack>
-
-      <Input
-        placeholder="營業時間（選填）"
-        value={merchantData.businessHours}
-        onChangeText={(text) => setMerchantData((prev) => ({ ...prev, businessHours: text }))}
-        editable={!isLoading}
-        width="100%"
-      />
-
-      {/* Register Button */}
-      <Button
-        variant="primary"
-        fullWidth
-        onPress={handleRegister}
-        disabled={isLoading}
-        opacity={isLoading ? 0.6 : 1}
-      >
-        註冊
-      </Button>
-
-      {/* Login Link */}
-      <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
-        <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
-          已經有帳號了嗎 ?{' '}
-          <Text
-            fontSize="$sm"
-            color={colors.primary}
-            onPress={handleLoginPress}
-            style={{ textDecorationLine: 'underline' }}
-          >
-            登入
-          </Text>
-        </Text>
-      </XStack>
-
-      {/* Success Modal */}
-      <AlertModal
-        isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        title="註冊成功"
-        message={verificationRequired && formData.email
-          ? `您的帳號已成功註冊！\n\n我們已發送驗證郵件到 ${formData.email}，請點擊郵件中的連結完成驗證後即可登入。\n\n若未收到郵件，請檢查垃圾郵件資料夾。`
-          : "您的帳號已成功註冊！"}
-        type="success"
-        confirmText="確定"
-        onConfirm={handleSuccessConfirm}
-      />
-
-      {/* Error Modal */}
-      <AlertModal
-        isOpen={showErrorModal}
-        onClose={() => setShowErrorModal(false)}
-        title="註冊失敗"
-        message={errorMessage}
-        type="error"
-        confirmText="確定"
-      />
+            {/* Error Modal */}
+            <AlertModal
+              isOpen={showErrorModal}
+              onClose={() => setShowErrorModal(false)}
+              title="註冊失敗"
+              message={errorMessage}
+              type="error"
+              confirmText="確定"
+            />
           </ScrollView>
         </YStack>
       </DismissKeyboardView>
     </SafeAreaView>
   );
 }
-
