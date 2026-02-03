@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { devLog } from '../utils/devLogger';
+import { devLog } from '@/app/utils/devLogger';
 
 // Conditionally import react-native-maps only for native platforms
 let MapView: any;

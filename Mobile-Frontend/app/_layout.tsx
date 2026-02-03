@@ -41,12 +41,9 @@ export default function RootLayout() {
                 <ToastProvider>
                   <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
                     <Stack.Screen name="index" />
-                    <Stack.Screen name="Login" />
-                    <Stack.Screen name="EasyUse" />
-                    <Stack.Screen name="Collection" />
-                    <Stack.Screen name="Statistics" />
-                    <Stack.Screen name="OptionsMenu" />
-                    <Stack.Screen name="ResetPassword" />
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="options-menu" />
                   </Stack>
                   <StatusBar style="auto" />
                 </ToastProvider>

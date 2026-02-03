@@ -19,8 +19,8 @@ import React, {
 import {
   blockListAPI,
   BlockedMerchant,
-} from '../../services/blockListAPI';
-import { isUserLoggedIn } from '../../utils/authAPI';
+} from '@/app/services/blockListAPI';
+import { isUserLoggedIn } from '@/app/utils/authAPI';
 
 // =============================================================================
 // Context Types

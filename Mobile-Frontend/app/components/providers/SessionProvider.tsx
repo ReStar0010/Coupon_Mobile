@@ -1,8 +1,8 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { devDebug, devLog } from '../../utils/devLogger';
-import { authEvents, AUTH_EVENT_TYPES } from '../../utils/authEvents';
-import { initStorage, hasValidRefreshToken, clearTokens } from '../../utils/tokenUtils';
+import { devDebug, devLog } from '@/app/utils/devLogger';
+import { authEvents, AUTH_EVENT_TYPES } from '@/app/utils/authEvents';
+import { initStorage, hasValidRefreshToken, clearTokens } from '@/app/utils/tokenUtils';
 
 /**
  * Authentication Context Type

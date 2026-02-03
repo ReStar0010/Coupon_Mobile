@@ -15,13 +15,13 @@ export default function App() {
         const hasValidAuth = await ensureValidAuth();
 
         if (hasValidAuth) {
-          router.replace('/EasyUse');
+          router.replace('/(tabs)/easyuse');
         } else {
-          router.replace('/Login');
+          router.replace('/(auth)/login');
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        router.replace('/Login');
+        router.replace('/(auth)/login');
       } finally {
         setIsLoading(false);
       }

@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import { useAuth } from './providers/SessionProvider';
-import { getRefreshToken } from '../utils/authAPI';
-import { devLog } from '../utils/devLogger';
+import { getRefreshToken } from '@/app/utils/authAPI';
+import { devLog } from '@/app/utils/devLogger';
 
 /**
  * Global authentication redirect handler

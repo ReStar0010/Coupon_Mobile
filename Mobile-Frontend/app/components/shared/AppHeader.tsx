@@ -29,7 +29,7 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(
     const router = useRouter();
 
     const handleMenuPress = useCallback(() => {
-      router.push('/OptionsMenu');
+      router.push('/options-menu');
     }, [router]);
 
     const handleSearchChange = useCallback(

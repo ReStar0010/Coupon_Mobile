@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
-import { qrClaimAPI } from '../utils/authAPI';
+import { qrClaimAPI } from '@/app/utils/authAPI';
 
 const { width } = Dimensions.get('window');
 

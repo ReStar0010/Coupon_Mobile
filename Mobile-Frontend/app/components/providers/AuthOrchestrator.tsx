@@ -13,9 +13,9 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useRouter, useSegments, usePathname } from 'expo-router';
-import { authEvents, AUTH_EVENT_TYPES, AuthEvent } from '../../utils/authEvents';
+import { authEvents, AUTH_EVENT_TYPES, AuthEvent } from '@/app/utils/authEvents';
 import { useAuth } from './SessionProvider';
-import { devLog } from '../../utils/devLogger';
+import { devLog } from '@/app/utils/devLogger';
 
 interface AuthOrchestratorProps {
   children: React.ReactNode;
@@ -46,8 +46,8 @@ const AuthOrchestrator: React.FC<AuthOrchestratorProps> = ({ children }) => {
       devLog('Auth failure detected:', event.reason);
 
       // Check if already on login page to avoid redirect loops
-      const isOnLoginPage = pathname === '/Login' || segments[0] === 'Login';
-      const isOnResetPassword = pathname?.startsWith('/ResetPassword');
+      const isOnLoginPage = pathname === '/(auth)/login' || segments.includes('(auth)');
+      const isOnResetPassword = pathname?.startsWith('/(auth)/reset-password');
       const isOnPublicRoute = isOnLoginPage || isOnResetPassword;
 
       if (isOnPublicRoute) {
@@ -60,16 +60,16 @@ const AuthOrchestrator: React.FC<AuthOrchestratorProps> = ({ children }) => {
       isHandlingAuthFailure.current = true;
 
       // Build return URL for post-login redirect
-      const returnUrl = event.returnUrl || pathname || '/EasyUse';
+      const returnUrl = event.returnUrl || pathname || '/(tabs)/easyuse';
 
       devLog('Redirecting to login with returnUrl:', returnUrl);
 
       // Navigate to login
       // Using replace to prevent back navigation to protected pages
-      if (returnUrl && returnUrl !== '/Login' && returnUrl !== '/') {
-        router.replace(`/Login?returnUrl=${encodeURIComponent(returnUrl)}`);
+      if (returnUrl && returnUrl !== '/(auth)/login' && returnUrl !== '/') {
+        router.replace(`/(auth)/login?returnUrl=${encodeURIComponent(returnUrl)}`);
       } else {
-        router.replace('/Login');
+        router.replace('/(auth)/login');
       }
 
       // Refresh auth state to sync context
@@ -89,7 +89,7 @@ const AuthOrchestrator: React.FC<AuthOrchestratorProps> = ({ children }) => {
       devLog('Logout requested, redirecting to login');
 
       // Navigate to login (no returnUrl for explicit logout)
-      router.replace('/Login');
+      router.replace('/(auth)/login');
 
       // Refresh auth state
       refreshAuth();
