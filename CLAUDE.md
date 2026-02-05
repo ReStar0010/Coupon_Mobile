@@ -10,6 +10,7 @@ Auto-generated from feature plans. Last updated: 2026-01-07
 - Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework 3.x, Expo/React Native, Tamagui UI, Resend API (email), rest_framework_simplejwt (auth) (007-ugc-compliance)
 - TypeScript (strict mode), React 19.1.0, React Native 0.81.5 + Expo ~54.0.32, expo-router ~6.0.22, Tamagui ^1.136.6, react-native-reanimated ~4.1.1 (008-navigation-refactor)
 - N/A (navigation refactor only) (008-navigation-refactor)
+- Python 3.10+ (Backend), TypeScript strict mode (Frontend) + Django REST Framework 3.x, rest_framework_simplejwt, Twilio SDK (Backend); Expo ~54.0.32, expo-router ~6.0.22, Tamagui ^1.136.6 (Frontend) (009-phone-registration)
 
 **Backend:**
 - Language: Python 3.10+
@@ -94,9 +95,9 @@ npm run typecheck                   # TypeScript check
 - Chinese UI text for user-facing messages
 
 ## Recent Changes
+- 009-phone-registration: Added Python 3.10+ (Backend), TypeScript strict mode (Frontend) + Django REST Framework 3.x, rest_framework_simplejwt, Twilio SDK (Backend); Expo ~54.0.32, expo-router ~6.0.22, Tamagui ^1.136.6 (Frontend)
 - 008-navigation-refactor: Added TypeScript (strict mode), React 19.1.0, React Native 0.81.5 + Expo ~54.0.32, expo-router ~6.0.22, Tamagui ^1.136.6, react-native-reanimated ~4.1.1
 - 007-ugc-compliance: Added Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework 3.x, Expo/React Native, Tamagui UI, Resend API (email), rest_framework_simplejwt (auth)
-- 001-appstore-compliance-fixes: Added Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework (Backend), Expo/React Native with expo-image-picker ~17.0.10 (Frontend)
 
 **002-phone-otp-verification (2026-01-07):**
 
