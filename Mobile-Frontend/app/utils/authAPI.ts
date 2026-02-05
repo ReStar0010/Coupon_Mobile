@@ -574,13 +574,10 @@ export const qrClaimAPI = {
     remaining_quantity: number;
     acquisition_method: 'qr_claim';
   }> => {
-    // Generate idempotency key once for this claim operation
-    // This ensures retries use the same key and won't create duplicate coupons
     const idempotencyKey = generateIdempotencyKey();
-    
     let lastError: any;
     const maxRetries = 2;
-    const retryDelays = [1000, 2000]; // 1s, 2s delays
+    const retryDelays = [1000, 2000];
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -592,29 +589,39 @@ export const qrClaimAPI = {
             idempotency_key: idempotencyKey,
           },
         });
-        // Accept both 200 (idempotent retry) and 201 (new claim) as success
         return response.data;
       } catch (error: any) {
         lastError = error;
         const status = error?.response?.status;
-        
-        // Don't retry on 4xx errors (client errors)
-        if (status >= 400 && status < 500) {
-          throw error;
-        }
-        
-        // Retry on network errors (5xx, timeout, network failures)
+        if (status >= 400 && status < 500) throw error;
         if (attempt < maxRetries && (status >= 500 || status === 502 || status === 503 || status === 504 || !status)) {
-          const delay = retryDelays[attempt];
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
           continue;
         }
-        
         throw error;
       }
     }
-    
     throw lastError;
+  },
+
+  /** Claim by single token (deep link). Backend resolves claim_token to session/template. */
+  claimCouponByToken: async (claimToken: string): Promise<{
+    message: string;
+    coupon_id: number;
+    coupon_name: string;
+    template_id: number;
+    remaining_quantity: number;
+    acquisition_method: 'qr_claim';
+  }> => {
+    const idempotencyKey = generateIdempotencyKey();
+    const response = await fetchAPI('/qr-claim/claim/', {
+      method: 'POST',
+      data: {
+        claim_token: claimToken,
+        idempotency_key: idempotencyKey,
+      },
+    });
+    return response.data;
   },
 };
 

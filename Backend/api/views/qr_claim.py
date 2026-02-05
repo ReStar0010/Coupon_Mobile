@@ -15,11 +15,13 @@ import json
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.conf import settings
 from ..models import CouponTemplate, QRCodeSession, Coupon, Store, QRCodeClaim
 from ..serializers import (
     GenerateQRSessionSerializer,
     InvalidateSessionSerializer,
     ClaimCouponRequestSerializer,
+    ClaimByTokenRequestSerializer,
     ClaimCouponResponseSerializer
 )
 
@@ -98,17 +100,24 @@ def generate_qr_session(request):
         is_active=True
     )
     
-    # Create QR code data as JSON string
+    # Create QR code data as JSON string (legacy; prefer encoding claim_link_web in QR for deep link)
     qr_code_data = json.dumps({
         'template_id': template.id,
         'session_token': session_token
     })
+    
+    # Claim URLs for deep link (002-qr-deep-linking)
+    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro').rstrip('/')
+    claim_link_web = f"{base_url}/claim/{session_token}/"
+    claim_link = f"coupro://claim?token={session_token}"
     
     return Response({
         'session_id': qr_session.id,
         'template_id': template.id,
         'session_token': session_token,
         'qr_code_data': qr_code_data,
+        'claim_link_web': claim_link_web,
+        'claim_link': claim_link,
         'message': 'QR code session created successfully'
     }, status=status.HTTP_201_CREATED)
 
@@ -175,16 +184,61 @@ def claim_coupon_via_qr(request):
     Claim coupon via QR code.
     POST /api/qr-claim/claim/
     
-    Claims a coupon by scanning a QR code. Validates session token and template availability,
-    then creates coupon instance with acquisition_method='qr_claim'.
+    Accepts either:
+    - claim_token (deep link): backend resolves to QRCodeSession and uses session.template.
+    - template_id + session_token (legacy in-app scan): same as before.
     """
-    serializer = ClaimCouponRequestSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    template_id = serializer.validated_data['template_id']  # type: ignore
-    session_token = serializer.validated_data['session_token']  # type: ignore
-    idempotency_key = serializer.validated_data.get('idempotency_key', '').strip()  # type: ignore
+    # Claim-by-token flow (002-qr-deep-linking): single token; backend resolves to template
+    if 'claim_token' in request.data and request.data.get('claim_token'):
+        token_serializer = ClaimByTokenRequestSerializer(data=request.data)
+        if not token_serializer.is_valid():
+            return Response(token_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        claim_token = token_serializer.validated_data['claim_token']  # type: ignore
+        idempotency_key = token_serializer.validated_data.get('idempotency_key', '').strip()  # type: ignore
+        try:
+            qr_session = QRCodeSession.objects.select_related('template').get(
+                session_token=claim_token,
+                is_active=True
+            )
+        except QRCodeSession.DoesNotExist:
+            return Response({
+                'error': 'QR code session expired or invalid'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        template = qr_session.template
+        template_id = template.id
+        session_token = claim_token
+        # Do not trust client template_id; use qr_session.template only
+    else:
+        serializer = ClaimCouponRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        template_id = serializer.validated_data['template_id']  # type: ignore
+        session_token = serializer.validated_data['session_token']  # type: ignore
+        idempotency_key = serializer.validated_data.get('idempotency_key', '').strip()  # type: ignore
+        # Resolve session and template (existing flow)
+        try:
+            qr_session = QRCodeSession.objects.get(
+                session_token=session_token,
+                is_active=True
+            )
+        except QRCodeSession.DoesNotExist:
+            return Response({
+                'error': 'QR code session expired or invalid'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            template = CouponTemplate.objects.get(
+                id=template_id,
+                is_active=True
+            )
+        except CouponTemplate.DoesNotExist:
+            return Response({
+                'error': 'Template not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        # Ensure session's template matches (security: do not allow template_id from client to override)
+        if qr_session.template_id != template_id:
+            return Response({
+                'error': 'QR code session expired or invalid'
+            }, status=status.HTTP_400_BAD_REQUEST)
     
     # Idempotency check: if idempotency_key is provided and already exists, return existing coupon
     if idempotency_key:
@@ -192,7 +246,6 @@ def claim_coupon_via_qr(request):
             existing_claim = QRCodeClaim.objects.select_related('coupon', 'template').get(
                 idempotency_key=idempotency_key
             )
-            # Return existing coupon info with 200 status (idempotent retry)
             return Response({
                 'message': 'Coupon already claimed (idempotent retry)',
                 'coupon_id': existing_claim.coupon.id,
@@ -202,32 +255,9 @@ def claim_coupon_via_qr(request):
                 'acquisition_method': 'qr_claim'
             }, status=status.HTTP_200_OK)
         except QRCodeClaim.DoesNotExist:
-            # Idempotency key doesn't exist, proceed with normal flow
             pass
     
-    # T024: Validate session_token exists and is_active=True
-    try:
-        qr_session = QRCodeSession.objects.get(
-            session_token=session_token,
-            is_active=True
-        )
-    except QRCodeSession.DoesNotExist:
-        return Response({
-            'error': 'QR code session expired or invalid'
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    # T024: Validate template exists and is_active=True
-    try:
-        template = CouponTemplate.objects.get(
-            id=template_id,
-            is_active=True
-        )
-    except CouponTemplate.DoesNotExist:
-        return Response({
-            'error': 'Template not found'
-        }, status=status.HTTP_404_NOT_FOUND)
-    
-    # T028: Validate template expiry_date
+    # Validate template expiry_date
     if template.expiry_date and template.expiry_date <= timezone.now():
         return Response({
             'error': 'Coupon template expired'

@@ -195,9 +195,20 @@ ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'duankayne@gmail.com')
 SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'coupro707@gmail.com')
 SUPPORT_URL = os.getenv('SUPPORT_URL', 'https://coupro-terms.vercel.app/support.html')
 
-# Universal Links / share fallback (https://coupro.pro/collection/<token>)
-COUPRO_PUBLIC_BASE_URL = os.getenv('COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro')
-# Optional: iOS App Store ID and Android package for fallback download links
+# Universal Links / share fallback and claim landing (https://coupro.pro/collection/<token>, /claim/<token>)
+# Local tunnel only: when COUPRO_PUBLIC_BASE_URL is unset and API_BASE_URL looks like local/tunnel, use it so claim QR links work.
+# Production uses Backend.deployment_settings, which sets COUPRO_PUBLIC_BASE_URL to https://coupro.pro explicitly.
+def _is_local_or_tunnel_base_url(url):
+    if not url:
+        return False
+    u = (url or '').lower()
+    return any(x in u for x in ('localhost', '127.0.0.1', 'loca.lt', 'ngrok'))
+
+COUPRO_PUBLIC_BASE_URL = (
+    os.getenv('COUPRO_PUBLIC_BASE_URL') or
+    (API_BASE_URL.rstrip('/') if (DEBUG and _is_local_or_tunnel_base_url(API_BASE_URL)) else None)
+) or 'https://coupro.pro'
+# Optional: iOS App Store ID and Android package for claim/collection landing and AASA
 COUPRO_APP_STORE_ID = os.getenv('COUPRO_APP_STORE_ID', '')   # e.g. 1234567890
 COUPRO_PLAY_STORE_ID = os.getenv('COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
 # For Universal Links: Apple Team ID (AASA) and Android SHA256 fingerprint (assetlinks.json)

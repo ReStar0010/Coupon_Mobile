@@ -1,9 +1,9 @@
 """
 Contract tests for QR Code Coupon Claim API endpoints.
-Feature: 005-qr-coupon-claim
-Tests: T041
+Feature: 005-qr-coupon-claim, 002-qr-deep-linking
+Tests: T041, T020–T022
 """
-from django.test import TestCase
+from django.test import TestCase, Client
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -171,6 +171,22 @@ class GenerateQRSessionContractTests(QRClaimContractTestBase):
         self.assertEqual(session.template, self.template)
         self.assertEqual(session.merchant, self.merchant_user)
         self.assertTrue(session.is_active)
+
+    def test_generate_qr_session_includes_claim_links(self):
+        """Test generate response includes claim_link_web and claim_link (002-qr-deep-linking)."""
+        response = self.merchant_client.post(
+            '/api/merchant/qr-session/generate/',
+            {'template_id': self.template.id},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+        self.assertIn('claim_link_web', data)
+        self.assertIn('claim_link', data)
+        self.assertIn(data['session_token'], data['claim_link_web'])
+        self.assertIn('/claim/', data['claim_link_web'])
+        self.assertIn('coupro://claim?token=', data['claim_link'])
+        self.assertIn(data['session_token'], data['claim_link'])
 
     def test_generate_qr_session_out_of_stock(self):
         """Test QR session generation for out-of-stock template (should still work)."""
@@ -574,6 +590,60 @@ class ClaimCouponViaQRContractTests(QRClaimContractTestBase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_claim_by_token_success(self):
+        """Test claim by claim_token only (002-qr-deep-linking)."""
+        initial_quantity = self.template.remaining_quantity
+        response = self.user_client.post(
+            '/api/qr-claim/claim/',
+            {'claim_token': self.active_session.session_token},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+        self.assertEqual(data['template_id'], self.template.id)
+        self.assertEqual(data['acquisition_method'], 'qr_claim')
+        self.assertEqual(data['remaining_quantity'], initial_quantity - 1)
+        coupon = Coupon.objects.get(id=data['coupon_id'])
+        self.assertEqual(coupon.template, self.template)
+        self.assertEqual(coupon.current_holder, self.user)
+
+    def test_claim_by_token_invalid(self):
+        """Test claim by token with invalid token."""
+        response = self.user_client.post(
+            '/api/qr-claim/claim/',
+            {'claim_token': 'invalid-token'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.json())
+
+    def test_claim_by_token_expired_session(self):
+        """Test claim by token with inactive/expired session."""
+        response = self.user_client.post(
+            '/api/qr-claim/claim/',
+            {'claim_token': self.inactive_session.session_token},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.json())
+
+    def test_claim_by_token_idempotent(self):
+        """Test claim by token with idempotency_key returns 200 on retry."""
+        idempotency_key = 'test-idem-claim-token-001'
+        response1 = self.user_client.post(
+            '/api/qr-claim/claim/',
+            {'claim_token': self.active_session.session_token, 'idempotency_key': idempotency_key},
+            format='json'
+        )
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+        response2 = self.user_client.post(
+            '/api/qr-claim/claim/',
+            {'claim_token': self.active_session.session_token, 'idempotency_key': idempotency_key},
+            format='json'
+        )
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        self.assertIn('Coupon already claimed', response2.json().get('message', ''))
+
     def test_claim_coupon_multiple_claims(self):
         """Test multiple claims from same template (should be allowed)."""
         # First claim
@@ -882,3 +952,35 @@ class EndToEndFlowTest(QRClaimContractTestBase):
         invalid_data = invalid_claim_response.json()
         self.assertIn('error', invalid_data)
         self.assertIn('expired or invalid', invalid_data['error'].lower())
+
+
+class ClaimLandingContractTests(QRClaimContractTestBase):
+    """Contract tests for claim landing page (002-qr-deep-linking T022)."""
+
+    def setUp(self):
+        super().setUp()
+        self.active_session = QRCodeSession.objects.create(
+            template=self.template,
+            merchant=self.merchant_user,
+            session_token='landing-test-token',
+            is_active=True
+        )
+        self.django_client = Client()
+
+    def test_claim_landing_returns_200_and_html(self):
+        """GET /claim/<token>/ returns 200 and HTML with install + store links."""
+        response = self.django_client.get(f'/claim/{self.active_session.session_token}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/html', response.get('Content-Type', ''))
+        content = response.content.decode('utf-8')
+        self.assertIn('CouPro', content)
+        self.assertIn('優惠券', content)
+        # Store links: Google Play always present; App Store only when COUPRO_APP_STORE_ID set
+        self.assertIn('Google Play', content)
+        self.assertIn('下載', content)
+
+    def test_claim_landing_short_path_returns_200(self):
+        """GET /cl/<token>/ returns 200 and HTML."""
+        response = self.django_client.get(f'/cl/{self.active_session.session_token}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/html', response.get('Content-Type', ''))

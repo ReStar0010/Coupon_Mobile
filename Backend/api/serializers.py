@@ -216,6 +216,15 @@ class ClaimCouponRequestSerializer(serializers.Serializer):
     idempotency_key = serializers.CharField(required=False, max_length=64, allow_blank=True, help_text="Optional idempotency key to prevent duplicate claims on retry")
 
 
+class ClaimByTokenRequestSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/qr-claim/claim/ (claim-by-token deep link flow).
+    claim_token = session_token from QRCodeSession; backend resolves to template.
+    """
+    claim_token = serializers.CharField(required=True, max_length=100, help_text="Claim token from the claim URL (same as session_token)")
+    idempotency_key = serializers.CharField(required=False, max_length=64, allow_blank=True, help_text="Optional; for retry idempotency")
+
+
 class ClaimCouponResponseSerializer(serializers.Serializer):
     """
     Serializer for claim success response.

@@ -1,0 +1,181 @@
+# QR Code Claim Deep Linking API (002-qr-deep-linking)
+# Extends / aligns with 005-qr-coupon-claim. Claim URL uses single token; backend resolves to template + session.
+
+openapi: 3.0.3
+info:
+  title: QR Code Claim Deep Link API
+  description: |
+    Claim-by-token and claim URL generation for QR deep linking.
+    Claim token = session_token (QRCodeSession). Backend resolves token to template_id + session_token.
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: Backend API base path
+
+paths:
+  # Extended response: add claim_link_web and claim_link for QR to encode URL instead of JSON
+  /merchant/qr-session/generate/:
+    post:
+      summary: Generate QR code session (returns claim URLs)
+      description: |
+        Creates a new QR code session. Response includes claim_link_web and claim_link
+        so the merchant app can encode the claim URL in the QR (deep link) instead of JSON.
+      tags:
+        - QR Code Session
+      security:
+        - TokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateQRSessionRequest'
+      responses:
+        '201':
+          description: QR code session created; includes claim URLs for deep link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateQRSessionResponseWithClaimLinks'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Template not found or not owned by merchant
+
+  # Claim by single token (session_token); backend resolves to template + session
+  /qr-claim/claim/:
+    post:
+      summary: Claim coupon by token (deep link)
+      description: |
+        Claims a coupon using the claim token from the claim URL.
+        Backend resolves claim_token to QRCodeSession (session_token), then uses that session's template.
+        Single-use and short-lived per spec. Idempotent when same user/token already claimed.
+      tags:
+        - QR Code Claim
+      security:
+        - TokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimByTokenRequest'
+      responses:
+        '200':
+          description: Coupon already claimed (idempotent retry)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimCouponResponse'
+        '201':
+          description: Coupon claimed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimCouponResponse'
+        '400':
+          description: Invalid or expired token, out of stock, etc.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Session or template not found
+
+components:
+  securitySchemes:
+    TokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token authentication (e.g. "Bearer <jwt>" or "Token <token>")
+
+  schemas:
+    GenerateQRSessionRequest:
+      type: object
+      required:
+        - template_id
+      properties:
+        template_id:
+          type: integer
+          description: ID of the coupon template to generate QR code for
+
+    GenerateQRSessionResponseWithClaimLinks:
+      type: object
+      description: Extends 005 response with claim URLs for deep link QR
+      properties:
+        session_id:
+          type: integer
+          description: ID of the created QR code session
+        template_id:
+          type: integer
+          description: ID of the coupon template
+        session_token:
+          type: string
+          description: Unique session token (UUID4); also used as claim token in URL
+        qr_code_data:
+          type: string
+          description: Legacy JSON string; prefer encoding claim_link_web in QR for deep link
+        claim_link_web:
+          type: string
+          format: uri
+          description: Web URL for claim (e.g. https://coupro.pro/claim/<token>/). Encode this in QR for outside-app scan.
+        claim_link:
+          type: string
+          description: App scheme URL (e.g. coupro://claim?token=<token>). Optional for in-app or fallback.
+        message:
+          type: string
+
+    ClaimByTokenRequest:
+      type: object
+      required:
+        - claim_token
+      properties:
+        claim_token:
+          type: string
+          description: Claim token from the claim URL (same as session_token from QRCodeSession)
+        idempotency_key:
+          type: string
+          maxLength: 64
+          description: Optional; for retry idempotency
+
+    ClaimCouponResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        coupon_id:
+          type: integer
+        coupon_name:
+          type: string
+        template_id:
+          type: integer
+        remaining_quantity:
+          type: integer
+        acquisition_method:
+          type: string
+          enum:
+            - qr_claim
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: User-facing or internal error message
+
+# Claim landing page (not REST API; documented for completeness)
+# GET /claim/<token>/  -> HTML landing page (install + store links only)
+# GET /cl/<token>/     -> same (short path)
+# Served by Django view; no auth; token in path.

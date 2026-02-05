@@ -1,15 +1,37 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Dimensions, } from 'react-native';
-import { usePathname, useRouter } from 'expo-router';
+import { View, Text, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Dimensions } from 'react-native';
+import { usePathname, useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { qrClaimAPI } from '../utils/authAPI';
+
+/** Parse claim token from claim URL (web or app scheme). Returns null if not a claim URL. */
+function parseClaimTokenFromPayload(payload: string): string | null {
+  const s = payload.trim();
+  if (/^https?:\/\//i.test(s)) {
+    const m = /\/claim\/([^/?]+)/i.exec(s) || /\/cl\/([^/?]+)/i.exec(s);
+    if (m) return m[1];
+  }
+  if (/^coupro:\/\/claim\?/i.test(s)) {
+    const m = /[?&]token=([^&]+)/i.exec(s);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+/** Return true if payload looks like a URL (claim deep link). */
+function isClaimUrl(payload: string): boolean {
+  const s = payload.trim();
+  return /^https?:\/\/.+\/(claim|cl)\//i.test(s) || /^coupro:\/\/claim\?/i.test(s);
+}
 
 const { width } = Dimensions.get('window');
 
 export default function QRClaimScanner() {
   const router = useRouter();
   const pathname = usePathname();
+  const params = useLocalSearchParams<{ token?: string }>();
+  const deepLinkToken = params.token ?? null;
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [isScanning, setIsScanning] = useState(false);
@@ -24,10 +46,40 @@ export default function QRClaimScanner() {
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathnameRef = useRef<string>(pathname);
+  const deepLinkHandledRef = useRef(false);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  // Deep link: token in URL params -> claim by token once (T010–T012)
+  useEffect(() => {
+    if (!deepLinkToken || deepLinkHandledRef.current) return;
+    deepLinkHandledRef.current = true;
+    setIsLoading(true);
+    setError(null);
+    qrClaimAPI
+      .claimCouponByToken(deepLinkToken)
+      .then((result) => {
+        Alert.alert(
+          '獲得優惠券',
+          `成功領取優惠券：${result.coupon_name}`,
+          [{ text: '確定', onPress: () => router.replace('/Collection') }],
+          { cancelable: false }
+        );
+      })
+      .catch((err: any) => {
+        const msg = err?.response?.data?.error || err?.message || '';
+        let displayMessage = '無效的連結';
+        if (/expired|過期|invalid/.test(msg)) displayMessage = '連結已過期';
+        else if (/invalid|無效/.test(msg)) displayMessage = '無效的連結';
+        else if (/out of stock|已領取完畢/.test(msg)) displayMessage = '優惠券已領取完畢';
+        else if (msg) displayMessage = msg;
+        setError(displayMessage);
+        setIsDisabled(true);
+      })
+      .finally(() => setIsLoading(false));
+  }, [deepLinkToken, router]);
 
   useEffect(() => {
     return () => {
@@ -86,35 +138,24 @@ export default function QRClaimScanner() {
     
     let didSucceed = false;
     try {
-      // T032: Parse QR code JSON
-      let qrData: { template_id?: number; session_token?: string };
-      try {
-        qrData = JSON.parse(scannedCode);
-      } catch (parseError) {
-        setError('無效的 QR Code 格式，請掃描正確的優惠券 QR Code');
+      // T014: Accept only URL payload (deep link format); reject non-URL
+      if (!isClaimUrl(scannedCode)) {
+        setError('請掃描優惠券 QR Code（連結格式），勿掃描其他內容');
         setIsLoading(false);
         setIsDisabled(false);
+        scanLockRef.current = false;
         return;
       }
-      
-      // T032: Validate required fields
-      if (!qrData.template_id || !qrData.session_token) {
-        setError('QR Code 缺少必要資訊');
+      const claimToken = parseClaimTokenFromPayload(scannedCode);
+      if (!claimToken) {
+        setError('無效的 QR Code 連結，請掃描正確的優惠券 QR Code');
         setIsLoading(false);
         setIsDisabled(false);
+        scanLockRef.current = false;
         return;
       }
-      
-      // Validate types
-      if (typeof qrData.template_id !== 'number' || typeof qrData.session_token !== 'string' || qrData.session_token.trim() === '') {
-        setError('QR Code 缺少必要資訊');
-        setIsLoading(false);
-        setIsDisabled(false);
-        return;
-      }
-      
-      // T033: Call claim API with retry logic
-      const result = await qrClaimAPI.claimCouponViaQR(qrData.template_id, qrData.session_token);
+      // T015: Call claim API with claim_token (URL string = payload key for re-scan prevention)
+      const result = await qrClaimAPI.claimCouponByToken(claimToken);
       didSucceed = true;
 
       // After success: permanently ignore this QR payload to prevent repeated claims
