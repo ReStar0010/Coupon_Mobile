@@ -1,0 +1,167 @@
+# Phone Registration API Contract
+# Feature: 009-phone-registration
+
+openapi: 3.0.3
+info:
+  title: Phone Registration Endpoints
+  version: 1.0.0
+
+paths:
+  /api/register/send-otp/:
+    post:
+      summary: Send registration OTP
+      description: |
+        Sends an SMS OTP to the provided phone number for new user registration.
+        Does NOT create a user account. AllowAny permission (unauthenticated).
+        Rate limited: max 3 per hour per phone, 60s cooldown between sends.
+      operationId: sendRegistrationOTP
+      security: []  # No authentication required
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_number]
+              properties:
+                phone_number:
+                  type: string
+                  pattern: '^09\d{8}$'
+                  description: Taiwan mobile number (09XXXXXXXX)
+                  example: "0912345678"
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "驗證碼已發送"
+                  cooldown_seconds:
+                    type: integer
+                    example: 60
+                  expires_in_seconds:
+                    type: integer
+                    example: 600
+                  dev_mode:
+                    type: boolean
+                    description: Only present when SMS_DEV_MODE=True
+                  otp_code:
+                    type: string
+                    description: Only present when SMS_DEV_MODE=True
+        '400':
+          description: Validation error (invalid phone format)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+        '409':
+          description: Phone number already registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "此手機號碼已被註冊"
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "請求過於頻繁，請稍後再試"
+                  retry_after_seconds:
+                    type: integer
+                    example: 60
+
+  /api/register/verify-otp/:
+    post:
+      summary: Verify registration OTP and create account
+      description: |
+        Verifies the OTP code and creates the user account.
+        Account is ONLY created after successful OTP verification (FR-003).
+        Returns JWT tokens on success (user is immediately logged in).
+      operationId: verifyRegistrationOTP
+      security: []  # No authentication required
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_number, otp_code, password]
+              properties:
+                phone_number:
+                  type: string
+                  pattern: '^09\d{8}$'
+                  example: "0912345678"
+                otp_code:
+                  type: string
+                  pattern: '^\d{6}$'
+                  example: "123456"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "securepassword"
+      responses:
+        '201':
+          description: Account created and logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "註冊成功"
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  user_id:
+                    type: integer
+        '400':
+          description: Invalid OTP, expired, or max attempts reached
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "驗證碼錯誤"
+                  attempts_remaining:
+                    type: integer
+                    example: 2
+        '404':
+          description: No pending OTP for this phone number
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "找不到此手機號碼的驗證碼，請重新發送"
+        '410':
+          description: OTP expired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "驗證碼已過期，請重新發送"

@@ -1,0 +1,51 @@
+# Registration OTP Internal Contract
+# Feature: 009-phone-registration
+# This describes the PhoneOTPRecord behavior for registration-purpose OTPs
+
+openapi: 3.0.3
+info:
+  title: Registration OTP Business Rules
+  version: 1.0.0
+  description: |
+    Business rules for OTP records used during phone registration.
+    These extend the existing PhoneOTPRecord behavior.
+
+x-business-rules:
+  rate-limiting:
+    max_per_hour: 3
+    cooldown_seconds: 60
+    scope: per-phone-number
+    note: Same limits as existing phone-change OTP
+
+  otp-lifecycle:
+    expiration_minutes: 10
+    max_attempts: 5
+    code_length: 6
+    code_format: numeric-only
+
+  purpose-validation:
+    registration:
+      - OTP created with purpose='registration', user=None
+      - Phone must NOT already be registered (check StudentProfile.phone_number)
+      - On successful verify, User and StudentProfile are created
+      - JWT tokens returned immediately (auto-login)
+    phone_change:
+      - Existing behavior (unchanged)
+      - OTP created with purpose='phone_change', user=request.user
+      - Requires authentication
+    password_reset:
+      - OTP created with purpose='password_reset', user=matched_user
+      - Phone must be registered (check StudentProfile.phone_number)
+      - On successful verify, user password is updated
+
+  cross-purpose-prevention:
+    description: |
+      When verifying an OTP, the endpoint MUST check that the OTP record's
+      purpose matches the expected purpose. A registration OTP cannot be
+      used at the phone-change or password-reset endpoint, and vice versa.
+
+  cleanup:
+    description: |
+      On successful verification, delete all other unverified OTP records
+      for the same phone_number and purpose. This is existing behavior
+      extended to include the purpose filter.

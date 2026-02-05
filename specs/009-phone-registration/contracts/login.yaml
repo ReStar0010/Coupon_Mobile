@@ -1,0 +1,95 @@
+# Login API Contract (Modified)
+# Feature: 009-phone-registration
+
+openapi: 3.0.3
+info:
+  title: Login Endpoint (Phone + Email)
+  version: 2.0.0  # MAJOR version bump — accepts phone_number as alternative to email
+
+paths:
+  /api/login/:
+    post:
+      summary: Login with phone number or email
+      description: |
+        Authenticates a user with either phone_number or email, plus password.
+        Exactly one of phone_number or email must be provided.
+        Returns JWT access and refresh tokens.
+
+        Changes from v1:
+        - phone_number field added as alternative to email
+        - email field made optional (was required)
+        - Validation: exactly one of phone_number/email must be provided
+
+        Phone login checks StudentProfile.phone_verified=True.
+        Email login checks StudentProfile.verified=True (existing behavior).
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, client_type]
+              properties:
+                phone_number:
+                  type: string
+                  pattern: '^09\d{8}$'
+                  description: Taiwan mobile number (mutually exclusive with email)
+                  example: "0912345678"
+                email:
+                  type: string
+                  format: email
+                  description: User email (mutually exclusive with phone_number)
+                  example: "user@example.com"
+                password:
+                  type: string
+                  example: "securepassword"
+                client_type:
+                  type: string
+                  enum: [user, merchant]
+                  example: "user"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  user_id:
+                    type: integer
+        '400':
+          description: Validation error (neither or both identifiers provided)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "請提供手機號碼或 Email 其中一種登入方式"
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "密碼錯誤"
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "找不到此帳號"
