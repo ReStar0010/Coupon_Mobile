@@ -14,6 +14,7 @@ import {
   ShieldBan,
   HelpCircle,
   Shield,
+  Mail,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -68,6 +69,10 @@ const OptionsMenu: React.FC = () => {
 
   const handlePrivacyPolicy = useCallback(() => {
     router.push('/options-menu/privacy-policy/PrivacyPolicy');
+  }, [router]);
+
+  const handleEmailSettings = useCallback(() => {
+    router.push('/options-menu/email-settings/EmailSettings');
   }, [router]);
 
   // 登出功能 - AuthOrchestrator 處理導航
@@ -132,6 +137,17 @@ const OptionsMenu: React.FC = () => {
             size="$6"
             onPress={handlePhoneSettings}>
             <ListItem.Text>手機號碼</ListItem.Text>
+          </ListItem>
+          <Separator />
+          <ListItem
+            icon={Mail}
+            iconAfter={ChevronRight}
+            bg="white"
+            hoverTheme
+            pressTheme
+            size="$6"
+            onPress={handleEmailSettings}>
+            <ListItem.Text>Email</ListItem.Text>
           </ListItem>
           <Separator />
           <ListItem

@@ -182,7 +182,11 @@ const CouponDetailPage: React.FC = () => {
   }, [id]);
 
   const onGoBackContainerClick = useCallback(() => {
-    router.back();
+    if (sourceParam === 'collection') {
+      router.replace('/(tabs)/collection');
+    } else {
+      router.back();
+    }
   }, [router, sourceParam]);
 
   const onRedeemClick = async () => {
@@ -233,7 +237,7 @@ const CouponDetailPage: React.FC = () => {
         // For exclusive coupons, navigate to the redemption page to enter code
         router.push({
           pathname: '/(tabs)/easyuse/[id]/redeem',
-          params: { id: String(coupon.id) },
+          params: { id: String(coupon.id), ...(sourceParam ? { source: sourceParam } : {}) },
         });
       }
     }
@@ -244,7 +248,11 @@ const CouponDetailPage: React.FC = () => {
     setShowSuccessPopup(false);
     setIsRedeeming(false);
     setRedemptionData(null);
-    router.replace('/(tabs)/easyuse'); // Redirect back to main page
+    if (sourceParam === 'collection') {
+      router.replace('/(tabs)/collection');
+    } else {
+      router.replace('/(tabs)/easyuse');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -433,8 +441,11 @@ const CouponDetailPage: React.FC = () => {
                       {
                         text: '確定',
                         onPress: () => {
-                          // Go back to EasyUse page
-                          router.push('/(tabs)/easyuse');
+                          if (sourceParam === 'collection') {
+                            router.push('/(tabs)/collection');
+                          } else {
+                            router.push('/(tabs)/easyuse');
+                          }
                         },
                       },
                     ],

@@ -19,11 +19,11 @@
 
 **Purpose**: Model changes and migrations that underpin all user stories
 
-- [X] T001 Add `phone_verified` BooleanField (default=False) to StudentProfile in `Backend/api/models.py`
-- [X] T002 Add `purpose` CharField (choices: phone_change, registration, password_reset; default='phone_change') to PhoneOTPRecord in `Backend/api/models.py`
-- [X] T003 Make `user` ForeignKey nullable (null=True, blank=True) on PhoneOTPRecord in `Backend/api/models.py`
-- [X] T004 Run `python manage.py makemigrations && python manage.py migrate` to apply model changes
-- [X] T005 Test migration rollback: verify `python manage.py migrate api <previous_migration>` reverses the phone_verified and purpose field additions without data loss in `Backend/`
+- [x] T001 Add `phone_verified` BooleanField (default=False) to StudentProfile in `Backend/api/models.py`
+- [x] T002 Add `purpose` CharField (choices: phone_change, registration, password_reset; default='phone_change') to PhoneOTPRecord in `Backend/api/models.py`
+- [x] T003 Make `user` ForeignKey nullable (null=True, blank=True) on PhoneOTPRecord in `Backend/api/models.py`
+- [x] T004 Run `python manage.py makemigrations && python manage.py migrate` to apply model changes
+- [x] T005 Test migration rollback: verify `python manage.py migrate api <previous_migration>` reverses the phone_verified and purpose field additions without data loss in `Backend/`
 
 ---
 
@@ -33,15 +33,15 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 [P] Add RegistrationOTPSendSerializer (phone_number) in `Backend/api/serializers.py`
-- [ ] T007 [P] Add RegistrationOTPVerifySerializer (phone_number, otp_code, password) in `Backend/api/serializers.py`
-- [ ] T008 [P] Add PhoneLoginSerializer (phone_number optional, email optional, password, client_type; validate exactly one identifier) in `Backend/api/serializers.py`
-- [ ] T009 [P] Add PhoneForgotPasswordSerializer (phone_number) in `Backend/api/serializers.py`
-- [ ] T010 [P] Add PhoneResetPasswordSerializer (phone_number, otp_code, new_password) in `Backend/api/serializers.py`
-- [ ] T011 Add URL routes for registration OTP, phone login, and forgot-password endpoints in `Backend/Backend/urls.py`
-- [ ] T012 [P] Add unauthenticated registration and forgot-password OTP API functions in `Mobile-Frontend/app/services/phoneOtpAPI.ts`
-- [ ] T013 [P] Add new endpoints (register/send-otp, register/verify-otp, forgot-password/phone/*) to public endpoint list in `Mobile-Frontend/app/utils/authAPI.ts`
-- [ ] T014 [P] Define TypeScript interfaces for all new/modified API request and response types (RegistrationOTPSendRequest/Response, RegistrationOTPVerifyRequest/Response, PhoneLoginRequest, ForgotPasswordPhoneSendRequest/Response, ForgotPasswordPhoneResetRequest/Response) in `Mobile-Frontend/app/services/phoneOtpAPI.ts` and `Mobile-Frontend/app/utils/authAPI.ts`
+- [x] T006 [P] Add RegistrationOTPSendSerializer (phone_number) in `Backend/api/serializers.py`
+- [x] T007 [P] Add RegistrationOTPVerifySerializer (phone_number, otp_code, password) in `Backend/api/serializers.py`
+- [x] T008 [P] Add PhoneLoginSerializer (phone_number optional, email optional, password, client_type; validate exactly one identifier) in `Backend/api/serializers.py`
+- [x] T009 [P] Add PhoneForgotPasswordSerializer (phone_number) in `Backend/api/serializers.py`
+- [x] T010 [P] Add PhoneResetPasswordSerializer (phone_number, otp_code, new_password) in `Backend/api/serializers.py`
+- [x] T011 Add URL routes for registration OTP, phone login, and forgot-password endpoints in `Backend/Backend/urls.py`
+- [x] T012 [P] Add unauthenticated registration and forgot-password OTP API functions in `Mobile-Frontend/app/services/phoneOtpAPI.ts`
+- [x] T013 [P] Add new endpoints (register/send-otp, register/verify-otp, forgot-password/phone/\*) to public endpoint list in `Mobile-Frontend/app/utils/authAPI.ts`
+- [x] T014 [P] Define TypeScript interfaces for all new/modified API request and response types (RegistrationOTPSendRequest/Response, RegistrationOTPVerifyRequest/Response, PhoneLoginRequest, ForgotPasswordPhoneSendRequest/Response, ForgotPasswordPhoneResetRequest/Response) in `Mobile-Frontend/app/services/phoneOtpAPI.ts` and `Mobile-Frontend/app/utils/authAPI.ts`
 
 **Checkpoint**: Foundation ready — serializers, routes, frontend API functions, and TypeScript interfaces are in place. User story implementation can now begin.
 
@@ -57,20 +57,20 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T015 [P] [US1] Contract test for POST `/api/register/send-otp/` validating request/response schema (200, 400, 409, 429 responses per register-phone.yaml) in `Backend/tests/test_phone_otp.py`
-- [ ] T016 [P] [US1] Contract test for POST `/api/register/verify-otp/` validating request/response schema (201, 400, 404, 410 responses per register-phone.yaml) in `Backend/tests/test_phone_otp.py`
-- [ ] T017 [P] [US1] Integration test for registration success flow: send OTP → verify OTP → user created with phone_verified=True → JWT tokens returned in `Backend/tests/test_phone_otp.py`
-- [ ] T018 [P] [US1] Integration test for registration failure cases: duplicate phone (409), invalid phone format (400), wrong OTP (400 with attempts_remaining), expired OTP (410), max attempts exceeded in `Backend/tests/test_phone_otp.py`
+- [x] T015 [P] [US1] Contract test for POST `/api/register/send-otp/` validating request/response schema (200, 400, 409, 429 responses per register-phone.yaml) in `Backend/tests/test_phone_otp.py`
+- [x] T016 [P] [US1] Contract test for POST `/api/register/verify-otp/` validating request/response schema (201, 400, 404, 410 responses per register-phone.yaml) in `Backend/tests/test_phone_otp.py`
+- [x] T017 [P] [US1] Integration test for registration success flow: send OTP → verify OTP → user created with phone_verified=True → JWT tokens returned in `Backend/tests/test_phone_otp.py`
+- [x] T018 [P] [US1] Integration test for registration failure cases: duplicate phone (409), invalid phone format (400), wrong OTP (400 with attempts_remaining), expired OTP (410), max attempts exceeded in `Backend/tests/test_phone_otp.py`
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Update PhoneOTPRecord `can_send_otp()` and `create_otp()` methods to accept `purpose` parameter and allow `user=None` for registration; ensure rate limiting is scoped per purpose in `Backend/api/models.py`
-- [ ] T020 [US1] Update OTP verification logic to check `purpose` matches the calling endpoint (cross-purpose prevention per register-otp.yaml business rules) in `Backend/api/models.py` or `Backend/api/views/phone_otp.py`
-- [ ] T021 [US1] Add `send_registration_otp` view (AllowAny, validate phone not already registered via StudentProfile.phone_number, create PhoneOTPRecord with purpose='registration' and user=None, send SMS via existing SMSService, return response per register-phone.yaml contract) in `Backend/api/views/phone_otp.py`
-- [ ] T022 [US1] Add `verify_registration_otp` view (AllowAny, verify OTP with purpose='registration', create User with username=phone_number, create StudentProfile with phone_verified=True and verified=False, return JWT tokens, status 201 per register-phone.yaml contract) in `Backend/api/views/phone_otp.py`
-- [ ] T023 [US1] Update registration screen to show phone number + password form (replace email input with phone input, Taiwan 09XXXXXXXX format validation, Chinese error messages) in `Mobile-Frontend/app/(auth)/login.tsx` and `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
-- [ ] T024 [US1] Wire registration form submit to call `register/send-otp` API, then navigate to OTP verification screen with phone_number and password passed as params in `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
-- [ ] T025 [US1] Create or reuse OTP verification screen for registration flow (accepts phone_number + password params, calls `register/verify-otp` with phone_number + otp_code + password, stores JWT tokens on success, redirects to main app; reuse existing OTPInput component if available) in `Mobile-Frontend/app/(auth)/`
+- [x] T019 [US1] Update PhoneOTPRecord `can_send_otp()` and `create_otp()` methods to accept `purpose` parameter and allow `user=None` for registration; ensure rate limiting is scoped per purpose in `Backend/api/models.py`
+- [x] T020 [US1] Update OTP verification logic to check `purpose` matches the calling endpoint (cross-purpose prevention per register-otp.yaml business rules) in `Backend/api/models.py` or `Backend/api/views/phone_otp.py`
+- [x] T021 [US1] Add `send_registration_otp` view (AllowAny, validate phone not already registered via StudentProfile.phone_number, create PhoneOTPRecord with purpose='registration' and user=None, send SMS via existing SMSService, return response per register-phone.yaml contract) in `Backend/api/views/phone_otp.py`
+- [x] T022 [US1] Add `verify_registration_otp` view (AllowAny, verify OTP with purpose='registration', create User with username=phone_number, create StudentProfile with phone_verified=True and verified=False, return JWT tokens, status 201 per register-phone.yaml contract) in `Backend/api/views/phone_otp.py`
+- [x] T023 [US1] Update registration screen to show phone number + password form (replace email input with phone input, Taiwan 09XXXXXXXX format validation, Chinese error messages) in `Mobile-Frontend/app/(auth)/login.tsx` and `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
+- [x] T024 [US1] Wire registration form submit to call `register/send-otp` API, then navigate to OTP verification screen with phone_number and password passed as params in `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
+- [x] T025 [US1] Create or reuse OTP verification screen for registration flow (accepts phone_number + password params, calls `register/verify-otp` with phone_number + otp_code + password, stores JWT tokens on success, redirects to main app; reuse existing OTPInput component if available) in `Mobile-Frontend/app/(auth)/`
 
 **Checkpoint**: User Story 1 fully functional — new users can register with phone + OTP and are logged in. Run T015–T018 tests to verify.
 
@@ -86,14 +86,14 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T026 [P] [US2] Contract test for POST `/api/login/` with phone_number field validating request/response schema (200, 400, 401, 404 responses per login.yaml) in `Backend/tests/test_phone_otp.py`
-- [ ] T027 [P] [US2] Integration test for phone login: success (phone + password → JWT), wrong password (401), unregistered phone (404), phone_verified=False rejection in `Backend/tests/test_phone_otp.py`
+- [x] T026 [P] [US2] Contract test for POST `/api/login/` with phone_number field validating request/response schema (200, 400, 401, 404 responses per login.yaml) in `Backend/tests/test_phone_otp.py`
+- [x] T027 [P] [US2] Integration test for phone login: success (phone + password → JWT), wrong password (401), unregistered phone (404), phone_verified=False rejection in `Backend/tests/test_phone_otp.py`
 
 ### Implementation for User Story 2
 
-- [ ] T028 [US2] Modify `login()` view to accept phone_number OR email (mutually exclusive via PhoneLoginSerializer validation), look up user by StudentProfile.phone_number when phone provided, check phone_verified=True, authenticate and return JWT tokens per login.yaml contract in `Backend/api/views/authentication.py`
-- [ ] T029 [US2] Update login form to default to phone number + password input (replace email field with phone field as default state) in `Mobile-Frontend/app/(auth)/login.tsx` and `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
-- [ ] T030 [US2] Wire login form submit to call `/api/login/` with phone_number + password + client_type='user', handle success (store tokens, redirect) and error responses (Chinese messages) in `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
+- [x] T028 [US2] Modify `login()` view to accept phone_number OR email (mutually exclusive via PhoneLoginSerializer validation), look up user by StudentProfile.phone_number when phone provided, check phone_verified=True, authenticate and return JWT tokens per login.yaml contract in `Backend/api/views/authentication.py`
+- [x] T029 [US2] Update login form to default to phone number + password input (replace email field with phone field as default state) in `Mobile-Frontend/app/(auth)/login.tsx` and `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
+- [x] T030 [US2] Wire login form submit to call `/api/login/` with phone_number + password + client_type='user', handle success (store tokens, redirect) and error responses (Chinese messages) in `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
 
 **Checkpoint**: User Story 2 fully functional — phone-registered users can log in with phone + password. Run T026–T027 tests to verify.
 
@@ -107,9 +107,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T031 [P] [US3] Create `Mobile-Frontend/app/options-menu/email-settings/EmailSettings/index.tsx` mirroring the existing phone-settings UX (display current email or "尚未設定", form to enter email, trigger verification email send via existing backend email verification API)
-- [ ] T032 [US3] Add email settings navigation entry to the options/settings menu so users can access the new email settings screen in `Mobile-Frontend/app/options-menu/`
-- [ ] T033 [US3] Wire email settings screen to backend email verification API (send verification email, display confirmation message, handle errors with Chinese messages) in `Mobile-Frontend/app/options-menu/email-settings/EmailSettings/index.tsx`
+- [x] T031 [P] [US3] Create `Mobile-Frontend/app/options-menu/email-settings/EmailSettings/index.tsx` mirroring the existing phone-settings UX (display current email or "尚未設定", form to enter email, trigger verification email send via existing backend email verification API)
+- [x] T032 [US3] Add email settings navigation entry to the options/settings menu so users can access the new email settings screen in `Mobile-Frontend/app/options-menu/`
+- [x] T033 [US3] Wire email settings screen to backend email verification API (send verification email, display confirmation message, handle errors with Chinese messages) in `Mobile-Frontend/app/options-menu/email-settings/EmailSettings/index.tsx`
 
 **Checkpoint**: User Story 3 fully functional — users can optionally add and verify email from settings.
 
@@ -125,16 +125,16 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T034 [P] [US4] Contract test for POST `/api/forgot-password/phone/send-otp/` validating request/response schema (200, 400, 404, 429 responses per forgot-password-phone.yaml) in `Backend/tests/test_phone_otp.py`
-- [ ] T035 [P] [US4] Contract test for POST `/api/forgot-password/phone/reset/` validating request/response schema (200, 400, 404, 410 responses per forgot-password-phone.yaml) in `Backend/tests/test_phone_otp.py`
-- [ ] T036 [P] [US4] Integration test for password reset flow: send OTP → verify OTP → password changed → login with new password succeeds in `Backend/tests/test_phone_otp.py`
+- [x] T034 [P] [US4] Contract test for POST `/api/forgot-password/phone/send-otp/` validating request/response schema (200, 400, 404, 429 responses per forgot-password-phone.yaml) in `Backend/tests/test_phone_otp.py`
+- [x] T035 [P] [US4] Contract test for POST `/api/forgot-password/phone/reset/` validating request/response schema (200, 400, 404, 410 responses per forgot-password-phone.yaml) in `Backend/tests/test_phone_otp.py`
+- [x] T036 [P] [US4] Integration test for password reset flow: send OTP → verify OTP → password changed → login with new password succeeds in `Backend/tests/test_phone_otp.py`
 
 ### Implementation for User Story 4
 
-- [ ] T037 [US4] Add `send_password_reset_otp` view (AllowAny, verify phone is registered via StudentProfile.phone_number, create PhoneOTPRecord with purpose='password_reset' and user=matched_user, send SMS) per forgot-password-phone.yaml contract in `Backend/api/views/phone_otp.py`
-- [ ] T038 [US4] Add `verify_password_reset_otp` view (AllowAny, verify OTP with purpose='password_reset', call User.set_password(new_password), save user) per forgot-password-phone.yaml contract in `Backend/api/views/phone_otp.py`
-- [ ] T039 [US4] Update forgot-password screen to show phone number input instead of email, call `forgot-password/phone/send-otp`, navigate to OTP verify screen on success in `Mobile-Frontend/app/(auth)/`
-- [ ] T040 [US4] Create password reset OTP verification + new password screen (verify OTP via `forgot-password/phone/reset`, show success message "密碼已重設成功", redirect to login) in `Mobile-Frontend/app/(auth)/`
+- [x] T037 [US4] Add `send_password_reset_otp` view (AllowAny, verify phone is registered via StudentProfile.phone_number, create PhoneOTPRecord with purpose='password_reset' and user=matched_user, send SMS) per forgot-password-phone.yaml contract in `Backend/api/views/phone_otp.py`
+- [x] T038 [US4] Add `verify_password_reset_otp` view (AllowAny, verify OTP with purpose='password_reset', call User.set_password(new_password), save user) per forgot-password-phone.yaml contract in `Backend/api/views/phone_otp.py`
+- [x] T039 [US4] Update forgot-password screen to show phone number input instead of email, call `forgot-password/phone/send-otp`, navigate to OTP verify screen on success in `Mobile-Frontend/app/(auth)/`
+- [x] T040 [US4] Create password reset OTP verification + new password screen (verify OTP via `forgot-password/phone/reset`, show success message "密碼已重設成功", redirect to login) in `Mobile-Frontend/app/(auth)/`
 
 **Checkpoint**: User Story 4 fully functional — users can reset password via phone OTP. Run T034–T036 tests to verify.
 
@@ -150,13 +150,13 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T041 [P] [US5] Integration test for email login backward compatibility: existing email user logs in with email + password → JWT returned, verified=True check still applies in `Backend/tests/test_phone_otp.py`
+- [x] T041 [P] [US5] Integration test for email login backward compatibility: existing email user logs in with email + password → JWT returned, verified=True check still applies in `Backend/tests/test_phone_otp.py`
 
 ### Implementation for User Story 5
 
-- [ ] T042 [US5] Add "使用 Email 登入" / "使用手機登入" toggle link to login screen that switches between phone and email input modes in `Mobile-Frontend/app/(auth)/login.tsx` and `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
-- [ ] T043 [US5] When email mode is active, login form sends `email` + `password` + `client_type` to `/api/login/` (existing email login path) in `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
-- [ ] T044 [US5] Verify backend `login()` view handles email login path unchanged (look up User by email, check verified=True, return JWT tokens) — no code change expected, validate by running T041 in `Backend/api/views/authentication.py`
+- [x] T042 [US5] Add "使用 Email 登入" / "使用手機登入" toggle link to login screen that switches between phone and email input modes in `Mobile-Frontend/app/(auth)/login.tsx` and `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
+- [x] T043 [US5] When email mode is active, login form sends `email` + `password` + `client_type` to `/api/login/` (existing email login path) in `Mobile-Frontend/app/(auth)/login-components/LoginFormContainer.tsx`
+- [x] T044 [US5] Verify backend `login()` view handles email login path unchanged (look up User by email, check verified=True, return JWT tokens) — no code change expected, validate by running T041 in `Backend/api/views/authentication.py`
 
 **Checkpoint**: User Story 5 fully functional — email users can still log in via toggle. Run T041 test to verify.
 
@@ -166,11 +166,11 @@
 
 **Purpose**: Validation, security hardening, and end-to-end verification
 
-- [ ] T045 [P] Ensure all user-facing messages use Chinese (繁體中文) per FR-011 across all modified frontend and backend files
-- [ ] T046 [P] Verify Taiwan phone format validation (09XXXXXXXX, 10 digits) is enforced consistently in all serializers and frontend forms per FR-009
-- [ ] T047 Verify existing phone-settings flow (`options-menu/phone-settings/`) still works for logged-in phone number changes per FR-012
-- [ ] T048 Run quickstart.md validation: execute all curl commands and frontend test steps from `specs/009-phone-registration/quickstart.md`
-- [ ] T049 Verify OTP cleanup on successful verification (delete unverified OTPs for same phone+purpose) per register-otp.yaml business rules
+- [x] T045 [P] Ensure all user-facing messages use Chinese (繁體中文) per FR-011 across all modified frontend and backend files
+- [x] T046 [P] Verify Taiwan phone format validation (09XXXXXXXX, 10 digits) is enforced consistently in all serializers and frontend forms per FR-009
+- [x] T047 Verify existing phone-settings flow (`options-menu/phone-settings/`) still works for logged-in phone number changes per FR-012
+- [x] T048 Run quickstart.md validation: execute all curl commands and frontend test steps from `specs/009-phone-registration/quickstart.md`
+- [x] T049 Verify OTP cleanup on successful verification (delete unverified OTPs for same phone+purpose) per register-otp.yaml business rules
 
 ---
 
@@ -269,20 +269,20 @@ Task T025: "Create/reuse OTP verification screen for registration"
 
 ## Summary
 
-| Metric | Value |
-|--------|-------|
-| **Total tasks** | 49 |
-| **Phase 1 (Setup)** | 5 tasks |
-| **Phase 2 (Foundational)** | 9 tasks |
-| **US1 (Register) — P1** | 11 tasks (4 tests + 7 impl) |
-| **US2 (Login) — P1** | 5 tasks (2 tests + 3 impl) |
-| **US3 (Email Settings) — P2** | 3 tasks |
-| **US4 (Forgot Password) — P2** | 7 tasks (3 tests + 4 impl) |
-| **US5 (Email Toggle) — P3** | 4 tasks (1 test + 3 impl) |
-| **Polish** | 5 tasks |
-| **Test tasks** | 11 (1 migration + 4 US1 + 2 US2 + 3 US4 + 1 US5) |
-| **Parallel opportunities** | Serializers (5), frontend API (3), US1 tests (4), US2 tests (2), US4 tests (3), US3‖US4, polish (2) |
-| **MVP scope** | US1 + US2 (16 story tasks after foundation) |
+| Metric                         | Value                                                                                               |
+| ------------------------------ | --------------------------------------------------------------------------------------------------- |
+| **Total tasks**                | 49                                                                                                  |
+| **Phase 1 (Setup)**            | 5 tasks                                                                                             |
+| **Phase 2 (Foundational)**     | 9 tasks                                                                                             |
+| **US1 (Register) — P1**        | 11 tasks (4 tests + 7 impl)                                                                         |
+| **US2 (Login) — P1**           | 5 tasks (2 tests + 3 impl)                                                                          |
+| **US3 (Email Settings) — P2**  | 3 tasks                                                                                             |
+| **US4 (Forgot Password) — P2** | 7 tasks (3 tests + 4 impl)                                                                          |
+| **US5 (Email Toggle) — P3**    | 4 tasks (1 test + 3 impl)                                                                           |
+| **Polish**                     | 5 tasks                                                                                             |
+| **Test tasks**                 | 11 (1 migration + 4 US1 + 2 US2 + 3 US4 + 1 US5)                                                    |
+| **Parallel opportunities**     | Serializers (5), frontend API (3), US1 tests (4), US2 tests (2), US4 tests (3), US3‖US4, polish (2) |
+| **MVP scope**                  | US1 + US2 (16 story tasks after foundation)                                                         |
 
 ---
 

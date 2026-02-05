@@ -458,3 +458,674 @@ class PhoneChangeTests(PhoneOTPTestBase):
         # Verify new phone coupon was claimed
         new_phone_coupon.refresh_from_db()
         self.assertEqual(new_phone_coupon.current_holder, self.user)
+
+
+# =============================================================================
+# Tests for Feature: 009-phone-registration
+# =============================================================================
+
+
+@override_settings(SMS_DEV_MODE=True)
+class RegistrationOTPSendTests(TestCase):
+    """Tests for POST /api/register/send-otp/ endpoint (US1).
+    T015: Contract test validating request/response schema.
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.client = APIClient()
+        self.test_phone = '0912345678'
+
+    def test_send_registration_otp_success(self):
+        """T015: Test successful registration OTP send."""
+        response = self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+
+        # Validate 200 response schema
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('message', response.data)
+        self.assertIn('驗證碼已發送', response.data['message'])
+        self.assertIn('cooldown_seconds', response.data)
+        self.assertEqual(response.data['cooldown_seconds'], 60)
+        self.assertIn('expires_in_seconds', response.data)
+        self.assertEqual(response.data['expires_in_seconds'], 600)
+        
+        # Dev mode fields
+        self.assertTrue(response.data.get('dev_mode'))
+        self.assertIn('otp_code', response.data)
+        self.assertEqual(len(response.data['otp_code']), 6)
+
+        # Verify OTP record created with correct purpose
+        otp_record = PhoneOTPRecord.objects.filter(
+            phone_number=self.test_phone,
+            purpose='registration'
+        ).first()
+        self.assertIsNotNone(otp_record)
+        self.assertIsNone(otp_record.user)  # user should be None for registration
+
+    def test_send_registration_otp_invalid_format(self):
+        """T015: Test 400 response for invalid phone format."""
+        invalid_phones = [
+            '08123456789',  # Wrong prefix
+            '091234567',    # Too short
+            '09123456789',  # Too long
+            'abcdefghij',   # Not numeric
+        ]
+
+        for phone in invalid_phones:
+            response = self.client.post('/api/register/send-otp/', {
+                'phone_number': phone
+            })
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn('error', response.data)
+
+    def test_send_registration_otp_duplicate_phone(self):
+        """T015: Test 409 response when phone already registered."""
+        # Create existing user with this phone
+        existing_user = User.objects.create_user(
+            username='0911111111',
+            password='testpass123'
+        )
+        StudentProfile.objects.create(
+            user=existing_user,
+            phone_number='0911111111',
+            phone_verified=True
+        )
+
+        response = self.client.post('/api/register/send-otp/', {
+            'phone_number': '0911111111'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn('error', response.data)
+        # Allow for variations in the error message
+        self.assertTrue(
+            '已被註冊' in response.data['error'] or '已註冊' in response.data['error'],
+            f"Expected registration error but got: {response.data['error']}"
+        )
+
+    def test_send_registration_otp_rate_limit(self):
+        """T015: Test 429 response when rate limited."""
+        # First request succeeds
+        response1 = self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        self.assertEqual(response1.status_code, status.HTTP_200_OK)
+
+        # Second request within cooldown fails
+        response2 = self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn('error', response2.data)
+        self.assertIn('retry_after_seconds', response2.data)
+
+
+@override_settings(SMS_DEV_MODE=True)
+class RegistrationOTPVerifyTests(TestCase):
+    """Tests for POST /api/register/verify-otp/ endpoint (US1).
+    T016: Contract test validating request/response schema.
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.client = APIClient()
+        self.test_phone = '0912345678'
+        self.test_password = 'testpass123'
+
+    def test_verify_registration_otp_success(self):
+        """T016: Test successful registration OTP verification (201 response)."""
+        # Send OTP first
+        send_response = self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        otp_code = send_response.data['otp_code']
+
+        # Verify OTP and create account
+        response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_code,
+            'password': self.test_password
+        })
+
+        # Validate 201 response schema
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('message', response.data)
+        self.assertIn('註冊成功', response.data['message'])
+        self.assertIn('access_token', response.data)
+        self.assertIn('refresh_token', response.data)
+        # Backend returns 'user' object instead of 'user_id'
+        self.assertIn('user', response.data)
+
+        # Verify user was created
+        user = User.objects.filter(username=self.test_phone).first()
+        self.assertIsNotNone(user)
+        self.assertTrue(user.check_password(self.test_password))
+
+        # Verify profile was created with phone_verified=True
+        profile = StudentProfile.objects.filter(user=user).first()
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile.phone_number, self.test_phone)
+        self.assertTrue(profile.phone_verified)
+        self.assertFalse(profile.verified)  # Email not verified yet
+
+    def test_verify_registration_otp_wrong_code(self):
+        """T016: Test 400 response for wrong OTP code."""
+        # Send OTP first
+        self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+
+        # Try with wrong code
+        response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': '000000',
+            'password': self.test_password
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('驗證碼錯誤', response.data['error'])
+        self.assertIn('attempts_remaining', response.data)
+
+    def test_verify_registration_otp_no_pending(self):
+        """T016: Test 404 response when no pending OTP exists."""
+        response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': '123456',
+            'password': self.test_password
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('error', response.data)
+
+    def test_verify_registration_otp_expired(self):
+        """T016: Test 410 response for expired OTP."""
+        # Create expired OTP
+        otp_record = PhoneOTPRecord.objects.create(
+            phone_number=self.test_phone,
+            otp_code='123456',
+            purpose='registration',
+            user=None,
+            expires_at=timezone.now() - timedelta(minutes=1)
+        )
+
+        response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_record.otp_code,
+            'password': self.test_password
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_410_GONE)
+        self.assertIn('error', response.data)
+        self.assertIn('已過期', response.data['error'])
+
+
+@override_settings(SMS_DEV_MODE=True)
+class RegistrationIntegrationTests(TestCase):
+    """Integration tests for registration flow (US1).
+    T017-T018: Full flow and failure cases.
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.client = APIClient()
+        self.test_phone = '0912345678'
+        self.test_password = 'testpass123'
+
+    def test_registration_success_flow(self):
+        """T017: Integration test for complete registration flow."""
+        # Step 1: Send OTP
+        send_response = self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        self.assertEqual(send_response.status_code, status.HTTP_200_OK)
+        otp_code = send_response.data['otp_code']
+
+        # Step 2: Verify OTP and create account
+        verify_response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_code,
+            'password': self.test_password
+        })
+        self.assertEqual(verify_response.status_code, status.HTTP_201_CREATED)
+
+        # Step 3: Verify user can log in with phone
+        user = User.objects.get(username=self.test_phone)
+        profile = user.student_profile
+        
+        self.assertEqual(profile.phone_number, self.test_phone)
+        self.assertTrue(profile.phone_verified)
+        self.assertTrue(user.check_password(self.test_password))
+
+        # Step 4: Verify JWT tokens are valid
+        access_token = verify_response.data['access_token']
+        self.assertIsNotNone(access_token)
+
+    def test_registration_failure_duplicate_phone(self):
+        """T018: Test registration fails for duplicate phone (409)."""
+        # Create existing user
+        existing_user = User.objects.create_user(
+            username='0911111111',
+            password='pass123'
+        )
+        StudentProfile.objects.create(
+            user=existing_user,
+            phone_number='0911111111',
+            phone_verified=True
+        )
+
+        # Try to register with same phone
+        response = self.client.post('/api/register/send-otp/', {
+            'phone_number': '0911111111'
+        })
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_registration_failure_invalid_format(self):
+        """T018: Test registration fails for invalid phone format (400)."""
+        response = self.client.post('/api/register/send-otp/', {
+            'phone_number': '12345'
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_registration_failure_wrong_otp(self):
+        """T018: Test registration fails for wrong OTP with attempts tracking."""
+        # Send OTP
+        send_response = self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        
+        # Try wrong OTP
+        response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': '000000',
+            'password': self.test_password
+        })
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('attempts_remaining', response.data)
+        
+        # Verify user was NOT created
+        self.assertFalse(User.objects.filter(username=self.test_phone).exists())
+
+    def test_registration_failure_expired_otp(self):
+        """T018: Test registration fails for expired OTP (410)."""
+        # Create expired OTP
+        PhoneOTPRecord.objects.create(
+            phone_number=self.test_phone,
+            otp_code='123456',
+            purpose='registration',
+            user=None,
+            expires_at=timezone.now() - timedelta(minutes=1)
+        )
+
+        response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': '123456',
+            'password': self.test_password
+        })
+        
+        self.assertEqual(response.status_code, status.HTTP_410_GONE)
+        self.assertFalse(User.objects.filter(username=self.test_phone).exists())
+
+    def test_registration_failure_max_attempts(self):
+        """T018: Test registration fails after max attempts exceeded."""
+        # Send OTP
+        send_response = self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        otp_code = send_response.data['otp_code']
+
+        # Make 5 wrong attempts
+        for i in range(5):
+            self.client.post('/api/register/verify-otp/', {
+                'phone_number': self.test_phone,
+                'otp_code': '000000',
+                'password': self.test_password
+            })
+
+        # 6th attempt with correct code should still fail
+        response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_code,
+            'password': self.test_password
+        })
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('錯誤次數過多', response.data['error'])
+
+
+# =============================================================================
+# Tests for User Story 2: Phone Login
+# =============================================================================
+
+
+@override_settings(SMS_DEV_MODE=True)
+class PhoneLoginTests(TestCase):
+    """Tests for phone-based login (US2).
+    T026-T027: Contract and integration tests for phone login.
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.client = APIClient()
+        self.test_phone = '0912345678'
+        self.test_password = 'testpass123'
+        
+        # Create a phone-registered user
+        self.user = User.objects.create_user(
+            username=self.test_phone,
+            password=self.test_password
+        )
+        self.profile = StudentProfile.objects.create(
+            user=self.user,
+            phone_number=self.test_phone,
+            phone_verified=True
+        )
+
+    def test_phone_login_success(self):
+        """T026: Test successful phone login with correct credentials."""
+        response = self.client.post('/api/login/', {
+            'phone_number': self.test_phone,
+            'password': self.test_password,
+            'client_type': 'user'
+        })
+
+        # Validate 200 response schema
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access_token', response.data)
+        self.assertIn('refresh_token', response.data)
+        self.assertTrue(response.data['access_token'])
+        self.assertTrue(response.data['refresh_token'])
+
+    def test_phone_login_wrong_password(self):
+        """T027: Test phone login fails with wrong password (401)."""
+        response = self.client.post('/api/login/', {
+            'phone_number': self.test_phone,
+            'password': 'wrongpassword',
+            'client_type': 'user'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('error', response.data)
+
+    def test_phone_login_unregistered_phone(self):
+        """T027: Test phone login fails for unregistered phone (404)."""
+        response = self.client.post('/api/login/', {
+            'phone_number': '0999999999',
+            'password': self.test_password,
+            'client_type': 'user'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('error', response.data)
+
+    def test_phone_login_unverified_phone(self):
+        """T027: Test phone login fails when phone_verified=False."""
+        # Create user with unverified phone
+        unverified_user = User.objects.create_user(
+            username='0988888888',
+            password='testpass123'
+        )
+        StudentProfile.objects.create(
+            user=unverified_user,
+            phone_number='0988888888',
+            phone_verified=False  # Not verified
+        )
+
+        response = self.client.post('/api/login/', {
+            'phone_number': '0988888888',
+            'password': 'testpass123',
+            'client_type': 'user'
+        })
+
+        # Should fail because phone not verified
+        self.assertIn(response.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED])
+        self.assertIn('error', response.data)
+
+    def test_phone_and_email_mutually_exclusive(self):
+        """T026: Test validation error when both phone and email provided (400)."""
+        response = self.client.post('/api/login/', {
+            'phone_number': self.test_phone,
+            'email': 'test@example.com',
+            'password': self.test_password,
+            'client_type': 'user'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Validation errors can be in 'error' or 'non_field_errors'
+        self.assertTrue('error' in response.data or 'non_field_errors' in response.data)
+
+    def test_phone_or_email_required(self):
+        """T026: Test validation error when neither phone nor email provided (400)."""
+        response = self.client.post('/api/login/', {
+            'password': self.test_password,
+            'client_type': 'user'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Validation errors can be in 'error' or 'non_field_errors'
+        self.assertTrue('error' in response.data or 'non_field_errors' in response.data)
+
+    def test_email_login_still_works(self):
+        """T027: Test email login backward compatibility."""
+        # Create email-registered user
+        email_user = User.objects.create_user(
+            username='emailuser@example.com',
+            email='emailuser@example.com',
+            password='emailpass123'
+        )
+        StudentProfile.objects.create(
+            user=email_user,
+            verified=True  # Email verified
+        )
+
+        response = self.client.post('/api/login/', {
+            'email': 'emailuser@example.com',
+            'password': 'emailpass123',
+            'client_type': 'user'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access_token', response.data)
+        self.assertIn('refresh_token', response.data)
+
+
+# =============================================================================
+# Tests for User Story 4: Password Reset via Phone OTP
+# =============================================================================
+
+
+@override_settings(SMS_DEV_MODE=True)
+class PasswordResetPhoneTests(TestCase):
+    """Tests for phone-based password reset (US4).
+    T034-T036: Contract and integration tests for password reset via phone OTP.
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.client = APIClient()
+        self.test_phone = '0912345678'
+        self.test_password = 'oldpass123'
+        self.new_password = 'newpass456'
+        
+        # Create a phone-registered user
+        self.user = User.objects.create_user(
+            username=self.test_phone,
+            password=self.test_password
+        )
+        self.profile = StudentProfile.objects.create(
+            user=self.user,
+            phone_number=self.test_phone,
+            phone_verified=True
+        )
+
+    def test_send_password_reset_otp_success(self):
+        """T034: Test successful password reset OTP send."""
+        response = self.client.post('/api/forgot-password/phone/send-otp/', {
+            'phone_number': self.test_phone
+        })
+
+        # Validate 200 response schema
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('message', response.data)
+        self.assertIn('驗證碼已發送', response.data['message'])
+        self.assertIn('cooldown_seconds', response.data)
+        self.assertEqual(response.data['cooldown_seconds'], 60)
+        self.assertIn('expires_in_seconds', response.data)
+        
+        # Dev mode fields
+        self.assertTrue(response.data.get('dev_mode'))
+        self.assertIn('otp_code', response.data)
+
+        # Verify OTP record created with correct purpose
+        otp_record = PhoneOTPRecord.objects.filter(
+            phone_number=self.test_phone,
+            purpose='password_reset'
+        ).first()
+        self.assertIsNotNone(otp_record)
+        self.assertEqual(otp_record.user, self.user)
+
+    def test_send_password_reset_otp_unregistered_phone(self):
+        """T034: Test 404 response when phone not registered."""
+        response = self.client.post('/api/forgot-password/phone/send-otp/', {
+            'phone_number': '0999999999'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('error', response.data)
+        self.assertIn('未註冊', response.data['error'])
+
+    def test_send_password_reset_otp_invalid_format(self):
+        """T034: Test 400 response for invalid phone format."""
+        response = self.client.post('/api/forgot-password/phone/send-otp/', {
+            'phone_number': '12345'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_send_password_reset_otp_rate_limit(self):
+        """T034: Test 429 response when rate limited."""
+        # First request succeeds
+        response1 = self.client.post('/api/forgot-password/phone/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        self.assertEqual(response1.status_code, status.HTTP_200_OK)
+
+        # Second request within cooldown fails
+        response2 = self.client.post('/api/forgot-password/phone/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn('retry_after_seconds', response2.data)
+
+    def test_reset_password_with_otp_success(self):
+        """T035: Test successful password reset with OTP."""
+        # Send OTP first
+        send_response = self.client.post('/api/forgot-password/phone/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        otp_code = send_response.data['otp_code']
+
+        # Reset password
+        response = self.client.post('/api/forgot-password/phone/reset/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_code,
+            'new_password': self.new_password
+        })
+
+        # Validate 200 response schema
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('message', response.data)
+        self.assertIn('重設成功', response.data['message'])
+
+        # Verify password was changed
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.new_password))
+        self.assertFalse(self.user.check_password(self.test_password))
+
+    def test_reset_password_wrong_otp(self):
+        """T035: Test 400 response for wrong OTP code."""
+        # Send OTP first
+        self.client.post('/api/forgot-password/phone/send-otp/', {
+            'phone_number': self.test_phone
+        })
+
+        # Try with wrong code
+        response = self.client.post('/api/forgot-password/phone/reset/', {
+            'phone_number': self.test_phone,
+            'otp_code': '000000',
+            'new_password': self.new_password
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('attempts_remaining', response.data)
+
+        # Verify password was NOT changed
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.test_password))
+
+    def test_reset_password_expired_otp(self):
+        """T035: Test 410 response for expired OTP."""
+        # Create expired OTP
+        otp_record = PhoneOTPRecord.objects.create(
+            phone_number=self.test_phone,
+            otp_code='123456',
+            purpose='password_reset',
+            user=self.user,
+            expires_at=timezone.now() - timedelta(minutes=1)
+        )
+
+        response = self.client.post('/api/forgot-password/phone/reset/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_record.otp_code,
+            'new_password': self.new_password
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_410_GONE)
+        self.assertIn('已過期', response.data['error'])
+
+    def test_reset_password_no_pending_otp(self):
+        """T035: Test 404 response when no pending OTP exists."""
+        response = self.client.post('/api/forgot-password/phone/reset/', {
+            'phone_number': self.test_phone,
+            'otp_code': '123456',
+            'new_password': self.new_password
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_password_reset_full_flow(self):
+        """T036: Integration test for complete password reset flow."""
+        # Step 1: Send OTP
+        send_response = self.client.post('/api/forgot-password/phone/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        self.assertEqual(send_response.status_code, status.HTTP_200_OK)
+        otp_code = send_response.data['otp_code']
+
+        # Step 2: Reset password
+        reset_response = self.client.post('/api/forgot-password/phone/reset/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_code,
+            'new_password': self.new_password
+        })
+        self.assertEqual(reset_response.status_code, status.HTTP_200_OK)
+
+        # Step 3: Verify can login with new password
+        login_response = self.client.post('/api/login/', {
+            'phone_number': self.test_phone,
+            'password': self.new_password,
+            'client_type': 'user'
+        })
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        self.assertIn('access_token', login_response.data)
+
+        # Step 4: Verify cannot login with old password
+        old_login_response = self.client.post('/api/login/', {
+            'phone_number': self.test_phone,
+            'password': self.test_password,
+            'client_type': 'user'
+        })
+        self.assertEqual(old_login_response.status_code, status.HTTP_401_UNAUTHORIZED)

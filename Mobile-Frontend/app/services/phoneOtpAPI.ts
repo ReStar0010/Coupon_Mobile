@@ -282,3 +282,219 @@ export async function verifyOtp(
 export async function getPhone(): Promise<GetPhoneResponse> {
   return authAPI.get<GetPhoneResponse>('/user/phone/');
 }
+
+// ============================================================================
+// REGISTRATION OTP API (Unauthenticated)
+// ============================================================================
+
+/**
+ * Request body for POST /api/register/send-otp/
+ */
+export interface RegistrationOTPSendRequest {
+  /** Taiwan mobile number (09XXXXXXXX format) */
+  phone_number: string;
+}
+
+/**
+ * Response from POST /api/register/send-otp/
+ */
+export interface RegistrationOTPSendResponse {
+  /** Success message with masked phone */
+  message: string;
+  /** Seconds until resend is allowed */
+  cooldown_seconds: number;
+  /** Seconds until OTP expires */
+  expires_in_seconds: number;
+  /** True if running in development mode */
+  dev_mode?: boolean;
+  /** OTP code (only in dev mode) */
+  otp_code?: string;
+}
+
+/**
+ * Request body for POST /api/register/verify-otp/
+ */
+export interface RegistrationOTPVerifyRequest {
+  /** Phone number that received the OTP */
+  phone_number: string;
+  /** 6-digit verification code */
+  otp_code: string;
+  /** Password for the new account */
+  password: string;
+}
+
+/**
+ * Response from POST /api/register/verify-otp/
+ */
+export interface RegistrationOTPVerifyResponse {
+  /** Success message */
+  message: string;
+  /** JWT access token */
+  access_token: string;
+  /** JWT refresh token */
+  refresh_token: string;
+  /** User information */
+  user: {
+    username: string;
+    phone_number: string;
+    phone_verified: boolean;
+  };
+  /** Number of coupons claimed on registration (if any) */
+  coupons_claimed?: number;
+}
+
+/**
+ * Send registration OTP to phone number (unauthenticated)
+ * @param phoneNumber Taiwan mobile number (09XXXXXXXX format)
+ * @returns RegistrationOTPSendResponse on success
+ * @throws Error with ErrorResponse data on failure
+ */
+export async function sendRegistrationOtp(
+  phoneNumber: string
+): Promise<RegistrationOTPSendResponse> {
+  const normalized = normalizePhoneNumber(phoneNumber);
+
+  const response = await authAPI.post<RegistrationOTPSendResponse | ErrorResponse>(
+    '/register/send-otp/',
+    { phone_number: normalized }
+  );
+
+  if ('error' in response) {
+    throw response;
+  }
+
+  return response;
+}
+
+/**
+ * Verify registration OTP and create account (unauthenticated)
+ * @param phoneNumber Phone number that received the OTP
+ * @param otpCode 6-digit verification code
+ * @param password Password for the new account
+ * @returns RegistrationOTPVerifyResponse with JWT tokens on success
+ * @throws Error with ErrorResponse data on failure
+ */
+export async function verifyRegistrationOtp(
+  phoneNumber: string,
+  otpCode: string,
+  password: string
+): Promise<RegistrationOTPVerifyResponse> {
+  const normalized = normalizePhoneNumber(phoneNumber);
+
+  const response = await authAPI.post<RegistrationOTPVerifyResponse | ErrorResponse>(
+    '/register/verify-otp/',
+    { 
+      phone_number: normalized, 
+      otp_code: otpCode,
+      password: password
+    }
+  );
+
+  if ('error' in response) {
+    throw response;
+  }
+
+  return response;
+}
+
+// ============================================================================
+// FORGOT PASSWORD OTP API (Unauthenticated)
+// ============================================================================
+
+/**
+ * Request body for POST /api/forgot-password/phone/send-otp/
+ */
+export interface ForgotPasswordPhoneSendRequest {
+  /** Registered phone number */
+  phone_number: string;
+}
+
+/**
+ * Response from POST /api/forgot-password/phone/send-otp/
+ */
+export interface ForgotPasswordPhoneSendResponse {
+  /** Success message with masked phone */
+  message: string;
+  /** Seconds until resend is allowed */
+  cooldown_seconds: number;
+  /** Seconds until OTP expires */
+  expires_in_seconds: number;
+  /** True if running in development mode */
+  dev_mode?: boolean;
+  /** OTP code (only in dev mode) */
+  otp_code?: string;
+}
+
+/**
+ * Request body for POST /api/forgot-password/phone/reset/
+ */
+export interface ForgotPasswordPhoneResetRequest {
+  /** Phone number that received the OTP */
+  phone_number: string;
+  /** 6-digit verification code */
+  otp_code: string;
+  /** New password */
+  new_password: string;
+}
+
+/**
+ * Response from POST /api/forgot-password/phone/reset/
+ */
+export interface ForgotPasswordPhoneResetResponse {
+  /** Success message */
+  message: string;
+}
+
+/**
+ * Send password reset OTP to registered phone (unauthenticated)
+ * @param phoneNumber Registered phone number
+ * @returns ForgotPasswordPhoneSendResponse on success
+ * @throws Error with ErrorResponse data on failure
+ */
+export async function sendPasswordResetOtp(
+  phoneNumber: string
+): Promise<ForgotPasswordPhoneSendResponse> {
+  const normalized = normalizePhoneNumber(phoneNumber);
+
+  const response = await authAPI.post<ForgotPasswordPhoneSendResponse | ErrorResponse>(
+    '/forgot-password/phone/send-otp/',
+    { phone_number: normalized }
+  );
+
+  if ('error' in response) {
+    throw response;
+  }
+
+  return response;
+}
+
+/**
+ * Verify password reset OTP and set new password (unauthenticated)
+ * @param phoneNumber Phone number that received the OTP
+ * @param otpCode 6-digit verification code
+ * @param newPassword New password to set
+ * @returns ForgotPasswordPhoneResetResponse on success
+ * @throws Error with ErrorResponse data on failure
+ */
+export async function verifyPasswordResetOtp(
+  phoneNumber: string,
+  otpCode: string,
+  newPassword: string
+): Promise<ForgotPasswordPhoneResetResponse> {
+  const normalized = normalizePhoneNumber(phoneNumber);
+
+  const response = await authAPI.post<ForgotPasswordPhoneResetResponse | ErrorResponse>(
+    '/forgot-password/phone/reset/',
+    { 
+      phone_number: normalized, 
+      otp_code: otpCode,
+      new_password: newPassword
+    }
+  );
+
+  if ('error' in response) {
+    throw response;
+  }
+
+  return response;
+}

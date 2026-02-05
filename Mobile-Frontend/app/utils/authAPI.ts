@@ -142,6 +142,12 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     '/store-coupons/',
     'coupons/<int:id>/',
     'coupon/share/<str:token>/',
+    // Phone-based registration (009-phone-registration)
+    '/register/send-otp/',
+    '/register/verify-otp/',
+    // Phone-based password reset (009-phone-registration)
+    '/forgot-password/phone/send-otp/',
+    '/forgot-password/phone/reset/',
   ];
 
   return publicEndpoints.some((publicPath) => endpoint.startsWith(publicPath));

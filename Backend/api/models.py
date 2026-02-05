@@ -54,6 +54,9 @@ class StudentProfile(models.Model):
     # Email verification
     verified = models.BooleanField(default=False)
     email_verification_token = models.CharField(max_length=64, null=True, blank=True, unique=True) # Ensure token is unique
+    
+    # Phone verification (for phone-based registration)
+    phone_verified = models.BooleanField(default=False, help_text="True if phone was verified via OTP")
 
     # Statistics tracking fields
     coupons_used_count = models.IntegerField(default=0)
@@ -496,6 +499,12 @@ class PhoneOTPRecord(models.Model):
     Enforces: 3 requests/hour, 5 attempts/code, 10-min expiration.
     """
 
+    PURPOSE_CHOICES = [
+        ('phone_change', 'Phone Change'),
+        ('registration', 'Registration'),
+        ('password_reset', 'Password Reset'),
+    ]
+
     phone_number = models.CharField(
         max_length=20,
         db_index=True,
@@ -509,7 +518,15 @@ class PhoneOTPRecord(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='phone_otp_records',
-        help_text="User requesting verification"
+        null=True,
+        blank=True,
+        help_text="User requesting verification (null for registration OTPs)"
+    )
+    purpose = models.CharField(
+        max_length=20,
+        choices=PURPOSE_CHOICES,
+        default='phone_change',
+        help_text="Purpose of this OTP (phone_change, registration, password_reset)"
     )
 
     created_at = models.DateTimeField(
@@ -556,9 +573,10 @@ class PhoneOTPRecord(models.Model):
         self.save(update_fields=['attempt_count'])
 
     @classmethod
-    def can_send_otp(cls, phone_number: str) -> tuple[bool, str, int]:
+    def can_send_otp(cls, phone_number: str, purpose: str = 'phone_change') -> tuple[bool, str, int]:
         """
         Check rate limits for sending OTP.
+        Rate limiting is scoped per purpose to prevent cross-purpose abuse.
         Returns (allowed, error_message_if_not_allowed, retry_after_seconds).
         """
         from datetime import timedelta
@@ -567,18 +585,20 @@ class PhoneOTPRecord(models.Model):
         one_hour_ago = now - timedelta(hours=1)
         one_minute_ago = now - timedelta(seconds=60)
 
-        # Check hourly limit: max 3 requests per phone per hour
+        # Check hourly limit: max 3 requests per phone per hour per purpose
         hourly_count = cls.objects.filter(
             phone_number=phone_number,
+            purpose=purpose,
             created_at__gte=one_hour_ago
         ).count()
 
         if hourly_count >= 3:
             return False, "已超過每小時OTP請求次數限制，請稍後再試", 1800
 
-        # Check cooldown: 60 seconds between requests
+        # Check cooldown: 60 seconds between requests for same purpose
         recent = cls.objects.filter(
             phone_number=phone_number,
+            purpose=purpose,
             created_at__gte=one_minute_ago
         ).first()
 
@@ -589,9 +609,10 @@ class PhoneOTPRecord(models.Model):
         return True, "", 0
 
     @classmethod
-    def create_otp(cls, user, phone_number: str) -> 'PhoneOTPRecord':
+    def create_otp(cls, user, phone_number: str, purpose: str = 'phone_change') -> 'PhoneOTPRecord':
         """
         Generate and store a new OTP for the given phone number.
+        For registration OTPs, user can be None.
         """
         import secrets
         from datetime import timedelta
@@ -603,20 +624,26 @@ class PhoneOTPRecord(models.Model):
             user=user,
             phone_number=phone_number,
             otp_code=otp_code,
-            expires_at=expires_at
+            expires_at=expires_at,
+            purpose=purpose
         )
 
     @classmethod
-    def cleanup_old_records(cls, phone_number: str, user) -> None:
+    def cleanup_old_records(cls, phone_number: str, user=None, purpose: str = 'phone_change') -> None:
         """
-        Delete old unverified OTP records for this phone/user.
+        Delete old unverified OTP records for this phone/user/purpose.
         Called after successful verification.
+        For registration OTPs, user can be None.
         """
-        cls.objects.filter(
-            phone_number=phone_number,
-            user=user,
-            is_verified=False
-        ).delete()
+        filter_kwargs = {
+            'phone_number': phone_number,
+            'purpose': purpose,
+            'is_verified': False
+        }
+        if user is not None:
+            filter_kwargs['user'] = user
+        
+        cls.objects.filter(**filter_kwargs).delete()
 
 class AccountDeletionLog(models.Model):
     """

@@ -6,7 +6,6 @@ export default function EasyUseLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="qr-claim" />
       <Stack.Screen name="unified-redeem" />
-      <Stack.Screen name="[id]" />
     </Stack>
   );
 }

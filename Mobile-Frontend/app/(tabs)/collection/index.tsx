@@ -158,13 +158,20 @@ const Collection: React.FC = () => {
     return selectedTags.map((tagName) => tagMap.get(tagName) || tagName);
   }, [selectedTags, tagMap]);
 
+  // Coupon IDs that have been shared to CouPro (public pool) — hide them from 專屬優惠 list
+  const publicShareCouponIds = useMemo(
+    () => new Set(publicShares.map((s) => s.coupon_id)),
+    [publicShares]
+  );
+
   const filteredCoupons = useMemo(() => {
-    // First filter out dismissed stores, then apply search filter
-    const activeCoupons = coupons.filter(
-      (coupon) => !coupon.storeId || !isStoreDismissed(coupon.storeId)
-    );
+    // Exclude dismissed stores and coupons already shared to public pool, then apply search
+    const activeCoupons = coupons.filter((coupon) => {
+      if (coupon.id != null && publicShareCouponIds.has(coupon.id)) return false;
+      return !coupon.storeId || !isStoreDismissed(coupon.storeId);
+    });
     return filterCoupons(activeCoupons, searchQuery);
-  }, [coupons, searchQuery, isStoreDismissed]);
+  }, [coupons, searchQuery, isStoreDismissed, publicShareCouponIds]);
 
   const onRefresh = useCallback(() => {
     fetchCoupons();

@@ -23,8 +23,8 @@ ALLOWED_HOSTS = [
     "192.168.0.136",
     "*.loca.lt",
     "coupro-123.loca.lt",
-    "coupro.pro",
-    ".coupro.pro",
+    "app.coupro.pro",
+    "app.coupro.pro",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -195,8 +195,8 @@ ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'duankayne@gmail.com')
 SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'coupro707@gmail.com')
 SUPPORT_URL = os.getenv('SUPPORT_URL', 'https://coupro-terms.vercel.app/support.html')
 
-# Universal Links / share fallback (https://coupro.pro/collection/<token>)
-COUPRO_PUBLIC_BASE_URL = os.getenv('COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro')
+# Universal Links / share fallback (https://app.coupro.pro/collection/<token>)
+COUPRO_PUBLIC_BASE_URL = os.getenv('COUPRO_PUBLIC_BASE_URL', 'https://app.coupro.pro')
 # Optional: iOS App Store ID and Android package for fallback download links
 COUPRO_APP_STORE_ID = os.getenv('COUPRO_APP_STORE_ID', '')   # e.g. 1234567890
 COUPRO_PLAY_STORE_ID = os.getenv('COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')

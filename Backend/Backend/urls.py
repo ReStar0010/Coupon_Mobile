@@ -31,7 +31,11 @@ from api.views.merchant_profile import (
     get_merchant_profile, update_merchant_profile, get_merchant_statistics
 )
 from api.views.events import track_template_view
-from api.views.phone_otp import send_otp, verify_otp
+from api.views.phone_otp import (
+    send_otp, verify_otp,
+    send_registration_otp, verify_registration_otp,
+    send_password_reset_otp, verify_password_reset_otp
+)
 from api.views.qr_claim import generate_qr_session, invalidate_qr_session, claim_coupon_via_qr
 from api.views.account_deletion import pre_delete_check, delete_account, get_deletion_status
 from api.views.content_moderation import (
@@ -95,10 +99,10 @@ urlpatterns = [
     path('api/coupon/draw-history/', draw_history, name='draw_history'),
     path('api/last-draw/', get_last_draw_time, name='get_last_draw_time'),
 
-    # Universal Link fallback pages (https://coupro.pro/collection/<token> and /c/<token>)
+    # Universal Link fallback pages (https://app.coupro.pro/collection/<token> and /c/<token>)
     path('collection/<str:token>/', collection_landing, name='collection_landing'),
     path('c/<str:token>/', collection_landing, name='collection_landing_short'),
-    # iOS/Android verification (https://coupro.pro/.well-known/...)
+    # iOS/Android verification (https://app.coupro.pro/.well-known/...)
     path('.well-known/apple-app-site-association', apple_app_site_association, name='apple_app_site_association'),
     path('.well-known/assetlinks.json', assetlinks_json, name='assetlinks_json'),
 
@@ -124,9 +128,17 @@ urlpatterns = [
     path('api/merchant/redirect/verify-email', redirect_verify_email, name='redirect_verify_email'),
     path('api/merchant/redirect/reset-password', redirect_reset_password, name='redirect_reset_password'),
 
-    # Password reset endpoints
+    # Password reset endpoints (email-based)
     path('api/forgot-password/', forgot_password, name='forgot_password'),
     path('api/reset-password/', reset_password, name='reset_password'),
+    
+    # Phone-based registration endpoints
+    path('api/register/send-otp/', send_registration_otp, name='send_registration_otp'),
+    path('api/register/verify-otp/', verify_registration_otp, name='verify_registration_otp'),
+    
+    # Phone-based password reset endpoints
+    path('api/forgot-password/phone/send-otp/', send_password_reset_otp, name='send_password_reset_otp'),
+    path('api/forgot-password/phone/reset/', verify_password_reset_otp, name='verify_password_reset_otp'),
 
     # User statistics endpoints
     path('api/user-statistics/', user_statistics, name='user_statistics'),

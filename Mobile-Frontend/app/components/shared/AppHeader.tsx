@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { YStack, XStack, H4, Input } from 'tamagui';
 import { AlignJustify, Search, X } from 'lucide-react-native';
 import LogoIcon from './LogoIcon';
-import { SHADOWS } from '../../constants/theme';
 
 interface AppHeaderProps {
   title: string;
@@ -45,13 +44,17 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(
 
     return (
       <YStack
-        gap={15}
+        gap={10}
         style={{
           backgroundColor: 'white',
           paddingHorizontal: 15,
           paddingTop: topInset + 10,
           paddingBottom: 10,
-          ...SHADOWS.large,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          elevation: 8,
         }}
       >
         <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -71,26 +74,26 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(
           <XStack
             gap={12}
             style={{
-              backgroundColor: 'white',
-              borderColor: '#a8a8a8',
+              backgroundColor: '#f5f5f5',
+              borderColor: '#e0e0e0',
               borderWidth: 1,
               borderRadius: 10,
               paddingHorizontal: 12,
-              paddingVertical: 8,
+              paddingVertical: 10,
               alignItems: 'center',
             }}
           >
-            <Search color="#a8a8a8" />
+            <Search color="#a8a8a8" size={20} />
             <Input
               value={searchQuery}
               onChangeText={handleSearchChange}
               placeholder={searchPlaceholder}
-              style={{ flex: 1 }}
+              style={{ flex: 1, fontSize: 16 }}
               unstyled
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={handleClearSearch} activeOpacity={0.7}>
-                <X color="#a8a8a8" />
+                <X color="#a8a8a8" size={20} />
               </TouchableOpacity>
             )}
           </XStack>

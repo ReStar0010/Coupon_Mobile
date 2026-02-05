@@ -12,16 +12,22 @@ import { toastConfig } from '@/app/config/toastConfig';
 
 export default function Index() {
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'register' | 'forgotPassword'>('login');
+  const [loginMode, setLoginMode] = useState<'phone' | 'email'>('phone'); // Default to phone
 
   const handleLogin = async () => {
-    devLog("Login attempted", { email });
+    devLog("Login attempted", { email, phoneNumber, loginMode });
     try {
+      const loginData = loginMode === 'phone'
+        ? { phone_number: phoneNumber, password, client_type: 'user' }
+        : { email, password, client_type: 'user' };
+      
       const response = await fetchAPI('/login/', {
         method: 'POST',
-        data: { email, password, client_type: 'user' },
+        data: loginData,
       });
       devLog("Login successful");
       await storeLoginData(response.data);
@@ -45,26 +51,34 @@ export default function Index() {
   };
 
   const handleRegister = async () => {
-    devLog("Register attempted", { email, password });
+    devLog("Register attempted", { phoneNumber, password });
     try {
-      const response = await fetchAPI('/register/', {
-        method: 'POST',
-        data: { email, password },
-      });
-      devLog("Registration successful", response.data);
+      // Import sendRegistrationOtp from phoneOtpAPI
+      const { sendRegistrationOtp } = await import('@/app/services/phoneOtpAPI');
+      const response = await sendRegistrationOtp(phoneNumber);
+      devLog("Registration OTP sent", response);
       Toast.show({
         type: 'successGreen',
-        text1: '信件寄送成功',
+        text1: '驗證碼已發送',
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true,
       });
-      router.replace("/Login");
-    } catch (err) {
+      // Navigate to OTP verification screen with phone_number and password
+      router.push({
+        pathname: '/(auth)/login-components/verify',
+        params: { 
+          phone_number: phoneNumber, 
+          password: password,
+          mode: 'register'
+        }
+      });
+    } catch (err: any) {
       devError("Registration error:", err);
+      const errorMessage = err?.error || '註冊失敗，請重新註冊';
       Toast.show({
         type: 'failRed',
-        text1: '註冊失敗，請重新註冊',
+        text1: errorMessage,
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true,
@@ -73,26 +87,33 @@ export default function Index() {
   };
 
   const handleForgotPassword = async () => {
-    devLog("Forgot Password attempted", { email });
+    devLog("Forgot Password attempted", { phoneNumber });
     try {
-      const response = await fetchAPI('/forgot-password/', {
-        method: 'POST',
-        data: { email },
-      });
-      devLog("Password reset request successful", response.data);
+      // Import sendPasswordResetOtp from phoneOtpAPI
+      const { sendPasswordResetOtp } = await import('@/app/services/phoneOtpAPI');
+      const response = await sendPasswordResetOtp(phoneNumber);
+      devLog("Password reset OTP sent", response);
       Toast.show({
         type: 'successGreen',
-        text1: '信件寄送成功',
+        text1: '驗證碼已發送',
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true, 
       });
-      router.replace("/Login");
-    } catch (err) {
+      // Navigate to OTP verification screen for password reset
+      router.push({
+        pathname: '/(auth)/login-components/verify',
+        params: { 
+          phone_number: phoneNumber,
+          mode: 'forgotPassword'
+        }
+      });
+    } catch (err: any) {
       devError("Password reset error:", err);
+      const errorMessage = err?.error || '重設失敗，請重新輸入您的手機號碼';
       Toast.show({
         type: 'failRed',
-        text1: '重設失敗，請重新輸入您的 Email',
+        text1: errorMessage,
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true,
@@ -129,6 +150,8 @@ export default function Index() {
           <LoginFormContainer
             email={email}
             setEmail={setEmail}
+            phoneNumber={phoneNumber}
+            setPhoneNumber={setPhoneNumber}
             password={password}
             setPassword={setPassword}
             handleLogin={handleLogin}
@@ -137,8 +160,10 @@ export default function Index() {
             onLoginPress={handleLoginPress}
             onRegisterPress={handleRegisterPress}
             onForgotPasswordPress={handleForgotPasswordPress}
-            mode = {mode}
+            mode={mode}
             setMode={setMode}
+            loginMode={loginMode}
+            setLoginMode={setLoginMode}
           />
         </View>
 

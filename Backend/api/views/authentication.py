@@ -18,7 +18,7 @@ from drf_yasg import openapi
 from django.http import HttpResponse
 from urllib.parse import urlencode
 
-from ..serializers import LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, MerchantRegisterSerializer
+from ..serializers import LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, MerchantRegisterSerializer, PhoneLoginSerializer
 from ..models import StudentProfile, PasswordResetProfile, MerchantProfile, Store
 from ..auth import generate_password_reset_token, is_token_valid
 from django.contrib.auth.models import Group
@@ -993,30 +993,48 @@ def resend_merchant_verification(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    serializer = LoginSerializer(data=request.data)
+    # Use PhoneLoginSerializer to support both phone and email login
+    serializer = PhoneLoginSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     validated = serializer.validated_data
-    email = validated['email']
+    
+    phone_number = validated.get('phone_number')
+    email = validated.get('email')
     password = validated['password']
     client_type = validated['client_type']
 
     try:
-        # Find user by username (which we set to email)
-        user = User.objects.get(email=email)
+        # Find user by phone_number OR email
+        if phone_number:
+            # Phone-based login: look up via StudentProfile.phone_number
+            profile = StudentProfile.objects.filter(phone_number=phone_number).first()
+            if not profile:
+                return Response({"error": "此電話號碼尚未註冊"}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Check phone_verified for phone-registered users
+            if not profile.phone_verified:
+                return Response({"error": "請先完成手機號碼驗證"}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            user = profile.user
+        else:
+            # Email-based login: original logic (find user by email)
+            user = User.objects.get(email=email)
 
         # Check verification status via the profile
         try:
-            # Check if the user has a student profile and if it's verified
-            if hasattr(user, 'student_profile') and not user.student_profile.verified:
-                return Response({"error": "請先完成信箱驗證"}, status=status.HTTP_401_UNAUTHORIZED)
+            # Check if the user has a student profile
+            if hasattr(user, 'student_profile'):
+                profile = user.student_profile
+                # For phone-based login, phone_verified is checked above
+                # For email-based login, check email verification
+                if email and not profile.verified:
+                    return Response({"error": "請先完成信箱驗證"}, status=status.HTTP_401_UNAUTHORIZED)
             # If the user doesn't have a student profile (e.g., is a merchant or admin), skip verification check
         except StudentProfile.DoesNotExist:
             # This case should ideally not happen for student users after registration changes
-            # If it does, decide how to handle (e.g., deny login, log error)
-            print(f"Warning: StudentProfile not found for user {user.email} during login.")
+            print(f"Warning: StudentProfile not found for user {getattr(user, 'email', user.username)} during login.")
             # For now, let's allow login if profile is missing, assuming they might be non-student users
-            # return Response({"error": "使用者設定檔錯誤，請聯繫管理員"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         # Check merchant verification status
         if user.groups.filter(name='Merchant').exists():

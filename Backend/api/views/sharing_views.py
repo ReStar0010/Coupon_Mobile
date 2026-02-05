@@ -37,7 +37,7 @@ def share_coupon(request, coupon_id):
     Log.objects.create(action="share", user=request.user, coupon=coupon)
     
     # Deep link: custom scheme (for in-app / native share) and Universal Link (clickable in messages)
-    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro').rstrip('/')
+    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://app.coupro.pro').rstrip('/')
     share_link = f"CouPro://Collection?token={token}"
     share_link_web = f"{base_url}/collection/{token}"
 
@@ -50,11 +50,11 @@ def share_coupon(request, coupon_id):
 
 def collection_landing(request, token):
     """
-    Universal Link fallback page: https://coupro.pro/collection/<token>
+    Universal Link fallback page: https://app.coupro.pro/collection/<token>
     Renders HTML with Smart App Banner (iOS), Open Graph, and JS to try app then fallback to stores.
     """
     share_request = get_object_or_404(CouponShareRequest, token=token)
-    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro').rstrip('/')
+    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://app.coupro.pro').rstrip('/')
     page_url = f"{base_url}/collection/{token}"
     coupon_name = share_request.coupon.coupon_name or "優惠券"
     title = f"CouPro － {coupon_name} 分享"
@@ -78,7 +78,7 @@ def collection_landing(request, token):
 
 def apple_app_site_association(request):
     """
-    iOS Universal Links: serve AASA at https://coupro.pro/.well-known/apple-app-site-association
+    iOS Universal Links: serve AASA at https://app.coupro.pro/.well-known/apple-app-site-association
     No file extension; Content-Type: application/json.
     """
     team_id = getattr(settings, 'COUPRO_IOS_TEAM_ID', '') or ''
@@ -105,7 +105,7 @@ def apple_app_site_association(request):
 
 def assetlinks_json(request):
     """
-    Android App Links: serve at https://coupro.pro/.well-known/assetlinks.json
+    Android App Links: serve at https://app.coupro.pro/.well-known/assetlinks.json
     """
     package_name = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
     sha256_raw = getattr(settings, 'COUPRO_ANDROID_SHA256', '') or ''

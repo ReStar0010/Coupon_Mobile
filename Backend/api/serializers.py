@@ -31,6 +31,176 @@ class ResetPasswordSerializer(serializers.Serializer):
     token = serializers.CharField(help_text="Password reset token")
     new_password = serializers.CharField(help_text="New password", style={'input_type': 'password'})
 
+class RegistrationOTPSendSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/register/send-otp/
+    Sends OTP to phone number for registration (unauthenticated).
+    """
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text="Taiwan mobile number (09XXXXXXXX format)"
+    )
+
+    def validate_phone_number(self, value):
+        """Validate Taiwan mobile phone number format."""
+        import re
+        # Remove any formatting (dashes, spaces)
+        normalized = re.sub(r'[-\s()]', '', value)
+
+        # Validate Taiwan mobile format: 09XXXXXXXX (10 digits)
+        if not re.match(r'^09\d{8}$', normalized):
+            raise serializers.ValidationError(
+                "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+            )
+        return normalized
+
+class RegistrationOTPVerifySerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/register/verify-otp/
+    Verifies OTP and creates user account with phone + password.
+    """
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text="Phone number that received the OTP"
+    )
+    otp_code = serializers.CharField(
+        max_length=6,
+        min_length=6,
+        help_text="6-digit verification code"
+    )
+    password = serializers.CharField(
+        help_text="Password for the new account",
+        style={'input_type': 'password'}
+    )
+
+    def validate_phone_number(self, value):
+        """Validate Taiwan mobile phone number format."""
+        import re
+        normalized = re.sub(r'[-\s()]', '', value)
+        if not re.match(r'^09\d{8}$', normalized):
+            raise serializers.ValidationError(
+                "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+            )
+        return normalized
+
+    def validate_otp_code(self, value):
+        """Validate OTP code format."""
+        import re
+        if not re.match(r'^\d{6}$', value):
+            raise serializers.ValidationError(
+                "驗證碼必須為6位數字"
+            )
+        return value
+
+class PhoneLoginSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/login/ with phone_number OR email.
+    Mutually exclusive: exactly one of phone_number or email must be provided.
+    """
+    phone_number = serializers.CharField(
+        max_length=20,
+        required=False,
+        help_text="Taiwan mobile number (09XXXXXXXX format)"
+    )
+    email = serializers.EmailField(
+        required=False,
+        help_text="User's registered email"
+    )
+    password = serializers.CharField(
+        help_text="User's password",
+        style={'input_type': 'password'}
+    )
+    client_type = serializers.ChoiceField(
+        choices=['merchant', 'user'],
+        required=True,
+        help_text="merchant = 商家端 App；user = 使用者端 App"
+    )
+
+    def validate(self, attrs):
+        """Validate that exactly one of phone_number or email is provided."""
+        phone = attrs.get('phone_number')
+        email = attrs.get('email')
+
+        if not phone and not email:
+            raise serializers.ValidationError(
+                "必須提供手機號碼或電子郵件"
+            )
+        if phone and email:
+            raise serializers.ValidationError(
+                "只能提供手機號碼或電子郵件其中一個"
+            )
+        return attrs
+
+    def validate_phone_number(self, value):
+        """Validate Taiwan mobile phone number format if provided."""
+        if value:
+            import re
+            normalized = re.sub(r'[-\s()]', '', value)
+            if not re.match(r'^09\d{8}$', normalized):
+                raise serializers.ValidationError(
+                    "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+                )
+            return normalized
+        return value
+
+class PhoneForgotPasswordSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/forgot-password/phone/send-otp/
+    Sends password reset OTP to registered phone number.
+    """
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text="Registered phone number"
+    )
+
+    def validate_phone_number(self, value):
+        """Validate Taiwan mobile phone number format."""
+        import re
+        normalized = re.sub(r'[-\s()]', '', value)
+        if not re.match(r'^09\d{8}$', normalized):
+            raise serializers.ValidationError(
+                "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+            )
+        return normalized
+
+class PhoneResetPasswordSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/forgot-password/phone/reset/
+    Verifies OTP and resets password for phone-registered user.
+    """
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text="Phone number that received the OTP"
+    )
+    otp_code = serializers.CharField(
+        max_length=6,
+        min_length=6,
+        help_text="6-digit verification code"
+    )
+    new_password = serializers.CharField(
+        help_text="New password",
+        style={'input_type': 'password'}
+    )
+
+    def validate_phone_number(self, value):
+        """Validate Taiwan mobile phone number format."""
+        import re
+        normalized = re.sub(r'[-\s()]', '', value)
+        if not re.match(r'^09\d{8}$', normalized):
+            raise serializers.ValidationError(
+                "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+            )
+        return normalized
+
+    def validate_otp_code(self, value):
+        """Validate OTP code format."""
+        import re
+        if not re.match(r'^\d{6}$', value):
+            raise serializers.ValidationError(
+                "驗證碼必須為6位數字"
+            )
+        return value
+
 class RedeemCouponSerializer(serializers.Serializer):
     """
     Serializer for redeeming a coupon.

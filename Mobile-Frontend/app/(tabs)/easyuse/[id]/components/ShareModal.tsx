@@ -62,6 +62,17 @@ const ShareModal = ({
     }
   };
 
+  const handleCouProSharePress = () => {
+    Alert.alert(
+      '確認分享到 CouPro',
+      '此優惠將從您的「專屬優惠」中移除並改為「隨取即用」，此操作無法復原。確定要分享嗎？',
+      [
+        { text: '取消', style: 'cancel' },
+        { text: '確定分享', style: 'destructive', onPress: onCouProShare },
+      ]
+    );
+  };
+
   return (
     <Modal
       visible={isOpen}
@@ -135,7 +146,7 @@ const ShareModal = ({
                 {/* Buttons */}
                 <XStack gap="$3" mt="$2">
                   <Button
-                    onPress={onCouProShare}
+                    onPress={handleCouProSharePress}
                     bg="#FFAD31"
                     flex={1}
                     height={50}

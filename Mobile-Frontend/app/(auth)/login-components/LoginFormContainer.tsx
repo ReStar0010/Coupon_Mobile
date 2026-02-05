@@ -8,6 +8,8 @@ import { YStack } from 'tamagui';
 interface LoginFormContainerProps {
   email: string;
   setEmail: (email: string) => void;
+  phoneNumber: string;
+  setPhoneNumber: (phoneNumber: string) => void;
   password: string;
   setPassword: (password: string) => void;
   handleLogin: () => void;
@@ -18,11 +20,15 @@ interface LoginFormContainerProps {
   onForgotPasswordPress?: () => void;
   mode?: 'login' | 'register' | 'forgotPassword';
   setMode?: (mode: 'login' | 'register' | 'forgotPassword') => void;
+  loginMode?: 'phone' | 'email';
+  setLoginMode?: (mode: 'phone' | 'email') => void;
 }
 
 export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
   email,
   setEmail,
+  phoneNumber,
+  setPhoneNumber,
   password,
   setPassword,
   handleLogin,
@@ -33,6 +39,8 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
   onForgotPasswordPress,
   mode,
   setMode,
+  loginMode = 'phone',
+  setLoginMode,
 }) => {
     
   return (
@@ -48,14 +56,44 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
           <FormHeader title="忘記密碼"/>
       )}
 
-      {/* Email Input */}
-      {(mode === 'login' || mode === 'register') && (
+      {/* Login Mode - with phone/email toggle */}
+      {mode === 'login' && (
+        <>
+          {loginMode === 'phone' ? (
+            <FormInput
+              placeholder="輸入手機號碼 (09XXXXXXXX)"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+            />
+          ) : (
+            <FormInput
+              placeholder="輸入 Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          )}
+    
+          <FormInput
+            placeholder="輸入密碼"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={true}
+          />
+        </>
+      )}
+
+      {/* Register Mode - phone only */}
+      {mode === 'register' && (
         <>
           <FormInput
-            placeholder="輸入 Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
+            placeholder="輸入手機號碼 (09XXXXXXXX)"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            keyboardType="phone-pad"
             autoCapitalize="none"
           />
     
@@ -66,13 +104,15 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
             secureTextEntry={true}
           />
         </>
-      )} 
+      )}
+
+      {/* Forgot Password Mode - phone only */}
       {mode === 'forgotPassword' && (
         <FormInput
-          placeholder="輸入 Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
+          placeholder="輸入手機號碼 (09XXXXXXXX)"
+          value={phoneNumber}
+          onChangeText={setPhoneNumber}
+          keyboardType="phone-pad"
           autoCapitalize="none"
         />
       )}
@@ -92,6 +132,13 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
       {/* Registration Link */}
       {mode === 'login' && (
         <>
+            {/* Login Mode Toggle */}
+            <LinkText
+                normalText=""
+                linkText={loginMode === 'phone' ? "使用 Email 登入" : "使用手機登入"}
+                onLinkPress={() => setLoginMode?.(loginMode === 'phone' ? 'email' : 'phone')}
+            />
+
             <LinkText
                 normalText="還沒有帳號嗎 ? "
                 linkText="註冊"
