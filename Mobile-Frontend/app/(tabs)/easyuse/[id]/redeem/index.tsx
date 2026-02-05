@@ -53,11 +53,12 @@ export default function RedeemPage() {
   const handleCloseSuccessPopup = useCallback(() => {
     setShowSuccessConfirmation(false);
     setRedemptionData(null);
-    // Redirect based on source: Collection or EasyUse (replace to avoid stacking)
+
+    // Use consistent casing and correct tab route for navigation
     if (source === 'collection') {
-      router.replace('/Collection');
+      router.replace('/(tabs)/collection');
     } else {
-      router.replace('/EasyUse');
+      router.replace('/(tabs)/easyuse');
     }
   }, [router, source]);
 

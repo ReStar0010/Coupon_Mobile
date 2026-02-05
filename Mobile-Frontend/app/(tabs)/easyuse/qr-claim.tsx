@@ -126,7 +126,7 @@ export default function QRClaimScanner() {
           {
             text: '確定',
             onPress: () => {
-              router.replace('/Collection');
+              router.back();
             },
           },
         ],
@@ -168,7 +168,7 @@ export default function QRClaimScanner() {
           // If back didn't change route (e.g., no history), fall back to EasyUse
           fallbackTimerRef.current = setTimeout(() => {
             if (pathnameRef.current === startPath) {
-              router.replace('/EasyUse');
+              router.back();
             }
           }, 250);
         }, 1000);
@@ -186,7 +186,7 @@ export default function QRClaimScanner() {
   }, [isScanning, isDisabled, isLoading, router]);
 
   const handleGoBack = useCallback(() => {
-    router.replace('/Collection');
+    router.back();
   }, [router]);
 
   const handleRequestPermission = useCallback(async () => {

@@ -244,7 +244,7 @@ const CouponDetailPage: React.FC = () => {
     setShowSuccessPopup(false);
     setIsRedeeming(false);
     setRedemptionData(null);
-    router.push('/(tabs)/easyuse'); // Redirect back to main page
+    router.replace('/(tabs)/easyuse'); // Redirect back to main page
   };
 
   const formatDate = (dateString: string) => {
