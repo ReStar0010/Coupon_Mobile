@@ -3,7 +3,7 @@ import { Image } from 'react-native';
 import { YStack, XStack, Text, Card, View } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { COLORS, BORDER_RADIUS, SPACING } from '@/app/constants/theme';
-import type { CouponType } from '@/app/_Collection/utils/types';
+import type { CouponType } from '@/app/(tabs)/collection/utils/types';
 import { getAcquisitionMethodLabel } from '../utils/couponUtils';
 
 interface CouponProps extends Partial<CouponType> {
@@ -55,7 +55,12 @@ const Coupon: React.FC<CouponProps> = ({
       onMerchantDeleted(storeName, storeId);
       return;
     }
-    router.push(`/EasyUse/${id}?source=collection`);
+    if (!id) return;
+
+    router.push({
+      pathname: '/(tabs)/easyuse/[id]',
+      params: { id: String(id), source: 'collection' },
+    });
   }, [router, id, merchantDeleted, storeId, storeName, onMerchantDeleted]);
 
   const formattedDate = useMemo(() => {
@@ -115,7 +120,7 @@ const Coupon: React.FC<CouponProps> = ({
           )}
 
           {tags && tags.length > 0 && (
-            <XStack gap={6} flexWrap="wrap" marginTop={4}>
+            <XStack gap={6} flexWrap="wrap" style={{ marginTop: 4 }}>
               {tags.map((tag, index) => (
                 <CouponTag key={`${tag}-${index}`} tag={tag} />
               ))}

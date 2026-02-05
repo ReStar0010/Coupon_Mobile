@@ -9,7 +9,7 @@ const ContactUsPage: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const handleGoBack = () => router.push('/OptionsMenu');
+  const handleGoBack = () => router.back();
 
   const InstagramLogo = () => (
     <Svg viewBox="0 0 24 24" width={18} height={18}>

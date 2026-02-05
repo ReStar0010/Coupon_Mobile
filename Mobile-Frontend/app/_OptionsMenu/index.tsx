@@ -35,7 +35,7 @@ const OptionsMenu: React.FC = () => {
   }, []);
 
   const handleGoBack = useCallback(() => {
-    router.push('/EasyUse'); // Always go back to EasyUse
+    router.back();
   }, [router]);
 
   const handleUserDataEdit = useCallback(() => {

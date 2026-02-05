@@ -68,7 +68,7 @@ export default function BlockedMerchantsScreen() {
       >
         {/* Header with back button and title */}
         <XStack gap={'$3'} items="center">
-          <ChevronLeft size={24} onPress={() => router.push('/OptionsMenu')} color={'black'} />
+          <ChevronLeft size={24} onPress={() => router.back()} color={'black'} />
           <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
             封鎖的商家
           </H4>

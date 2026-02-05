@@ -39,7 +39,7 @@ const HistoryPage: React.FC = () => {
         await AsyncStorage.setItem('selectedCouponHistory', JSON.stringify(item));
         // Set navigation source to 'statistics' so the back button returns to Statistics page
         await AsyncStorage.setItem('couponNavigationSource', 'statistics');
-        router.push(`/Statistics/History/${couponId}`);
+        router.push(`/statistics/history/${couponId}`);
       } catch (error) {
         console.error('Error storing coupon history:', error);
       }

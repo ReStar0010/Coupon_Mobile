@@ -171,18 +171,6 @@ const Collection: React.FC = () => {
     fetchPublicShares();
   }, [fetchCoupons, fetchPublicShares]);
 
-  const handleHomePress = useCallback(() => {
-    router.push('/(tabs)/easyuse');
-  }, [router]);
-
-  const handleCollectionPress = useCallback(() => {
-    router.push('/(tabs)/collection');
-  }, [router]);
-
-  const handleStatisticsPress = useCallback(() => {
-    router.push('/(tabs)/statistics');
-  }, [router]);
-
   const handleOpenDailyDraw = useCallback(() => {
     setShowDailyDraw(true);
   }, [setShowDailyDraw]);

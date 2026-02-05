@@ -15,7 +15,7 @@ const UserData: React.FC = () => {
 
   const router = useRouter();
 
-  const handleGoBack = () => router.push('/OptionsMenu');
+  const handleGoBack = () => router.back();
 
   return (
     <>

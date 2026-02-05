@@ -142,7 +142,7 @@ const Statistics: React.FC = () => {
         </XStack>
         <Button 
           unstyled 
-          onPress={() => {router.push('OptionsMenu')}}
+          onPress={() => {router.push('/options-menu')}}
         >
           <AlignJustify size={24} color="#333333" />
         </Button>

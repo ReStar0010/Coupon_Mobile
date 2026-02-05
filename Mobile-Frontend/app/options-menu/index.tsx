@@ -35,39 +35,39 @@ const OptionsMenu: React.FC = () => {
   }, []);
 
   const handleGoBack = useCallback(() => {
-    router.push('/EasyUse'); // Always go back to EasyUse
+    router.back();
   }, [router]);
 
   const handleUserDataEdit = useCallback(() => {
-    router.push('/OptionsMenu/UserData');
+    router.push('/options-menu/user-data/UserData');
   }, [router]);
 
   const handleFeedBack = useCallback(() => {
-    router.push('/OptionsMenu/FeedBack');
+    router.push('/options-menu/feedback/FeedBack');
   }, [router]);
 
   const handleContactUs = useCallback(() => {
-    router.push('/OptionsMenu/ContactUs');
+    router.push('/options-menu/contact-us/ContactUs');
   }, [router]);
 
   const handleTerms = useCallback(() => {
-    router.push('/OptionsMenu/Terms');
+    router.push('/options-menu/terms/Terms');
   }, [router]);
 
   const handlePhoneSettings = useCallback(() => {
-    router.push('/OptionsMenu/PhoneSettings');
+    router.push('/options-menu/phone-settings/PhoneSettings');
   }, [router]);
 
   const handleBlockedMerchants = useCallback(() => {
-    router.push('/OptionsMenu/BlockedMerchants');
+    router.push('/options-menu/blocked-merchants/BlockedMerchants');
   }, [router]);
 
   const handleHelpSupport = useCallback(() => {
-    router.push('/OptionsMenu/HelpSupport');
+    router.push('/options-menu/help-support/HelpSupport');
   }, [router]);
 
   const handlePrivacyPolicy = useCallback(() => {
-    router.push('/OptionsMenu/PrivacyPolicy');
+    router.push('/options-menu/privacy-policy/PrivacyPolicy');
   }, [router]);
 
   // 登出功能 - AuthOrchestrator 處理導航
@@ -97,7 +97,7 @@ const OptionsMenu: React.FC = () => {
     <>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <YStack flex="1" px="$4" py="$6" gap={13} style={{ paddingTop: insets.top + 10 }}>
+      <YStack flex={1} px="$4" py="$6" gap={13} style={{ paddingTop: insets.top + 10 }}>
         {/* Header with back button and title */}
         <XStack gap={13} items="center" >
           <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />

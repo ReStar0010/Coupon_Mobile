@@ -10,7 +10,7 @@ const FeedBack: React.FC = () => {
   const [featureRequest, setFeatureRequest] = useState('');
   const [activeTab, setActiveTab] = useState('bug');
 
-  const handleGoBack = () => router.push('/OptionsMenu');
+  const handleGoBack = () => router.back();
 
   const handleSubmit = () => {
     // Handle submission logic here

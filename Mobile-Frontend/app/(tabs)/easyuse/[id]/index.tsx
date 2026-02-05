@@ -192,8 +192,11 @@ const CouponDetailPage: React.FC = () => {
         const userLoggedIn = await isUserLoggedIn();
         if (!userLoggedIn) {
           devLog('User not logged in. Redirecting to login page');
-          const returnUrl = `/EasyUse/${coupon.id}`;
-          router.push(`/Login?returnUrl=${encodeURIComponent(returnUrl)}`);
+          const returnUrl = `/(tabs)/easyuse/${coupon.id}`;
+          router.push({
+            pathname: '/(auth)/login',
+            params: { returnUrl },
+          });
           return;
         }
 
@@ -228,7 +231,10 @@ const CouponDetailPage: React.FC = () => {
         }
       } else {
         // For exclusive coupons, navigate to the redemption page to enter code
-        router.push(`/EasyUse/${coupon.id}/redeem`);
+        router.push({
+          pathname: '/(tabs)/easyuse/[id]/redeem',
+          params: { id: String(coupon.id) },
+        });
       }
     }
   };
@@ -238,7 +244,7 @@ const CouponDetailPage: React.FC = () => {
     setShowSuccessPopup(false);
     setIsRedeeming(false);
     setRedemptionData(null);
-    router.push('/EasyUse'); // Redirect back to main page
+    router.push('/(tabs)/easyuse'); // Redirect back to main page
   };
 
   const formatDate = (dateString: string) => {
@@ -285,7 +291,7 @@ const CouponDetailPage: React.FC = () => {
           [
             {
               text: '確定',
-              onPress: () => router.push('/Collection')
+              onPress: () => router.push('/(tabs)/collection'),
             }
           ]
         );
@@ -428,7 +434,7 @@ const CouponDetailPage: React.FC = () => {
                         text: '確定',
                         onPress: () => {
                           // Go back to EasyUse page
-                          router.push('/EasyUse');
+                          router.push('/(tabs)/easyuse');
                         },
                       },
                     ],
