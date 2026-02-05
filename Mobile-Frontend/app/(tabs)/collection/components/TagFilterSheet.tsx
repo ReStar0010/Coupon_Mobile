@@ -4,7 +4,7 @@ import { YStack, XStack, Text } from 'tamagui';
 import { X } from 'lucide-react-native';
 import { COLORS, BORDER_RADIUS } from '@/app/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Tag } from '@/app/_Collection/hooks/useTags';
+import type { Tag } from '@/app/(tabs)/collection/hooks/useTags';
 
 interface TagFilterSheetProps {
   isOpen: boolean;

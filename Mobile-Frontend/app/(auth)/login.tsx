@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Toast from "react-native-toast-message";
 import { useRouter } from "expo-router";
 import { TouchableOpacity } from "react-native";
-import { LoginFormContainer } from "@/app/_Login/components/LoginFormContainer";
+import { LoginFormContainer } from "./login-components/LoginFormContainer";
 import { fetchAPI, storeLoginData } from "@/app/utils/authAPI";
 import { devLog, devError } from "@/app/utils/devLogger";
 import { YStack, View, Text } from 'tamagui';
@@ -169,7 +169,7 @@ export default function Index() {
 
         {/* Privacy Policy Link (UGC Compliance) */}
         <TouchableOpacity 
-          onPress={() => router.push('/OptionsMenu/PrivacyPolicy')}
+          onPress={() => router.push('/options-menu/privacy-policy')}
           style={{ marginTop: 24 }}
         >
           <Text fontSize={14} color="#007AFF" textAlign="center">

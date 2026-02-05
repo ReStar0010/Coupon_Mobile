@@ -1,7 +1,7 @@
 // Custom hook for handling shared coupons
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ShareRequestInfo } from '@/app/_Collection/utils/types';
+import { ShareRequestInfo } from '@/app/(tabs)/collection/utils/types';
 import { devDebug, devLog } from '@/app/utils/devLogger';
 import { fetchAPI } from '@/app/utils/authAPI';
 

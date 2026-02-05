@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
 import { View, ScrollView, SafeAreaView } from "react-native";
 import { DismissKeyboardView } from "@/app/components/DismissKeyboardView";
-import { ResetFormContainer } from "@/app/_ResetPassword/components/ResetFormContainer";
+import { ResetFormContainer } from "./reset-password-components/ResetFormContainer";
 import { fetchAPI } from "@/app/utils/authAPI";
 import { devLog, devError } from "@/app/utils/devLogger";
 import { toastConfig } from "@/app/config/toastConfig";

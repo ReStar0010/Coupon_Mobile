@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { DailyDrawResult, DrawTemplate } from '@/app/_Collection/utils/types';
-import { checkLastDrawDate } from '@/app/_Collection/utils/couponUtils';
+import { DailyDrawResult, DrawTemplate } from '@/app/(tabs)/collection/utils/types';
+import { checkLastDrawDate } from '@/app/(tabs)/collection/utils/couponUtils';
 import { devDebug } from '@/app/utils/devLogger';
 import { fetchAPI } from '@/app/utils/authAPI';
 

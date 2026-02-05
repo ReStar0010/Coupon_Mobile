@@ -61,7 +61,7 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
         <>
           {loginMode === 'phone' ? (
             <FormInput
-              placeholder="輸入手機號碼 (09XXXXXXXX)"
+              placeholder="輸入手機號碼"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               keyboardType="phone-pad"
@@ -90,7 +90,7 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
       {mode === 'register' && (
         <>
           <FormInput
-            placeholder="輸入手機號碼 (09XXXXXXXX)"
+            placeholder="輸入手機號碼"
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             keyboardType="phone-pad"

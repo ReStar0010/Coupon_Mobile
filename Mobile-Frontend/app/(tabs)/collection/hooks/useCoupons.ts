@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { ApiCoupon, CouponType } from '@/app/_Collection/utils/types';
-import { transformApiCoupon } from '@/app/_Collection/utils/couponUtils';
+import { ApiCoupon, CouponType } from '@/app/(tabs)/collection/utils/types';
+import { transformApiCoupon } from '@/app/(tabs)/collection/utils/couponUtils';
 import { devDebug } from '@/app/utils/devLogger';
 import { fetchAPI } from '@/app/utils/authAPI';
 
