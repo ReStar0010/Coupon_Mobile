@@ -282,9 +282,11 @@ class CouponTemplateAdmin(admin.ModelAdmin):
             color = 'orange'
         else:
             color = 'green'
+        # 避免 format_html 對 SafeString 使用 'f' 導致 ValueError，先將百分比格式成字串
+        pct_str = '%d' % round(float(percentage))
         return format_html(
-            '<span style="color: {};">{}/{} ({:.0f}%)</span>',
-            color, obj.remaining_quantity, obj.total_quantity, percentage
+            '<span style="color: {};">{}/{} ({})%</span>',
+            color, obj.remaining_quantity, obj.total_quantity, pct_str
         )
     quantity_status.short_description = '庫存狀態'
     
