@@ -35,6 +35,22 @@ const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// 位置權限說明：讓用戶了解為何需要位置
+const LOCATION_USAGE_TITLE = '需要位置權限';
+const LOCATION_USAGE_MESSAGE =
+  'CouPro 需要存取您的位置，以在地圖上顯示您的位置、計算與店家的距離與步行時間，讓您更快找到附近的優惠券。';
+const LOCATION_DENIED_IOS =
+  `${LOCATION_USAGE_MESSAGE}\n\n請前往「設定」>「CouPro」>「位置」，選擇「使用 App 期間」或「永遠」來開啟位置服務。`;
+const LOCATION_DENIED_ANDROID =
+  `${LOCATION_USAGE_MESSAGE}\n\n請前往「設定」>「應用程式」>「CouPro」>「權限」>「位置」，選擇「允許」來開啟位置服務。`;
+function showLocationDeniedAlert(): void {
+  const message = Platform.OS === 'ios' ? LOCATION_DENIED_IOS : LOCATION_DENIED_ANDROID;
+  Alert.alert(LOCATION_USAGE_TITLE, message, [
+    { text: '取消', style: 'cancel' },
+    { text: '前往設定', onPress: () => Linking.openSettings().catch(() => {}) },
+  ]);
+}
+
 export type CouponType = {
   className?: string;
   id?: number;
@@ -540,14 +556,18 @@ const CouPro = () => {
     fetchCoupons();
   }, [fetchCoupons]);
 
-  // Request location on mount
+  // Request location on mount（附說明：用於顯示附近優惠與距離）
   useEffect(() => {
     if (Platform.OS === 'web') return;
     let cancelled = false;
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (cancelled || status !== 'granted') return;
+        if (cancelled) return;
+        if (status !== 'granted') {
+          showLocationDeniedAlert();
+          return;
+        }
         const location = await Location.getCurrentPositionAsync({});
         if (cancelled) return;
         setUserCoords({
@@ -697,7 +717,7 @@ const CouPro = () => {
 
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('需要位置權限', '請在設定中開啟位置服務');
+        showLocationDeniedAlert();
         return;
       }
 
@@ -911,7 +931,7 @@ const CouPro = () => {
                                   </Text>
                                 ) : Platform.OS !== 'web' ? (
                                   <Text fontSize={12} color="#9ca3af">
-                                    點右上角 📍 取得位置以顯示距離
+                                    開啟位置後可顯示與店家的距離與步行時間，點右上角 📍 取得位置
                                   </Text>
                                 ) : null}
                               </XStack>

@@ -136,7 +136,7 @@ export default function UnifiedRedeemScreen() {
     setRedeemedCoupon(null);
     setRedemptionData(null);
     // Navigate back to Collection after successful redemption
-    router.push('/Collection');
+    router.push('/(tabs)/collection');
   }, [router]);
 
   const handleHideErrorToast = useCallback(() => {

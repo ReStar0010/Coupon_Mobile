@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { TamaguiProvider } from 'tamagui';
 import { PortalProvider } from '@tamagui/portal';
+import Toast from 'react-native-toast-message';
 import { config } from '../tamagui.config';
 import ThemeProvider from './components/providers/ThemeProvider';
 import AuthProvider from './components/providers/SessionProvider';
@@ -14,6 +15,7 @@ import DismissedStoresProvider from './components/providers/DismissedStoresProvi
 import AuthRedirectHandler from './components/AuthRedirectHandler';
 import { getApiConfig } from './config/api';
 import BlockedMerchantsProvider from './components/providers/BlockedMerchantsProvider';
+import { toastConfig } from './config/toastConfig';
 
 // 在應用啟動時顯示後端配置
 if (__DEV__) {
@@ -46,6 +48,7 @@ export default function RootLayout() {
                     <Stack.Screen name="options-menu" />
                   </Stack>
                   <StatusBar style="auto" />
+                  <Toast config={toastConfig} />
                 </ToastProvider>
               </AuthOrchestrator> 
             </AuthProvider>

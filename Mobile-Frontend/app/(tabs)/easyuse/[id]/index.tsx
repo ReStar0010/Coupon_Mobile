@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
+
+// 位置權限說明（此頁用於優惠券瀏覽分析，協助改善服務與推薦；未授權時不干擾用戶，僅不傳送位置）
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { ArrowLeft, Share2, MapPin, ShieldBan, ShieldCheck } from 'lucide-react-native';
@@ -109,6 +111,7 @@ const CouponDetailPage: React.FC = () => {
           lat = location.coords.latitude;
           lng = location.coords.longitude;
         }
+        // 若未授權則不彈窗，避免每次進入詳情頁都打擾用戶；用途見上方 LOCATION_USAGE_MESSAGE
       } catch (locationError) {
         // Location permission denied or error, continue without location
         console.log('Location not available:', locationError);

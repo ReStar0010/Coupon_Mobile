@@ -199,7 +199,6 @@ export default function EmailSettings() {
           </YStack>
         )}
       </YStack>
-      <Toast />
     </>
   );
 }

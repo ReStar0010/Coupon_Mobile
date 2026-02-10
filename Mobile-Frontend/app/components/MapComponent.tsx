@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, Platform, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { devLog } from '@/app/utils/devLogger';
 
@@ -51,6 +51,13 @@ const defaultRegion = {
 
 const { width, height } = Dimensions.get('window');
 
+const LOCATION_USAGE_MESSAGE =
+  'CouPro 需要存取您的位置，以在地圖上顯示您的位置、計算與店家的距離與步行時間，讓您更快找到附近的優惠券。';
+const LOCATION_DENIED_MESSAGE =
+  Platform.OS === 'ios'
+    ? `${LOCATION_USAGE_MESSAGE}\n\n請前往「設定」>「CouPro」>「位置」，選擇「使用 App 期間」或「永遠」來開啟位置服務。`
+    : `${LOCATION_USAGE_MESSAGE}\n\n請前往「設定」>「應用程式」>「CouPro」>「權限」>「位置」，選擇「允許」來開啟位置服務。`;
+
 const MapComponent: React.FC<MapComponentProps> = ({
   stores = [],
   onStoreSelect,
@@ -92,7 +99,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('位置權限', '無法獲取位置權限，請在設定中開啟位置服務', [{ text: '確定' }]);
+          Alert.alert('需要位置權限', LOCATION_DENIED_MESSAGE, [
+            { text: '取消', style: 'cancel' },
+            { text: '前往設定', onPress: () => Linking.openSettings().catch(() => {}) },
+          ]);
           return;
         }
 
@@ -157,7 +167,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
     if (setStoreSearch) {
       setStoreSearch(storeName);
     } else {
-      router.push(`/EasyUse?search=${encodeURIComponent(storeName)}`);
+      router.push(`/(tabs)/easyuse?search=${encodeURIComponent(storeName)}`);
     }
   };
 
@@ -180,7 +190,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('需要位置權限', '請在設定中開啟位置服務');
+          Alert.alert('需要位置權限', LOCATION_DENIED_MESSAGE, [
+            { text: '取消', style: 'cancel' },
+            { text: '前往設定', onPress: () => Linking.openSettings().catch(() => {}) },
+          ]);
           return;
         }
 

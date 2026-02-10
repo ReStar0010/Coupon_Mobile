@@ -217,7 +217,7 @@ export default function RedeemPage() {
         });
 
         if (response.data.coupon_type === 'store') {
-          router.push(`/EasyUse/${id}`);
+          router.push(`/(tabs)/easyuse/${id}`);
           return;
         }
 

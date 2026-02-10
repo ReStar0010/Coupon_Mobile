@@ -153,7 +153,7 @@ export default function QRClaimScanner() {
       
       setError(displayMessage);
 
-      // If out-of-stock: show message briefly then auto-return to previous page (fallback: /EasyUse)
+      // If out-of-stock: show message briefly then auto-return to previous page (fallback: (tabs)/easyuse)
       if (displayMessage === '優惠券已領取完畢') {
         setIsScanning(false);
         setIsDisabled(true);

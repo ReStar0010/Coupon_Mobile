@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Shield,
   Mail,
+  Trash2,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -73,6 +74,21 @@ const OptionsMenu: React.FC = () => {
 
   const handleEmailSettings = useCallback(() => {
     router.push('/options-menu/email-settings/EmailSettings');
+  }, [router]);
+
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(
+      '刪除帳號',
+      '刪除帳號是永久性操作，無法復原。確定要繼續嗎？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '繼續',
+          style: 'destructive',
+          onPress: () => router.push('/options-menu/delete-account'),
+        },
+      ]
+    );
   }, [router]);
 
   // 登出功能 - AuthOrchestrator 處理導航
@@ -220,6 +236,22 @@ const OptionsMenu: React.FC = () => {
             size="$6"
             onPress={handleLogout}>
             <ListItem.Text>登出</ListItem.Text>
+          </ListItem>
+        </YStack>
+
+        {/* Delete Account */}
+        <YStack style={{ borderWidth: 1, borderColor: '#fecaca' }} rounded={'$5'}>
+          <ListItem
+            rounded="$5"
+            icon={() => <Trash2 size={20} color="#EF4444" />}
+            iconAfter={ChevronRight}
+            style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
+            bg="white"
+            hoverTheme
+            pressTheme
+            size="$6"
+            onPress={handleDeleteAccount}>
+            <ListItem.Text color="#EF4444">刪除帳號</ListItem.Text>
           </ListItem>
         </YStack>
 

@@ -1,10 +1,11 @@
 import React from 'react';
-import { View } from 'react-native';
+import { YStack } from 'tamagui';
 import { FormHeader } from '@/app/components/forms/FormHeader';
 import { FormInput } from '@/app/components/forms/FormInput';
 import { FormButton } from '@/app/components/forms/FormButton';
+import { AUTH_COLORS } from './LoginFormContainer';
 
-interface ResetFormContainterProps {
+interface ResetFormContainerProps {
   password: string;
   setPassword: (password: string) => void;
   verifyPassword: string;
@@ -12,34 +13,33 @@ interface ResetFormContainterProps {
   handleReset: () => void;
 }
 
-export const ResetFormContainer: React.FC<ResetFormContainterProps> = ({
+export const ResetFormContainer: React.FC<ResetFormContainerProps> = ({
   password,
   setPassword,
   verifyPassword,
   setVerifyPassword,
-  handleReset
+  handleReset,
 }) => {
-    
   return (
-    <View className="bg-login-bg px-5 py-8 flex flex-col gap-[13px]">
-      {/* Header */}
-      <FormHeader title='重設密碼' /> 
-      {/* ResetPassword Input */}
+    <YStack bg={AUTH_COLORS.background} px="$5" py="$6" gap="$3">
+      <FormHeader title="重設密碼" />
+
       <FormInput
-        placeholder='輸入新密碼'
+        placeholder="輸入新密碼"
         value={password}
         onChangeText={setPassword}
         secureTextEntry={true}
       />
+
       <FormInput
-          placeholder='再次輸入新密碼'
-          value={verifyPassword}
-          onChangeText={setVerifyPassword}
-          secureTextEntry={true}
-      /> 
-      {/* Reset Button */}
+        placeholder="再次輸入新密碼"
+        value={verifyPassword}
+        onChangeText={setVerifyPassword}
+        secureTextEntry={true}
+      />
+
       <FormButton title="儲存變更" onPress={handleReset} />
-    </View>
+    </YStack>
   );
 };
 

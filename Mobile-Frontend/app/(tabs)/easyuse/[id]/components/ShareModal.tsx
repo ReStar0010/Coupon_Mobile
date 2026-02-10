@@ -1,7 +1,6 @@
 import React from 'react';
 import { Modal, TouchableWithoutFeedback, ActivityIndicator, Share, Alert, Platform } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
-import { X, Share2, Link } from 'lucide-react-native';
+import { X, Share2 } from 'lucide-react-native';
 import { 
   YStack, 
   XStack, 
@@ -45,20 +44,6 @@ const ShareModal = ({
       onClose();
     } catch (e) {
       Alert.alert('分享失敗', '無法開啟系統分享面板，請稍後再試');
-    }
-  };
-
-  const handleCopyWebLink = async () => {
-    try {
-      const shareLink = await onLinkShare();
-      if (!shareLink) {
-        Alert.alert('分享失敗', '無法生成分享連結，請稍後再試');
-        return;
-      }
-      await Clipboard.setStringAsync(shareLink);
-      Alert.alert('已複製', '網頁連結已複製到剪貼簿，貼到訊息中即可被點擊開啟。');
-    } catch (e) {
-      Alert.alert('複製失敗', '無法複製連結，請稍後再試');
     }
   };
 
@@ -206,25 +191,6 @@ const ShareModal = ({
                     </XStack>
                   </Button>
                 </XStack>
-                <Button
-                  onPress={handleCopyWebLink}
-                  bg="#f0f0f0"
-                  height={44}
-                  style={{
-                    borderRadius: 12,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    paddingHorizontal: 8,
-                  }}
-                  disabled={isSharing}
-                >
-                  <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
-                    <Link size={18} color="#333" />
-                    <Text color="#333" fontSize={13} fontWeight="600">
-                      複製網頁連結
-                    </Text>
-                  </XStack>
-                </Button>
               </YStack>
             </Card>
           </TouchableWithoutFeedback>

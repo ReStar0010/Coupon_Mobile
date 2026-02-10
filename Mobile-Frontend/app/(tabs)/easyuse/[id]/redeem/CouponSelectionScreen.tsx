@@ -60,7 +60,7 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
       } else {
         // Navigate to redemption page with coupon ID and auto-filled code
         router.push({
-          pathname: `/EasyUse/${coupon.id}/redeem`,
+          pathname: `/(tabs)/easyuse/${coupon.id}/redeem`,
           params: { unifiedCode: unifiedCode },
         });
       }

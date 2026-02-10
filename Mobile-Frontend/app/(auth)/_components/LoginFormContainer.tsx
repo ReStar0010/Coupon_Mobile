@@ -5,6 +5,18 @@ import { FormButton } from '@/app/components/forms/FormButton';
 import { LinkText } from '@/app/components/forms/LinkText';
 import { YStack } from 'tamagui';
 
+// Shared color constants
+export const AUTH_COLORS = {
+  background: '#f5f5f5',
+  primary: '#FFAD31',
+  primaryPressed: '#FF9500',
+  text: '#374151',
+  textSecondary: '#666666',
+  border: '#e0e0e0',
+  inputBackground: '#f5f5f5',
+  white: '#FFFFFF',
+} as const;
+
 interface LoginFormContainerProps {
   email: string;
   setEmail: (email: string) => void;
@@ -38,23 +50,39 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
   onRegisterPress,
   onForgotPasswordPress,
   mode,
-  setMode,
   loginMode = 'phone',
   setLoginMode,
 }) => {
-    
+  const getTitle = () => {
+    switch (mode) {
+      case 'login': return '登入';
+      case 'register': return '註冊';
+      case 'forgotPassword': return '忘記密碼';
+      default: return '登入';
+    }
+  };
+
+  const getButtonTitle = () => {
+    switch (mode) {
+      case 'login': return '登入';
+      case 'register': return '註冊';
+      case 'forgotPassword': return '發送驗證碼';
+      default: return '登入';
+    }
+  };
+
+  const getButtonHandler = () => {
+    switch (mode) {
+      case 'login': return handleLogin;
+      case 'register': return handleRegister;
+      case 'forgotPassword': return handleForgotPassword;
+      default: return handleLogin;
+    }
+  };
+
   return (
-    <YStack bg="#f5f5f5" px="$5" py="$6" gap="$3">
-      {/* Header */}
-      {mode === 'login' && (
-          <FormHeader title="登入"/>
-      )}
-      {mode === 'register' && (
-          <FormHeader title="註冊"/>
-      )}
-      {mode === 'forgotPassword' && (
-          <FormHeader title="忘記密碼"/>
-      )}
+    <YStack bg={AUTH_COLORS.background} px="$5" py="$6" gap="$3">
+      <FormHeader title={getTitle()} />
 
       {/* Login Mode - with phone/email toggle */}
       {mode === 'login' && (
@@ -76,7 +104,6 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
               autoCapitalize="none"
             />
           )}
-    
           <FormInput
             placeholder="輸入密碼"
             value={password}
@@ -96,7 +123,6 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
             keyboardType="phone-pad"
             autoCapitalize="none"
           />
-    
           <FormInput
             placeholder="輸入密碼"
             value={password}
@@ -117,59 +143,44 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
         />
       )}
 
-      {/* Login Button */}
-      {mode === 'login' && (
-        <FormButton title="登入" onPress={handleLogin} />
-      )}
-      {mode === 'register' && (
-        <FormButton title="註冊" onPress={handleRegister} />
-      )}
-      {mode === 'forgotPassword' && (
-        <FormButton title="寄送重設密碼信件" onPress={handleForgotPassword} />
-      )}
+      {/* Action Button */}
+      <FormButton title={getButtonTitle()} onPress={getButtonHandler()} />
 
       {/* Links */}
-      {/* Registration Link */}
       {mode === 'login' && (
         <>
-            {/* Login Mode Toggle */}
-            <LinkText
-                normalText=""
-                linkText={loginMode === 'phone' ? "使用 Email 登入" : "使用手機登入"}
-                onLinkPress={() => setLoginMode?.(loginMode === 'phone' ? 'email' : 'phone')}
-            />
-
-            <LinkText
-                normalText="還沒有帳號嗎 ? "
-                linkText="註冊"
-                onLinkPress={onRegisterPress}
-            />
-
-            {/* Password Reset Link */}
-            <LinkText
-                normalText="忘記密碼 ? "
-                linkText="重設"
-                onLinkPress={onForgotPasswordPress}
-            />
+          <LinkText
+            normalText=""
+            linkText={loginMode === 'phone' ? '使用 Email 登入' : '使用手機登入'}
+            onLinkPress={() => setLoginMode?.(loginMode === 'phone' ? 'email' : 'phone')}
+          />
+          <LinkText
+            normalText="還沒有帳號嗎？"
+            linkText="註冊"
+            onLinkPress={onRegisterPress}
+          />
+          <LinkText
+            normalText="忘記密碼？"
+            linkText="重設"
+            onLinkPress={onForgotPasswordPress}
+          />
         </>
       )}
+
       {mode === 'register' && (
-        <>
-            <LinkText
-                normalText="已經有帳號了嗎 ? "
-                linkText="登入"
-                onLinkPress={onLoginPress}
-            />
-        </>
+        <LinkText
+          normalText="已經有帳號了嗎？"
+          linkText="登入"
+          onLinkPress={onLoginPress}
+        />
       )}
+
       {mode === 'forgotPassword' && (
-        <>
-            <LinkText
-                normalText="還沒有帳號嗎 ? "
-                linkText="註冊"
-                onLinkPress={onRegisterPress}
-            />
-        </>
+        <LinkText
+          normalText="還沒有帳號嗎？"
+          linkText="註冊"
+          onLinkPress={onRegisterPress}
+        />
       )}
     </YStack>
   );

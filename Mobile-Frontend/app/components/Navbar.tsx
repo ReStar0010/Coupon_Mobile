@@ -18,15 +18,15 @@ const Navbar: React.FC<NavbarType> = ({
   const router = useRouter();
 
   const onEasyUseClick = useCallback(() => {
-    router.push('/EasyUse');
+    router.push('/(tabs)/easyuse');
   }, [router]);
 
   const onCollectionClick = useCallback(() => {
-    router.push('/Collection');
+    router.push('/(tabs)/collection');
   }, [router]);
 
   const onStatisticsClick = useCallback(() => {
-    router.push('/Statistics');
+    router.push('/(tabs)/statistics');
   }, [router]);
 
   return (
