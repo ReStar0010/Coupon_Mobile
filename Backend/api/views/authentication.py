@@ -986,7 +986,7 @@ def resend_merchant_verification(request):
             )
         ),
         400: "Bad request - missing or invalid client_type",
-        401: "Invalid credentials",
+        401: "帳號或密碼錯誤",
         403: "wrong_client_type - account type does not match client (use other app)",
     }
 )
@@ -1084,7 +1084,7 @@ def login(request):
 
             return response
         else: # 密碼錯誤
-             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+             return Response({"error": "帳號或密碼錯誤"}, status=status.HTTP_401_UNAUTHORIZED)
     except User.DoesNotExist:
         return Response({"error": "帳號不存在"}, status=status.HTTP_401_UNAUTHORIZED)
 
