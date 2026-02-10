@@ -38,6 +38,7 @@ from api.views.phone_otp import (
 )
 from api.views.qr_claim import generate_qr_session, invalidate_qr_session, claim_coupon_via_qr
 from api.views.account_deletion import pre_delete_check, delete_account, get_deletion_status
+from api.views.consumer_account_deletion import consumer_pre_delete_check, consumer_delete_account
 from api.views.content_moderation import (
     ReportContentView, ReportStatusView, UserReportsView,
     BlockMerchantView, UnblockMerchantView, BlockedMerchantsListView, BlockStatusView
@@ -183,6 +184,10 @@ urlpatterns = [
     path('api/merchant/account/pre-delete-check/', pre_delete_check, name='pre_delete_check'),
     path('api/merchant/account/delete/', delete_account, name='delete_account'),
     path('api/merchant/account/deletion-status/', get_deletion_status, name='get_deletion_status'),
+
+    # Consumer account deletion (App Store compliance)
+    path('api/account/pre-delete-check/', consumer_pre_delete_check, name='consumer_pre_delete_check'),
+    path('api/account/delete/', consumer_delete_account, name='consumer_delete_account'),
     
     # Merchant image upload
     path('api/merchant/upload-image/', upload_image, name='upload_image'),

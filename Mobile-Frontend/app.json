@@ -3,9 +3,7 @@
     "name": "CouPro",
     "slug": "Mobile-Frontend",
     "version": "1.0.0",
-    "scheme": [
-      "coupro"
-    ],
+    "scheme": ["coupro"],
     "web": {
       "favicon": "./assets/icon.png",
       "bundler": "metro"
@@ -32,20 +30,24 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CouPro 需要存取您的位置資訊，以便顯示附近的商家與優惠。",
+          "locationAlwaysPermission": "CouPro 需要存取您的位置資訊，以便顯示附近的商家與優惠。",
+          "locationWhenInUsePermission": "CouPro 需要存取您的位置資訊，以便顯示附近的商家與優惠。"
+        }
       ]
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.cokayne.MobileFrontend",
-      "associatedDomains": [
-        "applinks:coupro.pro"
-      ],
+      "associatedDomains": ["applinks:coupro.pro"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -56,8 +58,6 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
