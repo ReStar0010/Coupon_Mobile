@@ -1,6 +1,8 @@
 import '../tamagui-web.css';
 
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import * as Updates from 'expo-updates';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { TamaguiProvider } from 'tamagui';
@@ -17,6 +19,19 @@ import { getApiConfig } from './config/api';
 import BlockedMerchantsProvider from './components/providers/BlockedMerchantsProvider';
 import { toastConfig } from './config/toastConfig';
 
+async function onFetchUpdateAsync() {
+  if (__DEV__) return;
+  try {
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    }
+  } catch (e) {
+    console.warn('OTA 更新檢查失敗:', e);
+  }
+}
+
 // 在應用啟動時顯示後端配置
 if (__DEV__) {
   const apiConfig = getApiConfig();
@@ -31,6 +46,10 @@ if (__DEV__) {
 
 
 export default function RootLayout() {
+  useEffect(() => {
+    onFetchUpdateAsync();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <TamaguiProvider config={config} defaultTheme="light">

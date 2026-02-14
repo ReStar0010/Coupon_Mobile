@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { logout, fetchAPI } from '@/app/utils/authAPI';
 import { View, Text, XStack, YStack, Card, Button, H4, ListItem, Separator } from 'tamagui';
@@ -118,9 +118,15 @@ const OptionsMenu: React.FC = () => {
     <>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <YStack flex={1} px="$4" py="$6" gap={13} style={{ paddingTop: insets.top + 10 }}>
-        {/* Header with back button and title */}
-        <XStack gap={13} items="center" >
+      <YStack flex={1} px="$4" py="$6" style={{ paddingTop: insets.top + 10 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <YStack gap={13}>
+            {/* Header with back button and title */}
+            <XStack gap={13} items="center" >
           <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />
           <H4 fontWeight={'bold'}>
             選單
@@ -259,6 +265,8 @@ const OptionsMenu: React.FC = () => {
         <Text text="center" color="#a0a0a0">
           Version 1.0.0
         </Text>
+          </YStack>
+        </ScrollView>
       </YStack>
     </>
   );
