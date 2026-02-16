@@ -68,7 +68,12 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.cokayne.MobileMerchantFrontend"
+      "package": "com.cokayne.MobileMerchantFrontend",
+      "config": {
+      "googleMaps": {
+        "apiKey": "AIzaSyACVfhHwjl0L5QWVRUxWOyle4UOysZPSbA"
+      }
+    }
     },
     "extra": {
       "router": {},
