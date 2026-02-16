@@ -53,12 +53,17 @@ STORAGES = {
     }
 }
 
+# PgBouncer-friendly: connection pooling handled by PgBouncer, not Django
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
+        default=os.environ.get('DATABASE_URL'),  # Points to PgBouncer URL
+        # postgresql://coupro_database_user:tSkQbSQuJ6Un9tLimC3HcNGrNurtzpdv@docker-pgbouncer-hq2q:6543/coupro_database?pgbouncer=true
+        conn_max_age=0,  # PgBouncer handles the pooling, not Django
     )
 }
+# CRITICAL: Required for PgBouncer Transaction Mode
+DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+
 # SMS Configuration (Twilio) - Production
 SMS_DEV_MODE = False
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
