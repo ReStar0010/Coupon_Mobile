@@ -41,7 +41,9 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
       <YStack
         backgroundColor={isSoldOut ? colors.background : colors.white}
         borderRadius="$4"
-        padding="$4"
+        paddingHorizontal="$4"
+        paddingTop="$2"
+        paddingBottom="$4"
         borderWidth={1}
         borderColor={colors.border}
         style={[styles.cardShadow, isSoldOut ? styles.soldOutCard : undefined]}
@@ -54,7 +56,7 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
         >
           <XStack flex={1} alignItems="center" gap="$2" minWidth={0}>
             <Text
-              fontSize="18"
+              fontSize="20"
               fontWeight="700"
               color={colors.textPrimary}
               flex={1}
@@ -63,19 +65,23 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
               {coupon.title}
             </Text>
           </XStack>
-          <XStack gap="$3" alignItems="center">
+          <XStack gap="$2" alignItems="center">
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
                 router.push(`/(coupons)/template-analytics/${coupon.id}`);
               }}
               activeOpacity={0.7}
+              style={styles.iconButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MaterialIcons
-                name="bar-chart"
-                size={18}
-                color={colors.primary}
-              />
+              <View style={styles.iconButtonInner}>
+                <MaterialIcons
+                  name="bar-chart"
+                  size={ICON_SIZE}
+                  color={colors.primary}
+                />
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={(e) => {
@@ -83,8 +89,12 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
                 onEdit();
               }}
               activeOpacity={0.7}
+              style={styles.iconButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MaterialIcons name="edit" size={18} color={colors.primary} />
+              <View style={styles.iconButtonInner}>
+                <MaterialIcons name="edit" size={ICON_SIZE} color={colors.primary} />
+              </View>
             </TouchableOpacity>
           </XStack>
         </XStack>
@@ -119,6 +129,9 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
   );
 }
 
+const ICON_BUTTON_SIZE = 44; // Min touch target (Apple HIG ~44pt)
+const ICON_SIZE = 22;
+
 const styles = StyleSheet.create({
   cardShadow: {
     shadowColor: "#000",
@@ -133,5 +146,19 @@ const styles = StyleSheet.create({
   soldOutCard: {
     // Subtle tint (not disabled/greyed out), keeps text fully legible.
     backgroundColor: "rgba(255, 173, 49, 0.06)",
+  },
+  iconButton: {
+    width: ICON_BUTTON_SIZE,
+    height: ICON_BUTTON_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconButtonInner: {
+    width: ICON_BUTTON_SIZE,
+    height: ICON_BUTTON_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: ICON_BUTTON_SIZE / 2,
+    backgroundColor: "rgba(255, 173, 49, 0.14)",
   },
 });
