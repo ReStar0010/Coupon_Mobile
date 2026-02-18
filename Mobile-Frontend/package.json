@@ -22,7 +22,6 @@
     "@tamagui/metro-plugin": "^1.136.6",
     "@tamagui/portal": "^1.136.6",
     "axios": "^1.11.0",
-    "eas-cli": "^18.0.1",
     "expo": "~54.0.33",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
