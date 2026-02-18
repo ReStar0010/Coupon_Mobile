@@ -15,6 +15,8 @@ DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 SECRET_KEY = os.environ.get('SECRET_KEY')
 FRONTEND_URL = os.environ.get('FRONTEND_URL')
 API_BASE_URL = os.environ.get('API_BASE_URL', 'https://api.coupro.pro')  # Backend API URL for email deep link redirects
+# Production: claim/collection landing must use public domain (coupro.pro), not API host or any local/tunnel URL.
+COUPRO_PUBLIC_BASE_URL = os.environ.get('COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro')
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND')
 
 COOKIE_DOMAIN = ".coupro.pro"  # Set your domain here

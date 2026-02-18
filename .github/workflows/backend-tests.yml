@@ -1,0 +1,33 @@
+# Run full backend test suite on every PR and push to main.
+# Command: cd Backend && python manage.py test api tests
+# A failing test fails the workflow.
+name: Backend tests
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r Backend/requirements.txt
+
+      - name: Run backend tests
+        run: |
+          . .venv/bin/activate
+          cd Backend && python manage.py test api tests

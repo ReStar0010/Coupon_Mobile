@@ -15,6 +15,8 @@ export default function QRCodeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
+  /** Claim URL for deep link; encode this in QR instead of legacy JSON (002-qr-deep-linking) */
+  const [claimLinkWeb, setClaimLinkWeb] = useState<string | null>(null);
   const isFocusedRef = useRef(false);
 
   // Generate QR code session on mount
@@ -77,6 +79,7 @@ export default function QRCodeScreen() {
       const result = await merchantAPI.generateQRSession(parseInt(id));
       setSessionId(result.session_id);
       setQrCodeData(result.qr_code_data);
+      setClaimLinkWeb(result.claim_link_web ?? result.claim_link ?? null);
     } catch (err: any) {
       console.error('QR code generation error:', err);
       setError(err?.message || '生成 QR Code 失敗，請稍後再試');
@@ -130,12 +133,12 @@ export default function QRCodeScreen() {
                 </Text>
               </TouchableOpacity>
             </>
-          ) : qrCodeData ? (
+          ) : (claimLinkWeb || qrCodeData) ? (
             <>
               <Text fontSize="$xl" fontWeight="700" color={colors.textPrimary} marginBottom="$2">
                 掃描 QR Code 領取優惠券
               </Text>
-              <QRCode value={qrCodeData} size={280} />
+              <QRCode value={claimLinkWeb ?? qrCodeData ?? ''} size={280} />
               <Text fontSize="$sm" color={colors.textSecondary} textAlign="center" marginTop="$4">
                 請保持此畫面開啟，關閉後 QR Code 將失效
               </Text>

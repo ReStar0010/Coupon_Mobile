@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import transaction
 import secrets
 
-from ..models import Coupon, CouponShareRequest, Log
+from ..models import Coupon, CouponShareRequest, Log, QRCodeSession
 
 
 @api_view(['POST'])
@@ -45,6 +45,42 @@ def share_coupon(request, coupon_id):
         'share_link': share_link,
         'share_link_web': share_link_web,
         'token': token,
+    })
+
+
+def claim_landing(request, token):
+    """
+    Claim URL fallback page: https://coupro.pro/claim/<token>/ or /cl/<token>/
+    Renders HTML with install guidance and store links only (no claim actions on web).
+    Same pattern as collection_landing (002-qr-deep-linking).
+    """
+    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro').rstrip('/')
+    page_url = f"{base_url}/claim/{token}/"
+    title = "CouPro 優惠券"
+    description = "掃描 QR Code 領取優惠券。請下載 CouPro App 開啟連結領取。"
+    # Optional: resolve session for display (e.g. coupon name); 404 if invalid
+    try:
+        qr_session = QRCodeSession.objects.select_related('template').get(
+            session_token=token,
+            is_active=True
+        )
+        coupon_name = qr_session.template.coupon_name if qr_session.template else "優惠券"
+        title = f"CouPro － {coupon_name}"
+        description = f"有人與您分享「{coupon_name}」優惠。請下載 CouPro App 開啟連結領取。"
+    except QRCodeSession.DoesNotExist:
+        pass  # Keep default title/description
+    app_store_id = getattr(settings, 'COUPRO_APP_STORE_ID', '') or ''
+    app_store_url = f"https://apps.apple.com/app/id{app_store_id}" if app_store_id else "#"
+    play_store_id = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
+    play_store_url = f"https://play.google.com/store/apps/details?id={play_store_id}"
+    return render(request, 'claim_landing.html', {
+        'token': token,
+        'page_url': page_url,
+        'title': title,
+        'description': description,
+        'app_store_id': app_store_id,
+        'app_store_url': app_store_url,
+        'play_store_url': play_store_url,
     })
 
 
@@ -92,7 +128,7 @@ def apple_app_site_association(request):
                 'details': [
                     {
                         'appID': f'{team_id}.{bundle_id}',
-                        'paths': ['/collection/*', '/c/*'],
+                        'paths': ['/collection/*', '/c/*', '/claim/*', '/cl/*'],
                     }
                 ],
             }

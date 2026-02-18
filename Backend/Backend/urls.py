@@ -14,6 +14,7 @@ from api.views.sharing_views import (
     share_coupon_public,
     get_my_public_shares,
     collection_landing,
+    claim_landing,
     apple_app_site_association,
     assetlinks_json,
 )
@@ -52,13 +53,23 @@ from api.views.admin_moderation import (
     EscalatedReportsView, MerchantViolationsView, ModerationStatsView
 )
 
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.db import connection
 from django.urls import re_path
 
 from rest_framework import permissions
 from django.urls import path, re_path
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+
+
+def health_check(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return JsonResponse({"status": "ok", "db": "ok"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "db": str(e)}, status=503)
 
 
 schema_view = get_schema_view(
@@ -103,6 +114,8 @@ urlpatterns = [
     # Universal Link fallback pages (https://app.coupro.pro/collection/<token> and /c/<token>)
     path('collection/<str:token>/', collection_landing, name='collection_landing'),
     path('c/<str:token>/', collection_landing, name='collection_landing_short'),
+    path('claim/<str:token>/', claim_landing, name='claim_landing'),
+    path('cl/<str:token>/', claim_landing, name='claim_landing_short'),
     # iOS/Android verification (https://app.coupro.pro/.well-known/...)
     path('.well-known/apple-app-site-association', apple_app_site_association, name='apple_app_site_association'),
     path('.well-known/assetlinks.json', assetlinks_json, name='assetlinks_json'),
@@ -202,6 +215,9 @@ urlpatterns = [
 
     # Ping from cron-job.org to keep the server alive
     path('api/ping/', lambda request: HttpResponse("Pong!")),  # Ping endpoint for cron-job.org
+
+    # Health check endpoint for Render zero-downtime deploys
+    path('api/health/', health_check, name='health_check'),
 
     # UGC Compliance: Content Reporting (User Story 1)
     path('api/content/<str:content_type>/<int:content_id>/report/', ReportContentView.as_view(), name='report_content'),

@@ -813,6 +813,8 @@ export const merchantAPI = {
       template_id: number;
       session_token: string;
       qr_code_data: string;
+      claim_link_web?: string;
+      claim_link?: string;
       message: string;
     }>(response);
   },

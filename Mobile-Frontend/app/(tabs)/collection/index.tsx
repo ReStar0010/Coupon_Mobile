@@ -10,6 +10,7 @@ import Gift from './Gift';
 import { filterCoupons } from './utils/couponUtils';
 import { COLORS } from '@/app/constants/theme';
 import { useDismissedStores } from '@/app/components/providers/DismissedStoresProvider';
+import { useBlockedMerchants } from '@/app/components/providers/BlockedMerchantsProvider';
 import MerchantDeletedModal from '@/app/components/MerchantDeletedModal';
 
 import { useCoupons } from './hooks/useCoupons';
@@ -96,6 +97,7 @@ const Collection: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { dismissStore, isStoreDismissed } = useDismissedStores();
+  const { isStoreBlocked } = useBlockedMerchants();
 
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
   const { searchQuery, handleSearchChange, clearSearch } = useSearch();
@@ -165,13 +167,12 @@ const Collection: React.FC = () => {
   );
 
   const filteredCoupons = useMemo(() => {
-    // Exclude dismissed stores and coupons already shared to public pool, then apply search
-    const activeCoupons = coupons.filter((coupon) => {
-      if (coupon.id != null && publicShareCouponIds.has(coupon.id)) return false;
-      return !coupon.storeId || !isStoreDismissed(coupon.storeId);
-    });
+    // First filter out dismissed and blocked stores, then apply search filter
+    const activeCoupons = coupons.filter(
+      (coupon) => !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId))
+    );
     return filterCoupons(activeCoupons, searchQuery);
-  }, [coupons, searchQuery, isStoreDismissed, publicShareCouponIds]);
+  }, [coupons, searchQuery, isStoreDismissed, isStoreBlocked]);
 
   const onRefresh = useCallback(() => {
     fetchCoupons();

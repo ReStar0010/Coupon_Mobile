@@ -1,17 +1,15 @@
 <!--
 === SYNC IMPACT REPORT ===
-Version Change: 1.0.1 -> 1.0.2
-Modified Principles: None
+Version Change: 1.0.2 -> 1.0.3
+Modified Principles: III. Quality Assurance (expanded with Backend testing framework)
 Modified Sections:
-  - Development Workflow: Added Python virtual environment activation requirement for backend work
-  - Technology Standards (Backend): Added note about dependency management in venv
-Added Sections: None
+  - III. Quality Assurance: Added "Backend testing framework" subsection (test roots, commands, runner, CI, README)
+Added Sections: Backend testing framework under III
 Removed Sections: None
 Templates Status:
   - .specify/templates/plan-template.md: ✅ No updates needed (generic template)
   - .specify/templates/spec-template.md: ✅ No updates needed (generic template)
-  - .specify/templates/tasks-template.md: ✅ No updates needed (generic template)
-  - .specify/templates/commands/*.md: N/A (directory not present)
+  - .specify/templates/tasks-template.md: Updated to reference constitution test requirements and Backend paths
 Follow-up TODOs: None
 ===========================
 -->
@@ -68,6 +66,13 @@ evolves and new contributors join.
 - API endpoints MUST have contract tests validating request/response schemas
 - Database migrations MUST be tested for both upgrade and downgrade paths
 - Bug fixes MUST include regression tests preventing recurrence
+
+**Backend testing framework (speckit-aligned):**
+
+- Backend tests MUST live in one of two roots: **project-level** `Backend/tests/` (cross-cutting, contract, E2E) or **app-level** `Backend/api/tests/` (API app behavior). Full suite MUST be runnable with `python manage.py test api tests` from the Backend root (venv active).
+- API tests MUST use the Django test runner and `rest_framework.test.APIClient`; external services (SMS, email) MUST be mocked or disabled in tests (e.g. `SMS_DEV_MODE`, `@override_settings`).
+- The full backend test suite MUST run in CI on every PR; a failing test MUST fail the run.
+- Backend README (`Backend/README.md`) MUST document the full-suite command and subset commands (app-only, project-level-only). For how to add tests (location, naming, data setup), see `specs/008-backend-test-coverage/quickstart.md`.
 
 **Rationale:** A coupon system handles real value exchange between merchants and users.
 Test coverage protects against financial and trust-breaking bugs in the redemption flow.
@@ -147,4 +152,4 @@ Amendments follow this procedure:
 - Violations require explicit justification in commit message or team discussion
 - Constitution principles guide architecture decisions and code review discussions
 
-**Version**: 1.0.2 | **Ratified**: 2026-01-05 | **Last Amended**: 2026-01-06
+**Version**: 1.0.3 | **Ratified**: 2026-01-05 | **Last Amended**: 2026-02-16

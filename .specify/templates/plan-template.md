@@ -31,7 +31,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+[Gates determined based on constitution file. For backend features: verify III. Quality Assurance and Backend testing framework (test roots, full-suite command, CI, README).]
 
 ## Project Structure
 

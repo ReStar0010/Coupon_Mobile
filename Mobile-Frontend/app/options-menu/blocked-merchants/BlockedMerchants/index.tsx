@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, Alert } from 'react-native';
-import { XStack, View, Text, Card, Button, Spinner, YStack, ScrollView, H4 } from 'tamagui';
+import { XStack, Text, Card, Button, Spinner, YStack, ScrollView, H4 } from 'tamagui';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,7 +67,7 @@ export default function BlockedMerchantsScreen() {
         }
       >
         {/* Header with back button and title */}
-        <XStack gap={'$3'} items="center">
+        <XStack gap="$3" items="center">
           <ChevronLeft size={24} onPress={() => router.back()} color={'black'} />
           <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
             封鎖的商家
@@ -76,30 +76,36 @@ export default function BlockedMerchantsScreen() {
 
         <YStack mt="$5" gap="$3">
           {isLoading && !refreshing && blockedMerchants.length === 0 ? (
-            <View p="$4" ai="center">
+            <YStack p="$4" items="center">
               <Spinner size="large" />
               <Text mt="$2" color="$gray10">
                 載入中...
               </Text>
-            </View>
+            </YStack>
           ) : blockedMerchants.length === 0 ? (
             <Card padding="$4" backgroundColor="$background">
-              <YStack ai="center" gap="$2">
+              <YStack items="center" gap="$2">
                 <Text fontSize="$5" fontWeight="600">
                   沒有封鎖的商家
                 </Text>
-                <Text fontSize="$3" color="$gray10" ta="center">
+                <Text fontSize="$3" color="$gray10" text="center">
                   當您封鎖商家時，他們的優惠券將不會出現在您的動態中
                 </Text>
               </YStack>
             </Card>
           ) : (
-            blockedMerchants.map((blocked) => (
-              <Card key={blocked.id} padding="$3" backgroundColor="$background">
-                <XStack jc="space-between" ai="center" gap="$3">
+            blockedMerchants
+              .filter((blocked) => !!blocked?.store && typeof blocked.store.id === 'number')
+              .map((blocked) => (
+              <Card
+                key={String(blocked.id ?? blocked.store.id)}
+                padding="$3"
+                backgroundColor="$background"
+              >
+                <XStack justify="space-between" items="center" gap="$3">
                   <YStack flex={1}>
                     <Text fontSize="$5" fontWeight="600">
-                      {blocked.store.name}
+                      {blocked.store?.name ?? '未知商家'}
                     </Text>
                     <Text fontSize="$2" color="$gray10" mt="$1">
                       封鎖於 {new Date(blocked.created_at).toLocaleDateString('zh-TW')}
@@ -108,7 +114,12 @@ export default function BlockedMerchantsScreen() {
                   <Button
                     size="$3"
                     theme="blue"
-                    onPress={() => handleUnblock(blocked.store.id, blocked.store.name)}
+                    onPress={() =>
+                      handleUnblock(
+                        blocked.store.id,
+                        blocked.store?.name ?? '未知商家'
+                      )
+                    }
                     disabled={unblocking === blocked.store.id}
                   >
                     {unblocking === blocked.store.id ? (

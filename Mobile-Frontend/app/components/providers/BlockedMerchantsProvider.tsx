@@ -65,6 +65,15 @@ export function BlockedMerchantsProvider({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hasValidStore = (b: BlockedMerchant | undefined | null): b is BlockedMerchant => {
+    return (
+      !!b &&
+      !!(b as any).store &&
+      typeof (b as any).store.id === 'number' &&
+      typeof (b as any).store.name === 'string'
+    );
+  };
+
   /**
    * Fetch blocked merchants from backend
    */
@@ -81,8 +90,9 @@ export function BlockedMerchantsProvider({
 
     try {
       const response = await blockListAPI.getBlockedMerchants();
-      setBlockedMerchants(response.results);
-      setBlockedStoreIds(new Set(response.results.map((b) => b.store.id)));
+      const validResults = (response.results ?? []).filter(hasValidStore);
+      setBlockedMerchants(validResults);
+      setBlockedStoreIds(new Set(validResults.map((b) => b.store.id)));
     } catch (err: any) {
       // Silently handle 401 errors (user not logged in)
       if (err?.response?.status === 401) {
@@ -113,16 +123,22 @@ export function BlockedMerchantsProvider({
     async (storeId: number): Promise<boolean> => {
       try {
         const response = await blockListAPI.blockMerchant(storeId);
-        // Add to local state
-        setBlockedMerchants((prev) => [...prev, response.blocked_merchant]);
-        setBlockedStoreIds((prev) => new Set([...prev, storeId]));
+        const created = response?.blocked_merchant;
+        if (hasValidStore(created)) {
+          // Add to local state
+          setBlockedMerchants((prev) => [...prev, created]);
+          setBlockedStoreIds((prev) => new Set([...prev, storeId]));
+        } else {
+          // Avoid poisoning state with invalid entries; re-fetch canonical list.
+          await fetchBlockedMerchants();
+        }
         return true;
       } catch (err: any) {
         setError(err?.response?.data?.error || err?.message || '封鎖失敗');
         return false;
       }
     },
-    []
+    [fetchBlockedMerchants]
   );
 
   /**
@@ -134,7 +150,7 @@ export function BlockedMerchantsProvider({
         await blockListAPI.unblockMerchant(storeId);
         // Remove from local state
         setBlockedMerchants((prev) =>
-          prev.filter((b) => b.store.id !== storeId)
+          prev.filter((b) => b?.store?.id !== storeId)
         );
         setBlockedStoreIds((prev) => {
           const newSet = new Set(prev);

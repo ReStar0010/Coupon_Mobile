@@ -948,20 +948,12 @@ def get_template_analytics(request, id):
         # Calculate averages
         exposure_avg = sum([d['value'] for d in exposure_trend_data]) / len(exposure_trend_data) if exposure_trend_data else 0
         conversion_avg = sum([d['value'] for d in conversion_trend_data]) / len(conversion_trend_data) if conversion_trend_data else 0
-        # Redemption count trend (for 張數 view): daily_data uses count per day
-        redemption_trend_data = [
-            {'date': d['date'], 'value': d['count']}
-            for d in conversion_trend_data
-        ]
-        redemption_avg = (
-            sum(d['count'] for d in conversion_trend_data) / len(conversion_trend_data)
-            if conversion_trend_data else 0
-        )
 
+        # Store (EasyUse) templates: return only exposure_count and conversion_rate;
+        # do not include redemption_count or other exclusive-only count fields per contract.
         return Response({
             'exposure_count': exposure_count,
             'conversion_rate': conversion_rate,
-            'redemption_count': total_redemptions,
             'trends': {
                 'exposure_count': {
                     'current': exposure_count,
@@ -972,11 +964,6 @@ def get_template_analytics(request, id):
                     'current': conversion_rate,
                     'average': conversion_avg,
                     'daily_data': conversion_trend_data
-                },
-                'redemption_count': {
-                    'current': total_redemptions,
-                    'average': redemption_avg,
-                    'daily_data': redemption_trend_data
                 }
             }
         }, status=status.HTTP_200_OK)

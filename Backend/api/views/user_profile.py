@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -97,37 +98,30 @@ def coupon_history(request):
 @permission_classes([IsAuthenticated])
 def coupon_history_detail(request, id):
     """
-    Get detailed information about a specific redeemed coupon
+    Get detailed information about a specific redeemed coupon for the current user.
     """
     try:
-        # Get the specific redeemed coupon for the current user
-        coupon = get_object_or_404(
-            Coupon.objects.select_related('store'), 
-            id=id, 
-            redeemed_by=request.user,
-            is_redeemed=True
+        redemption = get_object_or_404(
+            CouponRedemption.objects.select_related('coupon', 'coupon__store'),
+            coupon_id=id,
+            user=request.user,
         )
-        
-        # Format the response data
+        coupon = redemption.coupon
         data = {
             'coupon_id': coupon.id,
             'store_name': coupon.store.name if coupon.store else '未知商家',
             'coupon_name': coupon.coupon_name,
             'coupon_detail': coupon.coupon_detail,
-            'used_date': coupon.redeemed_at.isoformat() if coupon.redeemed_at else None,
-            'estimated_savings': coupon.estimated_savings
+            'used_date': redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
+            'estimated_savings': redemption.savings_amount or coupon.estimated_savings,
         }
-        
         return Response(data)
-    except Coupon.DoesNotExist:
-        return Response(
-            {'error': '找不到此優惠券使用紀錄'}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
+    except Http404:
+        raise
     except Exception as e:
         print(f"Error retrieving coupon history detail: {e}")
         return Response(
-            {'error': '無法取得優惠券使用紀錄詳情'}, 
+            {'error': '無法取得優惠券使用紀錄詳情'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
