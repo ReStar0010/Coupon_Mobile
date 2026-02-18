@@ -12,6 +12,7 @@ import MapComponent, { type Store } from '../components/MapComponent';
 import { BackendIndicator } from '../components/BackendIndicator';
 import * as Location from 'expo-location';
 import { useDismissedStores } from '../components/providers/DismissedStoresProvider';
+import { useBlockedMerchants } from '../components/providers/BlockedMerchantsProvider';
 import MerchantDeletedModal from '../components/MerchantDeletedModal';
 
 // @gorhom/bottom-sheet imports
@@ -298,6 +299,7 @@ const CouPro = () => {
   const insets = useSafeAreaInsets();
   const NAVIGATION_FOOTER_HEIGHT = TABS_FOOTER_BASE_HEIGHT + insets.bottom;
   const { dismissStore, isStoreDismissed } = useDismissedStores();
+  const { isStoreBlocked } = useBlockedMerchants();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [coupons, setCoupons] = useState<CouponType[]>([]);
@@ -622,6 +624,7 @@ const CouPro = () => {
       const uniqueStores = new Map<number, Store>();
       coupons.forEach(coupon => {
         if (coupon.storeId && coupon.storeLocation) {
+          if (isStoreBlocked(coupon.storeId) || isStoreDismissed(coupon.storeId)) return;
           if (!uniqueStores.has(coupon.storeId)) {
             const lat = toFiniteNumber((coupon.storeLocation as any)?.lat);
             const lng = toFiniteNumber((coupon.storeLocation as any)?.lng);
@@ -639,10 +642,13 @@ const CouPro = () => {
       });
       setStores(Array.from(uniqueStores.values()));
     }
-  }, [coupons]);
+  }, [coupons, isStoreBlocked, isStoreDismissed]);
 
   const filteredCoupons = coupons.filter((coupon) => {
     if (coupon.storeId && isStoreDismissed(coupon.storeId)) {
+      return false;
+    }
+    if (coupon.storeId && isStoreBlocked(coupon.storeId)) {
       return false;
     }
 

@@ -323,19 +323,26 @@ class ContentReportSerializer(serializers.Serializer):
 class BlockedMerchantCreateSerializer(serializers.Serializer):
     """
     Serializer for blocking a merchant.
-    POST /api/user/blocked-merchants/
+    POST /api/user/blocked-merchants/add/
     """
     store_id = serializers.IntegerField(help_text="ID of the store to block")
+
+
+class BlockedStoreSummarySerializer(serializers.Serializer):
+    """Nested store summary for blocked merchant responses (matches mobile contract)."""
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    address = serializers.CharField(read_only=True, allow_null=True)
+    image_url = serializers.CharField(read_only=True, allow_null=True)
 
 
 class BlockedMerchantSerializer(serializers.Serializer):
     """
     Serializer for blocked merchant responses.
+    Returns nested `store` object for mobile (id, name, address, image_url).
     """
     id = serializers.IntegerField(read_only=True)
-    store_id = serializers.IntegerField(source='store.id', read_only=True)
-    store_name = serializers.CharField(source='store.name', read_only=True)
-    store_image_url = serializers.CharField(source='store.image_url', read_only=True, allow_null=True)
+    store = BlockedStoreSummarySerializer(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
 
 

@@ -11,6 +11,7 @@ import Gift from './Gift';
 import { filterCoupons } from './utils/couponUtils';
 import { COLORS } from '../constants/theme';
 import { useDismissedStores } from '../components/providers/DismissedStoresProvider';
+import { useBlockedMerchants } from '../components/providers/BlockedMerchantsProvider';
 import MerchantDeletedModal from '../components/MerchantDeletedModal';
 
 import { useCoupons } from './hooks/useCoupons';
@@ -97,6 +98,7 @@ const Collection: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { dismissStore, isStoreDismissed } = useDismissedStores();
+  const { isStoreBlocked } = useBlockedMerchants();
 
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
   const { searchQuery, handleSearchChange, clearSearch } = useSearch();
@@ -160,12 +162,12 @@ const Collection: React.FC = () => {
   }, [selectedTags, tagMap]);
 
   const filteredCoupons = useMemo(() => {
-    // First filter out dismissed stores, then apply search filter
+    // First filter out dismissed and blocked stores, then apply search filter
     const activeCoupons = coupons.filter(
-      (coupon) => !coupon.storeId || !isStoreDismissed(coupon.storeId)
+      (coupon) => !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId))
     );
     return filterCoupons(activeCoupons, searchQuery);
-  }, [coupons, searchQuery, isStoreDismissed]);
+  }, [coupons, searchQuery, isStoreDismissed, isStoreBlocked]);
 
   const onRefresh = useCallback(() => {
     fetchCoupons();

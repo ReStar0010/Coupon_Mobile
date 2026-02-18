@@ -421,6 +421,18 @@ export const authAPI = {
     });
     return response.data;
   },
+
+  /**
+   * DELETE request
+   * @param endpoint API endpoint
+   * @returns Response data
+   */
+  async delete<T>(endpoint: string): Promise<T> {
+    const response = await fetchAPI(endpoint, {
+      method: 'DELETE',
+    });
+    return response.data;
+  },
 };
 
 /**

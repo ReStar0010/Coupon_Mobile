@@ -305,10 +305,11 @@ class BlockedMerchantsListView(APIView):
         ).select_related('store').order_by('-created_at')
 
         serializer = BlockedMerchantSerializer(blocked, many=True)
+        data = serializer.data
 
         return Response({
-            'results': serializer.data,
-            'total': blocked.count()
+            'results': data,
+            'total': len(data),
         })
 
 

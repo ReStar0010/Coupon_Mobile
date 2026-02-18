@@ -16,12 +16,14 @@ import { authAPI } from '../utils/authAPI';
 // =============================================================================
 
 /**
- * Store information in blocked merchant response
+ * Store information in blocked merchant response (nested from API).
+ * API may also return flat store_id/store_name; normalized to this shape.
  */
 export interface BlockedStore {
   id: number;
   name: string;
   address: string | null;
+  image_url?: string | null;
 }
 
 /**
@@ -106,12 +108,47 @@ export async function unblockMerchant(
 }
 
 /**
+ * Normalize a single blocked-merchant item from API (handles nested `store` or flat store_id/store_name).
+ */
+function normalizeBlockedMerchant(raw: Record<string, unknown>): BlockedMerchant | null {
+  const id = typeof raw.id === 'number' ? raw.id : null;
+  const created_at = typeof raw.created_at === 'string' ? raw.created_at : '';
+  if (id == null || !created_at) return null;
+
+  let store: BlockedStore;
+  const nested = raw.store as Record<string, unknown> | undefined;
+  if (nested && typeof nested.id === 'number' && typeof nested.name === 'string') {
+    store = {
+      id: nested.id as number,
+      name: nested.name as string,
+      address: (nested.address as string) ?? null,
+      image_url: (nested.image_url as string) ?? null,
+    };
+  } else {
+    const storeId = typeof (raw as any).store_id === 'number' ? (raw as any).store_id : null;
+    const storeName = typeof (raw as any).store_name === 'string' ? (raw as any).store_name : '';
+    if (storeId == null) return null;
+    store = { id: storeId, name: storeName, address: null };
+  }
+
+  return { id, store, created_at };
+}
+
+/**
  * Get list of blocked merchants for the current user
  *
- * @returns Promise with list of blocked merchants
+ * @returns Promise with list of blocked merchants (store always nested)
  */
 export async function getBlockedMerchants(): Promise<BlockedMerchantsListResponse> {
-  return authAPI.get<BlockedMerchantsListResponse>('/user/blocked-merchants/');
+  const res = await authAPI.get<{ results?: unknown[]; total?: number }>('/user/blocked-merchants/');
+  const rawResults = res?.results ?? [];
+  const results = rawResults
+    .map((item) => normalizeBlockedMerchant(item as Record<string, unknown>))
+    .filter((b): b is BlockedMerchant => b != null);
+  return {
+    results,
+    total: typeof res?.total === 'number' ? res.total : results.length,
+  };
 }
 
 /**
@@ -134,7 +171,9 @@ export async function checkBlockStatus(
  */
 export async function getBlockedStoreIds(): Promise<number[]> {
   const response = await getBlockedMerchants();
-  return response.results.map((blocked) => blocked.store.id);
+  return (response.results ?? [])
+    .map((blocked) => blocked?.store?.id)
+    .filter((id): id is number => typeof id === 'number');
 }
 
 /**
