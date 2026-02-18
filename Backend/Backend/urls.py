@@ -48,13 +48,23 @@ from api.views.admin_moderation import (
     EscalatedReportsView, MerchantViolationsView, ModerationStatsView
 )
 
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.db import connection
 from django.urls import re_path
 
 from rest_framework import permissions
 from django.urls import path, re_path
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+
+
+def health_check(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return JsonResponse({"status": "ok", "db": "ok"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "db": str(e)}, status=503)
 
 
 schema_view = get_schema_view(
@@ -188,6 +198,9 @@ urlpatterns = [
 
     # Ping from cron-job.org to keep the server alive
     path('api/ping/', lambda request: HttpResponse("Pong!")),  # Ping endpoint for cron-job.org
+
+    # Health check endpoint for Render zero-downtime deploys
+    path('api/health/', health_check, name='health_check'),
 
     # UGC Compliance: Content Reporting (User Story 1)
     path('api/content/<str:content_type>/<int:content_id>/report/', ReportContentView.as_view(), name='report_content'),
