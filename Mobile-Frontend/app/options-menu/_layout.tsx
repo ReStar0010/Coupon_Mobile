@@ -8,6 +8,7 @@ export default function OptionsMenuLayout() {
       <Stack.Screen name="email-settings" />
       <Stack.Screen name="blocked-merchants" />
       <Stack.Screen name="contact-us" />
+      <Stack.Screen name="support-more" />
       <Stack.Screen name="feedback" />
       <Stack.Screen name="help-support" />
       <Stack.Screen name="privacy-policy" />

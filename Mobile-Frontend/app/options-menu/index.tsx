@@ -6,14 +6,10 @@ import { View, Text, XStack, YStack, Card, Button, H4, ListItem, Separator } fro
 import {
   ChevronLeft,
   ChevronRight,
-  MessageSquareText,
-  Phone,
   Smartphone,
-  ScrollText,
   LogOut,
   ShieldBan,
   HelpCircle,
-  Shield,
   Mail,
   Trash2,
 } from 'lucide-react-native';
@@ -48,12 +44,8 @@ const OptionsMenu: React.FC = () => {
     router.push('/options-menu/feedback/FeedBack');
   }, [router]);
 
-  const handleContactUs = useCallback(() => {
-    router.push('/options-menu/contact-us/ContactUs');
-  }, [router]);
-
-  const handleTerms = useCallback(() => {
-    router.push('/options-menu/terms/Terms');
+  const handleSupportMore = useCallback(() => {
+    router.push('/options-menu/support-more/SupportMore');
   }, [router]);
 
   const handlePhoneSettings = useCallback(() => {
@@ -62,14 +54,6 @@ const OptionsMenu: React.FC = () => {
 
   const handleBlockedMerchants = useCallback(() => {
     router.push('/options-menu/blocked-merchants/BlockedMerchants');
-  }, [router]);
-
-  const handleHelpSupport = useCallback(() => {
-    router.push('/options-menu/help-support/HelpSupport');
-  }, [router]);
-
-  const handlePrivacyPolicy = useCallback(() => {
-    router.push('/options-menu/privacy-policy/PrivacyPolicy');
   }, [router]);
 
   const handleEmailSettings = useCallback(() => {
@@ -118,11 +102,16 @@ const OptionsMenu: React.FC = () => {
     <>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <YStack flex={1} px="$4" py="$6" style={{ paddingTop: insets.top + 10 }}>
+      <YStack flex={1} px="$4" py="$6" style={{ paddingTop: insets.top + 10, minHeight: 0 }}>
         <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-          showsVerticalScrollIndicator={false}
+          style={{ flex: 1, minHeight: 0 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingBottom: insets.bottom + 24,
+          }}
+          showsVerticalScrollIndicator={true}
+          bounces={true}
+          overScrollMode="always"
         >
           <YStack gap={13}>
             {/* Header with back button and title */}
@@ -184,48 +173,15 @@ const OptionsMenu: React.FC = () => {
           </ListItem>
           <Separator />
           <ListItem
-            icon={Phone}
-            iconAfter={ChevronRight}
-            bg="white"
-            hoverTheme
-            pressTheme
-            size="$6"
-            onPress={handleContactUs}>
-            <ListItem.Text>聯絡我們</ListItem.Text>
-          </ListItem>
-          <Separator />
-          <ListItem
-            icon={ScrollText}
-            iconAfter={ChevronRight}
-            bg="white"
-            hoverTheme
-            pressTheme
-            size="$6"
-            onPress={handleTerms}>
-            <ListItem.Text>服務條款</ListItem.Text>
-          </ListItem>
-          <Separator />
-          <ListItem
             icon={HelpCircle}
-            iconAfter={ChevronRight}
-            bg="white"
-            hoverTheme
-            pressTheme
-            size="$6"
-            onPress={handleHelpSupport}>
-            <ListItem.Text>幫助與支援</ListItem.Text>
-          </ListItem>
-          <Separator />
-          <ListItem
-            icon={Shield}
             iconAfter={ChevronRight}
             style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
             bg="white"
             hoverTheme
             pressTheme
             size="$6"
-            onPress={handlePrivacyPolicy}>
-            <ListItem.Text>隱私政策</ListItem.Text>
+            onPress={handleSupportMore}>
+            <ListItem.Text>支援與條款</ListItem.Text>
           </ListItem>
         </YStack>
 
