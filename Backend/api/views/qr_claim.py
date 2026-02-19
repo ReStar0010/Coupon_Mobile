@@ -107,7 +107,7 @@ def generate_qr_session(request):
     })
     
     # Claim URLs for deep link (002-qr-deep-linking)
-    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro').rstrip('/')
+    base_url = getattr(settings, 'FRONTEND_URL', 'https://app.coupro.pro').rstrip('/')
     claim_link_web = f"{base_url}/claim/{session_token}/"
     claim_link = f"coupro://claim?token={session_token}"
     

@@ -5,7 +5,7 @@
 ### 1. Settings (settings.py)
 
 - ✅ `ALLOWED_HOSTS` 包含 `coupro.pro`、`.coupro.pro`
-- ✅ `COUPRO_PUBLIC_BASE_URL = 'https://coupro.pro'`
+- ✅ `FRONTEND_URL = 'https://coupro.pro'`
 - ✅ `COUPRO_APP_STORE_ID`、`COUPRO_PLAY_STORE_ID` 環境變數支援
 - ✅ `COUPRO_IOS_TEAM_ID`、`COUPRO_ANDROID_SHA256` 環境變數支援
 - ✅ `TEMPLATES` 設定 `APP_DIRS: True`（可找到 api/templates/）

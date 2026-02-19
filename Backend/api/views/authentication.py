@@ -30,7 +30,7 @@ resend.api_key = settings.RESEND_API_KEY
 def send_verification_email(user_email, token):
 
     frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-    verification_link = f"{frontend_url}/Login/verify?token={token}&email={user_email}"
+    verification_link = f"{frontend_url}/Login/verify?{urlencode({'token': token, 'email': user_email})}"
 
     subject = '請驗證您的 CouPro 帳號'
     html_message = f'''
@@ -234,9 +234,9 @@ def send_verification_email(user_email, token):
 # Merchant verification email function
 def send_merchant_verification_email(user_email, token):
     """Send verification email for merchant accounts using HTTPS redirect URL that redirects to deep link."""
-    # Use HTTPS redirect URL so the link is clickable in email clients
+    # Use HTTPS redirect URL so the link is clickable in email clients. URL-encode params so + in email (e.g. user+tag@yahoo.com) does not break the link.
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro')
-    verification_link = f"{api_base_url}/api/merchant/redirect/verify-email?token={token}&email={user_email}"
+    verification_link = f"{api_base_url}/api/merchant/redirect/verify-email?{urlencode({'token': token, 'email': user_email})}"
 
     subject = '請驗證您的 CouPro 商家帳號'
     html_message = f'''
@@ -467,12 +467,12 @@ def send_password_reset_email(user_email, token, user_type='student'):
     """
     # Determine link based on user type
     if user_type == 'merchant':
-        # Use HTTPS redirect URL so the link is clickable in email clients
+        # Use HTTPS redirect URL so the link is clickable in email clients. URL-encode params for compatibility (e.g. Yahoo + in email).
         api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro')
-        reset_link = f"{api_base_url}/api/merchant/redirect/reset-password?token={token}&email={user_email}"
+        reset_link = f"{api_base_url}/api/merchant/redirect/reset-password?{urlencode({'token': token, 'email': user_email})}"
     else:
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-        reset_link = f"{frontend_url}/ResetPassword?token={token}&email={user_email}"
+        reset_link = f"{frontend_url}/ResetPassword?{urlencode({'token': token, 'email': user_email})}"
 
     subject = '重設您的 CouPro 密碼'
 

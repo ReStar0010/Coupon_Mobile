@@ -25,9 +25,9 @@
 
 **Purpose**: Install dependencies and configure SMS service
 
-- [X] T001 Install Twilio dependency in Backend/requirements.txt
-- [X] T002 [P] Add SMS_DEV_MODE setting to Backend/Backend/settings.py
-- [X] T003 [P] Add Twilio environment variables to Backend/Backend/deployment_settings.py
+- [x] T001 Install Twilio dependency in Backend/requirements.txt
+- [x] T002 [P] Add SMS_DEV_MODE setting to Backend/Backend/settings.py
+- [x] T003 [P] Add Twilio environment variables to Backend/Backend/production_settings.py
 
 ---
 
@@ -37,12 +37,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T004 Create PhoneOTPRecord model in Backend/api/models.py
-- [X] T005 Create database migration for PhoneOTPRecord
-- [X] T006 [P] Create SMSService class in Backend/api/services/sms_service.py
-- [X] T007 [P] Add PhoneOTPSerializer to Backend/api/serializers.py
-- [X] T008 Add OTP URL routes to Backend/api/urls.py
-- [X] T009 [P] Copy TypeScript types from contracts/phone-otp-types.ts to Mobile-Frontend/app/services/phoneOtpAPI.ts
+- [x] T004 Create PhoneOTPRecord model in Backend/api/models.py
+- [x] T005 Create database migration for PhoneOTPRecord
+- [x] T006 [P] Create SMSService class in Backend/api/services/sms_service.py
+- [x] T007 [P] Add PhoneOTPSerializer to Backend/api/serializers.py
+- [x] T008 Add OTP URL routes to Backend/api/urls.py
+- [x] T009 [P] Copy TypeScript types from contracts/phone-otp-types.ts to Mobile-Frontend/app/services/phoneOtpAPI.ts
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -58,21 +58,21 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T010 [P] [US1] Contract test for POST /phone-otp/send/ in Backend/tests/test_phone_otp.py
-- [X] T011 [P] [US1] Contract test for POST /phone-otp/verify/ in Backend/tests/test_phone_otp.py
-- [X] T012 [P] [US1] Integration test for coupon auto-claim on verification in Backend/tests/test_phone_otp.py
+- [x] T010 [P] [US1] Contract test for POST /phone-otp/send/ in Backend/tests/test_phone_otp.py
+- [x] T011 [P] [US1] Contract test for POST /phone-otp/verify/ in Backend/tests/test_phone_otp.py
+- [x] T012 [P] [US1] Integration test for coupon auto-claim on verification in Backend/tests/test_phone_otp.py
 
 ### Implementation for User Story 1
 
-- [X] T013 [US1] Implement send_otp view in Backend/api/views/phone_otp.py
-- [X] T014 [US1] Implement verify_otp view in Backend/api/views/phone_otp.py
-- [X] T015 [US1] Implement pending coupon claim logic in verify_otp (transfers coupons with pending_phone_number)
-- [X] T016 [P] [US1] Create OTPInput component in Mobile-Frontend/app/components/OTPInput.tsx
-- [X] T017 [P] [US1] Create sendOtp API function in Mobile-Frontend/app/services/phoneOtpAPI.ts
-- [X] T018 [P] [US1] Create verifyOtp API function in Mobile-Frontend/app/services/phoneOtpAPI.ts
-- [X] T019 [US1] Create OTPRequestScreen in Mobile-Frontend/app/OptionsMenu/PhoneSettings/OTPRequestScreen.tsx
-- [X] T020 [US1] Create OTPVerifyScreen in Mobile-Frontend/app/OptionsMenu/PhoneSettings/OTPVerifyScreen.tsx
-- [X] T021 [US1] Update PhoneSettings index to route through OTP flow in Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx
+- [x] T013 [US1] Implement send_otp view in Backend/api/views/phone_otp.py
+- [x] T014 [US1] Implement verify_otp view in Backend/api/views/phone_otp.py
+- [x] T015 [US1] Implement pending coupon claim logic in verify_otp (transfers coupons with pending_phone_number)
+- [x] T016 [P] [US1] Create OTPInput component in Mobile-Frontend/app/components/OTPInput.tsx
+- [x] T017 [P] [US1] Create sendOtp API function in Mobile-Frontend/app/services/phoneOtpAPI.ts
+- [x] T018 [P] [US1] Create verifyOtp API function in Mobile-Frontend/app/services/phoneOtpAPI.ts
+- [x] T019 [US1] Create OTPRequestScreen in Mobile-Frontend/app/OptionsMenu/PhoneSettings/OTPRequestScreen.tsx
+- [x] T020 [US1] Create OTPVerifyScreen in Mobile-Frontend/app/OptionsMenu/PhoneSettings/OTPVerifyScreen.tsx
+- [x] T021 [US1] Update PhoneSettings index to route through OTP flow in Mobile-Frontend/app/OptionsMenu/PhoneSettings/index.tsx
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -88,15 +88,15 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T022 [P] [US2] Test that PUT /api/user/phone/ returns 405 in Backend/tests/test_user_profile.py
-- [X] T023 [P] [US2] Test that DELETE /api/user/phone/ returns 405 in Backend/tests/test_user_profile.py
-- [X] T024 [P] [US2] Test that OTP send fails if phone belongs to another user in Backend/tests/test_phone_otp.py
+- [x] T022 [P] [US2] Test that PUT /api/user/phone/ returns 405 in Backend/tests/test_user_profile.py
+- [x] T023 [P] [US2] Test that DELETE /api/user/phone/ returns 405 in Backend/tests/test_user_profile.py
+- [x] T024 [P] [US2] Test that OTP send fails if phone belongs to another user in Backend/tests/test_phone_otp.py
 
 ### Implementation for User Story 2
 
-- [X] T025 [US2] Modify PUT handler in Backend/api/views/user_profile.py to return 405 with OTP redirect
-- [X] T026 [US2] Modify DELETE handler in Backend/api/views/user_profile.py to return 405 (FR-017)
-- [X] T027 [US2] Add phone uniqueness check in send_otp view (reject if phone belongs to different user)
+- [x] T025 [US2] Modify PUT handler in Backend/api/views/user_profile.py to return 405 with OTP redirect
+- [x] T026 [US2] Modify DELETE handler in Backend/api/views/user_profile.py to return 405 (FR-017)
+- [x] T027 [US2] Add phone uniqueness check in send_otp view (reject if phone belongs to different user)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -112,13 +112,13 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T028 [P] [US3] Test old phone coupon transfer on phone change in Backend/tests/test_phone_otp.py
-- [X] T029 [P] [US3] Test new phone coupon claim on phone change in Backend/tests/test_phone_otp.py
+- [x] T028 [P] [US3] Test old phone coupon transfer on phone change in Backend/tests/test_phone_otp.py
+- [x] T029 [P] [US3] Test new phone coupon claim on phone change in Backend/tests/test_phone_otp.py
 
 ### Implementation for User Story 3
 
-- [X] T030 [US3] Add old phone coupon transfer logic in verify_otp (coupons follow the person) in Backend/api/views/phone_otp.py
-- [X] T031 [US3] Return old_phone_coupons_transferred count in verify response
+- [x] T030 [US3] Add old phone coupon transfer logic in verify_otp (coupons follow the person) in Backend/api/views/phone_otp.py
+- [x] T031 [US3] Return old_phone_coupons_transferred count in verify response
 
 **Checkpoint**: At this point, User Stories 1-3 should all work independently
 
@@ -134,13 +134,13 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T032 [P] [US4] Test cooldown rejection within 60 seconds in Backend/tests/test_phone_otp.py
-- [X] T033 [P] [US4] Test successful resend after cooldown in Backend/tests/test_phone_otp.py
+- [x] T032 [P] [US4] Test cooldown rejection within 60 seconds in Backend/tests/test_phone_otp.py
+- [x] T033 [P] [US4] Test successful resend after cooldown in Backend/tests/test_phone_otp.py
 
 ### Implementation for User Story 4
 
-- [X] T034 [US4] Add cooldown countdown timer to OTPVerifyScreen in Mobile-Frontend/app/OptionsMenu/PhoneSettings/OTPVerifyScreen.tsx
-- [X] T035 [US4] Implement resend button with cooldown state in OTPVerifyScreen
+- [x] T034 [US4] Add cooldown countdown timer to OTPVerifyScreen in Mobile-Frontend/app/OptionsMenu/PhoneSettings/OTPVerifyScreen.tsx
+- [x] T035 [US4] Implement resend button with cooldown state in OTPVerifyScreen
 
 **Checkpoint**: At this point, User Stories 1-4 should all work independently
 
@@ -156,16 +156,16 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T036 [P] [US5] Test hourly rate limit (3 OTPs/hour) in Backend/tests/test_phone_otp.py
-- [X] T037 [P] [US5] Test max attempts limit (5 attempts/OTP) in Backend/tests/test_phone_otp.py
-- [X] T038 [P] [US5] Test OTP expiration after 10 minutes in Backend/tests/test_phone_otp.py
+- [x] T036 [P] [US5] Test hourly rate limit (3 OTPs/hour) in Backend/tests/test_phone_otp.py
+- [x] T037 [P] [US5] Test max attempts limit (5 attempts/OTP) in Backend/tests/test_phone_otp.py
+- [x] T038 [P] [US5] Test OTP expiration after 10 minutes in Backend/tests/test_phone_otp.py
 
 ### Implementation for User Story 5
 
-- [X] T039 [US5] Implement can_send_otp rate limiting check in PhoneOTPRecord model methods
-- [X] T040 [US5] Implement can_attempt verification limit check in PhoneOTPRecord model methods
-- [X] T041 [US5] Add attempts_remaining to verify error response in Backend/api/views/phone_otp.py
-- [X] T042 [US5] Display attempts remaining in OTPVerifyScreen error state
+- [x] T039 [US5] Implement can_send_otp rate limiting check in PhoneOTPRecord model methods
+- [x] T040 [US5] Implement can_attempt verification limit check in PhoneOTPRecord model methods
+- [x] T041 [US5] Add attempts_remaining to verify error response in Backend/api/views/phone_otp.py
+- [x] T042 [US5] Display attempts remaining in OTPVerifyScreen error state
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -175,11 +175,11 @@
 
 **Purpose**: Cleanup, validation, and final touches
 
-- [X] T043 [P] Clean up old unverified OTP records after successful verification
-- [X] T044 [P] Add logging for SMS send/verify operations in sms_service.py
-- [X] T045 Run all tests: python manage.py test api.tests.test_phone_otp
-- [X] T046 Run quickstart.md validation (test full flow manually)
-- [X] T047 Update CLAUDE.md if any additional patterns discovered
+- [x] T043 [P] Clean up old unverified OTP records after successful verification
+- [x] T044 [P] Add logging for SMS send/verify operations in sms_service.py
+- [x] T045 Run all tests: python manage.py test api.tests.test_phone_otp
+- [x] T046 Run quickstart.md validation (test full flow manually)
+- [x] T047 Update CLAUDE.md if any additional patterns discovered
 
 ---
 
@@ -273,17 +273,17 @@ Task: "Create verifyOtp API function"
 
 ## Task Summary
 
-| Phase | Story | Tasks | Parallel Tasks |
-|-------|-------|-------|----------------|
-| Phase 1: Setup | - | 3 | 2 |
-| Phase 2: Foundational | - | 6 | 3 |
-| Phase 3: US1 - Register Phone | P1 | 12 | 6 |
-| Phase 4: US2 - Prevent Theft | P1 | 6 | 3 |
-| Phase 5: US3 - Change Phone | P2 | 4 | 2 |
-| Phase 6: US4 - Resend Cooldown | P2 | 4 | 2 |
-| Phase 7: US5 - Rate Limiting | P3 | 7 | 3 |
-| Phase 8: Polish | - | 5 | 2 |
-| **Total** | - | **47** | **23** |
+| Phase                          | Story | Tasks  | Parallel Tasks |
+| ------------------------------ | ----- | ------ | -------------- |
+| Phase 1: Setup                 | -     | 3      | 2              |
+| Phase 2: Foundational          | -     | 6      | 3              |
+| Phase 3: US1 - Register Phone  | P1    | 12     | 6              |
+| Phase 4: US2 - Prevent Theft   | P1    | 6      | 3              |
+| Phase 5: US3 - Change Phone    | P2    | 4      | 2              |
+| Phase 6: US4 - Resend Cooldown | P2    | 4      | 2              |
+| Phase 7: US5 - Rate Limiting   | P3    | 7      | 3              |
+| Phase 8: Polish                | -     | 5      | 2              |
+| **Total**                      | -     | **47** | **23**         |
 
 ---
 

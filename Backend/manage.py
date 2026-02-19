@@ -6,8 +6,8 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    settings_module = 'Backend.deployment_settings' if 'RENDER_EXTERNAL_HOSTNAME' in os.environ else 'Backend.settings'
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
+    # Set in env per environment: Backend.settings (local) | Backend.production_settings (prod) | Backend.staging_settings (staging)
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Backend.settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

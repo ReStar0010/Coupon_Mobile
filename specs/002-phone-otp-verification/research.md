@@ -15,6 +15,7 @@ This document consolidates research findings for implementing SMS OTP verificati
 **Rationale**: Twilio is the industry standard for SMS delivery with 99%+ deliverability, supports Taiwan mobile numbers, and provides test credentials for development.
 
 **Alternatives Considered**:
+
 - AWS SNS: More complex setup, overkill for single-region Taiwan use case
 - Resend: Already configured for email but doesn't support SMS
 - MessageBird: Similar features but less documentation/community support
@@ -65,13 +66,15 @@ class SMSService:
 ### Environment Variables Required
 
 **Development** (Backend/Backend/settings.py or .env):
+
 ```python
 SMS_DEV_MODE = True  # Logs OTP to console instead of sending SMS
 ```
 
-**Production** (Backend/Backend/deployment_settings.py):
+**Production** (Backend/Backend/production_settings.py):
+
 ```python
-# Add to deployment_settings.py
+# Add to production_settings.py
 SMS_DEV_MODE = False
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
@@ -79,6 +82,7 @@ TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
 ```
 
 **Render Environment Variables** (production):
+
 ```
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -100,18 +104,19 @@ TWILIO_PHONE_NUMBER=+886xxxxxxxxxx  # Taiwan number
 **Rationale**: Simpler than Redis, sufficient for current scale, tracks attempts per-OTP and requests per-phone-per-hour.
 
 **Alternatives Considered**:
+
 - Redis: Overkill for current scale, adds infrastructure complexity
 - Django cache: Not persistent, loses state on restart
 - Third-party rate limiting (django-ratelimit): Additional dependency, less control
 
 ### Rate Limiting Rules (from spec)
 
-| Limit Type | Value | Scope | Reset |
-|------------|-------|-------|-------|
-| OTP requests | 3 per hour | Per phone number | Rolling hour window |
-| Verification attempts | 5 per OTP | Per OTP code | New OTP required |
-| Resend cooldown | 60 seconds | Per phone number | After each send |
-| OTP expiration | 10 minutes | Per OTP code | N/A |
+| Limit Type            | Value      | Scope            | Reset               |
+| --------------------- | ---------- | ---------------- | ------------------- |
+| OTP requests          | 3 per hour | Per phone number | Rolling hour window |
+| Verification attempts | 5 per OTP  | Per OTP code     | New OTP required    |
+| Resend cooldown       | 60 seconds | Per phone number | After each send     |
+| OTP expiration        | 10 minutes | Per OTP code     | N/A                 |
 
 ### Implementation Approach
 
@@ -146,13 +151,13 @@ def can_send_otp(cls, phone_number: str) -> tuple[bool, str]:
 
 ### Error Responses (Chinese)
 
-| Error | Message |
-|-------|---------|
-| Rate limited (hourly) | "已超過每小時OTP請求次數限制，請稍後再試" |
-| Cooldown active | "請等待60秒後再重新發送驗證碼" |
-| Max attempts reached | "驗證碼輸入錯誤次數過多，請重新獲取驗證碼" |
-| OTP expired | "驗證碼已過期，請重新獲取" |
-| Invalid OTP | "驗證碼錯誤，請重新輸入" |
+| Error                 | Message                                    |
+| --------------------- | ------------------------------------------ |
+| Rate limited (hourly) | "已超過每小時OTP請求次數限制，請稍後再試"  |
+| Cooldown active       | "請等待60秒後再重新發送驗證碼"             |
+| Max attempts reached  | "驗證碼輸入錯誤次數過多，請重新獲取驗證碼" |
+| OTP expired           | "驗證碼已過期，請重新獲取"                 |
+| Invalid OTP           | "驗證碼錯誤，請重新輸入"                   |
 
 ---
 
@@ -163,6 +168,7 @@ def can_send_otp(cls, phone_number: str) -> tuple[bool, str]:
 **Rationale**: `secrets` provides cryptographically secure random numbers. 6 digits balance security (1 million combinations) with usability.
 
 **Alternatives Considered**:
+
 - `random` module: NOT cryptographically secure, never use for security
 - UUID/token-based: Harder for users to type on mobile
 - 4-digit codes: Too easy to brute force (10,000 combinations)
@@ -183,12 +189,14 @@ def generate_otp(length: int = 6) -> str:
 **Decision**: Store OTP as plaintext in database
 
 **Rationale**:
+
 - Short-lived (10 minutes)
 - Automatically deleted after verification or expiration
 - Rate limiting prevents brute force even if DB is compromised
 - Hashing adds complexity without significant security benefit for time-limited codes
 
 **Alternative (rejected)**: Hash OTP before storage
+
 - Pros: Defense in depth if DB compromised
 - Cons: Added complexity, OTPs are already short-lived and rate-limited
 
@@ -202,11 +210,11 @@ def generate_otp(length: int = 6) -> str:
 
 ### Behavior by Mode
 
-| Mode | SMS_DEV_MODE | Behavior |
-|------|--------------|----------|
-| Development | True | Log OTP to console, return success |
-| Production | False | Send SMS via Twilio |
-| Testing | True | Log OTP to console, capturable in tests |
+| Mode        | SMS_DEV_MODE | Behavior                                |
+| ----------- | ------------ | --------------------------------------- |
+| Development | True         | Log OTP to console, return success      |
+| Production  | False        | Send SMS via Twilio                     |
+| Testing     | True         | Log OTP to console, capturable in tests |
 
 ### Test Verification
 
@@ -262,6 +270,7 @@ Allow users to re-verify their current phone number (useful if they want to conf
 ### Scenarios
 
 **Scenario A: New user verifies phone with pending coupons**
+
 ```
 1. User has no phone number set
 2. User verifies phone 0912345678
@@ -270,6 +279,7 @@ Allow users to re-verify their current phone number (useful if they want to conf
 ```
 
 **Scenario B: User changes phone from A to B**
+
 ```
 1. User has phone A (0911111111) with 2 unclaimed coupons
 2. User starts verification for phone B (0922222222)
@@ -280,6 +290,7 @@ Allow users to re-verify their current phone number (useful if they want to conf
 ```
 
 **Scenario C: Phone previously linked to another user**
+
 ```
 1. User A had phone 0912345678, then changed to new phone
    - User A's pending coupons transferred to User A's account on change
@@ -337,12 +348,12 @@ def complete_phone_verification(user, new_phone):
 
 ### Endpoints
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/phone-otp/send/` | Request OTP for phone number |
-| POST | `/api/phone-otp/verify/` | Verify OTP and update phone |
-| GET | `/api/user/phone/` | Get current phone (unchanged) |
-| DELETE | `/api/user/phone/` | Remove phone (BLOCKED per FR-017) |
+| Method | Endpoint                 | Purpose                           |
+| ------ | ------------------------ | --------------------------------- |
+| POST   | `/api/phone-otp/send/`   | Request OTP for phone number      |
+| POST   | `/api/phone-otp/verify/` | Verify OTP and update phone       |
+| GET    | `/api/user/phone/`       | Get current phone (unchanged)     |
+| DELETE | `/api/user/phone/`       | Remove phone (BLOCKED per FR-017) |
 
 ### PUT `/api/user/phone/` Modification
 
@@ -384,15 +395,15 @@ def put(self, request):
 
 ## Summary
 
-| Unknown | Decision | Key Rationale |
-|---------|----------|---------------|
-| SMS Provider | Twilio | Industry standard, Taiwan support, test mode |
-| Rate Limiting | Database-based | Simple, sufficient for scale |
-| OTP Generation | `secrets` module, 6-digit | Cryptographically secure, user-friendly |
-| Dev Mode | Console logging | Zero-cost development |
-| OTP Storage | Plaintext (time-limited) | Simplicity, rate limiting protects |
-| Phone Uniqueness | Reject if registered elsewhere | Spec requirement FR-008 |
-| Coupon Transfer | Follow the person | Spec clarification |
+| Unknown          | Decision                       | Key Rationale                                |
+| ---------------- | ------------------------------ | -------------------------------------------- |
+| SMS Provider     | Twilio                         | Industry standard, Taiwan support, test mode |
+| Rate Limiting    | Database-based                 | Simple, sufficient for scale                 |
+| OTP Generation   | `secrets` module, 6-digit      | Cryptographically secure, user-friendly      |
+| Dev Mode         | Console logging                | Zero-cost development                        |
+| OTP Storage      | Plaintext (time-limited)       | Simplicity, rate limiting protects           |
+| Phone Uniqueness | Reject if registered elsewhere | Spec requirement FR-008                      |
+| Coupon Transfer  | Follow the person              | Spec clarification                           |
 
 ---
 

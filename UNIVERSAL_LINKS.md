@@ -20,13 +20,13 @@
 
 ### 環境變數 (Backend)
 
-| 變數                     | 說明                                                 | 預設                         |
-| ------------------------ | ---------------------------------------------------- | ---------------------------- |
-| `COUPRO_PUBLIC_BASE_URL` | 對外分享網域                                         | `https://coupro.pro`         |
-| `COUPRO_APP_STORE_ID`    | iOS App Store app id（Smart Banner / fallback 連結） | 空                           |
-| `COUPRO_PLAY_STORE_ID`   | Android package（fallback 連結）                     | `com.cokayne.MobileFrontend` |
-| `COUPRO_IOS_TEAM_ID`     | Apple Team ID（AASA 用）                             | 需在正式環境設定             |
-| `COUPRO_ANDROID_SHA256`  | 簽署 APK/AAB 的 SHA256 fingerprint（assetlinks 用）  | 需在正式環境設定             |
+| 變數                    | 說明                                                 | 預設                         |
+| ----------------------- | ---------------------------------------------------- | ---------------------------- |
+| `FRONTEND_URL`          | 對外分享網域                                         | `https://coupro.pro`         |
+| `COUPRO_APP_STORE_ID`   | iOS App Store app id（Smart Banner / fallback 連結） | 空                           |
+| `COUPRO_PLAY_STORE_ID`  | Android package（fallback 連結）                     | `com.cokayne.MobileFrontend` |
+| `COUPRO_IOS_TEAM_ID`    | Apple Team ID（AASA 用）                             | 需在正式環境設定             |
+| `COUPRO_ANDROID_SHA256` | 簽署 APK/AAB 的 SHA256 fingerprint（assetlinks 用）  | 需在正式環境設定             |
 
 ### 前端 (Expo)
 

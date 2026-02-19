@@ -37,7 +37,7 @@ def share_coupon(request, coupon_id):
     Log.objects.create(action="share", user=request.user, coupon=coupon)
     
     # Deep link: custom scheme (for in-app / native share) and Universal Link (clickable in messages)
-    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://app.coupro.pro').rstrip('/')
+    base_url = getattr(settings, 'FRONTEND_URL', 'https://app.coupro.pro').rstrip('/')
     share_link = f"CouPro://Collection?token={token}"
     share_link_web = f"{base_url}/collection/{token}"
 
@@ -50,11 +50,11 @@ def share_coupon(request, coupon_id):
 
 def claim_landing(request, token):
     """
-    Claim URL fallback page: https://coupro.pro/claim/<token>/ or /cl/<token>/
+    Claim URL fallback page: https://app.coupro.pro/claim/<token>/ or /cl/<token>/
     Renders HTML with install guidance and store links only (no claim actions on web).
     Same pattern as collection_landing (002-qr-deep-linking).
     """
-    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://coupro.pro').rstrip('/')
+    base_url = getattr(settings, 'FRONTEND_URL', 'https://app.coupro.pro').rstrip('/')
     page_url = f"{base_url}/claim/{token}/"
     title = "CouPro 優惠券"
     description = "掃描 QR Code 領取優惠券。請下載 CouPro App 開啟連結領取。"
@@ -90,7 +90,7 @@ def collection_landing(request, token):
     Renders HTML with Smart App Banner (iOS), Open Graph, and JS to try app then fallback to stores.
     """
     share_request = get_object_or_404(CouponShareRequest, token=token)
-    base_url = getattr(settings, 'COUPRO_PUBLIC_BASE_URL', 'https://app.coupro.pro').rstrip('/')
+    base_url = getattr(settings, 'FRONTEND_URL', 'https://app.coupro.pro').rstrip('/')
     page_url = f"{base_url}/collection/{token}"
     coupon_name = share_request.coupon.coupon_name or "優惠券"
     title = f"CouPro － {coupon_name} 分享"

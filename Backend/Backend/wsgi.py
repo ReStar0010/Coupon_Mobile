@@ -11,7 +11,7 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-settings_module = 'Backend.deployment_settings' if 'RENDER_EXTERNAL_HOSTNAME' in os.environ else 'Backend.settings'
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
+# Set in env per environment: Backend.settings (local) | Backend.production_settings (prod) | Backend.staging_settings (staging)
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Backend.settings')
 
 application = get_wsgi_application()
