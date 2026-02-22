@@ -1,17 +1,17 @@
 {
   "name": "Mobile-Frontend",
+  "main": "expo-router/entry",
   "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "generate:tamagui": "tamagui generate",
+    "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "start": "expo start",
-    "prebuild": "expo prebuild",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json}\"",
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",
-    "web": "expo start --web",
-    "test": "jest",
-    "get-ip": "node scripts/get-local-ip.js"
+    "clean": "expo start -c"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
@@ -50,12 +50,11 @@
     "react-native-worklets": "0.5.1",
     "tamagui": "^1.136.6"
   },
-  "main": "expo-router/entry",
-  "private": true,
   "devDependencies": {
-    "@tamagui/cli": "^1.136.6",
     "@types/react": "~19.1.10",
     "baseline-browser-mapping": "^2.9.18",
+    "eslint": "^9.15.0",
+    "eslint-config-expo": "^9.0.0",
     "typescript": "~5.9.2"
   }
 }
