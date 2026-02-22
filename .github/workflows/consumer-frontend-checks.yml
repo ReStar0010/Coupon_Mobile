@@ -1,0 +1,31 @@
+name: Consumer frontend checks
+
+on:
+  pull_request:
+    paths:
+      - Mobile-Frontend/**
+      - .github/workflows/consumer-frontend-checks.yml
+  push:
+    branches: [main]
+    paths: [Mobile-Frontend/**]
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Mobile-Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Mobile-Frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npx tsc --noEmit
