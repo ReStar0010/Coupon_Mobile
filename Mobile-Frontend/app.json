@@ -47,7 +47,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.cokayne.MobileFrontend",
-      "associatedDomains": ["applinks:coupro.pro"],
+      "associatedDomains": ["applinks:app.coupro.pro"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -57,10 +57,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ],
+      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
       "package": "com.cokayne.MobileFrontend"
     },
     "extra": {

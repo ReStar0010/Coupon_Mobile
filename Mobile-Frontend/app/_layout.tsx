@@ -38,11 +38,26 @@ function parseClaimTokenFromUrl(url: string | null): string | null {
   if (!url || typeof url !== 'string') return null;
   const s = url.trim();
   // App scheme: coupro://claim?token=<token>
-  const appSchemeMatch = /^coupro:\/\/claim\?(?:.*&)?token=([^&]+)/i.exec(s) || /^coupro:\/\/claim\?token=([^&]+)/i.exec(s);
+  const appSchemeMatch =
+    /^coupro:\/\/claim\?(?:.*&)?token=([^&]+)/i.exec(s) ||
+    /^coupro:\/\/claim\?token=([^&]+)/i.exec(s);
   if (appSchemeMatch) return appSchemeMatch[1];
   // Web: https://.../claim/<token>/ or /cl/<token>/
   const webClaimMatch = /\/claim\/([^/?]+)/i.exec(s) || /\/cl\/([^/?]+)/i.exec(s);
   if (webClaimMatch) return webClaimMatch[1];
+  return null;
+}
+
+/** Parse collection share token from deep link URL (web or app scheme). Returns null if not a collection URL. */
+function parseCollectionTokenFromUrl(url: string | null): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const s = url.trim();
+  // App scheme: coupro://collection?token=<token>
+  const appSchemeMatch = /^coupro:\/\/collection\?(?:.*&)?token=([^&]+)/i.exec(s);
+  if (appSchemeMatch) return appSchemeMatch[1];
+  // Web: https://.../collection/<token> or /c/<token>
+  const webMatch = /\/collection\/([^/?]+)/i.exec(s) || /\/c\/([^/?]+)/i.exec(s);
+  if (webMatch) return webMatch[1];
   return null;
 }
 
@@ -58,7 +73,6 @@ if (__DEV__) {
   console.log('='.repeat(50) + '\n');
 }
 
-
 function DeepLinkHandler() {
   const router = useRouter();
   const initialUrlHandled = useRef(false);
@@ -66,19 +80,30 @@ function DeepLinkHandler() {
   useEffect(() => {
     Linking.getInitialURL().then((url) => {
       if (initialUrlHandled.current) return;
-      const token = parseClaimTokenFromUrl(url);
-      if (token) {
+      const claimToken = parseClaimTokenFromUrl(url);
+      if (claimToken) {
         initialUrlHandled.current = true;
-        router.replace(`/EasyUse/qr-claim?token=${encodeURIComponent(token)}`);
+        router.replace(`/EasyUse/qr-claim?token=${encodeURIComponent(claimToken)}`);
+        return;
+      }
+      const collectionToken = parseCollectionTokenFromUrl(url);
+      if (collectionToken) {
+        initialUrlHandled.current = true;
+        router.replace(`/(tabs)/collection?token=${encodeURIComponent(collectionToken)}`);
       }
     });
   }, [router]);
 
   useEffect(() => {
     const sub = Linking.addEventListener('url', ({ url }) => {
-      const token = parseClaimTokenFromUrl(url);
-      if (token) {
-        router.replace(`/EasyUse/qr-claim?token=${encodeURIComponent(token)}`);
+      const claimToken = parseClaimTokenFromUrl(url);
+      if (claimToken) {
+        router.replace(`/EasyUse/qr-claim?token=${encodeURIComponent(claimToken)}`);
+        return;
+      }
+      const collectionToken = parseCollectionTokenFromUrl(url);
+      if (collectionToken) {
+        router.replace(`/(tabs)/collection?token=${encodeURIComponent(collectionToken)}`);
       }
     });
     return () => sub.remove();
@@ -99,22 +124,22 @@ export default function RootLayout() {
           <ThemeProvider>
             <DismissedStoresProvider>
               <BlockedMerchantsProvider>
-            <AuthProvider>
-              <AuthOrchestrator>
-                <ToastProvider>
-                  <DeepLinkHandler />
-                  <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen name="options-menu" />
-                  </Stack>
-                  <StatusBar style="auto" />
-                  <Toast config={toastConfig} />
-                </ToastProvider>
-              </AuthOrchestrator> 
-            </AuthProvider>
-            </BlockedMerchantsProvider>
+                <AuthProvider>
+                  <AuthOrchestrator>
+                    <ToastProvider>
+                      <DeepLinkHandler />
+                      <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
+                        <Stack.Screen name="index" />
+                        <Stack.Screen name="(auth)" />
+                        <Stack.Screen name="(tabs)" />
+                        <Stack.Screen name="options-menu" />
+                      </Stack>
+                      <StatusBar style="auto" />
+                      <Toast config={toastConfig} />
+                    </ToastProvider>
+                  </AuthOrchestrator>
+                </AuthProvider>
+              </BlockedMerchantsProvider>
             </DismissedStoresProvider>
           </ThemeProvider>
         </PortalProvider>

@@ -90,7 +90,7 @@ DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 # -----------------------------------------------------------------------------
 # SMS (Twilio) – production
 # -----------------------------------------------------------------------------
-SMS_DEV_MODE = False
+SMS_DEV_MODE = os.getenv('SMS_DEV_MODE', 'false').lower() in ('true', '1', 'yes')
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')

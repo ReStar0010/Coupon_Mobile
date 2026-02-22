@@ -38,7 +38,7 @@ def share_coupon(request, coupon_id):
     
     # Deep link: custom scheme (for in-app / native share) and Universal Link (clickable in messages)
     base_url = getattr(settings, 'FRONTEND_URL', 'https://app.coupro.pro').rstrip('/')
-    share_link = f"CouPro://Collection?token={token}"
+    share_link = f"coupro://collection?token={token}"
     share_link_web = f"{base_url}/collection/{token}"
 
     return Response({
