@@ -66,10 +66,6 @@ export default function TabLayout() {
         options={{
           title: 'CouPro',
           tabBarIcon: ({ color, size }) => <LogoIcon color={color} size={size} />,
-          // 從其他 tab（如專屬優惠）點優惠券進入 easyuse/[id] 後，返回會切到 collection，
-          // 但 easyuse 的 stack 仍保留 [id]。點 CouPro 時會再次看到該優惠券。
-          // 讓 tab 失焦時自動 pop 回頂層，下次進入 CouPro 會看到 easy use 首頁。
-          popToTopOnBlur: true,
         }}
       />
       <Tabs.Screen

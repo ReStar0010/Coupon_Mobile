@@ -186,6 +186,9 @@ const CouponDetailPage: React.FC = () => {
 
   const onGoBackContainerClick = useCallback(() => {
     if (sourceParam === 'collection') {
+      // 先 replace 到 easyuse 首頁，清掉 easyuse stack 上的 [id]，再切到專屬優惠，
+      // 否則之後點 CouPro tab 會再次看到此優惠券。
+      router.replace('/(tabs)/easyuse');
       router.replace('/(tabs)/collection');
     } else {
       router.back();
