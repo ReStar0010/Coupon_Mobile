@@ -38,13 +38,13 @@ export type CouponDetailType = {
   is_redeemed: boolean;
   can_use_today: boolean;
   tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
-  /** 取得方式：draw=抽優惠券, consolidate=電話歸戶, transfer=私人轉讓, public_pool=公共池領取, qr_claim=QR Code 領取；store 券通常為 null */
+  /** 取得方式：draw=CouPro, consolidate=電話歸戶, transfer=私人轉讓, public_pool=公共池領取, qr_claim=QR Code 領取；store 券通常為 null */
   acquisition_method?: string | null;
 };
 
 /** 後端 ACQUISITION_METHOD_CHOICES 對應顯示文字（與 Backend api/models Coupon 一致） */
 const ACQUISITION_LABELS: Record<string, string> = {
-  draw: '抽優惠券',
+  draw: 'CouPro',
   consolidate: '電話歸戶',
   transfer: '私人轉讓',
   public_pool: '公共池領取',

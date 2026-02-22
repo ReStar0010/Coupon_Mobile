@@ -9,7 +9,7 @@ import axios from 'axios';
  */
 export const getAcquisitionMethodLabel = (method?: string): string => {
   const labels: Record<string, string> = {
-    'draw': '抽優惠券',
+    'draw': 'CouPro',
     'consolidate': '電話歸戶',
     'transfer': '私人轉讓',
     'public_pool': '公共池領取',
