@@ -9,11 +9,11 @@ interface StatisticsToastProps {
   duration?: number;
 }
 
-const StatisticsToast: React.FC<StatisticsToastProps> = ({ 
-  visible, 
-  message, 
-  onHide, 
-  duration = 3000 
+const StatisticsToast: React.FC<StatisticsToastProps> = ({
+  visible,
+  message,
+  onHide,
+  duration = 3000,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(50)).current;
@@ -67,16 +67,15 @@ const StatisticsToast: React.FC<StatisticsToastProps> = ({
   }
 
   return (
-    <YStack 
-      style={{ 
-        position: 'absolute', 
-        bottom: 80, 
-        left: 0, 
-        right: 0 
-      }} 
-      items="center" 
-      px="$5"
-    >
+    <YStack
+      style={{
+        position: 'absolute',
+        bottom: 80,
+        left: 0,
+        right: 0,
+      }}
+      items="center"
+      px="$5">
       <Animated.View
         style={{
           borderRadius: 999,
@@ -85,14 +84,8 @@ const StatisticsToast: React.FC<StatisticsToastProps> = ({
           paddingVertical: 16,
           opacity: fadeAnim,
           transform: [{ translateY: translateYAnim }],
-        }}
-      >
-        <Text 
-          style={{ textAlign: 'center' }} 
-          fontSize={14} 
-          fontWeight="normal" 
-          color="white"
-        >
+        }}>
+        <Text style={{ textAlign: 'center' }} fontSize={14} fontWeight="normal" color="white">
           {message}
         </Text>
       </Animated.View>
@@ -101,4 +94,3 @@ const StatisticsToast: React.FC<StatisticsToastProps> = ({
 };
 
 export default StatisticsToast;
-

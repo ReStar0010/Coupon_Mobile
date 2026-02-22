@@ -14,7 +14,7 @@ export const BackendIndicator = () => {
   }
 
   const config = getApiConfig();
-  
+
   // 根據模式設置顏色
   const getModeColor = () => {
     switch (config.mode) {
@@ -44,9 +44,7 @@ export const BackendIndicator = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: getModeColor() }]}>
-      <Text style={styles.text}>
-        🔧 {getModeLabel()}
-      </Text>
+      <Text style={styles.text}>🔧 {getModeLabel()}</Text>
       <Text style={styles.url} numberOfLines={1}>
         {config.baseUrl}
       </Text>
@@ -76,4 +74,3 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
-

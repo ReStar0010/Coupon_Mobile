@@ -80,7 +80,10 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
       }
     } catch (err) {
       // Check if it's an authentication error
-      if (err instanceof AuthenticationError || (axios.isAxiosError(err) && err.response?.status === 401)) {
+      if (
+        err instanceof AuthenticationError ||
+        (axios.isAxiosError(err) && err.response?.status === 401)
+      ) {
         devDebug('Authentication error in fetchCompletedGoals, redirecting to login');
         if (isMountedRef.current) {
           router.replace('/(auth)/login');
@@ -130,9 +133,12 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
         devDebug('Request cancelled');
         return;
       }
-      
+
       // Check if it's an authentication error
-      if (err instanceof AuthenticationError || (axios.isAxiosError(err) && err.response?.status === 401)) {
+      if (
+        err instanceof AuthenticationError ||
+        (axios.isAxiosError(err) && err.response?.status === 401)
+      ) {
         devDebug('Authentication error detected, redirecting to login');
         if (isMountedRef.current) {
           // Redirect to login immediately
@@ -140,7 +146,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
         }
         return;
       }
-      
+
       console.error('Error fetching user statistics:', err);
       if (isMountedRef.current) {
         setError('Failed to load your statistics. Please try again later.');

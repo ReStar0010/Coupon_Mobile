@@ -17,12 +17,7 @@ import { authAPI } from '../utils/authAPI';
 /**
  * Report reason codes
  */
-export type ReportReason =
-  | 'inappropriate'
-  | 'misleading'
-  | 'illegal'
-  | 'spam'
-  | 'other';
+export type ReportReason = 'inappropriate' | 'misleading' | 'illegal' | 'spam' | 'other';
 
 /**
  * Report reason with Chinese label
@@ -119,10 +114,7 @@ export async function submitReport(
   contentId: number,
   data: ContentReportRequest
 ): Promise<SubmitReportResponse> {
-  return authAPI.post<SubmitReportResponse>(
-    `/content/${contentType}/${contentId}/report/`,
-    data
-  );
+  return authAPI.post<SubmitReportResponse>(`/content/${contentType}/${contentId}/report/`, data);
 }
 
 /**
@@ -136,9 +128,7 @@ export async function checkReportStatus(
   contentType: ReportContentType,
   contentId: number
 ): Promise<ReportStatusResponse> {
-  return authAPI.get<ReportStatusResponse>(
-    `/content/${contentType}/${contentId}/report/status/`
-  );
+  return authAPI.get<ReportStatusResponse>(`/content/${contentType}/${contentId}/report/status/`);
 }
 
 /**
@@ -152,9 +142,7 @@ export async function getUserReports(
   page: number = 1,
   pageSize: number = 20
 ): Promise<UserReportsResponse> {
-  return authAPI.get<UserReportsResponse>(
-    `/user/reports/?page=${page}&page_size=${pageSize}`
-  );
+  return authAPI.get<UserReportsResponse>(`/user/reports/?page=${page}&page_size=${pageSize}`);
 }
 
 /**

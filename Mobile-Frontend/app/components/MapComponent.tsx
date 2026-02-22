@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, Platform, Linking } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  Dimensions,
+  Platform,
+  Linking,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { devLog } from '@/app/utils/devLogger';
 
@@ -68,21 +77,17 @@ const MapComponent: React.FC<MapComponentProps> = ({
   mapRef: externalMapRef,
 }) => {
   const router = useRouter();
-  
+
   // Return a placeholder for web platform
   if (Platform.OS === 'web') {
     return (
       <View style={styles.webPlaceholder}>
-        <Text style={styles.webPlaceholderText}>
-          地圖功能僅適用於移動設備
-        </Text>
-        <Text style={styles.webPlaceholderSubtext}>
-          請使用手機應用程式查看商店地圖
-        </Text>
+        <Text style={styles.webPlaceholderText}>地圖功能僅適用於移動設備</Text>
+        <Text style={styles.webPlaceholderSubtext}>請使用手機應用程式查看商店地圖</Text>
       </View>
     );
   }
-  
+
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -128,10 +133,10 @@ const MapComponent: React.FC<MapComponentProps> = ({
   // Search functionality - center map on searched store
   useEffect(() => {
     if (searchQuery && stores.length > 0 && mapRef.current) {
-      const foundStore = stores.find(store => 
+      const foundStore = stores.find((store) =>
         store.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
       );
-      
+
       if (foundStore) {
         devLog('Found store for search:', foundStore.name);
         const newRegion = {
@@ -140,7 +145,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
           latitudeDelta: 0.01, // Zoom in closer for search results
           longitudeDelta: 0.01,
         };
-        
+
         mapRef.current.animateToRegion(newRegion, 1000);
         setMapRegion(newRegion);
         setSelectedStore(foundStore); // Automatically select the found store
@@ -232,11 +237,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
         {/* Store name - made more prominent */}
         <Text style={styles.calloutTitle}>{store.name}</Text>
-        
+
         {/* Store address if available */}
-        {store.address && (
-          <Text style={styles.calloutAddress}>{store.address}</Text>
-        )}
+        {store.address && <Text style={styles.calloutAddress}>{store.address}</Text>}
 
         <TouchableOpacity
           style={styles.calloutButton}

@@ -10,7 +10,7 @@ import Toast from 'react-native-toast-message';
 
 /**
  * EmailSettings - Email settings screen (mirroring phone-settings UX)
- * 
+ *
  * Users can optionally add and verify their email address.
  * Email verification uses the existing backend email verification flow.
  */
@@ -190,8 +190,7 @@ export default function EmailSettings() {
                   color="white"
                   onPress={handleAddOrChangeEmail}
                   disabled={isSubmitting || !newEmail}
-                  opacity={isSubmitting || !newEmail ? 0.5 : 1}
-                >
+                  opacity={isSubmitting || !newEmail ? 0.5 : 1}>
                   {isSubmitting ? '發送中...' : '發送驗證信件'}
                 </Button>
               </YStack>

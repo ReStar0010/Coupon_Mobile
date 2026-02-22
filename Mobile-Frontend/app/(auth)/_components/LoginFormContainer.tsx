@@ -55,28 +55,40 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
 }) => {
   const getTitle = () => {
     switch (mode) {
-      case 'login': return '登入';
-      case 'register': return '註冊';
-      case 'forgotPassword': return '忘記密碼';
-      default: return '登入';
+      case 'login':
+        return '登入';
+      case 'register':
+        return '註冊';
+      case 'forgotPassword':
+        return '忘記密碼';
+      default:
+        return '登入';
     }
   };
 
   const getButtonTitle = () => {
     switch (mode) {
-      case 'login': return '登入';
-      case 'register': return '註冊';
-      case 'forgotPassword': return '發送驗證碼';
-      default: return '登入';
+      case 'login':
+        return '登入';
+      case 'register':
+        return '註冊';
+      case 'forgotPassword':
+        return '發送驗證碼';
+      default:
+        return '登入';
     }
   };
 
   const getButtonHandler = () => {
     switch (mode) {
-      case 'login': return handleLogin;
-      case 'register': return handleRegister;
-      case 'forgotPassword': return handleForgotPassword;
-      default: return handleLogin;
+      case 'login':
+        return handleLogin;
+      case 'register':
+        return handleRegister;
+      case 'forgotPassword':
+        return handleForgotPassword;
+      default:
+        return handleLogin;
     }
   };
 
@@ -154,33 +166,17 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
             linkText={loginMode === 'phone' ? '使用 Email 登入' : '使用手機登入'}
             onLinkPress={() => setLoginMode?.(loginMode === 'phone' ? 'email' : 'phone')}
           />
-          <LinkText
-            normalText="還沒有帳號嗎？"
-            linkText="註冊"
-            onLinkPress={onRegisterPress}
-          />
-          <LinkText
-            normalText="忘記密碼？"
-            linkText="重設"
-            onLinkPress={onForgotPasswordPress}
-          />
+          <LinkText normalText="還沒有帳號嗎？" linkText="註冊" onLinkPress={onRegisterPress} />
+          <LinkText normalText="忘記密碼？" linkText="重設" onLinkPress={onForgotPasswordPress} />
         </>
       )}
 
       {mode === 'register' && (
-        <LinkText
-          normalText="已經有帳號了嗎？"
-          linkText="登入"
-          onLinkPress={onLoginPress}
-        />
+        <LinkText normalText="已經有帳號了嗎？" linkText="登入" onLinkPress={onLoginPress} />
       )}
 
       {mode === 'forgotPassword' && (
-        <LinkText
-          normalText="還沒有帳號嗎？"
-          linkText="註冊"
-          onLinkPress={onRegisterPress}
-        />
+        <LinkText normalText="還沒有帳號嗎？" linkText="註冊" onLinkPress={onRegisterPress} />
       )}
     </YStack>
   );

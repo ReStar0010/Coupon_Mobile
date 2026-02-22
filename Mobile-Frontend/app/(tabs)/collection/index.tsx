@@ -93,10 +93,7 @@ const Collection: React.FC = () => {
 
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
   const { searchQuery, handleSearchChange, clearSearch } = useSearch();
-  const { coupons, isLoading, error, fetchCoupons } = useCoupons(
-    isAuthenticated,
-    authLoading
-  );
+  const { coupons, isLoading, error, fetchCoupons } = useCoupons(isAuthenticated, authLoading);
 
   // Merchant deleted modal state
   const [merchantDeletedModal, setMerchantDeletedModal] = useState<{
@@ -116,8 +113,11 @@ const Collection: React.FC = () => {
   } = useDailyDraw(isAuthenticated, authLoading, fetchCoupons);
   const { shareToken, sharedCoupon, showSharedGift, handleGiftAccepted } =
     useSharedCoupon(fetchCoupons);
-  const { publicShares, isLoading: sharesLoading, fetchPublicShares } =
-    useMyPublicShares(isAuthenticated, authLoading);
+  const {
+    publicShares,
+    isLoading: sharesLoading,
+    fetchPublicShares,
+  } = useMyPublicShares(isAuthenticated, authLoading);
   const { tags } = useTags(isAuthenticated);
   const merchants = useMemo(() => {
     const merchantSet = new Set<string>();
@@ -151,12 +151,9 @@ const Collection: React.FC = () => {
   const filteredCoupons = useMemo(() => {
     const activeCoupons = coupons.filter(
       (coupon) =>
-        !coupon.storeId ||
-        (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId))
+        !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId))
     );
-    const excludedFromPool = activeCoupons.filter(
-      (c) => !c.id || !publicShareCouponIds.has(c.id)
-    );
+    const excludedFromPool = activeCoupons.filter((c) => !c.id || !publicShareCouponIds.has(c.id));
     return filterCoupons(
       excludedFromPool,
       searchQuery,
@@ -218,9 +215,7 @@ const Collection: React.FC = () => {
         {/* My Shared Coupons Section */}
         <MySharedCoupons shares={publicShares} isLoading={sharesLoading} />
 
-        {!hasDailyDrawn && !showSharedGift && (
-          <DailyDrawBanner onClick={handleOpenDailyDraw} />
-        )}
+        {!hasDailyDrawn && !showSharedGift && <DailyDrawBanner onClick={handleOpenDailyDraw} />}
 
         {showSharedGift && sharedCoupon && (
           <Gift

@@ -73,7 +73,7 @@ export default function UnifiedRedeemScreen() {
         setIsLoading(true);
         setError(null);
         const response = await unifiedRedemptionAPI.validateUnifiedRedemptionCode(code);
-        
+
         setStore(response.store);
         setAvailableCoupons(response.available_coupons || []);
       } catch (err: any) {
@@ -105,10 +105,10 @@ export default function UnifiedRedeemScreen() {
       try {
         // Auto-redeem immediately using unified redemption API
         const response = await unifiedRedemptionAPI.redeemCouponWithUnifiedCode(coupon.id, code);
-        
+
         // Store redeemed coupon info for success popup
         setRedeemedCoupon(coupon);
-        
+
         // Store redemption data from API response
         setRedemptionData({
           couponName: response.coupon_name,
@@ -116,7 +116,7 @@ export default function UnifiedRedeemScreen() {
           redeemedAt: response.redeemed_at,
           redemptionId: response.redemption_id,
         });
-        
+
         setShowSuccessPopup(true);
       } catch (err: any) {
         console.error('Failed to redeem coupon:', err);
@@ -185,13 +185,9 @@ export default function UnifiedRedeemScreen() {
                 </Text>
               ) : null}
               <View style={styles.couponMeta}>
-                <Text style={styles.expiryDate}>
-                  有效期限: {formatDate(item.expiry_date)}
-                </Text>
+                <Text style={styles.expiryDate}>有效期限: {formatDate(item.expiry_date)}</Text>
                 {item.estimated_savings ? (
-                  <Text style={styles.savings}>
-                    預估節省: ${item.estimated_savings.toFixed(0)}
-                  </Text>
+                  <Text style={styles.savings}>預估節省: ${item.estimated_savings.toFixed(0)}</Text>
                 ) : null}
               </View>
               {isRedeeming && (
@@ -225,10 +221,7 @@ export default function UnifiedRedeemScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={handleGoBack}
-            style={styles.backButton}
-            activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton} activeOpacity={0.7}>
             <ArrowLeft size={24} color="#333" />
           </TouchableOpacity>
           <View style={styles.headerContent}>
@@ -237,10 +230,7 @@ export default function UnifiedRedeemScreen() {
         </View>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={handleGoBack}
-            activeOpacity={0.7}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleGoBack} activeOpacity={0.7}>
             <Text style={styles.retryButtonText}>返回</Text>
           </TouchableOpacity>
         </View>
@@ -259,10 +249,7 @@ export default function UnifiedRedeemScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={handleGoBack}
-          style={styles.backButton}
-          activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton} activeOpacity={0.7}>
           <ArrowLeft size={24} color="#333" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -275,9 +262,7 @@ export default function UnifiedRedeemScreen() {
       {store && code && (
         <View style={styles.storeBanner}>
           <Text style={styles.storeBannerTitle}>統一核銷碼: {code}</Text>
-          {store.address && (
-            <Text style={styles.storeBannerAddress}>{store.address}</Text>
-          )}
+          {store.address && <Text style={styles.storeBannerAddress}>{store.address}</Text>}
         </View>
       )}
 
@@ -285,9 +270,7 @@ export default function UnifiedRedeemScreen() {
       {availableCoupons.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>沒有可用的優惠券</Text>
-          <Text style={styles.emptySubtext}>
-            您目前沒有可兌換的優惠券
-          </Text>
+          <Text style={styles.emptySubtext}>您目前沒有可兌換的優惠券</Text>
         </View>
       ) : (
         <FlatList

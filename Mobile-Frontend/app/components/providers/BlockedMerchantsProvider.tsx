@@ -16,10 +16,7 @@ import React, {
   useCallback,
   ReactNode,
 } from 'react';
-import {
-  blockListAPI,
-  BlockedMerchant,
-} from '@/app/services/blockListAPI';
+import { blockListAPI, BlockedMerchant } from '@/app/services/blockListAPI';
 import { isUserLoggedIn } from '@/app/utils/authAPI';
 
 // =============================================================================
@@ -45,9 +42,7 @@ interface BlockedMerchantsContextType {
   refresh: () => Promise<void>;
 }
 
-const BlockedMerchantsContext = createContext<BlockedMerchantsContextType | undefined>(
-  undefined
-);
+const BlockedMerchantsContext = createContext<BlockedMerchantsContextType | undefined>(undefined);
 
 // =============================================================================
 // Provider Component
@@ -57,9 +52,7 @@ interface BlockedMerchantsProviderProps {
   children: ReactNode;
 }
 
-export function BlockedMerchantsProvider({
-  children,
-}: BlockedMerchantsProviderProps) {
+export function BlockedMerchantsProvider({ children }: BlockedMerchantsProviderProps) {
   const [blockedMerchants, setBlockedMerchants] = useState<BlockedMerchant[]>([]);
   const [blockedStoreIds, setBlockedStoreIds] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -144,27 +137,22 @@ export function BlockedMerchantsProvider({
   /**
    * Unblock a merchant store
    */
-  const unblockStore = useCallback(
-    async (storeId: number): Promise<boolean> => {
-      try {
-        await blockListAPI.unblockMerchant(storeId);
-        // Remove from local state
-        setBlockedMerchants((prev) =>
-          prev.filter((b) => b?.store?.id !== storeId)
-        );
-        setBlockedStoreIds((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(storeId);
-          return newSet;
-        });
-        return true;
-      } catch (err: any) {
-        setError(err?.response?.data?.error || err?.message || '解除封鎖失敗');
-        return false;
-      }
-    },
-    []
-  );
+  const unblockStore = useCallback(async (storeId: number): Promise<boolean> => {
+    try {
+      await blockListAPI.unblockMerchant(storeId);
+      // Remove from local state
+      setBlockedMerchants((prev) => prev.filter((b) => b?.store?.id !== storeId));
+      setBlockedStoreIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(storeId);
+        return newSet;
+      });
+      return true;
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || '解除封鎖失敗');
+      return false;
+    }
+  }, []);
 
   // Fetch blocked merchants on mount
   useEffect(() => {
@@ -183,9 +171,7 @@ export function BlockedMerchantsProvider({
   };
 
   return (
-    <BlockedMerchantsContext.Provider value={value}>
-      {children}
-    </BlockedMerchantsContext.Provider>
+    <BlockedMerchantsContext.Provider value={value}>{children}</BlockedMerchantsContext.Provider>
   );
 }
 
@@ -200,9 +186,7 @@ export function BlockedMerchantsProvider({
 export function useBlockedMerchants(): BlockedMerchantsContextType {
   const context = useContext(BlockedMerchantsContext);
   if (context === undefined) {
-    throw new Error(
-      'useBlockedMerchants must be used within a BlockedMerchantsProvider'
-    );
+    throw new Error('useBlockedMerchants must be used within a BlockedMerchantsProvider');
   }
   return context;
 }

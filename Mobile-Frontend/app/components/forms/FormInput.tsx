@@ -25,9 +25,9 @@ export const FormInput: React.FC<FormInputProps> = ({
       fontSize={16}
       color="#374151"
       autoCapitalize="none"
-      style={{ 
+      style={{
         fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif',
-        borderRadius: 9
+        borderRadius: 9,
       }}
       {...props}
     />
@@ -35,4 +35,3 @@ export const FormInput: React.FC<FormInputProps> = ({
 };
 
 export default FormInput;
-

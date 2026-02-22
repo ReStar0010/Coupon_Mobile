@@ -22,33 +22,30 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, valueSingleLine = fal
       shadowOffset={{ width: 0, height: 2 }}
       shadowOpacity={0.08}
       elevation={3}
-      height={140}
-    >
+      height={140}>
       <YStack flex={1} style={{ justifyContent: 'space-between' }}>
         {/* Title */}
-        <Text 
-          fontSize={15} 
-          fontWeight="500" 
+        <Text
+          fontSize={15}
+          fontWeight="500"
           color="#666666"
           lineHeight={22}
           adjustsFontSizeToFit
           minimumFontScale={0.75}
-          numberOfLines={2}
-        >
+          numberOfLines={2}>
           {title}
         </Text>
 
         {/* Value */}
         <YStack style={{ justifyContent: 'center', alignItems: 'flex-start' }} flex={1}>
-          <Text 
-            fontSize={valueSingleLine ? 22 : 26} 
-            fontWeight="700" 
+          <Text
+            fontSize={valueSingleLine ? 22 : 26}
+            fontWeight="700"
             color="#1a1a1a"
             lineHeight={valueSingleLine ? 28 : 34}
             adjustsFontSizeToFit
             minimumFontScale={0.6}
-            numberOfLines={valueSingleLine ? 1 : 2}
-          >
+            numberOfLines={valueSingleLine ? 1 : 2}>
             {value}
           </Text>
         </YStack>

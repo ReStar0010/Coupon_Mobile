@@ -9,7 +9,7 @@ import { fetchAPI } from '@/app/utils/authAPI';
 
 /**
  * PhoneSettings - Main phone settings screen
- * 
+ *
  * Modified to use OTP verification flow instead of direct phone updates.
  * Users must verify phone numbers via SMS OTP for security.
  */
@@ -105,9 +105,8 @@ export default function PhoneSettings() {
                     功能說明
                   </Text>
                   <Text color="$gray11" fontSize="$2" lineHeight={20}>
-                    • 接收商家直接發送的優惠券{'\n'}
-                    • 自動領取發送至您手機的待領優惠券{'\n'}
-                    • 手機號碼僅用於優惠券發送，不會用於其他用途
+                    • 接收商家直接發送的優惠券{'\n'}• 自動領取發送至您手機的待領優惠券{'\n'}•
+                    手機號碼僅用於優惠券發送，不會用於其他用途
                   </Text>
                 </YStack>
 
@@ -117,20 +116,14 @@ export default function PhoneSettings() {
                   pressStyle={{ bg: '#FF9500' }}
                   height={48}
                   borderRadius="$3"
-                  icon={maskedPhone ? <Edit2 size={18} /> : undefined}
-                >
+                  icon={maskedPhone ? <Edit2 size={18} /> : undefined}>
                   <Text fontSize={16} fontWeight="600" color="$gray11">
                     {maskedPhone ? '更換手機號碼' : '新增手機號碼'}
                   </Text>
                 </Button>
 
                 {maskedPhone && (
-                  <YStack
-                    gap="$2"
-                    p="$3"
-                    bg="$gray2"
-                    borderRadius="$3"
-                  >
+                  <YStack gap="$2" p="$3" bg="$gray2" borderRadius="$3">
                     <Text fontSize="$2" color="$gray11">
                       💡 更換手機號碼時，您原手機號碼的待領優惠券將自動轉移至您的帳號。
                     </Text>
@@ -144,4 +137,3 @@ export default function PhoneSettings() {
     </>
   );
 }
-

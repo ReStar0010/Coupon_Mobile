@@ -108,13 +108,9 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
               {item.coupon_detail}
             </Text>
             <View style={styles.couponMeta}>
-              <Text style={styles.expiryDate}>
-                有效期限: {formatDate(item.expiry_date)}
-              </Text>
+              <Text style={styles.expiryDate}>有效期限: {formatDate(item.expiry_date)}</Text>
               {item.estimated_savings && (
-                <Text style={styles.savings}>
-                  預估節省: ${item.estimated_savings.toFixed(0)}
-                </Text>
+                <Text style={styles.savings}>預估節省: ${item.estimated_savings.toFixed(0)}</Text>
               )}
             </View>
           </View>
@@ -130,10 +126,7 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={handleGoBack}
-          style={styles.backButton}
-          activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton} activeOpacity={0.7}>
           <ArrowLeft size={24} color="#333" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -145,18 +138,14 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
       {/* Store Info Banner */}
       <View style={styles.storeBanner}>
         <Text style={styles.storeBannerTitle}>統一核銷碼: {unifiedCode}</Text>
-        {store.address && (
-          <Text style={styles.storeBannerAddress}>{store.address}</Text>
-        )}
+        {store.address && <Text style={styles.storeBannerAddress}>{store.address}</Text>}
       </View>
 
       {/* Coupon List */}
       {availableCoupons.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>沒有可用的優惠券</Text>
-          <Text style={styles.emptySubtext}>
-            您目前沒有可兌換的優惠券
-          </Text>
+          <Text style={styles.emptySubtext}>您目前沒有可兌換的優惠券</Text>
         </View>
       ) : (
         <FlatList

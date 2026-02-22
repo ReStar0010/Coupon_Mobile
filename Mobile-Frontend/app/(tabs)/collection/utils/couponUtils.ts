@@ -9,13 +9,13 @@ import axios from 'axios';
  */
 export const getAcquisitionMethodLabel = (method?: string): string => {
   const labels: Record<string, string> = {
-    'draw': 'CouPro',
-    'consolidate': '電話歸戶',
-    'transfer': '私人轉讓',
-    'public_pool': '公共池領取',
-    'qr_claim': 'QR Code 領取',
+    draw: 'CouPro',
+    consolidate: '電話歸戶',
+    transfer: '私人轉讓',
+    public_pool: '公共池領取',
+    qr_claim: 'QR Code 領取',
   };
-  return method ? (labels[method] || method) : '';
+  return method ? labels[method] || method : '';
 };
 
 /**
@@ -50,7 +50,7 @@ export const generateShareLink = async (couponId: number): Promise<string | null
       withCredentials: true,
     });
 
-    return (response.data.share_link_web ?? response.data.share_link) ?? null;
+    return response.data.share_link_web ?? response.data.share_link ?? null;
   } catch (err: any) {
     console.error('Error sharing coupon:', err);
     throw err;
@@ -99,7 +99,7 @@ const matchesExpiryFilter = (coupon: CouponType, filter: ExpiryFilter): boolean 
 
   const now = new Date();
   const expiryDate = coupon.expiryDate;
-  
+
   if (!expiryDate) return false;
 
   // Reset time to start of day for comparison
@@ -124,10 +124,10 @@ const matchesExpiryFilter = (coupon: CouponType, filter: ExpiryFilter): boolean 
       const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
       const weekStart = new Date(todayStart);
       weekStart.setDate(weekStart.getDate() - diff);
-      
+
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 7);
-      
+
       const expiryTime = expiryDate.getTime();
       return expiryTime >= weekStart.getTime() && expiryTime < weekEnd.getTime();
     }
@@ -136,7 +136,7 @@ const matchesExpiryFilter = (coupon: CouponType, filter: ExpiryFilter): boolean 
       // 本月到期
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      
+
       const expiryTime = expiryDate.getTime();
       return expiryTime >= monthStart.getTime() && expiryTime < monthEnd.getTime();
     }
@@ -164,9 +164,8 @@ export const filterCoupons = (
         coupon.storeName?.toLowerCase().includes(query) ||
         coupon.description?.toLowerCase().includes(query) ||
         coupon.couponName?.toLowerCase().includes(query) ||
-        (coupon.tags &&
-          coupon.tags.some((tag) => tag.toLowerCase().includes(query)));
-      
+        (coupon.tags && coupon.tags.some((tag) => tag.toLowerCase().includes(query)));
+
       if (!matchesSearch) return false;
     }
 
@@ -174,14 +173,12 @@ export const filterCoupons = (
     // selectedTags should contain display_names (e.g., "食物", "飲品") to match coupon.tags
     if (selectedTags && selectedTags.length > 0) {
       if (!coupon.tags || coupon.tags.length === 0) return false;
-      
+
       // Check if coupon has at least one of the selected tags
       const hasMatchingTag = selectedTags.some((selectedTag) =>
-        coupon.tags!.some((tag) => 
-          tag.toLowerCase() === selectedTag.toLowerCase()
-        )
+        coupon.tags!.some((tag) => tag.toLowerCase() === selectedTag.toLowerCase())
       );
-      
+
       if (!hasMatchingTag) return false;
     }
 

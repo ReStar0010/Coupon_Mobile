@@ -18,7 +18,7 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
   strokeWidth = 12,
   progressColor = '#FFAD31',
   backgroundColor = '#E5E5E5',
-  centerContent
+  centerContent,
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -52,7 +52,7 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
           />
         </G>
       </Svg>
-      
+
       {/* Center Content */}
       <View
         style={{
@@ -63,8 +63,7 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
           bottom: 0,
           justifyContent: 'center',
           alignItems: 'center',
-        }}
-      >
+        }}>
         {centerContent}
       </View>
     </YStack>

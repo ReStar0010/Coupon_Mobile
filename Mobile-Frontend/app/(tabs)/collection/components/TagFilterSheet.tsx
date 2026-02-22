@@ -42,12 +42,7 @@ export function TagFilterSheet({
   };
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity
         style={{
           flex: 1,
@@ -55,8 +50,7 @@ export function TagFilterSheet({
           justifyContent: 'flex-end',
         }}
         activeOpacity={1}
-        onPress={onClose}
-      >
+        onPress={onClose}>
         <TouchableOpacity
           activeOpacity={1}
           onPress={(e) => e.stopPropagation()}
@@ -66,15 +60,10 @@ export function TagFilterSheet({
             borderTopRightRadius: BORDER_RADIUS.xl,
             maxHeight: SCREEN_HEIGHT * 0.8,
             paddingBottom: insets.bottom,
-          }}
-        >
+          }}>
           <YStack gap={16} padding={16}>
             {/* Header */}
-            <XStack
-              alignItems="center"
-              justifyContent="space-between"
-              paddingBottom={8}
-            >
+            <XStack alignItems="center" justifyContent="space-between" paddingBottom={8}>
               <Text fontSize={20} fontWeight="bold" color={COLORS.text.primary}>
                 選擇分類標籤
               </Text>
@@ -85,20 +74,12 @@ export function TagFilterSheet({
 
             {/* Selected count */}
             {selectedTags.length > 0 && (
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                paddingVertical={8}
-              >
+              <XStack alignItems="center" justifyContent="space-between" paddingVertical={8}>
                 <Text fontSize={14} color={COLORS.text.secondary}>
                   已選擇 {selectedTags.length} 個標籤
                 </Text>
                 <TouchableOpacity onPress={handleClearAll} activeOpacity={0.7}>
-                  <Text
-                    fontSize={14}
-                    color={COLORS.primary}
-                    fontWeight="600"
-                  >
+                  <Text fontSize={14} color={COLORS.primary} fontWeight="600">
                     清除全部
                   </Text>
                 </TouchableOpacity>
@@ -118,36 +99,21 @@ export function TagFilterSheet({
                     style={{
                       paddingVertical: 14,
                       paddingHorizontal: 16,
-                      backgroundColor: isSelected
-                        ? COLORS.tag.background
-                        : 'transparent',
+                      backgroundColor: isSelected ? COLORS.tag.background : 'transparent',
                       borderRadius: BORDER_RADIUS.md,
                       marginBottom: 4,
                       borderWidth: isSelected ? 1 : 0,
                       borderColor: COLORS.primary,
-                    }}
-                  >
-                    <XStack
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
+                    }}>
+                    <XStack alignItems="center" justifyContent="space-between">
                       <Text
                         fontSize={16}
-                        color={
-                          isSelected
-                            ? COLORS.primary
-                            : COLORS.text.primary
-                        }
-                        fontWeight={isSelected ? '600' : '400'}
-                      >
+                        color={isSelected ? COLORS.primary : COLORS.text.primary}
+                        fontWeight={isSelected ? '600' : '400'}>
                         {item.display_name}
                       </Text>
                       {isSelected && (
-                        <Text
-                          fontSize={18}
-                          color={COLORS.primary}
-                          fontWeight="600"
-                        >
+                        <Text fontSize={18} color={COLORS.primary} fontWeight="600">
                           ✓
                         </Text>
                       )}
@@ -156,16 +122,8 @@ export function TagFilterSheet({
                 );
               }}
               ListEmptyComponent={
-                <YStack
-                  paddingVertical={40}
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <Text
-                    fontSize={14}
-                    color={COLORS.text.secondary}
-                    textAlign="center"
-                  >
+                <YStack paddingVertical={40} alignItems="center" justifyContent="center">
+                  <Text fontSize={14} color={COLORS.text.secondary} textAlign="center">
                     目前沒有標籤
                   </Text>
                 </YStack>
@@ -184,13 +142,8 @@ export function TagFilterSheet({
                 paddingVertical: 14,
                 alignItems: 'center',
                 marginTop: 8,
-              }}
-            >
-              <Text
-                fontSize={16}
-                color={COLORS.white}
-                fontWeight="600"
-              >
+              }}>
+              <Text fontSize={16} color={COLORS.white} fontWeight="600">
                 完成
               </Text>
             </TouchableOpacity>

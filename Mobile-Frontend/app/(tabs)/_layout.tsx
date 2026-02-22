@@ -45,22 +45,23 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: '#ffad31',
         tabBarInactiveTintColor: '#a8a8a8',
-        tabBarStyle: hideTabBar ? { display: 'none' } : {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 0,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          paddingTop: TAB_BAR_PADDING_TOP,
-          paddingBottom: bottomPadding,
-        },
+        tabBarStyle: hideTabBar
+          ? { display: 'none' }
+          : {
+              backgroundColor: '#ffffff',
+              borderTopWidth: 0,
+              elevation: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              paddingTop: TAB_BAR_PADDING_TOP,
+              paddingBottom: bottomPadding,
+            },
         headerShown: false,
         lazy: true,
         freezeOnBlur: true,
-      }}
-    >
+      }}>
       <Tabs.Screen
         name="easyuse"
         options={{

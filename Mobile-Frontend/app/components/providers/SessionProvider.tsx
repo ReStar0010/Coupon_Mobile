@@ -97,13 +97,10 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Subscribe to SESSION_REFRESHED events to keep state in sync
     // This is emitted when tokens are stored (login) or refreshed
-    const unsubscribe = authEvents.subscribe(
-      AUTH_EVENT_TYPES.SESSION_REFRESHED,
-      () => {
-        devDebug('Session refreshed event received, updating auth state');
-        checkAuth();
-      }
-    );
+    const unsubscribe = authEvents.subscribe(AUTH_EVENT_TYPES.SESSION_REFRESHED, () => {
+      devDebug('Session refreshed event received, updating auth state');
+      checkAuth();
+    });
 
     // Cleanup subscription on unmount
     return () => {

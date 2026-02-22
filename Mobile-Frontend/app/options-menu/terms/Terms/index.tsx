@@ -4,7 +4,6 @@ import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
 const Terms: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();

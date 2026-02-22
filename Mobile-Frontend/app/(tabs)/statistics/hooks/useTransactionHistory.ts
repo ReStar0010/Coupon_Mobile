@@ -41,14 +41,17 @@ export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 
       setIsLoading(false);
     } catch (err) {
       // Check if it's an authentication error
-      if (err instanceof AuthenticationError || (axios.isAxiosError(err) && err.response?.status === 401)) {
+      if (
+        err instanceof AuthenticationError ||
+        (axios.isAxiosError(err) && err.response?.status === 401)
+      ) {
         console.error('Authentication error fetching transaction history, redirecting to login');
         // Redirect to login immediately
         router.replace('/(auth)/login');
         setIsLoading(false);
         return;
       }
-      
+
       console.error('Error fetching transaction history:', err);
       setError('Failed to load transaction history');
       setIsLoading(false);

@@ -12,10 +12,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  checkReportStatus,
-  ReportContentType,
-} from '../services/contentReportAPI';
+import { checkReportStatus, ReportContentType } from '../services/contentReportAPI';
 import ReportModal from './ReportModal';
 
 interface ReportButtonProps {
@@ -157,9 +154,7 @@ const ReportButton: React.FC<ReportButtonProps> = ({
           color={hasReported ? '#999' : '#D97706'}
         />
         {variant !== 'icon-only' && (
-          <Text style={getTextStyle()}>
-            {hasReported ? '已檢舉' : '檢舉'}
-          </Text>
+          <Text style={getTextStyle()}>{hasReported ? '已檢舉' : '檢舉'}</Text>
         )}
       </TouchableOpacity>
 

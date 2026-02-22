@@ -12,10 +12,7 @@ interface UseCouponsReturn {
   fetchCoupons: () => Promise<void>;
 }
 
-export function useCoupons(
-  isAuthenticated: boolean,
-  authLoading: boolean
-): UseCouponsReturn {
+export function useCoupons(isAuthenticated: boolean, authLoading: boolean): UseCouponsReturn {
   const [coupons, setCoupons] = useState<CouponType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

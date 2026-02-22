@@ -55,32 +55,17 @@ export const EmailVerifyContainer: React.FC<EmailVerifyContainerProps> = ({
       <RNView style={styles.card}>
         <RNView style={styles.content}>
           {!token ? (
-            <Text
-              style={{ textAlign: 'center' }}
-              fontSize={16}
-              fontWeight="500"
-              color="#dc2626"
-            >
+            <Text style={{ textAlign: 'center' }} fontSize={16} fontWeight="500" color="#dc2626">
               驗證連結錯誤，缺少驗證碼。
             </Text>
           ) : error ? (
-            <Text
-              style={{ textAlign: 'center' }}
-              fontSize={16}
-              fontWeight="500"
-              color="#dc2626"
-            >
+            <Text style={{ textAlign: 'center' }} fontSize={16} fontWeight="500" color="#dc2626">
               {error}
             </Text>
           ) : message ? (
             <RNView style={styles.messageContainer}>
               <ActivityIndicator size="large" color="#22c55e" style={{ marginBottom: 16 }} />
-              <Text
-                style={{ textAlign: 'center' }}
-                fontSize={16}
-                fontWeight="500"
-                color="#15803d"
-              >
+              <Text style={{ textAlign: 'center' }} fontSize={16} fontWeight="500" color="#15803d">
                 {message}
               </Text>
             </RNView>

@@ -22,10 +22,12 @@ export default function AuthRedirectHandler() {
 
     // Get current route path from segments
     const currentPath = '/' + segments.join('/');
-    
+
     // Don't redirect if already on login page or index page
     const publicRoutes = ['/Login', '/', '/index'];
-    const isPublicRoute = publicRoutes.some(route => currentPath === route || currentPath.startsWith(route));
+    const isPublicRoute = publicRoutes.some(
+      (route) => currentPath === route || currentPath.startsWith(route)
+    );
 
     if (isPublicRoute) {
       return;

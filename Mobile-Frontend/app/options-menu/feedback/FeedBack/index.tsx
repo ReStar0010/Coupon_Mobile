@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
 import { Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { View, Text, H4, H5, XStack, YStack, Tabs, Separator, TextArea, Button, ScrollView } from 'tamagui';
+import {
+  View,
+  Text,
+  H4,
+  H5,
+  XStack,
+  YStack,
+  Tabs,
+  Separator,
+  TextArea,
+  Button,
+  ScrollView,
+} from 'tamagui';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft, Bug, Lightbulb, Send } from 'lucide-react-native';
 
@@ -47,27 +59,26 @@ const FeedBack: React.FC = () => {
             </XStack>
 
             {/* Tab Group */}
-            <Tabs defaultValue="bug" onValueChange={setActiveTab} flex={1} orientation='horizontal' flexDirection='column'>
-              <Tabs.List backgroundColor="$background" disablePassBorderRadius='bottom'>
+            <Tabs
+              defaultValue="bug"
+              onValueChange={setActiveTab}
+              flex={1}
+              orientation="horizontal"
+              flexDirection="column">
+              <Tabs.List backgroundColor="$background" disablePassBorderRadius="bottom">
                 <Tabs.Tab
                   value="bug"
                   flex={1}
                   bordered
-                  borderColor='#e1e1e1'
-                  focusStyle={{ bg: '#ffad31' }}
-                >
+                  borderColor="#e1e1e1"
+                  focusStyle={{ bg: '#ffad31' }}>
                   <XStack gap="$2" items="center">
                     <Bug size={18} />
                     <Text>Bug 回報</Text>
                   </XStack>
                 </Tabs.Tab>
 
-                <Tabs.Tab
-                  value="feature"
-                  flex={1}
-                  bordered
-                  borderColor='#e1e1e1'
-                >
+                <Tabs.Tab value="feature" flex={1} bordered borderColor="#e1e1e1">
                   <XStack gap="$2" items="center">
                     <Lightbulb size={18} />
                     <Text>功能建議</Text>
@@ -78,7 +89,6 @@ const FeedBack: React.FC = () => {
               {/* Bug Report Tab Content */}
               <Tabs.Content value="bug" flex={1}>
                 <YStack flex={1} gap="$4">
-
                   <TextArea
                     placeholder="發生了什麼事 ? 越詳盡越好 !"
                     value={bugReport}
@@ -99,17 +109,15 @@ const FeedBack: React.FC = () => {
                     onPress={handleSubmit}
                     disabled={!bugReport.trim()}
                     opacity={bugReport.trim() ? 1 : 0.5}
-                    iconAfter={Send}
-                  >
+                    iconAfter={Send}>
                     提交
                   </Button>
                 </YStack>
               </Tabs.Content>
 
               {/* Feature Request Tab Content */}
-              <Tabs.Content value="feature" flex={1} >
+              <Tabs.Content value="feature" flex={1}>
                 <YStack flex={1} gap="$4">
-
                   <TextArea
                     placeholder="告訴我們可以怎麼樣讓 CouPro 更好 !"
                     value={featureRequest}
@@ -130,12 +138,10 @@ const FeedBack: React.FC = () => {
                     onPress={handleSubmit}
                     disabled={!featureRequest.trim()}
                     opacity={featureRequest.trim() ? 1 : 0.5}
-                    iconAfter={Send}
-                  >
+                    iconAfter={Send}>
                     提交
                   </Button>
                 </YStack>
-
               </Tabs.Content>
             </Tabs>
           </View>

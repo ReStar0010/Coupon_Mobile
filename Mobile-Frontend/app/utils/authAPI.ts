@@ -78,13 +78,13 @@ const processQueue = async (success: boolean): Promise<void> => {
   if (success) {
     // Get the new access token
     const newAccessToken = getAccessToken();
-    
+
     // Retry all queued requests with the new token
     const queue = [...requestQueue];
     requestQueue = [];
-    
+
     devLog(`Processing ${queue.length} queued requests after successful token refresh`);
-    
+
     for (const queuedRequest of queue) {
       try {
         const retryOptions = {
@@ -94,7 +94,7 @@ const processQueue = async (success: boolean): Promise<void> => {
             Authorization: `Bearer ${newAccessToken}`,
           },
         };
-        
+
         const retryResponse = await axios(`${API_BASE_URL}${queuedRequest.endpoint}`, retryOptions);
         queuedRequest.resolve(retryResponse);
       } catch (retryError) {
@@ -114,10 +114,10 @@ const processQueue = async (success: boolean): Promise<void> => {
     // Token refresh failed - reject all queued requests silently
     // Don't throw authentication errors to avoid showing them in UI
     devLog(`Rejecting ${requestQueue.length} queued requests due to token refresh failure`);
-    
+
     const queue = [...requestQueue];
     requestQueue = [];
-    
+
     for (const queuedRequest of queue) {
       // Create a generic error without authentication details
       const genericError = new Error('Request failed');
@@ -200,10 +200,10 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     if (!success) {
       devLog('Token refresh failed - clearing tokens');
       await clearTokens();
-      
+
       // Process queue before emitting auth failure (will reject all requests silently)
       await processQueue(false);
-      
+
       authEvents.emit({
         type: AUTH_EVENT_TYPES.AUTH_FAILURE,
         reason: 'refresh_failed',
@@ -220,10 +220,10 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     if (newAccessToken) {
       await storeTokens(newAccessToken, newRefreshToken);
       devLog('Token refresh successful');
-      
+
       // Process queue after storing new tokens (will retry all requests)
       await processQueue(true);
-      
+
       authEvents.emit({ type: AUTH_EVENT_TYPES.SESSION_REFRESHED });
       return true;
     }
@@ -237,10 +237,10 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     console.error('Token refresh error:', error);
     isRefreshing = false;
     onRefreshComplete(false);
-    
+
     // Process queue before emitting auth failure
     await processQueue(false);
-    
+
     authEvents.emit({
       type: AUTH_EVENT_TYPES.AUTH_FAILURE,
       reason: 'refresh_error',
@@ -365,7 +365,8 @@ export const fetchAPI = async (
       if (axios.isAxiosError(error)) {
         // For Axios errors, keep the original error to preserve response data
         const errorData = error.response?.data || {};
-        const errorMessage = errorData.error || errorData.message || `API request failed: ${error.response?.status}`;
+        const errorMessage =
+          errorData.error || errorData.message || `API request failed: ${error.response?.status}`;
         console.error('API request error:', new Error(errorMessage));
         throw error; // Throw original Axios error to preserve response info
       } else {
@@ -584,7 +585,10 @@ export const qrClaimAPI = {
    * @param sessionToken Session token from QR code
    * @returns Claim response
    */
-  claimCouponViaQR: async (templateId: number, sessionToken: string): Promise<{
+  claimCouponViaQR: async (
+    templateId: number,
+    sessionToken: string
+  ): Promise<{
     message: string;
     coupon_id: number;
     coupon_name: string;
@@ -612,8 +616,11 @@ export const qrClaimAPI = {
         lastError = error;
         const status = error?.response?.status;
         if (status >= 400 && status < 500) throw error;
-        if (attempt < maxRetries && (status >= 500 || status === 502 || status === 503 || status === 504 || !status)) {
-          await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+        if (
+          attempt < maxRetries &&
+          (status >= 500 || status === 502 || status === 503 || status === 504 || !status)
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
           continue;
         }
         throw error;
@@ -623,7 +630,9 @@ export const qrClaimAPI = {
   },
 
   /** Claim by single token (deep link). Backend resolves claim_token to session/template. */
-  claimCouponByToken: async (claimToken: string): Promise<{
+  claimCouponByToken: async (
+    claimToken: string
+  ): Promise<{
     message: string;
     coupon_id: number;
     coupon_name: string;

@@ -41,99 +41,110 @@ export default function QRClaimScanner() {
     }
   }, [permission, requestPermission]);
 
-  const handleBarCodeScanned = useCallback(async ({ type, data }: BarcodeScanningResult) => {
-    // Check if already processing a claim - use ref for immediate check without state delay
-    if (isProcessingRef.current || !isScanning || isDisabled || isLoading) {
-      return;
-    }
-    
-    // T030: Duplicate-scan prevention - prevent processing same QR code multiple times within 2 seconds
-    const now = Date.now();
-    if (now - lastScannedTime < 2000) {
-      return;
-    }
-    
-    // Immediately set processing flag to prevent any concurrent calls
-    isProcessingRef.current = true;
-    setLastScannedTime(now);
-    
-    setIsScanning(false);
-    setIsDisabled(true);
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // T032: Parse QR code JSON
-      let qrData: { template_id?: number; session_token?: string };
+  const handleBarCodeScanned = useCallback(
+    async ({ type, data }: BarcodeScanningResult) => {
+      // Check if already processing a claim - use ref for immediate check without state delay
+      if (isProcessingRef.current || !isScanning || isDisabled || isLoading) {
+        return;
+      }
+
+      // T030: Duplicate-scan prevention - prevent processing same QR code multiple times within 2 seconds
+      const now = Date.now();
+      if (now - lastScannedTime < 2000) {
+        return;
+      }
+
+      // Immediately set processing flag to prevent any concurrent calls
+      isProcessingRef.current = true;
+      setLastScannedTime(now);
+
+      setIsScanning(false);
+      setIsDisabled(true);
+      setIsLoading(true);
+      setError(null);
+
       try {
-        qrData = JSON.parse(data);
-      } catch (parseError) {
-        setError('無效的 QR Code 格式，請掃描正確的優惠券 QR Code');
-        setIsLoading(false);
-        setIsDisabled(false);
-        return;
-      }
-      
-      // T032: Validate required fields
-      if (!qrData.template_id || !qrData.session_token) {
-        setError('QR Code 缺少必要資訊');
-        setIsLoading(false);
-        setIsDisabled(false);
-        return;
-      }
-      
-      // Validate types
-      if (typeof qrData.template_id !== 'number' || typeof qrData.session_token !== 'string' || qrData.session_token.trim() === '') {
-        setError('QR Code 缺少必要資訊');
-        setIsLoading(false);
-        setIsDisabled(false);
-        return;
-      }
-      
-      // T033: Call claim API with retry logic
-      const result = await qrClaimAPI.claimCouponViaQR(qrData.template_id, qrData.session_token);
-      
-      // T034: Show success message and navigate back
-      Alert.alert(
-        '獲得優惠券',
-        `成功領取優惠券：${result.coupon_name}`,
-        [
-          {
-            text: '確定',
-            onPress: () => {
-              router.back();
+        // T032: Parse QR code JSON
+        let qrData: { template_id?: number; session_token?: string };
+        try {
+          qrData = JSON.parse(data);
+        } catch (parseError) {
+          setError('無效的 QR Code 格式，請掃描正確的優惠券 QR Code');
+          setIsLoading(false);
+          setIsDisabled(false);
+          return;
+        }
+
+        // T032: Validate required fields
+        if (!qrData.template_id || !qrData.session_token) {
+          setError('QR Code 缺少必要資訊');
+          setIsLoading(false);
+          setIsDisabled(false);
+          return;
+        }
+
+        // Validate types
+        if (
+          typeof qrData.template_id !== 'number' ||
+          typeof qrData.session_token !== 'string' ||
+          qrData.session_token.trim() === ''
+        ) {
+          setError('QR Code 缺少必要資訊');
+          setIsLoading(false);
+          setIsDisabled(false);
+          return;
+        }
+
+        // T033: Call claim API with retry logic
+        const result = await qrClaimAPI.claimCouponViaQR(qrData.template_id, qrData.session_token);
+
+        // T034: Show success message and navigate back
+        Alert.alert(
+          '獲得優惠券',
+          `成功領取優惠券：${result.coupon_name}`,
+          [
+            {
+              text: '確定',
+              onPress: () => {
+                router.back();
+              },
             },
-          },
-        ],
-        { cancelable: false }
-      );
-    } catch (err: any) {
-      console.error('QR claim error:', err);
-      
-      // T035: Handle specific error messages
-      const errorMessage = err?.response?.data?.error || err?.message || '領取失敗';
-      let displayMessage = errorMessage;
-      
-      if (errorMessage.includes('expired') || errorMessage.includes('過期') || errorMessage.includes('invalid')) {
-        displayMessage = 'QR Code 已過期，請商家重新生成';
-      } else if (errorMessage.includes('out of stock') || errorMessage.includes('已領取完畢')) {
-        displayMessage = '優惠券已領取完畢';
-      } else if (errorMessage.includes('expired template') || errorMessage.includes('已過期')) {
-        displayMessage = '優惠券已過期';
-      } else if (errorMessage.includes('network') || errorMessage.includes('連線')) {
-        displayMessage = '無法連線，請檢查網路後重試';
-      } else if (errorMessage.includes('retry') || errorMessage.includes('重試')) {
-        displayMessage = '網路連線失敗，正在重試...';
+          ],
+          { cancelable: false }
+        );
+      } catch (err: any) {
+        console.error('QR claim error:', err);
+
+        // T035: Handle specific error messages
+        const errorMessage = err?.response?.data?.error || err?.message || '領取失敗';
+        let displayMessage = errorMessage;
+
+        if (
+          errorMessage.includes('expired') ||
+          errorMessage.includes('過期') ||
+          errorMessage.includes('invalid')
+        ) {
+          displayMessage = 'QR Code 已過期，請商家重新生成';
+        } else if (errorMessage.includes('out of stock') || errorMessage.includes('已領取完畢')) {
+          displayMessage = '優惠券已領取完畢';
+        } else if (errorMessage.includes('expired template') || errorMessage.includes('已過期')) {
+          displayMessage = '優惠券已過期';
+        } else if (errorMessage.includes('network') || errorMessage.includes('連線')) {
+          displayMessage = '無法連線，請檢查網路後重試';
+        } else if (errorMessage.includes('retry') || errorMessage.includes('重試')) {
+          displayMessage = '網路連線失敗，正在重試...';
+        }
+
+        setError(displayMessage);
+        setIsDisabled(false);
+      } finally {
+        setIsLoading(false);
+        // Reset processing flag after request completes (success or error)
+        isProcessingRef.current = false;
       }
-      
-      setError(displayMessage);
-      setIsDisabled(false);
-    } finally {
-      setIsLoading(false);
-      // Reset processing flag after request completes (success or error)
-      isProcessingRef.current = false;
-    }
-  }, [isScanning, isDisabled, isLoading, lastScannedTime, router]);
+    },
+    [isScanning, isDisabled, isLoading, lastScannedTime, router]
+  );
 
   const handleGoBack = useCallback(() => {
     router.back();
@@ -148,18 +159,17 @@ export default function QRClaimScanner() {
   }, [requestPermission]);
 
   const handleOpenSettings = useCallback(() => {
-    Alert.alert(
-      '需要相機權限',
-      '請在設定中開啟相機權限以使用 QR Code 掃描功能',
-      [
-        { text: '取消', style: 'cancel' },
-        { text: '前往設定', onPress: () => {
+    Alert.alert('需要相機權限', '請在設定中開啟相機權限以使用 QR Code 掃描功能', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '前往設定',
+        onPress: () => {
           // On iOS, this will open Settings app
           // On Android, you might need to use Linking.openSettings()
           // For now, just show the alert
-        }},
-      ]
-    );
+        },
+      },
+    ]);
   }, []);
 
   if (!permission) {
@@ -181,7 +191,7 @@ export default function QRClaimScanner() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>掃描 QR Code 領取優惠券</Text>
         </View>
-        
+
         <View style={styles.permissionContainer}>
           <Text style={styles.permissionText}>
             需要相機權限才能掃描 QR Code，請在設定中開啟相機權限
@@ -219,14 +229,14 @@ export default function QRClaimScanner() {
             barcodeTypes: ['qr'],
           }}
         />
-        
+
         {isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#fff" />
             <Text style={styles.loadingText}>處理中...</Text>
           </View>
         )}
-        
+
         {error && (
           <View style={styles.errorOverlay}>
             <Text style={styles.errorText}>{error}</Text>
@@ -237,8 +247,7 @@ export default function QRClaimScanner() {
                 setIsScanning(true);
                 isProcessingRef.current = false; // Reset processing flag on retry
               }}
-              style={styles.retryButton}
-            >
+              style={styles.retryButton}>
               <Text style={styles.retryButtonText}>重試</Text>
             </TouchableOpacity>
           </View>
@@ -246,9 +255,7 @@ export default function QRClaimScanner() {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          將 QR Code 對準掃描框
-        </Text>
+        <Text style={styles.footerText}>將 QR Code 對準掃描框</Text>
       </View>
     </SafeAreaView>
   );

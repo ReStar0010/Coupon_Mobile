@@ -55,8 +55,7 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(
           shadowOpacity: 0.15,
           shadowRadius: 12,
           elevation: 8,
-        }}
-      >
+        }}>
         <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <XStack gap={13} style={{ alignItems: 'center' }}>
             <LogoIcon />
@@ -81,8 +80,7 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(
               paddingHorizontal: 12,
               paddingVertical: 10,
               alignItems: 'center',
-            }}
-          >
+            }}>
             <Search color="#a8a8a8" size={20} />
             <Input
               value={searchQuery}

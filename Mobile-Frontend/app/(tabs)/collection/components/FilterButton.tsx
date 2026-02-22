@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  TouchableOpacity,
-  View,
-  Text,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
+import { TouchableOpacity, View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { COLORS } from '@/app/constants/theme';
 
@@ -29,14 +23,10 @@ export function FilterButton({ label, selectedValue, onPress }: FilterButtonProp
       <View style={containerStyle}>
         <Text
           style={[styles.label, isSelected ? styles.labelSelected : styles.labelDefault]}
-          numberOfLines={1}
-        >
+          numberOfLines={1}>
           {displayText}
         </Text>
-        <ChevronDown
-          size={16}
-          color={isSelected ? COLORS.white : COLORS.text.secondary}
-        />
+        <ChevronDown size={16} color={isSelected ? COLORS.white : COLORS.text.secondary} />
       </View>
     </TouchableOpacity>
   );

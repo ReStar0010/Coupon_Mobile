@@ -10,12 +10,12 @@ interface ToastProps {
   type?: 'success' | 'error';
 }
 
-const Toast: React.FC<ToastProps> = ({ 
-  visible, 
-  message, 
-  onHide, 
+const Toast: React.FC<ToastProps> = ({
+  visible,
+  message,
+  onHide,
   duration = 3000,
-  type = 'error'
+  type = 'error',
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(50)).current;
@@ -68,22 +68,22 @@ const Toast: React.FC<ToastProps> = ({
     return null;
   }
 
-  const backgroundColor = type === 'error' 
-    ? 'rgba(239, 68, 68, 0.9)' // Red for errors
-    : 'rgba(76, 195, 138, 0.8)'; // Green for success
+  const backgroundColor =
+    type === 'error'
+      ? 'rgba(239, 68, 68, 0.9)' // Red for errors
+      : 'rgba(76, 195, 138, 0.8)'; // Green for success
 
   return (
-    <YStack 
-      style={{ 
-        position: 'absolute', 
-        bottom: 100, 
-        left: 0, 
+    <YStack
+      style={{
+        position: 'absolute',
+        bottom: 100,
+        left: 0,
         right: 0,
-        zIndex: 1000
-      }} 
-      items="center" 
-      px="$5"
-    >
+        zIndex: 1000,
+      }}
+      items="center"
+      px="$5">
       <Animated.View
         style={{
           borderRadius: 12,
@@ -98,14 +98,8 @@ const Toast: React.FC<ToastProps> = ({
           shadowOpacity: 0.25,
           shadowRadius: 4,
           elevation: 5,
-        }}
-      >
-        <Text 
-          style={{ textAlign: 'center' }} 
-          fontSize={14} 
-          fontWeight="500" 
-          color="white"
-        >
+        }}>
+        <Text style={{ textAlign: 'center' }} fontSize={14} fontWeight="500" color="white">
           {message}
         </Text>
       </Animated.View>

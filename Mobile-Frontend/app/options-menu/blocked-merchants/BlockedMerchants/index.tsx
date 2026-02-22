@@ -24,34 +24,30 @@ export default function BlockedMerchantsScreen() {
   };
 
   const handleUnblock = (storeId: number, storeName: string) => {
-    Alert.alert(
-      '解除封鎖',
-      `確定要解除封鎖「${storeName}」嗎？`,
-      [
-        {
-          text: '取消',
-          style: 'cancel',
-        },
-        {
-          text: '確定',
-          onPress: async () => {
-            setUnblocking(storeId);
-            try {
-              const success = await unblockStore(storeId);
-              if (success) {
-                Alert.alert('成功', '已解除封鎖');
-              } else {
-                Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
-              }
-            } catch (error) {
+    Alert.alert('解除封鎖', `確定要解除封鎖「${storeName}」嗎？`, [
+      {
+        text: '取消',
+        style: 'cancel',
+      },
+      {
+        text: '確定',
+        onPress: async () => {
+          setUnblocking(storeId);
+          try {
+            const success = await unblockStore(storeId);
+            if (success) {
+              Alert.alert('成功', '已解除封鎖');
+            } else {
               Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
-            } finally {
-              setUnblocking(null);
             }
-          },
+          } catch (error) {
+            Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
+          } finally {
+            setUnblocking(null);
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   return (
@@ -62,10 +58,7 @@ export default function BlockedMerchantsScreen() {
         px="$4"
         py="$6"
         style={{ paddingTop: insets.top + 10 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Header with back button and title */}
         <XStack gap="$3" items="center">
           <ChevronLeft size={24} onPress={() => router.back()} color={'black'} />
@@ -97,40 +90,35 @@ export default function BlockedMerchantsScreen() {
             blockedMerchants
               .filter((blocked) => !!blocked?.store && typeof blocked.store.id === 'number')
               .map((blocked) => (
-              <Card
-                key={String(blocked.id ?? blocked.store.id)}
-                padding="$3"
-                backgroundColor="$background"
-              >
-                <XStack justify="space-between" items="center" gap="$3">
-                  <YStack flex={1}>
-                    <Text fontSize="$5" fontWeight="600">
-                      {blocked.store?.name ?? '未知商家'}
-                    </Text>
-                    <Text fontSize="$2" color="$gray10" mt="$1">
-                      封鎖於 {new Date(blocked.created_at).toLocaleDateString('zh-TW')}
-                    </Text>
-                  </YStack>
-                  <Button
-                    size="$3"
-                    theme="blue"
-                    onPress={() =>
-                      handleUnblock(
-                        blocked.store.id,
-                        blocked.store?.name ?? '未知商家'
-                      )
-                    }
-                    disabled={unblocking === blocked.store.id}
-                  >
-                    {unblocking === blocked.store.id ? (
-                      <Spinner size="small" color="$white" />
-                    ) : (
-                      '解除封鎖'
-                    )}
-                  </Button>
-                </XStack>
-              </Card>
-            ))
+                <Card
+                  key={String(blocked.id ?? blocked.store.id)}
+                  padding="$3"
+                  backgroundColor="$background">
+                  <XStack justify="space-between" items="center" gap="$3">
+                    <YStack flex={1}>
+                      <Text fontSize="$5" fontWeight="600">
+                        {blocked.store?.name ?? '未知商家'}
+                      </Text>
+                      <Text fontSize="$2" color="$gray10" mt="$1">
+                        封鎖於 {new Date(blocked.created_at).toLocaleDateString('zh-TW')}
+                      </Text>
+                    </YStack>
+                    <Button
+                      size="$3"
+                      theme="blue"
+                      onPress={() =>
+                        handleUnblock(blocked.store.id, blocked.store?.name ?? '未知商家')
+                      }
+                      disabled={unblocking === blocked.store.id}>
+                      {unblocking === blocked.store.id ? (
+                        <Spinner size="small" color="$white" />
+                      ) : (
+                        '解除封鎖'
+                      )}
+                    </Button>
+                  </XStack>
+                </Card>
+              ))
           )}
         </YStack>
       </ScrollView>

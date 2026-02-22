@@ -6,11 +6,7 @@ import { devDebug, devLog, devError } from '@/app/utils/devLogger';
 import { fetchAPI, storeLoginData } from '@/app/utils/authAPI';
 import { verifyRegistrationOtp, verifyPasswordResetOtp } from '@/app/services/phoneOtpAPI';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
-import {
-  VerifyFormContainer,
-  EmailVerifyContainer,
-  AUTH_COLORS,
-} from './_components';
+import { VerifyFormContainer, EmailVerifyContainer, AUTH_COLORS } from './_components';
 
 type VerifyMode = 'register' | 'forgotPassword' | 'emailVerify';
 
@@ -204,7 +200,8 @@ export default function VerifyPage() {
   }
 
   // Render OTP verification UI
-  const handleVerify = mode === 'register' ? handleVerifyRegistrationOTP : handleVerifyPasswordResetOTP;
+  const handleVerify =
+    mode === 'register' ? handleVerifyRegistrationOTP : handleVerifyPasswordResetOTP;
 
   return (
     <SafeAreaView style={styles.safeArea}>

@@ -22,21 +22,9 @@ export function FilterBar({
 }: FilterBarProps) {
   return (
     <View style={styles.bar}>
-      <FilterButton
-        label="分類"
-        selectedValue={tagFilterLabel}
-        onPress={onTagPress}
-      />
-      <FilterButton
-        label="有效期"
-        selectedValue={expiryFilterLabel}
-        onPress={onExpiryPress}
-      />
-      <FilterButton
-        label="商家"
-        selectedValue={merchantFilterLabel}
-        onPress={onMerchantPress}
-      />
+      <FilterButton label="分類" selectedValue={tagFilterLabel} onPress={onTagPress} />
+      <FilterButton label="有效期" selectedValue={expiryFilterLabel} onPress={onExpiryPress} />
+      <FilterButton label="商家" selectedValue={merchantFilterLabel} onPress={onMerchantPress} />
     </View>
   );
 }

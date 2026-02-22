@@ -13,7 +13,7 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
   }
 
   // Only show pending shares (ones still in the public pool)
-  const pendingShares = shares.filter(s => s.status === 'pending');
+  const pendingShares = shares.filter((s) => s.status === 'pending');
 
   if (pendingShares.length === 0) {
     return null;
@@ -38,12 +38,13 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
           shadowOffset={{ width: 0, height: 2 }}
           shadowOpacity={0.08}
           elevation={3}
-          height="auto"
-        >
+          height="auto">
           <XStack gap={12} alignItems="center">
             <Image
               source={{
-                uri: share.image_url || 'https://api.iconify.design/mdi:gift-outline.svg?color=%23ffad31',
+                uri:
+                  share.image_url ||
+                  'https://api.iconify.design/mdi:gift-outline.svg?color=%23ffad31',
                 width: 48,
                 height: 48,
               }}
@@ -66,8 +67,7 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
                     borderRadius: 8,
                     paddingHorizontal: 8,
                     paddingVertical: 2,
-                  }}
-                >
+                  }}>
                   <Text fontSize={12} color="#D97706" fontWeight="500">
                     等待被領取
                   </Text>

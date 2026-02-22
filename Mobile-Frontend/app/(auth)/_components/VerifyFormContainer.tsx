@@ -44,12 +44,7 @@ export const VerifyFormContainer: React.FC<VerifyFormContainerProps> = ({
     <RNView style={styles.container}>
       <FormHeader title={getTitle()} />
 
-      <Text
-        fontSize={14}
-        color={AUTH_COLORS.textSecondary}
-        style={{ textAlign: 'center' }}
-        mb="$2"
-      >
+      <Text fontSize={14} color={AUTH_COLORS.textSecondary} style={{ textAlign: 'center' }} mb="$2">
         驗證碼已發送至 {phoneNumber}
       </Text>
 
@@ -95,8 +90,7 @@ export const VerifyFormContainer: React.FC<VerifyFormContainerProps> = ({
           pressStyle={{ bg: AUTH_COLORS.primaryPressed }}
           onPress={onVerify}
           disabled={isLoading}
-          opacity={isLoading ? 0.5 : 1}
-        >
+          opacity={isLoading ? 0.5 : 1}>
           {isLoading ? (
             <ActivityIndicator color={AUTH_COLORS.text} size="small" />
           ) : (

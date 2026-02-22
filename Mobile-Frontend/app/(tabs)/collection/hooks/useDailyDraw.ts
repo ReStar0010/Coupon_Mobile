@@ -77,14 +77,11 @@ export function useDailyDraw(
     }
   }, [showDailyDraw, isAuthenticated, fetchAvailableTemplates]);
 
-  const selectRandomTemplate = useCallback(
-    (templates: DrawTemplate[]): DrawTemplate | null => {
-      if (!templates || templates.length === 0) return null;
-      const randomIndex = Math.floor(Math.random() * templates.length);
-      return templates[randomIndex];
-    },
-    []
-  );
+  const selectRandomTemplate = useCallback((templates: DrawTemplate[]): DrawTemplate | null => {
+    if (!templates || templates.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * templates.length);
+    return templates[randomIndex];
+  }, []);
 
   const getErrorMessage = useCallback((err: unknown): string => {
     if (axios.isAxiosError(err)) {

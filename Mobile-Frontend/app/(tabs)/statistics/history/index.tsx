@@ -16,13 +16,10 @@ const HistoryPage: React.FC = () => {
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
 
   // Transaction history hook - fetch all history (no limit)
-  const { 
-    transactionHistory, 
-    isLoading, 
-    error,
-    formatDate,
-    refetch
-  } = useTransactionHistory(isAuthenticated, 0); // 0 means no limit
+  const { transactionHistory, isLoading, error, formatDate, refetch } = useTransactionHistory(
+    isAuthenticated,
+    0
+  ); // 0 means no limit
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -64,7 +61,9 @@ const HistoryPage: React.FC = () => {
     return (
       <View flex={1} bg="#f5f5f5" items="center" style={{ justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#FFAD31" />
-        <Text mt="$4" fontSize={16} color="#707070">載入中...</Text>
+        <Text mt="$4" fontSize={16} color="#707070">
+          載入中...
+        </Text>
       </View>
     );
   }
@@ -73,19 +72,14 @@ const HistoryPage: React.FC = () => {
     <View flex={1} bg="#f5f5f5">
       <Stack.Screen options={{ headerShown: false }} />
       {/* Header */}
-      <XStack 
-        items="center" 
+      <XStack
+        items="center"
         style={{ justifyContent: 'space-between' }}
-        px="$5" 
+        px="$5"
         pt={insets.top + 10}
-        pb="$4"
-      >
+        pb="$4">
         <XStack gap="$3" items="center">
-          <Button 
-            unstyled 
-            onPress={handleGoBack}
-            p="$0"
-          >
+          <Button unstyled onPress={handleGoBack} p="$0">
             <ChevronLeft size={24} color="#333333" />
           </Button>
           <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
@@ -95,9 +89,9 @@ const HistoryPage: React.FC = () => {
       </XStack>
 
       {/* Content */}
-      <ScrollView 
-        flex={1} 
-        px="$5" 
+      <ScrollView
+        flex={1}
+        px="$5"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -106,34 +100,26 @@ const HistoryPage: React.FC = () => {
             colors={['#FFAD31']}
             tintColor="#FFAD31"
           />
-        }
-      >
-        <YStack 
-          rounded="$2" 
-          style={{ borderWidth: 1, borderColor: 'white' }} 
-          bg="#f5f5f5"
-          mb="$8"
-        >
+        }>
+        <YStack rounded="$2" style={{ borderWidth: 1, borderColor: 'white' }} bg="#f5f5f5" mb="$8">
           {isLoading ? (
             <YStack p="$6" items="center">
               <ActivityIndicator size="large" color="#FFAD31" />
-              <Text mt="$4" fontSize={16} color="#707070">載入中...</Text>
+              <Text mt="$4" fontSize={16} color="#707070">
+                載入中...
+              </Text>
             </YStack>
           ) : error ? (
             <YStack p="$6" items="center">
               <Text fontSize={16} color="#ef4444" style={{ textAlign: 'center' }}>
                 載入失敗
               </Text>
-              <Text mt="$2" fontSize={14} color="#707070">請下拉重新整理</Text>
+              <Text mt="$2" fontSize={14} color="#707070">
+                請下拉重新整理
+              </Text>
             </YStack>
           ) : transactionHistory.length > 0 ? (
-            <YStack
-              bg="white"
-              rounded="$4"
-              overflow="hidden"
-              borderWidth={1}
-              borderColor="#e0e0e0"
-            >
+            <YStack bg="white" rounded="$4" overflow="hidden" borderWidth={1} borderColor="#e0e0e0">
               {transactionHistory.map((item, index) => (
                 <React.Fragment key={item.redemption_id}>
                   <ListItem
@@ -141,8 +127,7 @@ const HistoryPage: React.FC = () => {
                     hoverTheme
                     pressTheme
                     p="$3"
-                    onPress={() => handleHistoryItemClick(item.coupon_id, item)}
-                  >
+                    onPress={() => handleHistoryItemClick(item.coupon_id, item)}>
                     <ListItem.Text fontSize={13} color="#333333">
                       {item.store_name}
                     </ListItem.Text>

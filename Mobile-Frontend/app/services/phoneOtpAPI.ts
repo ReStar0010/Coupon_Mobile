@@ -166,14 +166,14 @@ export enum PhoneOTPErrorCode {
  */
 export function getErrorCode(errorMessage: string): PhoneOTPErrorCode {
   const errorMap: Record<string, PhoneOTPErrorCode> = {
-    '請輸入有效的台灣手機號碼': PhoneOTPErrorCode.INVALID_FORMAT,
-    '此電話號碼已被其他帳號使用': PhoneOTPErrorCode.PHONE_TAKEN,
-    '已超過每小時OTP請求次數限制': PhoneOTPErrorCode.RATE_LIMIT_HOURLY,
-    '請等待60秒後再重新發送驗證碼': PhoneOTPErrorCode.RATE_LIMIT_COOLDOWN,
-    '驗證碼錯誤': PhoneOTPErrorCode.INVALID_OTP,
-    '驗證碼已過期': PhoneOTPErrorCode.OTP_EXPIRED,
-    '驗證碼輸入錯誤次數過多': PhoneOTPErrorCode.MAX_ATTEMPTS,
-    '找不到待驗證的OTP': PhoneOTPErrorCode.NO_PENDING_OTP,
+    請輸入有效的台灣手機號碼: PhoneOTPErrorCode.INVALID_FORMAT,
+    此電話號碼已被其他帳號使用: PhoneOTPErrorCode.PHONE_TAKEN,
+    已超過每小時OTP請求次數限制: PhoneOTPErrorCode.RATE_LIMIT_HOURLY,
+    請等待60秒後再重新發送驗證碼: PhoneOTPErrorCode.RATE_LIMIT_COOLDOWN,
+    驗證碼錯誤: PhoneOTPErrorCode.INVALID_OTP,
+    驗證碼已過期: PhoneOTPErrorCode.OTP_EXPIRED,
+    驗證碼輸入錯誤次數過多: PhoneOTPErrorCode.MAX_ATTEMPTS,
+    找不到待驗證的OTP: PhoneOTPErrorCode.NO_PENDING_OTP,
     'SMS could not be sent': PhoneOTPErrorCode.SMS_FAILED,
   };
 
@@ -233,15 +233,12 @@ export interface OTPFlowContext {
  * @returns SendOTPResponse on success
  * @throws Error with ErrorResponse data on failure
  */
-export async function sendOtp(
-  phoneNumber: string
-): Promise<SendOTPResponse> {
+export async function sendOtp(phoneNumber: string): Promise<SendOTPResponse> {
   const normalized = normalizePhoneNumber(phoneNumber);
 
-  const response = await authAPI.post<SendOTPResponse | ErrorResponse>(
-    '/phone-otp/send/',
-    { phone_number: normalized }
-  );
+  const response = await authAPI.post<SendOTPResponse | ErrorResponse>('/phone-otp/send/', {
+    phone_number: normalized,
+  });
 
   if ('error' in response) {
     throw response;
@@ -257,16 +254,13 @@ export async function sendOtp(
  * @returns VerifyOTPResponse on success
  * @throws Error with ErrorResponse data on failure
  */
-export async function verifyOtp(
-  phoneNumber: string,
-  otpCode: string
-): Promise<VerifyOTPResponse> {
+export async function verifyOtp(phoneNumber: string, otpCode: string): Promise<VerifyOTPResponse> {
   const normalized = normalizePhoneNumber(phoneNumber);
 
-  const response = await authAPI.post<VerifyOTPResponse | ErrorResponse>(
-    '/phone-otp/verify/',
-    { phone_number: normalized, otp_code: otpCode }
-  );
+  const response = await authAPI.post<VerifyOTPResponse | ErrorResponse>('/phone-otp/verify/', {
+    phone_number: normalized,
+    otp_code: otpCode,
+  });
 
   if ('error' in response) {
     throw response;
@@ -383,10 +377,10 @@ export async function verifyRegistrationOtp(
 
   const response = await authAPI.post<RegistrationOTPVerifyResponse | ErrorResponse>(
     '/register/verify-otp/',
-    { 
-      phone_number: normalized, 
+    {
+      phone_number: normalized,
       otp_code: otpCode,
-      password: password
+      password: password,
     }
   );
 
@@ -485,10 +479,10 @@ export async function verifyPasswordResetOtp(
 
   const response = await authAPI.post<ForgotPasswordPhoneResetResponse | ErrorResponse>(
     '/forgot-password/phone/reset/',
-    { 
-      phone_number: normalized, 
+    {
+      phone_number: normalized,
       otp_code: otpCode,
-      new_password: newPassword
+      new_password: newPassword,
     }
   );
 
