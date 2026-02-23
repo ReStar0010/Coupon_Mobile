@@ -43,16 +43,28 @@ async function handleAppInitialization(onStatus?: (status: InitStatus) => void):
   }
 }
 
-/** Parse token from coupro:// custom scheme deep link. Returns { type, token } or null. */
-function parseCustomSchemeUrl(
+/**
+ * Parse deep link URL. Handles all formats:
+ * - Query:  coupro://collection?token=<t>  (from share sheet)
+ * - Path:   coupro://collection/<t>         (Smart App Banner, 2nd tap)
+ * - Path:   coupro:///collection/<t>        (Smart App Banner, 1st tap — empty authority)
+ * - HTTPS:  https://api.coupro.pro/collection/<t>  (Universal Link)
+ */
+function parseDeepLinkUrl(
   url: string | null,
 ): { type: 'claim' | 'collection'; token: string } | null {
   if (!url || typeof url !== 'string') return null;
   const s = url.trim();
-  const claimMatch = /^coupro:\/\/claim\?(?:.*&)?token=([^&]+)/i.exec(s);
-  if (claimMatch) return { type: 'claim', token: claimMatch[1] };
-  const collectionMatch = /^coupro:\/\/collection\?(?:.*&)?token=([^&]+)/i.exec(s);
-  if (collectionMatch) return { type: 'collection', token: collectionMatch[1] };
+  // Query-style: coupro://claim?token=<t> or coupro://collection?token=<t>
+  const claimQuery = /^coupro:\/\/claim\?(?:.*&)?token=([^&]+)/i.exec(s);
+  if (claimQuery) return { type: 'claim', token: claimQuery[1] };
+  const collectionQuery = /^coupro:\/\/collection\?(?:.*&)?token=([^&]+)/i.exec(s);
+  if (collectionQuery) return { type: 'collection', token: collectionQuery[1] };
+  // Path-style: covers coupro://, coupro:///, and https:// Universal Links
+  const claimPath = /\/claim\/([^/?]+)/i.exec(s);
+  if (claimPath) return { type: 'claim', token: claimPath[1] };
+  const collectionPath = /\/collection\/([^/?]+)/i.exec(s);
+  if (collectionPath) return { type: 'collection', token: collectionPath[1] };
   return null;
 }
 
@@ -69,16 +81,15 @@ if (__DEV__) {
 }
 
 /**
- * Handles coupro:// custom scheme deep links only.
- * Universal Links (https://api.coupro.pro/...) are handled by file-based routing
- * via app/collection/[token].tsx and app/claim/[token].tsx.
+ * Handles all deep link formats: coupro:// custom scheme, Smart App Banner
+ * path-style URLs, and https:// Universal Links.
  */
 function DeepLinkHandler() {
   const router = useRouter();
   const initialUrlHandled = useRef(false);
 
   const handleUrl = (url: string | null) => {
-    const parsed = parseCustomSchemeUrl(url);
+    const parsed = parseDeepLinkUrl(url);
     if (!parsed) return false;
     if (parsed.type === 'claim') {
       router.replace(`/(tabs)/easyuse/qr-claim?token=${encodeURIComponent(parsed.token)}`);
