@@ -47,7 +47,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.cokayne.MobileFrontend",
-      "associatedDomains": ["applinks:api.coupro.pro"],
+      "associatedDomains": ["applinks:api.coupro.pro", "applinks:app.coupro.pro"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0039_ugc_compliance_models'),
+        ('api', '0040_phoneotprecord_purpose_studentprofile_phone_verified_and_more'),
     ]
 
     operations = [
