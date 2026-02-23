@@ -1,8 +1,13 @@
 """
-Utility functions for phone number validation and formatting.
+Utility functions for phone number validation, formatting, and store timezone/currency.
 """
 import re
 import secrets
+from datetime import date
+from zoneinfo import ZoneInfo
+
+# Default timezone when store has none (e.g. Asia/Taipei per research.md)
+DEFAULT_STORE_TIMEZONE = "Asia/Taipei"
 
 # Taiwan mobile phone number format: 09XXXXXXXX (10 digits starting with 09)
 TAIWAN_MOBILE_REGEX = re.compile(r'^09\d{8}$')
@@ -57,4 +62,47 @@ def generate_unified_redemption_code() -> str:
         6-digit numeric string (e.g., "123456")
     """
     return ''.join(str(secrets.randbelow(10)) for _ in range(6))
+
+
+def get_store_today(store) -> date:
+    """
+    Return "today" as a date in the store's timezone.
+    Used for date-range validation (date_to <= today) and 今日成本.
+
+    Args:
+        store: Store model instance (with optional timezone field).
+
+    Returns:
+        Current calendar date in the store's timezone.
+    """
+    from django.utils import timezone as dj_timezone
+
+    tz_name = getattr(store, "timezone", None) or DEFAULT_STORE_TIMEZONE
+    try:
+        zone = ZoneInfo(tz_name)
+    except Exception:
+        zone = ZoneInfo(DEFAULT_STORE_TIMEZONE)
+    now = dj_timezone.now()
+    # Convert to store TZ and take date
+    if now.tzinfo is None:
+        from django.conf import settings
+        from datetime import datetime
+        default_tz = getattr(settings, "TIME_ZONE", DEFAULT_STORE_TIMEZONE)
+        now = now.replace(tzinfo=ZoneInfo(default_tz))
+    local_dt = now.astimezone(zone)
+    return local_dt.date()
+
+
+def get_store_currency_code(store) -> str | None:
+    """
+    Return the store's currency code for cost display (e.g. TWD, NT$).
+    When null, callers may show number only or use a system default.
+
+    Args:
+        store: Store model instance (with optional currency_code field).
+
+    Returns:
+        Currency code string or None.
+    """
+    return getattr(store, "currency_code", None) or None
 

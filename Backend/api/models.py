@@ -194,6 +194,10 @@ class Store(models.Model):
     store_type = models.CharField(max_length=20, choices=STORE_TYPE_CHOICES, blank=True, null=True)
     average_order_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Average order value in TWD for GMV calculation")
     unified_redeem_code = models.CharField(max_length=6, null=True, blank=True, unique=True, help_text="Unified redemption code for all coupons from this store (6-digit numeric format)")
+    # Optional: store timezone (IANA e.g. Asia/Taipei) for "today" and date-range boundaries
+    timezone = models.CharField(max_length=63, null=True, blank=True)
+    # Optional: currency for cost display (e.g. TWD, NT$)
+    currency_code = models.CharField(max_length=10, null=True, blank=True)
 
     def __str__(self):
         return self.name

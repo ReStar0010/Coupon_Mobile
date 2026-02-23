@@ -28,3 +28,5 @@ All commands below are run from this directory (Backend root). No real SMS or em
 - **App-level tests** (`Backend/api/tests/`): API app behavior tests. Run with `python manage.py test api`.
 
 Django discovers test modules matching `test_*.py` and test methods named `test_*`. For how to add a new test (location, naming, data setup, protected endpoints), see the quickstart at `specs/008-backend-test-coverage/quickstart.md`.
+
+**Contract tests (009):** Template analytics contract tests in `tests/contract/test_template_analytics.py` (date range params, date_range_cost). Merchant statistics contract tests in `tests/contract/test_merchant_statistics.py` (today_cost). Run with `python manage.py test tests.contract`.

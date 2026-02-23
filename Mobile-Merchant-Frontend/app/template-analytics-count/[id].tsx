@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { colors } from "@/constants/colors";
 import { Header } from "../(coupons)/components/Header";
 import { merchantAPI } from "@/utils/api";
@@ -50,9 +51,12 @@ interface AnalyticsData {
   stranger_acquisition_count?: number;
   circulation_count?: number;
   circulation_redemption_count?: number;
+  // 009 US2: Date-range cost (exclusive templates only)
+  date_range_cost?: number;
+  date_range_cost_currency?: string | null;
 }
 
-type TimeRange = 3 | 7 | 30 | 90;
+type TimeRange = 0 | 7 | 30 | 90;
 
 type MetricType =
   | "exposure_count"
@@ -109,15 +113,50 @@ export default function TemplateAnalyticsCountScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const templateId = params.id ? parseInt(params.id as string, 10) : null;
+  const dateFromParam = (params.date_from as string) || null;
+  const dateToParam = (params.date_to as string) || null;
 
   const [isLoading, setIsLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>(30);
+  const [timeRange, setTimeRange] = useState<TimeRange>(0);
+  const [dateFrom, setDateFrom] = useState<string | null>(dateFromParam);
+  const [dateTo, setDateTo] = useState<string | null>(dateToParam);
   const [error, setError] = useState<string | null>(null);
   const [selectedMetric, setSelectedMetric] =
     useState<MetricType>("exposure_count");
   const [templateName, setTemplateName] = useState<string>("");
   const [isStoreTemplate, setIsStoreTemplate] = useState<boolean>(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  const todayStr = (() => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const todayDate = new Date();
+  todayDate.setHours(12, 0, 0, 0);
+  const minSelectableDate = new Date(todayDate);
+  minSelectableDate.setDate(minSelectableDate.getDate() - 730);
+  const maxSelectableDate = new Date(todayDate);
+  const startPickerMinDate = minSelectableDate;
+  const startPickerMaxDate = maxSelectableDate;
+  const endPickerMinDate = dateFrom
+    ? new Date(dateFrom + "T12:00:00")
+    : minSelectableDate;
+  const endPickerMaxDate = maxSelectableDate;
+
+  const validateDateRange = (): string | null => {
+    if (!dateFrom || !dateTo) return null;
+    if (dateFrom > dateTo) return "結束日期不可早於開始日期";
+    if (dateTo > todayStr) return "結束日期不可超過今天";
+    const from = new Date(dateFrom);
+    const to = new Date(dateTo);
+    const days =
+      Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+    if (days > 730) return "區間不可超過 730 天（2 年）";
+    return null;
+  };
 
   const loadAnalytics = async () => {
     if (!templateId) {
@@ -125,25 +164,33 @@ export default function TemplateAnalyticsCountScreen() {
       setIsLoading(false);
       return;
     }
+    if (dateFrom && dateTo) {
+      const validationError = validateDateRange();
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+    }
 
     try {
       setIsLoading(true);
       setError(null);
 
-      // Load template name and check type
       try {
         const templateData = await merchantAPI.getTemplate(templateId);
         setTemplateName(templateData.coupon_name || "");
-        // Check if this is a store template (EasyUse - total_quantity == 0)
         setIsStoreTemplate(templateData.total_quantity === 0);
       } catch (err) {
         console.error("Failed to load template name:", err);
       }
 
-      const data = await merchantAPI.getTemplateAnalytics(
-        templateId,
-        timeRange,
-      );
+      const options =
+        dateFrom && dateTo
+          ? { date_from: dateFrom, date_to: dateTo }
+          : timeRange === 0
+            ? { date_from: todayStr, date_to: todayStr }
+            : { days: timeRange };
+      const data = await merchantAPI.getTemplateAnalytics(templateId, options);
       setAnalytics(data);
     } catch (err: any) {
       console.error("Failed to load analytics:", err);
@@ -325,6 +372,19 @@ export default function TemplateAnalyticsCountScreen() {
     };
   };
 
+  const formatDateDisplay = (isoDate: string | null) =>
+    isoDate ? isoDate.replace(/-/g, "/") : "";
+
+  const handleStartDateConfirm = (date: Date) => {
+    setDateFrom(date.toISOString().slice(0, 10));
+    setShowStartDatePicker(false);
+  };
+
+  const handleEndDateConfirm = (date: Date) => {
+    setDateTo(date.toISOString().slice(0, 10));
+    setShowEndDatePicker(false);
+  };
+
   const TimeRangeButton = ({
     days,
     label,
@@ -332,14 +392,18 @@ export default function TemplateAnalyticsCountScreen() {
     days: TimeRange;
     label: string;
   }) => {
-    const isSelected = timeRange === days;
+    const isSelected = !dateFrom && !dateTo && timeRange === days;
     return (
       <TouchableOpacity
         style={[
           styles.timeRangeButton,
           isSelected && styles.timeRangeButtonSelected,
         ]}
-        onPress={() => setTimeRange(days)}
+        onPress={() => {
+          setDateFrom(null);
+          setDateTo(null);
+          setTimeRange(days);
+        }}
       >
         <Text
           fontSize="$sm"
@@ -473,13 +537,94 @@ export default function TemplateAnalyticsCountScreen() {
                 </TouchableOpacity>
               </XStack>
 
-              {/* Time Range Selector */}
-              <XStack gap="$2" marginBottom="$4">
-                <TimeRangeButton days={3} label="近3天" />
-                <TimeRangeButton days={7} label="近7天" />
-                <TimeRangeButton days={30} label="近30天" />
-                <TimeRangeButton days={90} label="近90天" />
-              </XStack>
+              {/* Time Range Selector + Custom date */}
+              <>
+                <XStack gap="$2" marginBottom="$4" flexWrap="wrap">
+                    <TimeRangeButton days={0} label="今天" />
+                    <TimeRangeButton days={7} label="近7天" />
+                    <TimeRangeButton days={30} label="近30天" />
+                    <TimeRangeButton days={90} label="近90天" />
+                  </XStack>
+                  <XStack
+                    gap="$2"
+                    marginBottom="$4"
+                    alignItems="center"
+                    flexWrap="wrap"
+                  >
+                    <Text
+                      fontSize="$sm"
+                      color={colors.textSecondary}
+                      style={{ width: 44 }}
+                    >
+                      自訂
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.dateInput}
+                      onPress={() => setShowStartDatePicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        fontSize={14}
+                        color={
+                          dateFrom ? colors.textPrimary : colors.textSecondary
+                        }
+                        numberOfLines={1}
+                      >
+                        {dateFrom
+                          ? formatDateDisplay(dateFrom)
+                          : "開始日期"}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text fontSize="$sm" color={colors.textSecondary}>
+                      ～
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.dateInput}
+                      onPress={() => setShowEndDatePicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        fontSize={14}
+                        color={
+                          dateTo ? colors.textPrimary : colors.textSecondary
+                        }
+                        numberOfLines={1}
+                      >
+                        {dateTo ? formatDateDisplay(dateTo) : "結束日期"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.timeRangeButton,
+                        dateFrom && dateTo && styles.timeRangeButtonSelected,
+                      ]}
+                      onPress={loadAnalytics}
+                    >
+                      <Text
+                        fontSize="$sm"
+                        color={
+                          dateFrom && dateTo ? colors.white : colors.textPrimary
+                        }
+                      >
+                        查詢
+                      </Text>
+                    </TouchableOpacity>
+                  </XStack>
+              </>
+
+              {/* 此區間成本 (exclusive templates only, 009 US2) - hidden for now; will be adjusted in the future */}
+              {false && !isStoreTemplate && analytics.date_range_cost !== undefined && (
+                <View style={[styles.metricCard, { marginBottom: 12 }]}>
+                  <Text fontSize="$sm" color={colors.textSecondary} marginBottom="$2">
+                    此區間成本
+                  </Text>
+                  <Text fontSize={28} fontWeight="700" color={colors.textPrimary}>
+                    {analytics.date_range_cost_currency
+                      ? `${analytics.date_range_cost_currency} ${Number(analytics.date_range_cost).toLocaleString("zh-TW", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+                      : Number(analytics.date_range_cost).toLocaleString("zh-TW", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              )}
 
               {/* Metrics Grid */}
               <YStack gap="$3" marginBottom="$6">
@@ -589,7 +734,7 @@ export default function TemplateAnalyticsCountScreen() {
                   </XStack>
                   <XStack justifyContent="space-between">
                     <Text fontSize="$sm" color={colors.textSecondary}>
-                      近{timeRange}天平均
+                      {timeRange === 0 ? "今日" : `近${timeRange}天平均`}
                     </Text>
                     <Text
                       fontSize="$md"
@@ -610,6 +755,37 @@ export default function TemplateAnalyticsCountScreen() {
             </>
           ) : null}
         </ScrollView>
+
+        <DateTimePickerModal
+          isVisible={showStartDatePicker}
+          mode="date"
+          date={dateFrom ? new Date(dateFrom + "T12:00:00") : new Date()}
+          minimumDate={startPickerMinDate}
+          maximumDate={startPickerMaxDate}
+          onConfirm={handleStartDateConfirm}
+          onCancel={() => setShowStartDatePicker(false)}
+          locale="zh-TW"
+          confirmTextIOS="完成"
+          cancelTextIOS="取消"
+        />
+        <DateTimePickerModal
+          isVisible={showEndDatePicker}
+          mode="date"
+          date={
+            dateTo
+              ? new Date(dateTo + "T12:00:00")
+              : dateFrom
+                ? new Date(dateFrom + "T12:00:00")
+                : new Date()
+          }
+          minimumDate={endPickerMinDate}
+          maximumDate={endPickerMaxDate}
+          onConfirm={handleEndDateConfirm}
+          onCancel={() => setShowEndDatePicker(false)}
+          locale="zh-TW"
+          confirmTextIOS="完成"
+          cancelTextIOS="取消"
+        />
       </YStack>
     </SafeAreaView>
   );
@@ -648,6 +824,15 @@ const styles = StyleSheet.create({
   },
   timeRangeButtonSelected: {
     backgroundColor: colors.primary,
+  },
+  dateInput: {
+    minWidth: 120,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: "center",
   },
   sectionCard: {
     backgroundColor: colors.white,

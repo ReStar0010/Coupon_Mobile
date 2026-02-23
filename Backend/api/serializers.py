@@ -640,3 +640,32 @@ class ModerationStatsSerializer(serializers.Serializer):
     escalated_count = serializers.IntegerField(read_only=True)
     reviewed_today = serializers.IntegerField(read_only=True)
     avg_response_hours = serializers.FloatField(read_only=True, allow_null=True)
+
+
+# --- 009 Coupon Date-Range and Cost Analytics: response extensions ---
+
+
+class TemplateAnalyticsCostExtrasSerializer(serializers.Serializer):
+    """
+    Optional response fields for template analytics (exclusive templates only).
+    GET /api/merchant/coupon-templates/{id}/analytics/ — date_range_cost, date_range_cost_currency.
+    """
+    date_range_cost = serializers.DecimalField(
+        max_digits=14, decimal_places=2, min_value=0, required=False, allow_null=True
+    )
+    date_range_cost_currency = serializers.CharField(
+        max_length=10, required=False, allow_null=True, allow_blank=True
+    )
+
+
+class MerchantStatisticsCostExtrasSerializer(serializers.Serializer):
+    """
+    Response extensions for merchant statistics (今日成本).
+    GET /api/merchant/statistics/ — today_cost, today_cost_currency.
+    """
+    today_cost = serializers.DecimalField(
+        max_digits=14, decimal_places=2, min_value=0, required=True
+    )
+    today_cost_currency = serializers.CharField(
+        max_length=10, required=False, allow_null=True, allow_blank=True
+    )

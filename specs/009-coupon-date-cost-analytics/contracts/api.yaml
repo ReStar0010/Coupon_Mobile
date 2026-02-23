@@ -1,0 +1,173 @@
+openapi: 3.0.3
+info:
+  title: Date-Range and Cost Analytics API (009)
+  description: |
+    Extensions for template analytics (date range, date_range_cost) and merchant statistics (today_cost).
+    See spec 004 for base template analytics response (rates, counts, trends).
+  version: 1.0.0
+
+paths:
+  /api/merchant/coupon-templates/{id}/analytics/:
+    get:
+      summary: Get template analytics (with date range and cost)
+      description: |
+        Returns analytics for the template over the given date range.
+        When date_from and date_to are provided, they define the range (arbitrary calendar range).
+        When omitted, the existing days parameter (3, 7, 30, 90) may be used for backward compatibility.
+        For exclusive templates only, includes date_range_cost (此區間成本).
+      operationId: getTemplateAnalytics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Template ID
+          schema:
+            type: integer
+        - name: date_from
+          in: query
+          required: false
+          description: Start date (inclusive), ISO 8601 YYYY-MM-DD. Must be used with date_to.
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: date_to
+          in: query
+          required: false
+          description: End date (inclusive), ISO 8601 YYYY-MM-DD. Must be <= today (store TZ), range <= 730 days.
+          schema:
+            type: string
+            format: date
+            example: "2026-02-16"
+        - name: days
+          in: query
+          required: false
+          description: Backward compatibility - time range in days (3, 7, 30, or 90). Ignored if date_from and date_to both provided.
+          schema:
+            type: integer
+            enum: [3, 7, 30, 90]
+            default: 30
+      security:
+        - TokenAuth: []
+      responses:
+        '200':
+          description: Analytics data for the date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateAnalyticsResponse009'
+        '400':
+          description: Invalid date range (e.g. future end date, range > 730 days, date_to < date_from)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: User is not a merchant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Template not found or no permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/merchant/statistics/:
+    get:
+      summary: Get merchant statistics (with today's cost)
+      description: |
+        Returns merchant stats including 今日成本 (today_cost): total discount given today
+        in the store's timezone across all the merchant's coupons.
+      operationId: getMerchantStatistics
+      security:
+        - TokenAuth: []
+      responses:
+        '200':
+          description: Merchant statistics including today_cost
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantStatisticsResponse009'
+        '403':
+          description: User is not a merchant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No store found for this merchant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    TemplateAnalyticsResponse009:
+      type: object
+      description: Extends base template analytics response (004) with date-range cost for exclusive templates.
+      properties:
+        # All existing fields from 004 (exposure_count, conversion_rate, count fields, trends, etc.)
+        # New / extended for 009:
+        date_range_cost:
+          type: number
+          format: decimal
+          description: |
+            此區間成本 - Sum of savings_amount for redemptions in the selected date range.
+            Present only for exclusive (Collection) templates; omitted for store templates.
+          minimum: 0
+          example: 1250.50
+        date_range_cost_currency:
+          type: string
+          nullable: true
+          description: Display currency when store/system has configured currency (e.g. TWD, NT$).
+          example: "TWD"
+
+    MerchantStatisticsResponse009:
+      type: object
+      description: Extends merchant statistics with today's cost (今日成本).
+      properties:
+        active_coupons:
+          type: integer
+          description: Number of active coupon templates
+        total_redemptions:
+          type: integer
+          description: Total redemptions across all coupons
+        total_views:
+          type: integer
+          description: Total template views (exposures)
+        total_templates:
+          type: integer
+          description: Total coupon templates
+        total_coupons_generated:
+          type: integer
+          description: Total coupons generated
+        today_cost:
+          type: number
+          format: decimal
+          description: |
+            今日成本 - Total discount given today (store timezone) across all merchant coupons.
+            Sum of CouponRedemption.savings_amount for redemptions on "today".
+          minimum: 0
+          example: 320.00
+        today_cost_currency:
+          type: string
+          nullable: true
+          description: Display currency when store/system has configured currency.
+          example: "TWD"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "End date must be on or before today (store timezone)."
+
+  securitySchemes:
+    TokenAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token

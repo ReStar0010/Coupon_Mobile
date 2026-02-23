@@ -174,10 +174,18 @@ export default function MerchantProfileScreen() {
               </View>
 
               {/* Metrics Cards */}
-              <XStack gap="$3" marginTop="$4" marginBottom="$4">
-                <MetricCard label="優惠數" value={statistics?.active_coupons || 0} />
-                <MetricCard label="總核銷" value={statistics?.total_redemptions || 0} />
-                <MetricCard label="總曝光" value={statistics?.total_views || 0} />
+              <XStack gap="$3" marginTop="$4" marginBottom="$4" flexWrap="wrap">
+                <MetricCard label="優惠數" value={statistics?.active_coupons ?? 0} />
+                <MetricCard label="總核銷" value={statistics?.total_redemptions ?? 0} />
+                <MetricCard label="總曝光" value={statistics?.total_views ?? 0} />
+                <MetricCard
+                  label="今日成本"
+                  value={
+                    statistics?.today_cost_currency
+                      ? `${statistics.today_cost_currency} ${Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+                      : Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+                  }
+                />
               </XStack>
 
               {/* Merchant Information Card */}
