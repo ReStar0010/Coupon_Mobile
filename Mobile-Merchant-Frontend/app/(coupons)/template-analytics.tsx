@@ -51,7 +51,7 @@ interface AnalyticsData {
   circulation_redemption_count?: number;
 }
 
-type TimeRange = 3 | 7 | 30 | 90;
+type TimeRange = 7 | 30 | 90;
 
 type MetricType =
   | "exposure_count"
@@ -444,7 +444,6 @@ export default function TemplateAnalyticsScreen() {
 
               {/* Time Range Selector */}
               <XStack gap="$2" marginBottom="$4">
-                <TimeRangeButton days={3} label="近3天" />
                 <TimeRangeButton days={7} label="近7天" />
                 <TimeRangeButton days={30} label="近30天" />
                 <TimeRangeButton days={90} label="近90天" />

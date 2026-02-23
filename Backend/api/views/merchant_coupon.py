@@ -14,10 +14,13 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from ..models import Coupon, CouponShareRequest, Log, StudentProfile, CouponTemplate, Store, Tag, CouponRedemption
 from ..serializers import ConsolidateCouponSerializer, RefreshRedeemCodeSerializer, CouponTemplateSerializer, MerchantRedeemSerializer, UnifiedRedemptionCodeSerializer
-from ..utils import generate_unified_redemption_code
-from django.db.models import Count, F
-from datetime import timedelta, datetime
+from ..utils import generate_unified_redemption_code, get_store_today, get_store_currency_code
+from django.db.models import Count, F, Sum, Value
+from django.db.models.functions import Coalesce
+from django.db.models import DecimalField
+from datetime import timedelta, datetime, date as date_type
 import math
+from zoneinfo import ZoneInfo
 
 
 @swagger_auto_schema(
@@ -870,13 +873,56 @@ def get_template_analytics(request, id):
             'error': 'Template not found or you do not have permission to access it.'
         }, status=status.HTTP_404_NOT_FOUND)
     
-    # Get time range parameter (default 30 days)
-    days = int(request.query_params.get('days', 30))
-    if days not in [3, 7, 30, 90]:
-        days = 30
+    # Time range: either date_from/date_to (ISO YYYY-MM-DD) or days fallback
+    date_from_param = request.query_params.get('date_from')
+    date_to_param = request.query_params.get('date_to')
+    store_today = get_store_today(store)
+    use_date_range = date_from_param and date_to_param
+
+    if use_date_range:
+        try:
+            date_from = date_type.fromisoformat(date_from_param)
+            date_to = date_type.fromisoformat(date_to_param)
+        except (ValueError, TypeError):
+            return Response({
+                'error': 'Invalid date format. Use ISO date YYYY-MM-DD for date_from and date_to.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        if date_to < date_from:
+            return Response({
+                'error': 'End date must be on or after start date.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        if date_to > store_today:
+            return Response({
+                'error': 'End date must be on or before today (store timezone).'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        if (date_to - date_from).days > 730:
+            return Response({
+                'error': 'Date range cannot exceed 730 days (2 years).'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        tz_name = getattr(store, 'timezone', None) or 'Asia/Taipei'
+        try:
+            store_zone = ZoneInfo(tz_name)
+        except Exception:
+            store_zone = ZoneInfo('Asia/Taipei')
+        range_start_naive = datetime.combine(date_from, datetime.min.time())
+        range_end_naive = datetime.combine(date_to, datetime.max.time())
+        time_threshold = timezone.make_aware(range_start_naive, store_zone)
+        range_end_dt = timezone.make_aware(range_end_naive, store_zone)
+        now = timezone.now()
+        # For daily_data end we use date_to
+        end_date_for_loop = date_to
+        start_date_for_loop = date_from
+    else:
+        days = int(request.query_params.get('days', 30))
+        if days not in [3, 7, 30, 90]:
+            days = 30
+        now = timezone.now()
+        time_threshold = now - timedelta(days=days)
+        range_end_dt = now
+        end_date_for_loop = now.date()
+        start_date_for_loop = time_threshold.date()
     
     now = timezone.now()
-    time_threshold = now - timedelta(days=days)
     
     # Fixed distance radius in meters (500 meters = 0.5 km)
     DISTANCE_RADIUS = 500
@@ -893,7 +939,9 @@ def get_template_analytics(request, id):
     if is_store_template:
         # 曝光次數 (Exposure Count): Template view count within selected time range
         template_view_logs = template_logs.filter(action='template_view')
-        template_view_logs_in_range = template_view_logs.filter(timestamp__gte=time_threshold)
+        template_view_logs_in_range = template_view_logs.filter(
+            timestamp__gte=time_threshold, timestamp__lte=range_end_dt
+        )
         exposure_count = template_view_logs_in_range.count()
         
         # 轉換率 (Conversion Rate): Redemptions / Exposures within selected time range
@@ -901,17 +949,23 @@ def get_template_analytics(request, id):
             coupon__template=template,
             coupon__coupon_type='store',
             redeemed_at__gte=time_threshold,
+            redeemed_at__lte=range_end_dt,
         ).count()
         conversion_rate = total_redemptions / exposure_count if exposure_count > 0 else 0
         
         # Calculate trends (daily data)
         exposure_trend_data = []
         conversion_trend_data = []
-        current_date = time_threshold.date()
-        end_date = now.date()
+        current_date = start_date_for_loop
+        end_date = end_date_for_loop
+        tz_name = getattr(store, 'timezone', None) or 'Asia/Taipei'
+        try:
+            _store_zone = ZoneInfo(tz_name)
+        except Exception:
+            _store_zone = ZoneInfo('Asia/Taipei')
         
         while current_date <= end_date:
-            day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()))
+            day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()), _store_zone)
             day_end = day_start + timedelta(days=1)
             
             # Daily exposures (template_view_logs already filtered by template; filter by day)
@@ -973,6 +1027,7 @@ def get_template_analytics(request, id):
     exclusive_redemptions = template_redemptions.filter(
         coupon__coupon_type='exclusive',
         redeemed_at__gte=time_threshold,
+        redeemed_at__lte=range_end_dt,
     )
     exclusive_redemptions_count = exclusive_redemptions.count()
     
@@ -980,6 +1035,7 @@ def get_template_analytics(request, id):
     template_view_logs = template_logs.filter(
         action='template_view',
         timestamp__gte=time_threshold,
+        timestamp__lte=range_end_dt,
     )
     exposure_count = template_view_logs.count()
     
@@ -1019,8 +1075,13 @@ def get_template_analytics(request, id):
     redemption_rate = exclusive_redemptions_count / total_coupons if total_coupons > 0 else 0
     
     # Calculate trend data for all metrics (daily data)
-    current_date = time_threshold.date()
-    end_date = now.date()
+    current_date = start_date_for_loop
+    end_date = end_date_for_loop
+    _tz_name = getattr(store, 'timezone', None) or 'Asia/Taipei'
+    try:
+        _excl_zone = ZoneInfo(_tz_name)
+    except Exception:
+        _excl_zone = ZoneInfo('Asia/Taipei')
     
     # Initialize trend data structures
     exposure_trend_data = []
@@ -1032,7 +1093,7 @@ def get_template_analytics(request, id):
     redemption_trend_data = []
     
     while current_date <= end_date:
-        day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()))
+        day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()), _excl_zone)
         day_end = day_start + timedelta(days=1)
         
         # Daily exposures
@@ -1138,7 +1199,14 @@ def get_template_analytics(request, id):
     circulation_redemption_avg = calculate_average(circulation_redemption_trend_data)
     redemption_avg = calculate_average(redemption_trend_data)
     
-    return Response({
+    # 009 US2: Date-range cost for exclusive templates only (此區間成本)
+    date_range_cost_result = exclusive_redemptions.aggregate(
+        total=Sum(Coalesce('savings_amount', Value(0, output_field=DecimalField(max_digits=14, decimal_places=2))))
+    )
+    date_range_cost = float(date_range_cost_result['total'] or 0)
+    date_range_cost_currency = get_store_currency_code(store)
+    
+    response_data = {
         'exposure_count': exposure_count,
         'conversion_rate': conversion_rate,
         'retention_rate': retention_rate,
@@ -1152,6 +1220,7 @@ def get_template_analytics(request, id):
         'redemption_count': exclusive_redemptions_count,
         'circulation_count': transfer_count,
         'circulation_redemption_count': transfer_redemption_count,
+        'date_range_cost': date_range_cost,
         'trends': {
             'exposure_count': {
                 'current': exposure_count,
@@ -1189,7 +1258,10 @@ def get_template_analytics(request, id):
                 'daily_data': redemption_trend_data
             }
         }
-    }, status=status.HTTP_200_OK)
+    }
+    if date_range_cost_currency:
+        response_data['date_range_cost_currency'] = date_range_cost_currency
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 @swagger_auto_schema(

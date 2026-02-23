@@ -1,16 +1,17 @@
 """
 Contract tests for Template Analytics API endpoint.
-Feature: 004-analytics-count-view
-Tests: T005-T009
+Feature: 004-analytics-count-view, 009-coupon-date-cost-analytics
+Tests: T005-T009, T006 (date_from/date_to)
 """
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
 from rest_framework import status
-from datetime import timedelta
+from datetime import timedelta, date
 from django.utils import timezone
 
 from api.models import Store, CouponTemplate, Coupon, CouponRedemption, Log
+from api.utils import get_store_today
 
 
 class TemplateAnalyticsContractTestBase(TestCase):
@@ -293,3 +294,107 @@ class TemplateAnalyticsContractTests(TemplateAnalyticsContractTestBase):
             trend = data['trends']['redemption_rate']
             self.assertIn('daily_data', trend)
             self.assertIsInstance(trend['daily_data'], list)
+
+    # --- 009 T006: Date range params (date_from, date_to) ---
+
+    def test_date_range_params_return_200_and_metrics_scoped_to_range(self):
+        """
+        T006 [US1]: Request with date_from and date_to returns 200 and metrics scoped to range.
+        """
+        today = get_store_today(self.store)
+        date_to = today - timedelta(days=1)
+        date_from = today - timedelta(days=14)
+        response = self.client.get(
+            f'/api/merchant/coupon-templates/{self.exclusive_template.id}/analytics/',
+            {'date_from': date_from.isoformat(), 'date_to': date_to.isoformat()}
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIn('exposure_count', data)
+        self.assertIn('redemption_count', data)
+
+    def test_date_to_after_today_returns_400(self):
+        """
+        T006 [US1]: date_to > today (store TZ) returns 400.
+        """
+        today = get_store_today(self.store)
+        future = today + timedelta(days=1)
+        date_from = today - timedelta(days=7)
+        response = self.client.get(
+            f'/api/merchant/coupon-templates/{self.exclusive_template.id}/analytics/',
+            {'date_from': date_from.isoformat(), 'date_to': future.isoformat()}
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        data = response.json()
+        self.assertIn('error', data)
+
+    def test_date_range_over_730_days_returns_400(self):
+        """
+        T006 [US1]: Range > 730 days returns 400.
+        """
+        today = get_store_today(self.store)
+        date_to = today - timedelta(days=1)
+        date_from = date_to - timedelta(days=731)
+        response = self.client.get(
+            f'/api/merchant/coupon-templates/{self.exclusive_template.id}/analytics/',
+            {'date_from': date_from.isoformat(), 'date_to': date_to.isoformat()}
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        data = response.json()
+        self.assertIn('error', data)
+
+    def test_date_to_before_date_from_returns_400(self):
+        """
+        T006 [US1]: date_to < date_from returns 400.
+        """
+        today = get_store_today(self.store)
+        date_from = today - timedelta(days=7)
+        date_to = today - timedelta(days=14)
+        response = self.client.get(
+            f'/api/merchant/coupon-templates/{self.exclusive_template.id}/analytics/',
+            {'date_from': date_from.isoformat(), 'date_to': date_to.isoformat()}
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        data = response.json()
+        self.assertIn('error', data)
+
+    # --- 009 T011 [US2]: date_range_cost for exclusive templates only ---
+
+    def test_exclusive_template_with_date_range_includes_date_range_cost(self):
+        """
+        T011 [US2]: For exclusive template with date_from/date_to, response includes
+        date_range_cost (and optional date_range_cost_currency).
+        """
+        from decimal import Decimal
+        # Add savings_amount to redemptions so date_range_cost > 0
+        for r in CouponRedemption.objects.filter(coupon__template=self.exclusive_template):
+            if r.savings_amount is None:
+                r.savings_amount = Decimal('10.00')
+                r.save()
+        today = get_store_today(self.store)
+        date_to = today - timedelta(days=1)
+        date_from = today - timedelta(days=14)
+        response = self.client.get(
+            f'/api/merchant/coupon-templates/{self.exclusive_template.id}/analytics/',
+            {'date_from': date_from.isoformat(), 'date_to': date_to.isoformat()}
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIn('date_range_cost', data)
+        self.assertIsInstance(data['date_range_cost'], (int, float))
+        self.assertGreaterEqual(data['date_range_cost'], 0)
+
+    def test_store_template_does_not_include_date_range_cost(self):
+        """
+        T011 [US2]: Store template response does not include date_range_cost.
+        """
+        today = get_store_today(self.store)
+        date_to = today - timedelta(days=1)
+        date_from = today - timedelta(days=7)
+        response = self.client.get(
+            f'/api/merchant/coupon-templates/{self.store_template.id}/analytics/',
+            {'date_from': date_from.isoformat(), 'date_to': date_to.isoformat()}
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertNotIn('date_range_cost', data)

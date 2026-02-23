@@ -547,6 +547,17 @@ export interface MerchantProfileResponse {
   };
 }
 
+/** Merchant statistics (009: includes today_cost 今日成本) */
+export interface MerchantStatisticsResponse {
+  active_coupons: number;
+  total_redemptions: number;
+  total_views: number;
+  total_templates?: number;
+  total_coupons_generated?: number;
+  today_cost: number;
+  today_cost_currency?: string | null;
+}
+
 // Auth API functions
 export const authAPI = {
   login: async (email: string, password: string) => {
@@ -670,13 +681,30 @@ export const merchantAPI = {
     return parseResponse(response);
   },
 
-  getStatistics: async () => {
+  getStatistics: async (): Promise<MerchantStatisticsResponse> => {
     const response = await fetchAPI('/merchant/statistics/');
     return parseResponse(response);
   },
 
-  getTemplateAnalytics: async (templateId: number, days: number = 30) => {
-    const response = await fetchAPI(`/merchant/coupon-templates/${templateId}/analytics/?days=${days}`);
+  /**
+   * Get template analytics. Use either date_from+date_to (calendar range) or days (3,7,30,90).
+   * When both date_from and date_to are provided, they take precedence over days.
+   */
+  getTemplateAnalytics: async (
+    templateId: number,
+    options?: { date_from?: string; date_to?: string; days?: number }
+  ) => {
+    const params = new URLSearchParams();
+    if (options?.date_from && options?.date_to) {
+      params.set('date_from', options.date_from);
+      params.set('date_to', options.date_to);
+    } else {
+      const days = options?.days ?? 30;
+      params.set('days', String(days));
+    }
+    const response = await fetchAPI(
+      `/merchant/coupon-templates/${templateId}/analytics/?${params.toString()}`
+    );
     return parseResponse(response);
   },
 
