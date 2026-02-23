@@ -21,7 +21,7 @@ COOKIE_DOMAIN = None
 
 # URLs (backend API, frontend, public app)
 API_BASE_URL = os.getenv('API_BASE_URL', 'https://coupro-123.loca.lt')
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://app.coupro.pro')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://app.coupro.pro')
 
 # Email
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')

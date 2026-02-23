@@ -33,31 +33,14 @@ async function onFetchUpdateAsync() {
   }
 }
 
-/** Parse claim token from claim deep link URL (web or app scheme). Returns null if not a claim URL. */
-function parseClaimTokenFromUrl(url: string | null): string | null {
+/** Parse token from coupro:// custom scheme deep link. Returns { type, token } or null. */
+function parseCustomSchemeUrl(url: string | null): { type: 'claim' | 'collection'; token: string } | null {
   if (!url || typeof url !== 'string') return null;
   const s = url.trim();
-  // App scheme: coupro://claim?token=<token>
-  const appSchemeMatch =
-    /^coupro:\/\/claim\?(?:.*&)?token=([^&]+)/i.exec(s) ||
-    /^coupro:\/\/claim\?token=([^&]+)/i.exec(s);
-  if (appSchemeMatch) return appSchemeMatch[1];
-  // Web: https://.../claim/<token>/ or /cl/<token>/
-  const webClaimMatch = /\/claim\/([^/?]+)/i.exec(s) || /\/cl\/([^/?]+)/i.exec(s);
-  if (webClaimMatch) return webClaimMatch[1];
-  return null;
-}
-
-/** Parse collection share token from deep link URL (web or app scheme). Returns null if not a collection URL. */
-function parseCollectionTokenFromUrl(url: string | null): string | null {
-  if (!url || typeof url !== 'string') return null;
-  const s = url.trim();
-  // App scheme: coupro://collection?token=<token>
-  const appSchemeMatch = /^coupro:\/\/collection\?(?:.*&)?token=([^&]+)/i.exec(s);
-  if (appSchemeMatch) return appSchemeMatch[1];
-  // Web: https://.../collection/<token> or /c/<token>
-  const webMatch = /\/collection\/([^/?]+)/i.exec(s) || /\/c\/([^/?]+)/i.exec(s);
-  if (webMatch) return webMatch[1];
+  const claimMatch = /^coupro:\/\/claim\?(?:.*&)?token=([^&]+)/i.exec(s);
+  if (claimMatch) return { type: 'claim', token: claimMatch[1] };
+  const collectionMatch = /^coupro:\/\/collection\?(?:.*&)?token=([^&]+)/i.exec(s);
+  if (collectionMatch) return { type: 'collection', token: collectionMatch[1] };
   return null;
 }
 
@@ -73,38 +56,38 @@ if (__DEV__) {
   console.log('='.repeat(50) + '\n');
 }
 
+/**
+ * Handles coupro:// custom scheme deep links only.
+ * Universal Links (https://api.coupro.pro/...) are handled by file-based routing
+ * via app/collection/[token].tsx and app/claim/[token].tsx.
+ */
 function DeepLinkHandler() {
   const router = useRouter();
   const initialUrlHandled = useRef(false);
 
+  const handleUrl = (url: string | null) => {
+    const parsed = parseCustomSchemeUrl(url);
+    if (!parsed) return false;
+    if (parsed.type === 'claim') {
+      router.replace(`/(tabs)/easyuse/qr-claim?token=${encodeURIComponent(parsed.token)}`);
+    } else {
+      router.replace(`/(tabs)/collection?token=${encodeURIComponent(parsed.token)}`);
+    }
+    return true;
+  };
+
   useEffect(() => {
     Linking.getInitialURL().then((url) => {
       if (initialUrlHandled.current) return;
-      const claimToken = parseClaimTokenFromUrl(url);
-      if (claimToken) {
+      if (handleUrl(url)) {
         initialUrlHandled.current = true;
-        router.replace(`/EasyUse/qr-claim?token=${encodeURIComponent(claimToken)}`);
-        return;
-      }
-      const collectionToken = parseCollectionTokenFromUrl(url);
-      if (collectionToken) {
-        initialUrlHandled.current = true;
-        router.replace(`/(tabs)/collection?token=${encodeURIComponent(collectionToken)}`);
       }
     });
   }, [router]);
 
   useEffect(() => {
     const sub = Linking.addEventListener('url', ({ url }) => {
-      const claimToken = parseClaimTokenFromUrl(url);
-      if (claimToken) {
-        router.replace(`/EasyUse/qr-claim?token=${encodeURIComponent(claimToken)}`);
-        return;
-      }
-      const collectionToken = parseCollectionTokenFromUrl(url);
-      if (collectionToken) {
-        router.replace(`/(tabs)/collection?token=${encodeURIComponent(collectionToken)}`);
-      }
+      handleUrl(url);
     });
     return () => sub.remove();
   }, [router]);

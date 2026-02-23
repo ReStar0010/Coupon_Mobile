@@ -37,9 +37,9 @@ def share_coupon(request, coupon_id):
     Log.objects.create(action="share", user=request.user, coupon=coupon)
     
     # Deep link: custom scheme (for in-app / native share) and Universal Link (clickable in messages)
-    base_url = getattr(settings, 'FRONTEND_URL', 'https://app.coupro.pro').rstrip('/')
+    api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
     share_link = f"coupro://collection?token={token}"
-    share_link_web = f"{base_url}/collection/{token}"
+    share_link_web = f"{api_base_url}/collection/{token}"
 
     return Response({
         'share_link': share_link,
@@ -50,12 +50,12 @@ def share_coupon(request, coupon_id):
 
 def claim_landing(request, token):
     """
-    Claim URL fallback page: https://app.coupro.pro/claim/<token>/ or /cl/<token>/
+    Claim URL fallback page: https://api.coupro.pro/claim/<token>/ or /cl/<token>/
     Renders HTML with install guidance and store links only (no claim actions on web).
     Same pattern as collection_landing (002-qr-deep-linking).
     """
-    base_url = getattr(settings, 'FRONTEND_URL', 'https://app.coupro.pro').rstrip('/')
-    page_url = f"{base_url}/claim/{token}/"
+    api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
+    page_url = f"{api_base_url}/claim/{token}/"
     title = "CouPro 優惠券"
     description = "掃描 QR Code 領取優惠券。請下載 CouPro App 開啟連結領取。"
     # Optional: resolve session for display (e.g. coupon name); 404 if invalid
@@ -86,12 +86,12 @@ def claim_landing(request, token):
 
 def collection_landing(request, token):
     """
-    Universal Link fallback page: https://app.coupro.pro/collection/<token>
+    Universal Link fallback page: https://api.coupro.pro/collection/<token>
     Renders HTML with Smart App Banner (iOS), Open Graph, and JS to try app then fallback to stores.
     """
     share_request = get_object_or_404(CouponShareRequest, token=token)
-    base_url = getattr(settings, 'FRONTEND_URL', 'https://app.coupro.pro').rstrip('/')
-    page_url = f"{base_url}/collection/{token}"
+    api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
+    page_url = f"{api_base_url}/collection/{token}"
     coupon_name = share_request.coupon.coupon_name or "優惠券"
     title = f"CouPro － {coupon_name} 分享"
     description = f"有人透過 CouPro 與您分享「{coupon_name}」。開啟 App 即可領取。"
@@ -114,7 +114,7 @@ def collection_landing(request, token):
 
 def apple_app_site_association(request):
     """
-    iOS Universal Links: serve AASA at https://app.coupro.pro/.well-known/apple-app-site-association
+    iOS Universal Links: serve AASA at https://api.coupro.pro/.well-known/apple-app-site-association
     No file extension; Content-Type: application/json.
     """
     team_id = getattr(settings, 'COUPRO_IOS_TEAM_ID', '') or ''
@@ -128,7 +128,7 @@ def apple_app_site_association(request):
                 'details': [
                     {
                         'appID': f'{team_id}.{bundle_id}',
-                        'paths': ['/collection/*', '/c/*', '/claim/*', '/cl/*'],
+                        'paths': ['/collection/*', '/claim/*'],
                     }
                 ],
             }
@@ -141,7 +141,7 @@ def apple_app_site_association(request):
 
 def assetlinks_json(request):
     """
-    Android App Links: serve at https://app.coupro.pro/.well-known/assetlinks.json
+    Android App Links: serve at https://api.coupro.pro/.well-known/assetlinks.json
     """
     package_name = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
     sha256_raw = getattr(settings, 'COUPRO_ANDROID_SHA256', '') or ''
