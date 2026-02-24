@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useRouter, usePathname } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAccessToken, getRefreshToken, initStorage } from '@/utils/api';
+import { initStorage } from '@/utils/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -36,22 +36,22 @@ function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Initialize storage first to ensure tokens are loaded
       await initStorage();
-      
+
       // Read directly from AsyncStorage to ensure we have the latest values
       // This is more reliable than using the in-memory tokenStorage
       const accessToken = await AsyncStorage.getItem('merchant_access_token');
       const refreshToken = await AsyncStorage.getItem('merchant_refresh_token');
-      
+
       // User is authenticated if they have either access token or refresh token
       // If only refresh token exists, we can refresh the access token
       const isAuth = !!(accessToken || refreshToken);
-      
+
       console.log('[AuthProvider] Auth check result:', {
         hasAccessToken: !!accessToken,
         hasRefreshToken: !!refreshToken,
         isAuthenticated: isAuth,
       });
-      
+
       setIsAuthenticated(isAuth);
     } catch (error) {
       console.error('[AuthProvider] Auth check error:', error);
@@ -107,12 +107,13 @@ function AuthProvider({ children }: AuthProviderProps) {
     // This handles expo-router's simplified paths
     if (normalized === '/edit') {
       const lastPath = lastCheckedPathname.current;
-      if (lastPath && (
-        lastPath.includes('profile') || 
-        lastPath === '/(profile)/' || 
-        lastPath === '/(profile)/index' ||
-        lastProfilePathRef.current !== null
-      )) {
+      if (
+        lastPath &&
+        (lastPath.includes('profile') ||
+          lastPath === '/(profile)/' ||
+          lastPath === '/(profile)/index' ||
+          lastProfilePathRef.current !== null)
+      ) {
         return true;
       }
     }
@@ -135,7 +136,7 @@ function AuthProvider({ children }: AuthProviderProps) {
     // Check if current pathname is an auth route (public route)
     const isAuthRoute = isAuthRoutePath(pathname);
     let isProfileRoute = isProfileRoutePath(pathname);
-    
+
     // Special handling: if path is '/edit', always treat it as a profile route
     // since it's the profile edit page in the (profile) group
     if (!isProfileRoute && pathname === '/edit') {
@@ -163,11 +164,16 @@ function AuthProvider({ children }: AuthProviderProps) {
       lastProfilePathRef.current = pathname;
       return; // Allow access to profile routes, don't set up any redirect logic
     }
-    
+
     // Clear profile path tracking if we're navigating away from profile routes
     // (but not if we're going to root, as that might be a temporary navigation state)
     // Also don't clear if we're going to /edit (might be profile edit)
-    if (!isProfileRoute && pathname !== '/' && pathname !== '/edit' && lastProfilePathRef.current !== null) {
+    if (
+      !isProfileRoute &&
+      pathname !== '/' &&
+      pathname !== '/edit' &&
+      lastProfilePathRef.current !== null
+    ) {
       // Only clear if we're going to a completely different section (like coupons)
       if (pathname.includes('coupon') || pathname.includes('(coupons)')) {
         console.log('[AuthProvider] Clearing profile path tracking, navigating to coupons section');
@@ -198,18 +204,29 @@ function AuthProvider({ children }: AuthProviderProps) {
       const currentPath = pathname;
       const currentIsAuthRoute = isAuthRoutePath(currentPath);
       let currentIsProfileRoute = isProfileRoutePath(currentPath);
-      
+
       // Special handling: if path is '/edit' and we were previously on a profile route,
       // treat it as a profile route
-      if (!currentIsProfileRoute && currentPath === '/edit' && lastProfilePathRef.current !== null) {
-        console.log('[AuthProvider] /edit path detected with previous profile context in delayed check');
+      if (
+        !currentIsProfileRoute &&
+        currentPath === '/edit' &&
+        lastProfilePathRef.current !== null
+      ) {
+        console.log(
+          '[AuthProvider] /edit path detected with previous profile context in delayed check',
+        );
         currentIsProfileRoute = true;
       }
-      
+
       // Also check: if path is '/edit' and we just came from a profile route
       if (!currentIsProfileRoute && currentPath === '/edit') {
         const lastPath = lastCheckedPathname.current;
-        if (lastPath && (lastPath.includes('profile') || lastPath === '/(profile)/' || lastPath === '/(profile)/index')) {
+        if (
+          lastPath &&
+          (lastPath.includes('profile') ||
+            lastPath === '/(profile)/' ||
+            lastPath === '/(profile)/index')
+        ) {
           console.log('[AuthProvider] /edit path detected after profile route in delayed check');
           currentIsProfileRoute = true;
           // Set tracking immediately
@@ -245,7 +262,8 @@ function AuthProvider({ children }: AuthProviderProps) {
       if (!isAuthenticated && !currentIsAuthRoute) {
         // Only redirect if not already on login page or root to avoid loops
         // Check both /login and /(auth)/login formats
-        const isLoginPage = currentPath === '/(auth)/login' || currentPath === '/login' || currentPath === '/';
+        const isLoginPage =
+          currentPath === '/(auth)/login' || currentPath === '/login' || currentPath === '/';
         if (!isLoginPage) {
           console.log('[AuthProvider] Redirecting to login from protected route:', currentPath);
           redirectingRef.current = true;
@@ -270,24 +288,27 @@ function AuthProvider({ children }: AuthProviderProps) {
         // Check if we should stay on profile page (if user was just on profile)
         // Use lastProfilePathRef to track if we were on a profile route
         const wasOnProfile = lastProfilePathRef.current !== null;
-        
+
         // Also check if the last checked pathname was a profile route
         const lastPath = lastCheckedPathname.current;
-        const lastPathWasProfile = lastPath && (
-          lastPath.includes('profile') || 
-          lastPath === '/(profile)/' || 
-          lastPath === '/(profile)/index' ||
-          lastPath === '/(profile)/edit' ||
-          lastPath === '/edit'
-        );
-        
+        const lastPathWasProfile =
+          lastPath &&
+          (lastPath.includes('profile') ||
+            lastPath === '/(profile)/' ||
+            lastPath === '/(profile)/index' ||
+            lastPath === '/(profile)/edit' ||
+            lastPath === '/edit');
+
         if (wasOnProfile || lastPathWasProfile) {
-          console.log('[AuthProvider] User was on profile page, staying on root (likely navigating to profile)', {
-            wasOnProfile,
-            lastPathWasProfile,
-            lastPath,
-            lastProfilePath: lastProfilePathRef.current
-          });
+          console.log(
+            '[AuthProvider] User was on profile page, staying on root (likely navigating to profile)',
+            {
+              wasOnProfile,
+              lastPathWasProfile,
+              lastPath,
+              lastProfilePath: lastProfilePathRef.current,
+            },
+          );
           // Don't redirect - this is likely a transient state during navigation to profile
           // Keep the profile path tracking
           lastProfilePathRef.current = lastPath || lastProfilePathRef.current;
@@ -315,4 +336,3 @@ function AuthProvider({ children }: AuthProviderProps) {
 }
 
 export default AuthProvider;
-

@@ -39,7 +39,7 @@ export default function ForgotPasswordScreen() {
     try {
       const { authAPI } = await import('@/utils/api');
       await authAPI.forgotPassword(formData.email);
-      
+
       setShowSuccessModal(true);
     } catch (error: any) {
       console.error('Send reset email error:', error);
@@ -72,76 +72,75 @@ export default function ForgotPasswordScreen() {
         gap="$3"
       >
         {/* Title */}
-      <XStack width="100%" justifyContent="center" alignItems="center" marginBottom="$2">
-        <Text
-          fontSize={34}
-          fontWeight="800"
-          color={colors.textPrimary}
-          style={{ lineHeight: 42.5 }}
-        >
-          忘記密碼
-        </Text>
-      </XStack>
-
-      {/* Email Input */}
-      <Input
-        placeholder="輸入 Email"
-        value={formData.email}
-        onChangeText={handleEmailChange}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="email"
-        editable={!isLoading}
-        width="100%"
-      />
-
-      {/* Send Reset Email Button */}
-      <Button
-        variant="primary"
-        fullWidth
-        onPress={handleSendResetEmail}
-        disabled={isLoading}
-        opacity={isLoading ? 0.6 : 1}
-      >
-        寄送重設密碼信件
-      </Button>
-
-      {/* Back to Login Link */}
-      <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
-        <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
+        <XStack width="100%" justifyContent="center" alignItems="center" marginBottom="$2">
           <Text
-            fontSize="$sm"
-            color={colors.primary}
-            onPress={handleBackToLogin}
-            style={{ textDecorationLine: 'underline' }}
+            fontSize={34}
+            fontWeight="800"
+            color={colors.textPrimary}
+            style={{ lineHeight: 42.5 }}
           >
-            返回登入
+            忘記密碼
           </Text>
-        </Text>
-      </XStack>
+        </XStack>
 
-      {/* Success Modal */}
-      <AlertModal
-        isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        title="發送成功"
-        message="信件寄送成功"
-        type="success"
-        confirmText="確定"
-        onConfirm={handleSuccessConfirm}
-      />
+        {/* Email Input */}
+        <Input
+          placeholder="輸入 Email"
+          value={formData.email}
+          onChangeText={handleEmailChange}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          editable={!isLoading}
+          width="100%"
+        />
 
-      {/* Error Modal */}
-      <AlertModal
-        isOpen={showErrorModal}
-        onClose={() => setShowErrorModal(false)}
-        title="發送失敗"
-        message={errorMessage}
-        type="error"
-        confirmText="確定"
-      />
+        {/* Send Reset Email Button */}
+        <Button
+          variant="primary"
+          fullWidth
+          onPress={handleSendResetEmail}
+          disabled={isLoading}
+          opacity={isLoading ? 0.6 : 1}
+        >
+          寄送重設密碼信件
+        </Button>
+
+        {/* Back to Login Link */}
+        <XStack gap={10} justifyContent="center" alignItems="center" width="100%">
+          <Text fontSize="$sm" color={colors.textPrimary} textAlign="center">
+            <Text
+              fontSize="$sm"
+              color={colors.primary}
+              onPress={handleBackToLogin}
+              style={{ textDecorationLine: 'underline' }}
+            >
+              返回登入
+            </Text>
+          </Text>
+        </XStack>
+
+        {/* Success Modal */}
+        <AlertModal
+          isOpen={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          title="發送成功"
+          message="信件寄送成功"
+          type="success"
+          confirmText="確定"
+          onConfirm={handleSuccessConfirm}
+        />
+
+        {/* Error Modal */}
+        <AlertModal
+          isOpen={showErrorModal}
+          onClose={() => setShowErrorModal(false)}
+          title="發送失敗"
+          message={errorMessage}
+          type="error"
+          confirmText="確定"
+        />
       </YStack>
     </DismissKeyboardView>
   );
 }
-

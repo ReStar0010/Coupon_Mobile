@@ -7,10 +7,10 @@ import { Text } from 'tamagui';
 interface TrendData {
   current: number;
   average: number;
-  daily_data: Array<{
+  daily_data: {
     date: string;
     value: number | null;
-  }>;
+  }[];
 }
 
 interface TrendChartProps {
@@ -26,9 +26,18 @@ const MIN_POINT_SPACING = 50; // Minimum spacing between data points in pixels
 const Y_AXIS_WIDTH = 50; // Width for Y-axis labels (chart library will use this space)
 const CHART_MIN_WIDTH = SCREEN_WIDTH - CARD_PADDING - Y_AXIS_WIDTH - 4; // Minimum chart width (card width minus padding and Y-axis)
 
-export default function TrendChart({ data, height = 220, isPercentage = true, yAxisSuffix = '%' }: TrendChartProps) {
+export default function TrendChart({
+  data,
+  height = 220,
+  isPercentage = true,
+  yAxisSuffix = '%',
+}: TrendChartProps) {
   // State to track selected data point
-  const [selectedPoint, setSelectedPoint] = useState<{ index: number; value: number; label: string } | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<{
+    index: number;
+    value: number;
+    label: string;
+  } | null>(null);
 
   const { chartData, chartWidth } = useMemo(() => {
     if (!data || !data.daily_data || data.daily_data.length === 0) {
@@ -52,7 +61,7 @@ export default function TrendChart({ data, height = 220, isPercentage = true, yA
     // Ensure minimum spacing between points to avoid label overlap
     const calculatedWidth = Math.max(
       CHART_MIN_WIDTH,
-      (validData.length - 1) * MIN_POINT_SPACING + 80 // 80px for initial and end spacing
+      (validData.length - 1) * MIN_POINT_SPACING + 80, // 80px for initial and end spacing
     );
 
     // Format for react-native-gifted-charts
@@ -65,7 +74,6 @@ export default function TrendChart({ data, height = 220, isPercentage = true, yA
     return { chartData: formattedData, chartWidth: calculatedWidth };
   }, [data, isPercentage]);
 
-
   // Calculate Y-axis range
   const yAxisConfig = useMemo(() => {
     if (!chartData || chartData.length === 0) {
@@ -76,7 +84,7 @@ export default function TrendChart({ data, height = 220, isPercentage = true, yA
     const minValue = Math.max(0, Math.floor(Math.min(...values) / 10) * 10 - 10);
     const maxValue = Math.ceil(Math.max(...values) / 10) * 10 + 10;
     const range = maxValue - minValue;
-    
+
     let stepValue: number;
     if (isPercentage) {
       stepValue = range <= 20 ? 5 : range <= 50 ? 10 : 20;
@@ -112,7 +120,9 @@ export default function TrendChart({ data, height = 220, isPercentage = true, yA
 
   const pointSpacing = chartData.length > 1 ? (chartWidth - 60) / (chartData.length - 1) : 0; // Reduced from 80 to 60 to account for reduced initialSpacing
   const chartHeight = height - 40; // Reduced padding to make chart taller
-  const noOfSections = Math.floor((yAxisConfig.maxValue - yAxisConfig.minValue) / yAxisConfig.stepValue);
+  const noOfSections = Math.floor(
+    (yAxisConfig.maxValue - yAxisConfig.minValue) / yAxisConfig.stepValue,
+  );
 
   // Handle data point press
   const handleDataPointPress = (item: { value: number; label: string }, index: number) => {
@@ -131,12 +141,13 @@ export default function TrendChart({ data, height = 220, isPercentage = true, yA
   // Calculate tooltip position based on selected point
   const getTooltipPosition = () => {
     if (!selectedPoint || !chartData) return null;
-    
+
     const pointIndex = selectedPoint.index;
-    const xPosition = 30 + (pointIndex * pointSpacing); // initialSpacing + (index * spacing)
-    const valueRatio = (selectedPoint.value - yAxisConfig.minValue) / (yAxisConfig.maxValue - yAxisConfig.minValue);
-    const yPosition = chartHeight - (valueRatio * chartHeight) - 30; // Position above the data point
-    
+    const xPosition = 30 + pointIndex * pointSpacing; // initialSpacing + (index * spacing)
+    const valueRatio =
+      (selectedPoint.value - yAxisConfig.minValue) / (yAxisConfig.maxValue - yAxisConfig.minValue);
+    const yPosition = chartHeight - valueRatio * chartHeight - 30; // Position above the data point
+
     return { x: xPosition, y: yPosition };
   };
 
@@ -222,7 +233,7 @@ function formatDate(dateString: string): string {
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     return `${month}/${day}`;
-  } catch (error) {
+  } catch {
     return dateString;
   }
 }
@@ -264,4 +275,3 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
 });
-

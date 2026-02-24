@@ -27,4 +27,3 @@ export function AddButton({ onPress }: AddButtonProps) {
     </TouchableOpacity>
   );
 }
-

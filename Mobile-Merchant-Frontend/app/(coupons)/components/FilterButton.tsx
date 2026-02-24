@@ -1,5 +1,5 @@
 import React from 'react';
-import { XStack, Text, YStack } from 'tamagui';
+import { XStack, Text } from 'tamagui';
 import { colors } from '@/constants/colors';
 import { TouchableOpacity } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -12,7 +12,7 @@ interface FilterButtonProps {
 
 export function FilterButton({ label, selectedValue, onPress }: FilterButtonProps) {
   const displayText = selectedValue || label;
-  
+
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <XStack
@@ -26,20 +26,19 @@ export function FilterButton({ label, selectedValue, onPress }: FilterButtonProp
         gap="$2"
         minWidth={80}
       >
-        <Text 
-          fontSize="$md" 
-          color={selectedValue ? colors.white : colors.textPrimary} 
+        <Text
+          fontSize="$md"
+          color={selectedValue ? colors.white : colors.textPrimary}
           fontWeight="500"
         >
           {displayText}
         </Text>
-        <MaterialIcons 
-          name="keyboard-arrow-down" 
-          size={16} 
-          color={selectedValue ? colors.white : colors.textSecondary} 
+        <MaterialIcons
+          name="keyboard-arrow-down"
+          size={16}
+          color={selectedValue ? colors.white : colors.textSecondary}
         />
       </XStack>
     </TouchableOpacity>
   );
 }
-

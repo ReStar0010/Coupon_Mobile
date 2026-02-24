@@ -2,28 +2,34 @@ import { defaultConfig } from '@tamagui/config/v4';
 import { createTamagui } from 'tamagui';
 import { tokens } from './constants/tokens';
 
+const baseTokens = defaultConfig.tokens as any;
+
 export const config = createTamagui({
   ...defaultConfig,
+  settings: {
+    ...defaultConfig.settings,
+    onlyAllowShorthands: false,
+  },
   tokens: {
-    ...defaultConfig.tokens,
+    ...baseTokens,
     color: {
-      ...defaultConfig.tokens.color,
+      ...baseTokens.color,
       ...tokens.color,
     },
     space: {
-      ...defaultConfig.tokens.space,
+      ...baseTokens.space,
       ...tokens.space,
     },
     size: {
-      ...defaultConfig.tokens.size,
+      ...baseTokens.size,
       ...tokens.size,
     },
     radius: {
-      ...defaultConfig.tokens.radius,
+      ...baseTokens.radius,
       ...tokens.radius,
     },
     zIndex: {
-      ...defaultConfig.tokens.zIndex,
+      ...baseTokens.zIndex,
       ...tokens.zIndex,
     },
   },

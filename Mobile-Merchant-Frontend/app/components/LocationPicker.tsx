@@ -9,8 +9,8 @@ let Marker: any;
 let Location: any;
 
 if (Platform.OS !== 'web') {
-  MapView = require('react-native-maps').default;
-  Marker = require('react-native-maps').Marker;
+  MapView = (require('react-native-maps') as typeof import('react-native-maps')).default;
+  Marker = (require('react-native-maps') as typeof import('react-native-maps')).Marker;
   Location = require('expo-location');
 }
 

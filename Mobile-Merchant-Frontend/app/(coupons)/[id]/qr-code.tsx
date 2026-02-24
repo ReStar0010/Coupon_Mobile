@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { YStack, XStack, Text } from 'tamagui';
+import { YStack, Text } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
@@ -18,6 +18,39 @@ export default function QRCodeScreen() {
   /** Claim URL for deep link; encode this in QR instead of legacy JSON (002-qr-deep-linking) */
   const [claimLinkWeb, setClaimLinkWeb] = useState<string | null>(null);
   const isFocusedRef = useRef(false);
+  const sessionIdRef = useRef<number | null>(null);
+
+  const invalidateSession = useCallback(async (sessionIdToInvalidate: number) => {
+    try {
+      await merchantAPI.invalidateQRSession(sessionIdToInvalidate);
+    } catch (_err) {
+      console.error('Session invalidation error:', _err);
+      // Don't show error to user, just log it
+    }
+  }, []);
+
+  const generateQRSession = useCallback(async () => {
+    if (!id) {
+      setError('無效的優惠券 ID');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await merchantAPI.generateQRSession(parseInt(id));
+      sessionIdRef.current = result.session_id;
+      setSessionId(result.session_id);
+      setQrCodeData(result.qr_code_data);
+      setClaimLinkWeb(result.claim_link_web ?? result.claim_link ?? null);
+    } catch (err: any) {
+      console.error('QR code generation error:', err);
+      setError(err?.message || '生成 QR Code 失敗，請稍後再試');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
 
   // Generate QR code session on mount
   useEffect(() => {
@@ -27,11 +60,10 @@ export default function QRCodeScreen() {
 
     // Cleanup: invalidate session on unmount
     return () => {
-      if (sessionId !== null) {
-        invalidateSession(sessionId);
-      }
+      const sid = sessionIdRef.current;
+      if (sid !== null) invalidateSession(sid);
     };
-  }, [id]);
+  }, [id, generateQRSession, invalidateSession]);
 
   // Poll remaining quantity only while this screen is focused (stops when user leaves).
   const POLL_INTERVAL_MS = 3000;
@@ -53,7 +85,7 @@ export default function QRCodeScreen() {
             await invalidateSession(sessionId);
             router.replace('/(coupons)/');
           }
-        } catch (err) {
+        } catch {
           // Ignore poll errors (e.g. network); will retry next interval
         }
       };
@@ -63,39 +95,8 @@ export default function QRCodeScreen() {
         clearInterval(intervalId);
         isFocusedRef.current = false;
       };
-    }, [id, qrCodeData, sessionId])
+    }, [id, invalidateSession, qrCodeData, router, sessionId]),
   );
-
-  const generateQRSession = async () => {
-    if (!id) {
-      setError('無效的優惠券 ID');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const result = await merchantAPI.generateQRSession(parseInt(id));
-      setSessionId(result.session_id);
-      setQrCodeData(result.qr_code_data);
-      setClaimLinkWeb(result.claim_link_web ?? result.claim_link ?? null);
-    } catch (err: any) {
-      console.error('QR code generation error:', err);
-      setError(err?.message || '生成 QR Code 失敗，請稍後再試');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const invalidateSession = async (sessionIdToInvalidate: number) => {
-    try {
-      await merchantAPI.invalidateQRSession(sessionIdToInvalidate);
-    } catch (err) {
-      console.error('Session invalidation error:', err);
-      // Don't show error to user, just log it
-    }
-  };
 
   const handleClose = () => {
     // Invalidate session before closing
@@ -109,9 +110,15 @@ export default function QRCodeScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
       <YStack flex={1} backgroundColor={colors.white}>
         <Header onLogoPress={() => router.push('/(coupons)/')} />
-        
+
         {/* Main Content */}
-        <YStack flex={1} alignItems="center" justifyContent="center" paddingHorizontal="$4" gap="$6">
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          paddingHorizontal="$4"
+          gap="$6"
+        >
           {isLoading ? (
             <>
               <ActivityIndicator size="large" color={colors.primary} />
@@ -124,16 +131,13 @@ export default function QRCodeScreen() {
               <Text fontSize="$md" color={colors.error} textAlign="center">
                 {error}
               </Text>
-              <TouchableOpacity
-                onPress={generateQRSession}
-                style={styles.retryButton}
-              >
+              <TouchableOpacity onPress={generateQRSession} style={styles.retryButton}>
                 <Text color={colors.primary} fontSize="$md" fontWeight="600">
                   重試
                 </Text>
               </TouchableOpacity>
             </>
-          ) : (claimLinkWeb || qrCodeData) ? (
+          ) : claimLinkWeb || qrCodeData ? (
             <>
               <Text fontSize="$xl" fontWeight="700" color={colors.textPrimary} marginBottom="$2">
                 掃描 QR Code 領取優惠券
@@ -148,10 +152,7 @@ export default function QRCodeScreen() {
 
         {/* Close Button */}
         <YStack padding="$4" paddingBottom="$6">
-          <TouchableOpacity
-            onPress={handleClose}
-            style={styles.closeButton}
-          >
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Text color={colors.white} fontSize="$md" fontWeight="600">
               關閉
             </Text>

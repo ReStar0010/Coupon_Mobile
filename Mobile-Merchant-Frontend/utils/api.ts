@@ -121,7 +121,7 @@ let tokenStorage: {
 export const initStorage = async () => {
   try {
     // Try to use AsyncStorage if available
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
     const accessToken = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
     const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
     tokenStorage.access_token = accessToken;
@@ -130,7 +130,7 @@ export const initStorage = async () => {
       hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshToken,
     });
-  } catch (e) {
+  } catch {
     // Fallback to in-memory storage
     console.log('[Storage] AsyncStorage not available, using in-memory storage');
     console.log('[Storage] Current in-memory tokens:', {
@@ -150,11 +150,11 @@ export const saveTokens = async (accessToken: string, refreshToken: string) => {
   });
 
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
     await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     console.log('[Storage] Tokens saved to AsyncStorage');
-  } catch (e) {
+  } catch {
     // Fallback to in-memory storage
     console.log('[Storage] Failed to save to AsyncStorage, using in-memory storage');
   }
@@ -176,10 +176,10 @@ export const clearTokens = async () => {
   tokenStorage.refresh_token = null;
 
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
     await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
     await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
-  } catch (e) {
+  } catch {
     // Fallback to in-memory storage
   }
 };
@@ -222,7 +222,7 @@ export class MerchantAuthorizationError extends Error {
 
 // Token refresh state
 let isRefreshing = false;
-let refreshSubscribers: Array<(success: boolean) => void> = [];
+let refreshSubscribers: ((success: boolean) => void)[] = [];
 
 const subscribeToRefresh = (callback: (success: boolean) => void) => {
   refreshSubscribers.push(callback);
@@ -295,23 +295,18 @@ export interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
 }
 
-export const fetchAPI = async (
-  endpoint: string,
-  options: FetchOptions = {}
-): Promise<Response> => {
+export const fetchAPI = async (endpoint: string, options: FetchOptions = {}): Promise<Response> => {
   const { requireAuth = true, ...fetchOptions } = options;
 
   // Build headers
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...fetchOptions.headers,
-  };
+  const headers = new Headers(fetchOptions.headers);
+  headers.set('Content-Type', 'application/json');
 
   // Add auth token if required
   if (requireAuth && !isPublicEndpoint(endpoint)) {
     const accessToken = getAccessToken();
     if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+      headers.set('Authorization', `Bearer ${accessToken}`);
     }
   }
 
@@ -334,7 +329,7 @@ export const fetchAPI = async (
         // Retry request with new token
         const newAccessToken = getAccessToken();
         if (newAccessToken) {
-          headers['Authorization'] = `Bearer ${newAccessToken}`;
+          headers.set('Authorization', `Bearer ${newAccessToken}`);
           response = await fetch(url, {
             ...fetchOptions,
             headers,
@@ -344,7 +339,9 @@ export const fetchAPI = async (
           if (response.status === 401) {
             console.log('[API] Retry after refresh still returned 401, authentication failed');
             await clearTokens();
-            throw new AuthenticationError('Authentication failed after token refresh. Please log in again.');
+            throw new AuthenticationError(
+              'Authentication failed after token refresh. Please log in again.',
+            );
           }
         } else {
           console.log('[API] Token refresh succeeded but no access token available');
@@ -389,7 +386,7 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
     let errorData: any;
     try {
       errorData = await response.json();
-    } catch (e) {
+    } catch {
       // If response is not JSON, try to get text
       const text = await response.text().catch(() => 'Unknown error');
       errorData = { error: text || `HTTP ${response.status}` };
@@ -421,13 +418,16 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
 
       // Special handling for 403 "User is not a merchant" error
       // This happens when a non-merchant user tries to access merchant endpoints
-      if (response.status === 403 && (
-        errorData.error === 'User is not a merchant.' ||
-        errorData.message === 'User is not a merchant.' ||
-        errorData.error?.includes('not a merchant') ||
-        errorData.message?.includes('not a merchant')
-      )) {
-        console.error('[API] User is not a merchant, clearing tokens and throwing MerchantAuthorizationError');
+      if (
+        response.status === 403 &&
+        (errorData.error === 'User is not a merchant.' ||
+          errorData.message === 'User is not a merchant.' ||
+          errorData.error?.includes('not a merchant') ||
+          errorData.message?.includes('not a merchant'))
+      ) {
+        console.error(
+          '[API] User is not a merchant, clearing tokens and throwing MerchantAuthorizationError',
+        );
         // Clear tokens since user is not authorized for merchant endpoints
         await clearTokens();
         throw new MerchantAuthorizationError('您不是商家用戶，無法使用商家功能。');
@@ -692,7 +692,7 @@ export const merchantAPI = {
    */
   getTemplateAnalytics: async (
     templateId: number,
-    options?: { date_from?: string; date_to?: string; days?: number }
+    options?: { date_from?: string; date_to?: string; days?: number },
   ) => {
     const params = new URLSearchParams();
     if (options?.date_from && options?.date_to) {
@@ -703,7 +703,7 @@ export const merchantAPI = {
       params.set('days', String(days));
     }
     const response = await fetchAPI(
-      `/merchant/coupon-templates/${templateId}/analytics/?${params.toString()}`
+      `/merchant/coupon-templates/${templateId}/analytics/?${params.toString()}`,
     );
     return parseResponse(response);
   },
@@ -740,20 +740,23 @@ export const merchantAPI = {
     return parseResponse(response);
   },
 
-  updateTemplate: async (id: number, data: Partial<{
-    coupon_name: string;
-    coupon_detail: string;
-    important_notes: string;
-    image_url: string;
-    estimated_savings: number;
-    template_redeem_code: string;
-    total_quantity: number;
-    start_date: string;
-    expiry_date: string;
-    draw_probability: number;
-    is_active: boolean;
-    tags: number[];
-  }>) => {
+  updateTemplate: async (
+    id: number,
+    data: Partial<{
+      coupon_name: string;
+      coupon_detail: string;
+      important_notes: string;
+      image_url: string;
+      estimated_savings: number;
+      template_redeem_code: string;
+      total_quantity: number;
+      start_date: string;
+      expiry_date: string;
+      draw_probability: number;
+      is_active: boolean;
+      tags: number[];
+    }>,
+  ) => {
     const response = await fetchAPI(`/merchant/coupon-templates/${id}/update/`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -825,7 +828,7 @@ export const merchantAPI = {
   // Tags
   getTags: async () => {
     const response = await fetchAPI('/tags/');
-    return parseResponse<Array<{ id: number, name: string, display_name: string }>>(response);
+    return parseResponse<{ id: number; name: string; display_name: string }[]>(response);
   },
 
   // QR Code Session
@@ -879,9 +882,9 @@ export const merchantAPI = {
     const accessToken = getAccessToken();
 
     // Build headers (don't set Content-Type, let FormData set it with boundary)
-    const headers: HeadersInit = {};
+    const headers = new Headers();
     if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+      headers.set('Authorization', `Bearer ${accessToken}`);
     }
 
     // Make request
@@ -895,7 +898,7 @@ export const merchantAPI = {
     });
 
     // Parse response
-    const result = await parseResponse(response);
+    const result = await parseResponse<{ image_url: string }>(response);
     const relativeUrl = result.image_url;
 
     // Convert relative URL to absolute URL for image display
@@ -980,4 +983,3 @@ export const accountDeletionAPI = {
     return parseResponse(response);
   },
 };
-

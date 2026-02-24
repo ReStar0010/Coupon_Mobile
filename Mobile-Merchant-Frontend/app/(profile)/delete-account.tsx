@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -7,27 +7,29 @@ import { Button } from '@/components/ui';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { accountDeletionAPI, type PreDeleteCheckResponse, type DeletionWarning } from '@/utils/api';
-import { logout } from '@/utils/api';
+import {
+  accountDeletionAPI,
+  authAPI,
+  type PreDeleteCheckResponse,
+  type DeletionWarning,
+} from '@/utils/api';
 
 type DeletionStep = 'loading' | 'warnings' | 'password' | 'confirm' | 'processing' | 'success';
 
 export default function DeleteAccountScreen() {
   const router = useRouter();
-  
+
   const [step, setStep] = useState<DeletionStep>('loading');
   const [warnings, setWarnings] = useState<DeletionWarning[]>([]);
-  const [dataSummary, setDataSummary] = useState<PreDeleteCheckResponse['data_summary'] | null>(null);
+  const [dataSummary, setDataSummary] = useState<PreDeleteCheckResponse['data_summary'] | null>(
+    null,
+  );
   const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    loadPreDeleteCheck();
-  }, []);
-
-  const loadPreDeleteCheck = async () => {
+  const loadPreDeleteCheck = useCallback(async () => {
     try {
       setStep('loading');
       const data = await accountDeletionAPI.preDeleteCheck();
@@ -39,7 +41,11 @@ export default function DeleteAccountScreen() {
       Alert.alert('錯誤', error?.message || '載入失敗,請稍後再試');
       router.back();
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    loadPreDeleteCheck();
+  }, [loadPreDeleteCheck]);
 
   const toggleAcknowledgment = (code: string) => {
     const newAcknowledged = new Set(acknowledgedWarnings);
@@ -54,12 +60,10 @@ export default function DeleteAccountScreen() {
   const handleContinueFromWarnings = () => {
     // Check that all critical and warning severity warnings are acknowledged
     const requiredAcknowledgments = warnings.filter(
-      w => w.severity === 'critical' || w.severity === 'warning'
+      (w) => w.severity === 'critical' || w.severity === 'warning',
     );
-    
-    const allAcknowledged = requiredAcknowledgments.every(
-      w => acknowledgedWarnings.has(w.code)
-    );
+
+    const allAcknowledged = requiredAcknowledgments.every((w) => acknowledgedWarnings.has(w.code));
 
     if (!allAcknowledged) {
       setError('請確認您已閱讀並理解所有警告');
@@ -90,21 +94,20 @@ export default function DeleteAccountScreen() {
       });
 
       setStep('success');
-      
+
       // Logout and redirect after showing success message
       setTimeout(async () => {
         try {
-          await logout();
-        } catch (e) {
+          await authAPI.logout();
+        } catch {
           // Ignore logout errors, user is already deleted
         }
         router.replace('/(auth)/login');
       }, 2000);
-
     } catch (error: any) {
       setIsProcessing(false);
       console.error('Account deletion failed:', error);
-      
+
       // Check for specific error codes
       if (error?.message?.includes('密碼錯誤') || error?.code === 'INVALID_PASSWORD') {
         setError('密碼錯誤,請重新輸入');
@@ -152,15 +155,19 @@ export default function DeleteAccountScreen() {
           >
             <XStack alignItems="flex-start" gap="$3">
               <MaterialIcons
-                name={acknowledgedWarnings.has(warning.code) ? 'check-box' : 'check-box-outline-blank'}
+                name={
+                  acknowledgedWarnings.has(warning.code) ? 'check-box' : 'check-box-outline-blank'
+                }
                 size={24}
                 color={warning.severity === 'critical' ? '#EF4444' : colors.textSecondary}
               />
               <YStack flex={1}>
-                <Text style={[
-                  styles.warningText,
-                  warning.severity === 'critical' && styles.warningTextCritical,
-                ]}>
+                <Text
+                  style={[
+                    styles.warningText,
+                    warning.severity === 'critical' && styles.warningTextCritical,
+                  ]}
+                >
                   {warning.message}
                 </Text>
               </YStack>
@@ -168,9 +175,7 @@ export default function DeleteAccountScreen() {
           </TouchableOpacity>
         ))}
 
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Button
           variant="primary"
@@ -182,11 +187,7 @@ export default function DeleteAccountScreen() {
           繼續刪除
         </Button>
 
-        <Button
-          variant="outline"
-          fullWidth
-          onPress={() => router.back()}
-        >
+        <Button variant="outline" fullWidth onPress={() => router.back()}>
           取消
         </Button>
       </YStack>
@@ -212,9 +213,7 @@ export default function DeleteAccountScreen() {
           />
         </YStack>
 
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Button
           variant="primary"
@@ -226,11 +225,7 @@ export default function DeleteAccountScreen() {
           確認
         </Button>
 
-        <Button
-          variant="outline"
-          fullWidth
-          onPress={() => setStep('warnings')}
-        >
+        <Button variant="outline" fullWidth onPress={() => setStep('warnings')}>
           返回
         </Button>
       </YStack>
@@ -244,18 +239,14 @@ export default function DeleteAccountScreen() {
 
       <YStack style={styles.confirmCard} marginTop="$4">
         <MaterialIcons name="warning" size={48} color="#EF4444" style={{ alignSelf: 'center' }} />
-        <Text style={styles.confirmText}>
-          刪除帳號後:
-        </Text>
+        <Text style={styles.confirmText}>刪除帳號後:</Text>
         <Text style={styles.confirmBullet}>• 您的個人資料將永久刪除</Text>
         <Text style={styles.confirmBullet}>• 您的商店資訊將被匿名化</Text>
         <Text style={styles.confirmBullet}>• 現有的優惠券仍可被顧客使用</Text>
         <Text style={styles.confirmBullet}>• 您可以使用相同的 email 重新註冊</Text>
       </YStack>
 
-      {error ? (
-        <Text style={styles.errorText}>{error}</Text>
-      ) : null}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <YStack gap="$3" marginTop="$4">
         <Button
@@ -295,46 +286,46 @@ export default function DeleteAccountScreen() {
       <DismissKeyboardView>
         <YStack flex={1} backgroundColor={colors.background}>
           {/* Header */}
-        {step !== 'success' && step !== 'loading' && (
-          <XStack
-            paddingHorizontal="$4"
-            paddingVertical="$3"
-            backgroundColor={colors.white}
-            alignItems="center"
-            borderBottomWidth={1}
-            borderBottomColor={colors.border}
+          {step !== 'success' && step !== 'loading' && (
+            <XStack
+              paddingHorizontal="$4"
+              paddingVertical="$3"
+              backgroundColor={colors.white}
+              alignItems="center"
+              borderBottomWidth={1}
+              borderBottomColor={colors.border}
+            >
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <MaterialIcons name="chevron-left" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>刪除帳號</Text>
+            </XStack>
+          )}
+
+          {/* Content */}
+          <ScrollView
+            contentContainerStyle={{ padding: 20 }}
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="on-drag"
           >
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <MaterialIcons name="chevron-left" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>刪除帳號</Text>
-          </XStack>
-        )}
+            {step === 'loading' && (
+              <YStack alignItems="center" justifyContent="center" padding="$8">
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>載入中...</Text>
+              </YStack>
+            )}
 
-        {/* Content */}
-        <ScrollView
-          contentContainerStyle={{ padding: 20 }}
-          showsVerticalScrollIndicator={false}
-          keyboardDismissMode="on-drag"
-        >
-          {step === 'loading' && (
-            <YStack alignItems="center" justifyContent="center" padding="$8">
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>載入中...</Text>
-            </YStack>
-          )}
-
-          {step === 'warnings' && renderWarningsStep()}
-          {step === 'password' && renderPasswordStep()}
-          {step === 'confirm' && renderConfirmStep()}
-          {step === 'processing' && (
-            <YStack alignItems="center" justifyContent="center" padding="$8">
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>刪除中...</Text>
-            </YStack>
-          )}
-          {step === 'success' && renderSuccessStep()}
-        </ScrollView>
+            {step === 'warnings' && renderWarningsStep()}
+            {step === 'password' && renderPasswordStep()}
+            {step === 'confirm' && renderConfirmStep()}
+            {step === 'processing' && (
+              <YStack alignItems="center" justifyContent="center" padding="$8">
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>刪除中...</Text>
+              </YStack>
+            )}
+            {step === 'success' && renderSuccessStep()}
+          </ScrollView>
         </YStack>
       </DismissKeyboardView>
     </SafeAreaView>
@@ -464,4 +455,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

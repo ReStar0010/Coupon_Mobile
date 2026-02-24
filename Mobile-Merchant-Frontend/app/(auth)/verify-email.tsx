@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { View, ActivityIndicator } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { Text, Button, YStack } from 'tamagui';
 import { authAPI } from '../../utils/api';
 
@@ -9,7 +9,7 @@ export default function VerifyEmail() {
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'expired'>('loading');
   const [message, setMessage] = useState('');
-  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [_errorCode, setErrorCode] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
   const requestSent = useRef(false);
 
@@ -28,7 +28,7 @@ export default function VerifyEmail() {
         const result = await authAPI.verifyEmail(token);
         setStatus('success');
         setMessage(result.message || '電子郵件驗證成功！');
-        
+
         // Redirect to login after 2 seconds
         setTimeout(() => {
           router.replace('/login');
@@ -36,7 +36,7 @@ export default function VerifyEmail() {
       } catch (error: any) {
         const errorCode = error?.response?.data?.error || error?.error;
         const errorMessage = error?.response?.data?.message || error?.message || '驗證失敗，請重試';
-        
+
         // Check if token is expired
         if (errorCode === 'expired_token' || errorCode === 'invalid_token') {
           setStatus('expired');
@@ -51,20 +51,30 @@ export default function VerifyEmail() {
     };
 
     verifyToken();
-  }, [token]);
+  }, [token, router]);
 
   return (
-    <YStack flex={1} justifyContent="center" alignItems="center" padding="$4" backgroundColor="$background">
+    <YStack
+      flex={1}
+      justifyContent="center"
+      alignItems="center"
+      padding="$4"
+      backgroundColor="$background"
+    >
       {status === 'loading' && (
         <YStack alignItems="center" gap="$4">
           <ActivityIndicator size="large" color="#FFAD31" />
-          <Text fontSize="$5" color="$color">驗證中...</Text>
+          <Text fontSize="$5" color="$color">
+            驗證中...
+          </Text>
         </YStack>
       )}
-      
+
       {status === 'success' && (
         <YStack alignItems="center" gap="$4">
-          <Text fontSize="$8" color="$green10">✓</Text>
+          <Text fontSize="$8" color="$green10">
+            ✓
+          </Text>
           <Text fontSize="$6" fontWeight="bold" color="$green10" textAlign="center">
             {message}
           </Text>
@@ -73,10 +83,12 @@ export default function VerifyEmail() {
           </Text>
         </YStack>
       )}
-      
+
       {status === 'expired' && (
         <YStack alignItems="center" gap="$4" maxWidth={350}>
-          <Text fontSize="$8" color="$orange10">⚠</Text>
+          <Text fontSize="$8" color="$orange10">
+            ⚠
+          </Text>
           <Text fontSize="$6" fontWeight="bold" color="$orange10" textAlign="center">
             驗證連結已過期
           </Text>
@@ -100,7 +112,11 @@ export default function VerifyEmail() {
                       router.replace('/login');
                     }, 2000);
                   } catch (error: any) {
-                    setMessage(error?.response?.data?.message || error?.message || '重新發送失敗，請稍後再試');
+                    setMessage(
+                      error?.response?.data?.message ||
+                        error?.message ||
+                        '重新發送失敗，請稍後再試',
+                    );
                     setStatus('error');
                   } finally {
                     setIsResending(false);
@@ -137,10 +153,12 @@ export default function VerifyEmail() {
           )}
         </YStack>
       )}
-      
+
       {status === 'error' && (
         <YStack alignItems="center" gap="$4" maxWidth={350}>
-          <Text fontSize="$8" color="$red10">✗</Text>
+          <Text fontSize="$8" color="$red10">
+            ✗
+          </Text>
           <Text fontSize="$6" fontWeight="bold" color="$red10" textAlign="center">
             驗證失敗
           </Text>
@@ -161,4 +179,3 @@ export default function VerifyEmail() {
     </YStack>
   );
 }
-

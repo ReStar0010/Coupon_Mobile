@@ -38,4 +38,3 @@ export function SearchBar({ value, onChangeText, placeholder = '搜尋...' }: Se
     </XStack>
   );
 }
-

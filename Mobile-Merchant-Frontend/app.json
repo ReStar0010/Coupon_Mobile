@@ -3,9 +3,7 @@
     "name": "CouPro 商家端",
     "slug": "Mobile-Merchant-Frontend",
     "version": "1.0.0",
-    "scheme": [
-      "coupromerchant"
-    ],
+    "scheme": ["coupromerchant"],
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
@@ -50,9 +48,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
@@ -70,10 +66,10 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.cokayne.MobileMerchantFrontend",
       "config": {
-      "googleMaps": {
-        "apiKey": "AIzaSyACVfhHwjl0L5QWVRUxWOyle4UOysZPSbA"
+        "googleMaps": {
+          "apiKey": "AIzaSyACVfhHwjl0L5QWVRUxWOyle4UOysZPSbA"
+        }
       }
-    }
     },
     "extra": {
       "router": {},

@@ -27,13 +27,18 @@ export default function AuthRedirectHandler() {
 
     // Get current route path from segments
     const currentPath = '/' + segments.join('/');
-    
+
     // Don't redirect if already on login page or auth routes
-    const publicRoutes = ['/(auth)/login', '/(auth)/register', '/(auth)/forgot-password', '/', '/index'];
-    const isPublicRoute = publicRoutes.some(route => 
-      currentPath === route || 
-      currentPath.startsWith(route) ||
-      currentPath.includes('(auth)')
+    const publicRoutes = [
+      '/(auth)/login',
+      '/(auth)/register',
+      '/(auth)/forgot-password',
+      '/',
+      '/index',
+    ];
+    const isPublicRoute = publicRoutes.some(
+      (route) =>
+        currentPath === route || currentPath.startsWith(route) || currentPath.includes('(auth)'),
     );
 
     if (isPublicRoute) {
@@ -48,14 +53,16 @@ export default function AuthRedirectHandler() {
         await initStorage();
         // Read directly from AsyncStorage for most reliable check
         const refreshToken = await AsyncStorage.getItem('merchant_refresh_token');
-        
+
         // If refresh token exists, user is authenticated
         // Don't redirect - let the app try to refresh the access token
         if (refreshToken) {
-          console.log('[AuthRedirectHandler] Refresh token found, user is authenticated, not redirecting');
+          console.log(
+            '[AuthRedirectHandler] Refresh token found, user is authenticated, not redirecting',
+          );
           return;
         }
-        
+
         // Only redirect if truly no tokens exist
         console.log('[AuthRedirectHandler] No tokens found, redirecting to login');
         router.replace('/(auth)/login');

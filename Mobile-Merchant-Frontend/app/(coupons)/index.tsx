@@ -64,11 +64,11 @@ export default function CouponsScreen() {
   const [qrCodeValue, setQrCodeValue] = useState('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
-  const loadCoupons = async () => {
+  const loadCoupons = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await merchantAPI.listTemplates();
-      setCoupons(data || []);
+      const data = (await merchantAPI.listTemplates()) as Coupon[];
+      setCoupons(data ?? []);
     } catch (error) {
       console.error('Failed to load coupons:', error);
       // Check if it's an authentication error
@@ -80,18 +80,18 @@ export default function CouponsScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   // Load coupons on initial mount
   useEffect(() => {
     loadCoupons();
-  }, []);
+  }, [loadCoupons]);
 
   // Refresh coupons when screen comes into focus (e.g., returning from edit page)
   useFocusEffect(
     useCallback(() => {
       loadCoupons();
-    }, [])
+    }, [loadCoupons]),
   );
 
   // Get coupon status based on dates and is_active
@@ -219,7 +219,7 @@ export default function CouponsScreen() {
           style: 'cancel',
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -238,7 +238,7 @@ export default function CouponsScreen() {
           style: 'cancel',
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -273,9 +273,7 @@ export default function CouponsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
       <DismissKeyboardView>
         <YStack flex={1} backgroundColor={colors.white}>
-          <Header 
-            onMenuPress={() => router.push('/(profile)/')}
-          />
+          <Header onMenuPress={() => router.push('/(profile)/')} />
 
           {/* Fixed: Search, Type tabs, Filters (same level as Header) */}
           <YStack paddingHorizontal="$4" paddingTop="$3">
@@ -368,7 +366,9 @@ export default function CouponsScreen() {
                         endDate: new Date(coupon.end_date).toLocaleDateString('zh-TW'),
                         redemptionCount: coupon.redemption_count || 0,
                         enableSoldOutUI: isCollectionsType,
-                        remainingQuantity: isCollectionsType ? coupon.remaining_quantity : undefined,
+                        remainingQuantity: isCollectionsType
+                          ? coupon.remaining_quantity
+                          : undefined,
                         isExclusiveCoupon: isCollectionsType,
                       }}
                       onEdit={() => {
@@ -383,10 +383,7 @@ export default function CouponsScreen() {
 
           {/* Floating barcode verification button at bottom, above ScrollView */}
           <View
-            style={[
-              styles.floatingButtonContainer,
-              { paddingHorizontal: 16, paddingBottom: 20 },
-            ]}
+            style={[styles.floatingButtonContainer, { paddingHorizontal: 16, paddingBottom: 20 }]}
           >
             <BarcodeVerificationButton
               onPress={handleBarcodeVerificationPress}
@@ -395,7 +392,7 @@ export default function CouponsScreen() {
           </View>
         </YStack>
       </DismissKeyboardView>
-      
+
       {/* QR Code Modal */}
       <QRCodeModal
         isOpen={isQRCodeModalOpen}
@@ -452,4 +449,3 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 });
-

@@ -5,11 +5,10 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Header } from '../(coupons)/components/Header';
 import { Button } from '@/components/ui';
-import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { merchantAPI, authAPI, AuthenticationError, MerchantAuthorizationError } from '@/utils/api';
 import { useAuth } from '../components/providers/AuthProvider';
-import { Alert } from 'react-native';
 
 interface MetricCardProps {
   label: string;
@@ -60,18 +59,7 @@ export default function MerchantProfileScreen() {
   const [statistics, setStatistics] = useState<any>(null);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Refresh data when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [])
-  );
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [profileData, statsData] = await Promise.all([
@@ -91,61 +79,64 @@ export default function MerchantProfileScreen() {
       // Check if user is not a merchant
       if (error instanceof MerchantAuthorizationError) {
         console.log('[Profile] User is not a merchant, redirecting to login');
-        Alert.alert(
-          '權限不足',
-          '您不是商家用戶，無法使用商家功能。',
-          [
-            {
-              text: '確定',
-              onPress: () => {
-                router.replace('/(auth)/login');
-              },
+        Alert.alert('權限不足', '您不是商家用戶，無法使用商家功能。', [
+          {
+            text: '確定',
+            onPress: () => {
+              router.replace('/(auth)/login');
             },
-          ]
-        );
+          },
+        ]);
         return;
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
 
   const businessHours = profile?.store?.business_hours
     ? profile.store.business_hours.split('\n').filter((h: string) => h.trim())
     : [];
 
   const handleLogout = async () => {
-    Alert.alert(
-      '確認登出',
-      '您確定要登出嗎？',
-      [
-        {
-          text: '取消',
-          style: 'cancel',
+    Alert.alert('確認登出', '您確定要登出嗎？', [
+      {
+        text: '取消',
+        style: 'cancel',
+      },
+      {
+        text: '登出',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await authAPI.logout();
+            await checkAuth();
+            router.replace('/(auth)/login');
+          } catch (error) {
+            console.error('Logout error:', error);
+            Alert.alert('錯誤', '登出失敗，請稍後再試');
+          }
         },
-        {
-          text: '登出',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await authAPI.logout();
-              await checkAuth();
-              router.replace('/(auth)/login');
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('錯誤', '登出失敗，請稍後再試');
-            }
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
       <YStack flex={1} backgroundColor={colors.white}>
         <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
-        
+
         <ScrollView
           flex={1}
           paddingHorizontal="$4"
@@ -165,9 +156,12 @@ export default function MerchantProfileScreen() {
                   <Text fontSize={32} fontWeight="700" color={colors.textPrimary}>
                     {profile?.store?.name || '商家名稱'}
                   </Text>
-                  <Button variant="primary" onPress={() => {
-                    router.push('/(profile)/edit');
-                  }}>
+                  <Button
+                    variant="primary"
+                    onPress={() => {
+                      router.push('/(profile)/edit');
+                    }}
+                  >
                     編輯
                   </Button>
                 </XStack>
@@ -183,7 +177,10 @@ export default function MerchantProfileScreen() {
                   value={
                     statistics?.today_cost_currency
                       ? `${statistics.today_cost_currency} ${Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
-                      : Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+                      : Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2,
+                        })
                   }
                 />
               </XStack>
@@ -217,9 +214,9 @@ export default function MerchantProfileScreen() {
               <YStack marginTop="$6" marginBottom="$4" gap="$3">
                 {/* Logout Button */}
                 {/* Content Guidelines Button (UGC Compliance) */}
-                <Button 
-                  variant="outline" 
-                  fullWidth 
+                <Button
+                  variant="outline"
+                  fullWidth
                   onPress={() => router.push('/OptionsMenu/ContentGuidelines')}
                   style={styles.contentGuidelinesButton}
                 >
@@ -229,9 +226,9 @@ export default function MerchantProfileScreen() {
                   </XStack>
                 </Button>
 
-                <Button 
-                  variant="outline" 
-                  fullWidth 
+                <Button
+                  variant="outline"
+                  fullWidth
                   onPress={handleLogout}
                   borderColor="#FF6369"
                   color="#FF6369"
@@ -246,7 +243,11 @@ export default function MerchantProfileScreen() {
                       onPress={() => setShowDeleteAccount(true)}
                       style={styles.showDeleteButton}
                     >
-                      <Text fontSize="$sm" color={colors.textSecondary} style={{ textAlign: 'center' }}>
+                      <Text
+                        fontSize="$sm"
+                        color={colors.textSecondary}
+                        style={{ textAlign: 'center' }}
+                      >
                         進階設定
                       </Text>
                     </TouchableOpacity>
@@ -256,23 +257,34 @@ export default function MerchantProfileScreen() {
                         onPress={() => setShowDeleteAccount(false)}
                         style={styles.hideDeleteButton}
                       >
-                        <Text fontSize="$sm" color={colors.textSecondary} style={{ textAlign: 'center' }}>
+                        <Text
+                          fontSize="$sm"
+                          color={colors.textSecondary}
+                          style={{ textAlign: 'center' }}
+                        >
                           隱藏進階設定
                         </Text>
                       </TouchableOpacity>
                       <View style={styles.deleteAccountContainer}>
-                        <Text fontSize="$xs" color={colors.textSecondary} style={{ marginBottom: 8, textAlign: 'center' }}>
+                        <Text
+                          fontSize="$xs"
+                          color={colors.textSecondary}
+                          style={{ marginBottom: 8, textAlign: 'center' }}
+                        >
                           刪除帳號是永久性操作，無法復原
                         </Text>
-                        <Button 
-                          variant="outline" 
-                          fullWidth 
+                        <Button
+                          variant="outline"
+                          fullWidth
                           onPress={() => router.push('/(profile)/delete-account')}
                           borderColor="#EF4444"
                           color="#EF4444"
                           style={styles.deleteAccountButton}
                         >
-                          <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
+                          <XStack
+                            gap="$2"
+                            style={{ alignItems: 'center', justifyContent: 'center' }}
+                          >
                             <MaterialIcons name="warning" size={16} color="#EF4444" />
                             <Text color="#EF4444">刪除帳號</Text>
                           </XStack>
@@ -350,4 +362,3 @@ const styles = StyleSheet.create({
     // Additional styles for content guidelines button if needed
   },
 });
-

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, TouchableOpacity, StyleSheet, Animated, Linking, Platform } from 'react-native';
 import { YStack, Text, XStack } from 'tamagui';
 import { colors } from '@/constants/colors';
@@ -18,6 +18,23 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(50)).current;
 
+  const hideModal = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateYAnim, {
+        toValue: 50,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose();
+    });
+  }, [fadeAnim, onClose, translateYAnim]);
+
   useEffect(() => {
     if (isOpen) {
       // Show animation
@@ -36,24 +53,7 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
     } else {
       hideModal();
     }
-  }, [isOpen]);
-
-  const hideModal = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateYAnim, {
-        toValue: 50,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose();
-    });
-  };
+  }, [fadeAnim, hideModal, isOpen, translateYAnim]);
 
   const getPermissionInstructions = () => {
     const appName = 'CouPro 商家端';
@@ -95,17 +95,8 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
+    <Modal visible={isOpen} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <Animated.View
           style={[
             styles.content,
@@ -115,35 +106,20 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
             },
           ]}
         >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-          >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
             <YStack gap={12} alignItems="center" width="100%">
               {/* Title */}
-              <Text style={styles.title}>
-                {messages[permissionType].title}
-              </Text>
+              <Text style={styles.title}>{messages[permissionType].title}</Text>
 
               {/* Message */}
-              <Text style={styles.message}>
-                {messages[permissionType].description}
-              </Text>
+              <Text style={styles.message}>{messages[permissionType].description}</Text>
 
               {/* Buttons */}
               <XStack width="100%" marginTop={8} gap={8}>
-                <Button
-                  variant="outline"
-                  flex={1}
-                  onPress={onClose}
-                >
+                <Button variant="outline" flex={1} onPress={onClose}>
                   取消
                 </Button>
-                <Button
-                  variant="primary"
-                  flex={1}
-                  onPress={handleOpenSettings}
-                >
+                <Button variant="primary" flex={1} onPress={handleOpenSettings}>
                   開啟設定
                 </Button>
               </XStack>
@@ -183,4 +159,3 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-

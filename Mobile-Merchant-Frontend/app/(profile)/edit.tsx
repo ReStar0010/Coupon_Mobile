@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/colors';
 import { Button, PermissionDeniedModal, AlertModal } from '@/components/ui';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
-import { StyleSheet, TouchableOpacity, View, TextInput, Alert, Platform } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, TextInput, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { getAbsoluteImageUrl, MerchantProfileResponse, MerchantAuthorizationError, AuthenticationError } from '@/utils/api';
+import {
+  getAbsoluteImageUrl,
+  MerchantProfileResponse,
+  MerchantAuthorizationError,
+  AuthenticationError,
+} from '@/utils/api';
 import LocationPicker from '@/app/components/LocationPicker';
 import EULAModal from '@/app/components/EULAModal';
 import { useEULACheck } from '@/app/hooks/useEULACheck';
@@ -23,13 +28,13 @@ interface EditableFieldProps {
   onPress?: () => void;
 }
 
-function EditableField({ 
-  label, 
-  value, 
-  onChangeText, 
-  placeholder, 
+function EditableField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
   showDropdown = false,
-  onPress 
+  onPress,
 }: EditableFieldProps) {
   return (
     <XStack
@@ -42,7 +47,7 @@ function EditableField({
       <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} width={100}>
         {label}
       </Text>
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={onPress}
         activeOpacity={onPress ? 0.7 : 1}
         style={{ flex: 1 }}
@@ -90,7 +95,7 @@ const STORE_TYPES = [
 
 export default function ProfileEditScreen() {
   const router = useRouter();
-  
+
   const [storeName, setStoreName] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState('');
@@ -100,7 +105,6 @@ export default function ProfileEditScreen() {
   const [businessHours, setBusinessHours] = useState('');
   const [storeLat, setStoreLat] = useState<number>(0);
   const [storeLng, setStoreLng] = useState<number>(0);
-  const [showTypePicker, setShowTypePicker] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -109,11 +113,7 @@ export default function ProfileEditScreen() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       setIsLoading(true);
       const { merchantAPI } = await import('@/utils/api');
@@ -137,7 +137,7 @@ export default function ProfileEditScreen() {
       if (error instanceof MerchantAuthorizationError || error instanceof AuthenticationError) {
         Alert.alert(
           '權限不足',
-          error instanceof MerchantAuthorizationError 
+          error instanceof MerchantAuthorizationError
             ? '您不是商家用戶，無法使用商家功能。'
             : '請重新登入。',
           [
@@ -147,13 +147,17 @@ export default function ProfileEditScreen() {
                 router.replace('/(auth)/login');
               },
             },
-          ]
+          ],
         );
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   // EULA check hook
   const { checkEULA, eulaModalVisible, hideEULAModal, onEULAAccepted } = useEULACheck();
@@ -184,24 +188,24 @@ export default function ProfileEditScreen() {
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
-        
+
         // Show local preview immediately
         setImageUri(uri);
-        
+
         // Show loading state
         setIsLoading(true);
-        
+
         try {
           // Upload image to server
           const { merchantAPI } = await import('@/utils/api');
           const uploadedUrl = await merchantAPI.uploadImage(uri);
-          
+
           // Update state with server URL
           setImageUrl(uploadedUrl);
-          
+
           // Update preview to use server URL if available
           setImageUri(uploadedUrl);
-          
+
           Alert.alert('成功', '圖片上傳成功');
         } catch (uploadError: any) {
           console.error('Image upload error:', uploadError);
@@ -256,155 +260,153 @@ export default function ProfileEditScreen() {
       <DismissKeyboardView>
         <YStack flex={1} backgroundColor={colors.background}>
           {/* Header */}
-        <XStack
-          paddingHorizontal="$4"
-          paddingVertical="$3"
-          backgroundColor={colors.white}
-          alignItems="center"
-          borderBottomWidth={1}
-          borderBottomColor={colors.border}
-        >
-          <TouchableOpacity onPress={() => router.replace('/(profile)/')} activeOpacity={0.7}>
-            <MaterialIcons name="chevron-left" size={24} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <Text 
-            fontSize={24} 
-            fontWeight="700" 
-            color={colors.textPrimary}
-            style={{ marginLeft: 16 }}
+          <XStack
+            paddingHorizontal="$4"
+            paddingVertical="$3"
+            backgroundColor={colors.white}
+            alignItems="center"
+            borderBottomWidth={1}
+            borderBottomColor={colors.border}
           >
-            選單
-          </Text>
-        </XStack>
-
-        <ScrollView
-          flex={1}
-          paddingHorizontal="$4"
-          paddingTop="$4"
-          paddingBottom="$4"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          keyboardDismissMode="on-drag"
-        >
-          {/* Merchant Logo and Name Section */}
-          <View style={styles.merchantSection}>
-            <XStack alignItems="center" gap="$4">
-              {/* Logo */}
-              <TouchableOpacity onPress={pickImage} activeOpacity={0.7}>
-                <View style={styles.logoContainer}>
-                  {imageUri ? (
-                    <ExpoImage
-                      source={{ uri: imageUri }}
-                      style={styles.logoImage}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View style={styles.logoPlaceholder}>
-                      <MaterialIcons name="image" size={32} color={colors.textSecondary} />
-                      <Text style={styles.logoPlaceholderText}>沒有</Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-              
-              {/* Merchant Name */}
-              <Text style={styles.merchantNameText}>
-                {storeName || '商家名稱'}
-              </Text>
-            </XStack>
-          </View>
-
-          {/* Information Fields */}
-          <View style={styles.infoCard}>
-            <XStack
-              paddingVertical="$3"
-              borderBottomWidth={1}
-              borderBottomColor={colors.border}
-              alignItems="center"
-              justifyContent="space-between"
+            <TouchableOpacity onPress={() => router.replace('/(profile)/')} activeOpacity={0.7}>
+              <MaterialIcons name="chevron-left" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <Text
+              fontSize={24}
+              fontWeight="700"
+              color={colors.textPrimary}
+              style={{ marginLeft: 16 }}
             >
-              <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} width={100}>
-                上傳圖片
-              </Text>
-              <TouchableOpacity onPress={pickImage} activeOpacity={0.7} style={{ flex: 1 }}>
-                <XStack alignItems="center" justifyContent="flex-end">
-                  <Text fontSize="$md" color={colors.primary}>
-                    選擇圖片
-                  </Text>
-                </XStack>
-              </TouchableOpacity>
-            </XStack>
-            <EditableField
-              label="地址"
-              value={address}
-              onChangeText={setAddress}
-              placeholder="輸入地址"
-            />
-            {/* Location Picker */}
-            <YStack
-              paddingVertical="$3"
-              borderBottomWidth={1}
-              borderBottomColor={colors.border}
-              gap="$2"
-            >
-              <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} marginBottom="$2">
-                店家位置
-              </Text>
-              <LocationPicker
-                initialLatitude={storeLat || undefined}
-                initialLongitude={storeLng || undefined}
-                onLocationSelect={handleLocationSelect}
-                height={250}
+              選單
+            </Text>
+          </XStack>
+
+          <ScrollView
+            flex={1}
+            paddingHorizontal="$4"
+            paddingTop="$4"
+            paddingBottom="$4"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            keyboardDismissMode="on-drag"
+          >
+            {/* Merchant Logo and Name Section */}
+            <View style={styles.merchantSection}>
+              <XStack alignItems="center" gap="$4">
+                {/* Logo */}
+                <TouchableOpacity onPress={pickImage} activeOpacity={0.7}>
+                  <View style={styles.logoContainer}>
+                    {imageUri ? (
+                      <ExpoImage
+                        source={{ uri: imageUri }}
+                        style={styles.logoImage}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.logoPlaceholder}>
+                        <MaterialIcons name="image" size={32} color={colors.textSecondary} />
+                        <Text style={styles.logoPlaceholderText}>沒有</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                {/* Merchant Name */}
+                <Text style={styles.merchantNameText}>{storeName || '商家名稱'}</Text>
+              </XStack>
+            </View>
+
+            {/* Information Fields */}
+            <View style={styles.infoCard}>
+              <XStack
+                paddingVertical="$3"
+                borderBottomWidth={1}
+                borderBottomColor={colors.border}
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} width={100}>
+                  上傳圖片
+                </Text>
+                <TouchableOpacity onPress={pickImage} activeOpacity={0.7} style={{ flex: 1 }}>
+                  <XStack alignItems="center" justifyContent="flex-end">
+                    <Text fontSize="$md" color={colors.primary}>
+                      選擇圖片
+                    </Text>
+                  </XStack>
+                </TouchableOpacity>
+              </XStack>
+              <EditableField
+                label="地址"
+                value={address}
+                onChangeText={setAddress}
+                placeholder="輸入地址"
               />
-            </YStack>
-            <EditableField
-              label="電話號碼"
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              placeholder="輸入電話號碼"
-            />
-            <EditableField
-              label="類型"
-              value={STORE_TYPES.find(t => t.value === type)?.label || type || ''}
-              onChangeText={() => {}}
-              placeholder="選擇類型"
-              showDropdown
-              onPress={() => {
-                Alert.alert(
-                  '選擇商家類型',
-                  '',
-                  [
-                    ...STORE_TYPES.map(storeType => ({
-                      text: storeType.label,
-                      onPress: () => setType(storeType.value),
-                    })),
-                    { text: '取消', style: 'cancel' },
-                  ],
-                  { cancelable: true }
-                );
-              }}
-            />
-            <EditableField
-              label="營業時間"
-              value={businessHours}
-              onChangeText={setBusinessHours}
-              placeholder="輸入營業時間（例如：週一至週五 09:00-18:00）"
-            />
-          </View>
+              {/* Location Picker */}
+              <YStack
+                paddingVertical="$3"
+                borderBottomWidth={1}
+                borderBottomColor={colors.border}
+                gap="$2"
+              >
+                <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} marginBottom="$2">
+                  店家位置
+                </Text>
+                <LocationPicker
+                  initialLatitude={storeLat || undefined}
+                  initialLongitude={storeLng || undefined}
+                  onLocationSelect={handleLocationSelect}
+                  height={250}
+                />
+              </YStack>
+              <EditableField
+                label="電話號碼"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                placeholder="輸入電話號碼"
+              />
+              <EditableField
+                label="類型"
+                value={STORE_TYPES.find((t) => t.value === type)?.label || type || ''}
+                onChangeText={() => {}}
+                placeholder="選擇類型"
+                showDropdown
+                onPress={() => {
+                  Alert.alert(
+                    '選擇商家類型',
+                    '',
+                    [
+                      ...STORE_TYPES.map((storeType) => ({
+                        text: storeType.label,
+                        onPress: () => setType(storeType.value),
+                      })),
+                      { text: '取消', style: 'cancel' },
+                    ],
+                    { cancelable: true },
+                  );
+                }}
+              />
+              <EditableField
+                label="營業時間"
+                value={businessHours}
+                onChangeText={setBusinessHours}
+                placeholder="輸入營業時間（例如：週一至週五 09:00-18:00）"
+              />
+            </View>
 
-          {/* Save Button */}
-          <View style={styles.saveButtonContainer}>
-            <Button 
-              variant="primary" 
-              fullWidth 
-              onPress={handleSave}
-              disabled={isSaving || isLoading}
-              opacity={isSaving || isLoading ? 0.6 : 1}
-            >
-              {isSaving ? '儲存中...' : '儲存'}
-            </Button>
-          </View>
-        </ScrollView>
+            {/* Save Button */}
+            <View style={styles.saveButtonContainer}>
+              <Button
+                variant="primary"
+                fullWidth
+                onPress={handleSave}
+                disabled={isSaving || isLoading}
+                opacity={isSaving || isLoading ? 0.6 : 1}
+              >
+                {isSaving ? '儲存中...' : '儲存'}
+              </Button>
+            </View>
+          </ScrollView>
         </YStack>
       </DismissKeyboardView>
 
@@ -416,11 +418,7 @@ export default function ProfileEditScreen() {
       />
 
       {/* EULA Modal (UGC Compliance) */}
-      <EULAModal
-        visible={eulaModalVisible}
-        onClose={hideEULAModal}
-        onSuccess={onEULAAccepted}
-      />
+      <EULAModal visible={eulaModalVisible} onClose={hideEULAModal} onSuccess={onEULAAccepted} />
 
       {/* Success Modal */}
       <AlertModal
@@ -506,4 +504,3 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
 });
-

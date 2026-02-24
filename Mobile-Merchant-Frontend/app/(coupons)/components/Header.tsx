@@ -23,8 +23,8 @@ export function Header({ onLogoPress, onMenuPress, showMenu = true }: HeaderProp
       borderBottomColor={colors.border}
     >
       {/* Logo */}
-      <TouchableOpacity 
-        onPress={onLogoPress} 
+      <TouchableOpacity
+        onPress={onLogoPress}
         activeOpacity={onLogoPress ? 0.7 : 1}
         disabled={!onLogoPress}
       >
@@ -34,12 +34,7 @@ export function Header({ onLogoPress, onMenuPress, showMenu = true }: HeaderProp
             style={styles.logoIcon}
             contentFit="contain"
           />
-          <Text 
-            fontSize={30} 
-            fontWeight="800" 
-            color={colors.textPrimary}
-            style={styles.logoText}
-          >
+          <Text fontSize={30} fontWeight="800" color={colors.textPrimary} style={styles.logoText}>
             CouPro
           </Text>
         </XStack>
@@ -47,15 +42,18 @@ export function Header({ onLogoPress, onMenuPress, showMenu = true }: HeaderProp
 
       {/* Hamburger Menu */}
       {showMenu && (
-      <TouchableOpacity
-        onPress={onMenuPress || (() => {
-          // TODO: Open navigation drawer
-          console.log('Menu pressed');
-        })}
-        activeOpacity={0.7}
-      >
-        <MaterialIcons name="menu" size={24} color={colors.textPrimary} />
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={
+            onMenuPress ||
+            (() => {
+              // TODO: Open navigation drawer
+              console.log('Menu pressed');
+            })
+          }
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="menu" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
       )}
     </XStack>
   );
@@ -71,4 +69,3 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
 });
-

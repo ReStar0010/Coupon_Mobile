@@ -24,7 +24,7 @@ interface UseEULACheckResult {
 export function useEULACheck(): UseEULACheckResult {
   const [eulaModalVisible, setEulaModalVisible] = useState(false);
   const [eulaCheckResolve, setEulaCheckResolve] = useState<((accepted: boolean) => void) | null>(
-    null
+    null,
   );
 
   /**
@@ -86,4 +86,3 @@ export function useEULACheck(): UseEULACheckResult {
     onEULAAccepted,
   };
 }
-
