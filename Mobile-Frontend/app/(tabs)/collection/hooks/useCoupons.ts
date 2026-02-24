@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
+import { isAxiosError, isCancel } from 'axios';
 import { ApiCoupon, CouponType } from '@/app/(tabs)/collection/utils/types';
 import { transformApiCoupon } from '@/app/(tabs)/collection/utils/couponUtils';
 import { devDebug } from '@/app/utils/devLogger';
@@ -20,7 +20,7 @@ export function useCoupons(isAuthenticated: boolean, authLoading: boolean): UseC
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const getErrorMessage = useCallback((err: unknown): string => {
-    if (axios.isAxiosError(err)) {
+    if (isAxiosError(err)) {
       // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
       // The token refresh mechanism will handle these automatically, or redirect to login
       if (err.response?.status === 401) {
@@ -80,7 +80,7 @@ export function useCoupons(isAuthenticated: boolean, authLoading: boolean): UseC
         setCoupons(transformedCoupons);
       }
     } catch (err) {
-      if (axios.isCancel(err)) {
+      if (isCancel(err)) {
         devDebug('Request cancelled');
         return;
       }

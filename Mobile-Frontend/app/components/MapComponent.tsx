@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Alert,
-  StyleSheet,
-  Dimensions,
-  Platform,
-  Linking,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { devLog } from '@/app/utils/devLogger';
 
@@ -16,14 +7,16 @@ import { devLog } from '@/app/utils/devLogger';
 let MapView: any;
 let Marker: any;
 let Callout: any;
-let Region: any;
 let Location: any;
 
 if (Platform.OS !== 'web') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   MapView = require('react-native-maps').default;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   Marker = require('react-native-maps').Marker;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   Callout = require('react-native-maps').Callout;
-  Region = require('react-native-maps').Region;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   Location = require('expo-location');
 }
 
@@ -58,8 +51,6 @@ const defaultRegion = {
   longitudeDelta: 0.02, // More zoomed in (smaller value = closer zoom)
 };
 
-const { width, height } = Dimensions.get('window');
-
 const LOCATION_USAGE_MESSAGE =
   'CouPro 需要存取您的位置，以在地圖上顯示您的位置、計算與店家的距離與步行時間，讓您更快找到附近的優惠券。';
 const LOCATION_DENIED_MESSAGE =
@@ -71,22 +62,13 @@ const MapComponent: React.FC<MapComponentProps> = ({
   stores = [],
   onStoreSelect,
   onStorePress,
-  className = '',
+  className: _className,
   setStoreSearch,
   searchQuery = '', // Add searchQuery with default empty string
   mapRef: externalMapRef,
 }) => {
   const router = useRouter();
-
-  // Return a placeholder for web platform
-  if (Platform.OS === 'web') {
-    return (
-      <View style={styles.webPlaceholder}>
-        <Text style={styles.webPlaceholderText}>地圖功能僅適用於移動設備</Text>
-        <Text style={styles.webPlaceholderSubtext}>請使用手機應用程式查看商店地圖</Text>
-      </View>
-    );
-  }
+  const isWeb = Platform.OS === 'web';
 
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [userLocation, setUserLocation] = useState<{
@@ -100,6 +82,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
   // Get user's current location
   useEffect(() => {
+    if (isWeb || !Location) return;
     (async () => {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
@@ -128,13 +111,14 @@ const MapComponent: React.FC<MapComponentProps> = ({
         Alert.alert('定位錯誤', '無法獲取當前位置，請手動選擇商店', [{ text: '確定' }]);
       }
     })();
-  }, []);
+  }, [isWeb]);
 
   // Search functionality - center map on searched store
   useEffect(() => {
+    if (isWeb) return;
     if (searchQuery && stores.length > 0 && mapRef.current) {
       const foundStore = stores.find((store) =>
-        store.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
+        store.name.toLowerCase().includes(searchQuery.toLowerCase().trim()),
       );
 
       if (foundStore) {
@@ -151,7 +135,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         setSelectedStore(foundStore); // Automatically select the found store
       }
     }
-  }, [searchQuery, stores]);
+  }, [isWeb, searchQuery, stores, mapRef]);
 
   const onMarkerPress = (store: Store) => {
     setSelectedStore(store);
@@ -180,53 +164,6 @@ const MapComponent: React.FC<MapComponentProps> = ({
     setIsMapReady(true);
   }, []);
 
-  const goToUserLocation = async () => {
-    if (userLocation && mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          latitudeDelta: 0.02, // More zoomed in when going to user location
-          longitudeDelta: 0.02, // More zoomed in when going to user location
-        },
-        1000
-      );
-    } else {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('需要位置權限', LOCATION_DENIED_MESSAGE, [
-            { text: '取消', style: 'cancel' },
-            { text: '前往設定', onPress: () => Linking.openSettings().catch(() => {}) },
-          ]);
-          return;
-        }
-
-        let location = await Location.getCurrentPositionAsync({});
-        const userPos = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        };
-
-        setUserLocation(userPos);
-
-        if (mapRef.current) {
-          mapRef.current.animateToRegion(
-            {
-              ...userPos,
-              latitudeDelta: 0.02, // More zoomed in when getting new location
-              longitudeDelta: 0.02, // More zoomed in when getting new location
-            },
-            1000
-          );
-        }
-      } catch (error) {
-        console.error('Error getting location:', error);
-        Alert.alert('定位錯誤', '無法獲取當前位置');
-      }
-    }
-  };
-
   const CustomCallout = ({ store }: { store: Store }) => (
     <Callout tooltip={true} onPress={() => navigateToCoupons(store.id, store.name)}>
       <View style={styles.calloutContainer}>
@@ -244,12 +181,23 @@ const MapComponent: React.FC<MapComponentProps> = ({
         <TouchableOpacity
           style={styles.calloutButton}
           onPress={() => navigateToCoupons(store.id, store.name)}
-          activeOpacity={0.8}>
+          activeOpacity={0.8}
+        >
           <Text style={styles.calloutButtonText}>查看優惠券</Text>
         </TouchableOpacity>
       </View>
     </Callout>
   );
+
+  // Return a placeholder for web platform
+  if (isWeb) {
+    return (
+      <View style={styles.webPlaceholder}>
+        <Text style={styles.webPlaceholderText}>地圖功能僅適用於移動設備</Text>
+        <Text style={styles.webPlaceholderSubtext}>請使用手機應用程式查看商店地圖</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { borderRadius: 12, overflow: 'hidden' }]}>
@@ -269,7 +217,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
         showsTraffic={false}
         showsIndoors={true}
         loadingEnabled={true}
-        mapType="standard">
+        mapType="standard"
+      >
         {/* User location marker (custom) */}
         {userLocation && (
           <Marker coordinate={userLocation} title="您的位置" pinColor="blue" zIndex={1000} />
@@ -286,7 +235,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
             title={store.name}
             description={store.address}
             pinColor="#FFAD31"
-            onPress={() => onMarkerPress(store)}>
+            onPress={() => onMarkerPress(store)}
+          >
             {selectedStore?.id === store.id && <CustomCallout store={store} />}
           </Marker>
         ))}

@@ -11,7 +11,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse, isAxiosError } from 'axios';
 import { API_URL } from '../config/api';
 import { authEvents, AUTH_EVENT_TYPES } from './authEvents';
 import {
@@ -38,7 +38,7 @@ export class AuthenticationError extends Error {
 
 // Token refresh state
 let isRefreshing = false;
-let refreshSubscribers: Array<(token: boolean) => void> = [];
+let refreshSubscribers: ((token: boolean) => void)[] = [];
 
 /**
  * Queued request type for handling concurrent 401 errors
@@ -99,7 +99,7 @@ const processQueue = async (success: boolean): Promise<void> => {
         queuedRequest.resolve(retryResponse);
       } catch (retryError) {
         // If retry still fails with 401, it means refresh token is also invalid
-        if (axios.isAxiosError(retryError) && retryError.response?.status === 401) {
+        if (isAxiosError(retryError) && retryError.response?.status === 401) {
           devLog('Request still failed after token refresh - refresh token may be invalid');
           // Create a generic error without exposing authentication details
           const genericError = new Error('Request failed');
@@ -335,7 +335,7 @@ export const fetchAPI = async (
       }
 
       // Check if the error is due to authentication issues
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
+      if (isAxiosError(error) && error.response?.status === 401) {
         devLog('Access token expired, queueing request for retry after token refresh...');
 
         // Queue the request instead of immediately handling it
@@ -362,7 +362,7 @@ export const fetchAPI = async (
 
       // Handle other error responses
       // Preserve the original error object to maintain response information for retry logic
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         // For Axios errors, keep the original error to preserve response data
         const errorData = error.response?.data || {};
         const errorMessage =
@@ -525,7 +525,7 @@ export const logout = async (): Promise<void> => {
   try {
     // Best effort - call logout API to invalidate token on server
     await fetchAPI('/logout/', { method: 'POST' });
-  } catch (error) {
+  } catch (_error) {
     devLog('Logout API call failed, proceeding with local logout');
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { ActivityIndicator, RefreshControl } from 'react-native';
+import { RefreshControl } from 'react-native';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,8 +40,15 @@ const Statistics: React.FC = () => {
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
 
   // Statistics data hook
-  const { stats, completedGoals, isLoading, error, setSavingsGoal, resetGoal, fetchUserStats } =
-    useStatisticsData(isAuthenticated);
+  const {
+    stats,
+    completedGoals: _completedGoals,
+    isLoading,
+    error,
+    setSavingsGoal,
+    resetGoal: _resetGoal,
+    fetchUserStats,
+  } = useStatisticsData(isAuthenticated);
 
   // Transaction history hook
   const {
@@ -52,7 +59,7 @@ const Statistics: React.FC = () => {
     refetch: refetchHistory,
   } = useTransactionHistory(isAuthenticated, 2);
 
-  const [currentGoal, setCurrentGoal] = useState<Goal | null>(null);
+  const [_currentGoal, _setCurrentGoal] = useState<Goal | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,21 +100,8 @@ const Statistics: React.FC = () => {
         console.error('Error storing coupon history:', error);
       }
     },
-    [router]
+    [router],
   );
-
-  // Navigation handlers for TabsFooter
-  const handleHomePress = () => {
-    router.push('/(tabs)/easyuse');
-  };
-
-  const handleCollectionPress = () => {
-    router.push('/(tabs)/collection');
-  };
-
-  const handleStatisticsPress = () => {
-    // Already on Statistics page, do nothing or scroll to top
-  };
 
   // Pull to refresh handler
   const onRefresh = useCallback(async () => {
@@ -141,7 +135,8 @@ const Statistics: React.FC = () => {
             items="center"
             style={{ justifyContent: 'space-between' }}
             px="$5"
-            pt={insets.top + 10}>
+            pt={insets.top + 10}
+          >
             <XStack gap="$3" items="center">
               <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
                 成就列表
@@ -151,7 +146,8 @@ const Statistics: React.FC = () => {
               unstyled
               onPress={() => {
                 router.push('/options-menu');
-              }}>
+              }}
+            >
               <AlignJustify size={24} color="#333333" />
             </Button>
           </XStack>
@@ -169,7 +165,8 @@ const Statistics: React.FC = () => {
                 tintColor="#FFAD31"
                 colors={['#FFAD31']}
               />
-            }>
+            }
+          >
             {/* Show error state inline if there's an error */}
             {error ? (
               <YStack
@@ -179,7 +176,8 @@ const Statistics: React.FC = () => {
                 items="center"
                 borderWidth={1}
                 borderColor="#e0e0e0"
-                mt="$4">
+                mt="$4"
+              >
                 <Text fontSize={16} color="#ef4444" style={{ textAlign: 'center' }}>
                   {error}
                 </Text>
@@ -195,7 +193,8 @@ const Statistics: React.FC = () => {
                 items="center"
                 borderWidth={1}
                 borderColor="#e0e0e0"
-                mt="$4">
+                mt="$4"
+              >
                 <Spinner size="large" color="#FFAD31" />
                 <Text mt="$4" fontSize={16} color="#707070">
                   載入統計資料中...
@@ -229,7 +228,8 @@ const Statistics: React.FC = () => {
                   p="$4"
                   items="center"
                   borderWidth={1}
-                  borderColor="#e0e0e0">
+                  borderColor="#e0e0e0"
+                >
                   <Text fontSize={14} color="#707070">
                     載入中...
                   </Text>
@@ -241,7 +241,8 @@ const Statistics: React.FC = () => {
                   p="$4"
                   items="center"
                   borderWidth={1}
-                  borderColor="#e0e0e0">
+                  borderColor="#e0e0e0"
+                >
                   <Text fontSize={14} color="#707070">
                     載入失敗
                   </Text>
@@ -252,7 +253,8 @@ const Statistics: React.FC = () => {
                   rounded="$4"
                   overflow="hidden"
                   borderWidth={1}
-                  borderColor="#e0e0e0">
+                  borderColor="#e0e0e0"
+                >
                   {transactionHistory.map((item, index) => (
                     <React.Fragment key={item.redemption_id}>
                       <ListItem
@@ -260,7 +262,8 @@ const Statistics: React.FC = () => {
                         hoverTheme
                         pressTheme
                         p="$3"
-                        onPress={() => handleHistoryItemClick(item.coupon_id, item)}>
+                        onPress={() => handleHistoryItemClick(item.coupon_id, item)}
+                      >
                         <ListItem.Text fontSize={13} color="#333333">
                           {item.store_name}
                         </ListItem.Text>
@@ -284,7 +287,8 @@ const Statistics: React.FC = () => {
                     pressTheme
                     p="$3"
                     onPress={handleViewHistory}
-                    icon={<List size={20} color="#333333" />}>
+                    icon={<List size={20} color="#333333" />}
+                  >
                     <ListItem.Text fontSize={13} color="#333333">
                       使用紀錄
                     </ListItem.Text>
@@ -297,7 +301,8 @@ const Statistics: React.FC = () => {
                   rounded="$4"
                   overflow="hidden"
                   borderWidth={1}
-                  borderColor="#e0e0e0">
+                  borderColor="#e0e0e0"
+                >
                   <YStack p="$4" items="center">
                     <Text fontSize={14} color="#707070">
                       尚無使用紀錄
@@ -310,7 +315,8 @@ const Statistics: React.FC = () => {
                     pressTheme
                     p="$3"
                     onPress={handleViewHistory}
-                    icon={<List size={20} color="#333333" />}>
+                    icon={<List size={20} color="#333333" />}
+                  >
                     <ListItem.Text fontSize={13} color="#333333">
                       使用紀錄
                     </ListItem.Text>

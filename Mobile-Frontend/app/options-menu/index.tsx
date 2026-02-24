@@ -2,7 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import { Alert, ScrollView } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { logout, fetchAPI } from '@/app/utils/authAPI';
-import { View, Text, XStack, YStack, Card, Button, H4, ListItem, Separator } from 'tamagui';
+import { Text, XStack, YStack, Card, H4, ListItem, Separator } from 'tamagui';
 import {
   ChevronLeft,
   ChevronRight,
@@ -34,14 +34,6 @@ const OptionsMenu: React.FC = () => {
 
   const handleGoBack = useCallback(() => {
     router.back();
-  }, [router]);
-
-  const handleUserDataEdit = useCallback(() => {
-    router.push('/options-menu/user-data/UserData');
-  }, [router]);
-
-  const handleFeedBack = useCallback(() => {
-    router.push('/options-menu/feedback/FeedBack');
   }, [router]);
 
   const handleSupportMore = useCallback(() => {
@@ -107,7 +99,8 @@ const OptionsMenu: React.FC = () => {
           }}
           showsVerticalScrollIndicator={true}
           bounces={true}
-          overScrollMode="always">
+          overScrollMode="always"
+        >
           <YStack gap={13}>
             {/* Header with back button and title */}
             <XStack gap={13} items="center">
@@ -139,7 +132,8 @@ const OptionsMenu: React.FC = () => {
                 hoverTheme
                 pressTheme
                 size="$6"
-                onPress={handlePhoneSettings}>
+                onPress={handlePhoneSettings}
+              >
                 <ListItem.Text>手機號碼</ListItem.Text>
               </ListItem>
               <Separator />
@@ -150,7 +144,8 @@ const OptionsMenu: React.FC = () => {
                 hoverTheme
                 pressTheme
                 size="$6"
-                onPress={handleEmailSettings}>
+                onPress={handleEmailSettings}
+              >
                 <ListItem.Text>Email</ListItem.Text>
               </ListItem>
               <Separator />
@@ -161,7 +156,8 @@ const OptionsMenu: React.FC = () => {
                 hoverTheme
                 pressTheme
                 size="$6"
-                onPress={handleBlockedMerchants}>
+                onPress={handleBlockedMerchants}
+              >
                 <ListItem.Text>封鎖的商家</ListItem.Text>
               </ListItem>
               <Separator />
@@ -173,7 +169,8 @@ const OptionsMenu: React.FC = () => {
                 hoverTheme
                 pressTheme
                 size="$6"
-                onPress={handleSupportMore}>
+                onPress={handleSupportMore}
+              >
                 <ListItem.Text>支援與條款</ListItem.Text>
               </ListItem>
             </YStack>
@@ -189,7 +186,8 @@ const OptionsMenu: React.FC = () => {
                 hoverTheme
                 pressTheme
                 size="$6"
-                onPress={handleLogout}>
+                onPress={handleLogout}
+              >
                 <ListItem.Text>登出</ListItem.Text>
               </ListItem>
             </YStack>
@@ -205,7 +203,8 @@ const OptionsMenu: React.FC = () => {
                 hoverTheme
                 pressTheme
                 size="$6"
-                onPress={handleDeleteAccount}>
+                onPress={handleDeleteAccount}
+              >
                 <ListItem.Text color="#EF4444">刪除帳號</ListItem.Text>
               </ListItem>
             </YStack>

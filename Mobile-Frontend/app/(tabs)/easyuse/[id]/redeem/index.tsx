@@ -7,14 +7,12 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
-  Dimensions,
 } from 'react-native';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Send, Camera as CameraIcon } from 'lucide-react-native';
+import { ArrowLeft, Camera as CameraIcon } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import SuccessPopup from './SuccessPopup';
 import Toast from './Toast';
@@ -55,7 +53,7 @@ export default function RedeemPage() {
 
   // Camera states
   const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing, _setFacing] = useState<CameraType>('back');
   const [isScanning, setIsScanning] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const cameraRef = useRef<CameraView>(null);
@@ -191,7 +189,7 @@ export default function RedeemPage() {
         setIsLoading(false);
       }
     },
-    [id, redeemCode]
+    [id, redeemCode],
   );
 
   const handleBarCodeScanned = useCallback(
@@ -226,7 +224,7 @@ export default function RedeemPage() {
         await handleSubmitCode(upperCode);
       }
     },
-    [isScanning, handleSubmitCode]
+    [isScanning, handleSubmitCode],
   );
 
   useEffect(() => {
@@ -319,7 +317,8 @@ export default function RedeemPage() {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#f0f0f0',
-        }}>
+        }}
+      >
         <ActivityIndicator size="large" color="#FFAD31" />
         <Text style={{ color: '#333', marginTop: 16 }}>載入中...</Text>
       </SafeAreaView>
@@ -335,7 +334,8 @@ export default function RedeemPage() {
           justifyContent: 'center',
           backgroundColor: '#f0f0f0',
           paddingHorizontal: 20,
-        }}>
+        }}
+      >
         <Text style={{ textAlign: 'center', fontSize: 18, color: '#ef4444' }}>{message}</Text>
         <TouchableOpacity
           onPress={onGoBackContainerClick}
@@ -345,7 +345,8 @@ export default function RedeemPage() {
             backgroundColor: '#d1d5db',
             paddingHorizontal: 16,
             paddingVertical: 8,
-          }}>
+          }}
+        >
           <Text style={{ fontWeight: '600', color: '#374151' }}>返回</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -357,7 +358,8 @@ export default function RedeemPage() {
       <DismissKeyboardView>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}>
+          style={{ flex: 1 }}
+        >
           {/* Header with Back Button */}
           <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 }}>
             <TouchableOpacity
@@ -368,7 +370,8 @@ export default function RedeemPage() {
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+            >
               <ArrowLeft size={24} color="#333" />
             </TouchableOpacity>
           </View>
@@ -403,13 +406,15 @@ export default function RedeemPage() {
               style={{
                 alignItems: 'center',
                 marginBottom: 30,
-              }}>
+              }}
+            >
               <Text
                 style={{
                   fontSize: 16,
                   color: '#666',
                   fontWeight: '500',
-                }}>
+                }}
+              >
                 或
               </Text>
             </View>
@@ -419,7 +424,8 @@ export default function RedeemPage() {
               style={{
                 flex: 1,
                 marginBottom: 20,
-              }}>
+              }}
+            >
               <View
                 style={{
                   backgroundColor: '#fff',
@@ -429,7 +435,8 @@ export default function RedeemPage() {
                   minHeight: 300,
                   borderWidth: 1,
                   borderColor: '#e5e7eb',
-                }}>
+                }}
+              >
                 {isCameraActive && permission?.granted ? (
                   /* Active Camera View */
                   <View style={{ flex: 1, position: 'relative' }}>
@@ -452,7 +459,8 @@ export default function RedeemPage() {
                           'datamatrix',
                         ],
                       }}
-                      onBarcodeScanned={isScanning ? handleBarCodeScanned : undefined}>
+                      onBarcodeScanned={isScanning ? handleBarCodeScanned : undefined}
+                    >
                       {/* Camera overlay */}
                       <View
                         style={{
@@ -464,7 +472,8 @@ export default function RedeemPage() {
                           justifyContent: 'center',
                           alignItems: 'center',
                           backgroundColor: 'rgba(0,0,0,0.2)',
-                        }}>
+                        }}
+                      >
                         {/* Scanning frame overlay */}
                         <View
                           style={{
@@ -478,7 +487,8 @@ export default function RedeemPage() {
                             shadowOffset: { width: 0, height: 2 },
                             shadowOpacity: 0.5,
                             shadowRadius: 4,
-                          }}>
+                          }}
+                        >
                           {/* Corner indicators */}
                           <View
                             style={{
@@ -543,7 +553,8 @@ export default function RedeemPage() {
                             paddingHorizontal: 20,
                             paddingVertical: 10,
                             borderRadius: 8,
-                          }}>
+                          }}
+                        >
                           {isScanning ? '對準核銷碼進行掃描' : '點擊重新掃描'}
                         </Text>
                       </View>
@@ -556,7 +567,8 @@ export default function RedeemPage() {
                           right: 20,
                           flexDirection: 'row',
                           gap: 12,
-                        }}>
+                        }}
+                      >
                         {/* Rescan button */}
                         {!isScanning && (
                           <TouchableOpacity
@@ -565,7 +577,8 @@ export default function RedeemPage() {
                               borderRadius: 25,
                               padding: 10,
                             }}
-                            onPress={() => setIsScanning(true)}>
+                            onPress={() => setIsScanning(true)}
+                          >
                             <CameraIcon size={20} color="#333" />
                           </TouchableOpacity>
                         )}
@@ -577,7 +590,8 @@ export default function RedeemPage() {
                             borderRadius: 25,
                             padding: 10,
                           }}
-                          onPress={toggleCamera}>
+                          onPress={toggleCamera}
+                        >
                           <Text style={{ color: '#333', fontSize: 16, fontWeight: '600' }}>×</Text>
                         </TouchableOpacity>
                       </View>
@@ -594,19 +608,22 @@ export default function RedeemPage() {
                       position: 'relative',
                     }}
                     onPress={toggleCamera}
-                    activeOpacity={0.8}>
+                    activeOpacity={0.8}
+                  >
                     {/* Camera icon and text */}
                     <View
                       style={{
                         alignItems: 'center',
                         gap: 12,
-                      }}>
+                      }}
+                    >
                       <View
                         style={{
                           backgroundColor: '#FFAD31',
                           borderRadius: 40,
                           padding: 20,
-                        }}>
+                        }}
+                      >
                         <CameraIcon size={32} color="#333" />
                       </View>
                       <Text
@@ -615,7 +632,8 @@ export default function RedeemPage() {
                           fontSize: 18,
                           fontWeight: '600',
                           textAlign: 'center',
-                        }}>
+                        }}
+                      >
                         啟動相機掃描
                       </Text>
                       <Text
@@ -624,7 +642,8 @@ export default function RedeemPage() {
                           fontSize: 14,
                           textAlign: 'center',
                           maxWidth: 200,
-                        }}>
+                        }}
+                      >
                         點擊啟動相機掃描核銷碼
                       </Text>
                     </View>
@@ -642,13 +661,15 @@ export default function RedeemPage() {
                           padding: 12,
                           borderWidth: 1,
                           borderColor: '#FFAD31',
-                        }}>
+                        }}
+                      >
                         <Text
                           style={{
                             color: '#b45309',
                             fontSize: 12,
                             textAlign: 'center',
-                          }}>
+                          }}
+                        >
                           需要相機權限才能使用掃描功能
                         </Text>
                       </View>
@@ -673,7 +694,8 @@ export default function RedeemPage() {
                   shadowOpacity: 0.1,
                   shadowRadius: 4,
                   elevation: 3,
-                }}>
+                }}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <ActivityIndicator size="small" color="#FFAD31" style={{ marginRight: 8 }} />
                   <Text style={{ color: '#333', fontSize: 16, fontWeight: '600' }}>處理中...</Text>

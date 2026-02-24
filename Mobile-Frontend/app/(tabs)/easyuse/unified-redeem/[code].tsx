@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { unifiedRedemptionAPI, fetchAPI } from '@/app/utils/authAPI';
+import { unifiedRedemptionAPI } from '@/app/utils/authAPI';
 import Toast from '../[id]/redeem/Toast';
 import SuccessPopup from '../[id]/redeem/SuccessPopup';
 
@@ -31,12 +31,6 @@ interface StoreInfo {
   id: number;
   name: string;
   address?: string;
-}
-
-interface SuccessData {
-  couponName: string;
-  storeName: string;
-  savingsAmount?: number;
 }
 
 const DEFAULT_IMAGE_URL =
@@ -128,7 +122,7 @@ export default function UnifiedRedeemScreen() {
         setIsRedeeming(false);
       }
     },
-    [code, isRedeeming]
+    [code, isRedeeming],
   );
 
   const handleCloseSuccessPopup = useCallback(() => {
@@ -164,7 +158,8 @@ export default function UnifiedRedeemScreen() {
         style={[styles.couponCard, isRedeeming && styles.couponCardDisabled]}
         onPress={() => handleCouponPress(item)}
         activeOpacity={0.7}
-        disabled={isRedeeming}>
+        disabled={isRedeeming}
+      >
         <View style={styles.couponContent}>
           <Image
             source={{ uri: DEFAULT_IMAGE_URL }}
@@ -201,7 +196,8 @@ export default function UnifiedRedeemScreen() {
         </View>
       </TouchableOpacity>
     ),
-    [handleCouponPress]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isRedeeming intentionally omitted
+    [handleCouponPress],
   );
 
   const keyExtractor = useCallback((item: AvailableCoupon) => item.id.toString(), []);

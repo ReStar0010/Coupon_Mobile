@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import { YStack, Text } from 'tamagui';
+import { YStack } from 'tamagui';
 
 interface CircularProgressProps {
   progress: number; // Progress value from 0 to 100
@@ -63,7 +63,8 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
           bottom: 0,
           justifyContent: 'center',
           alignItems: 'center',
-        }}>
+        }}
+      >
         {centerContent}
       </View>
     </YStack>

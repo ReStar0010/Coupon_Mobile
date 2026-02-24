@@ -5,7 +5,6 @@ import {
   SafeAreaView,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   Image,
   StyleSheet,
 } from 'react-native';
@@ -47,7 +46,7 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
   onCouponSelect,
 }) => {
   const router = useRouter();
-  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(null);
+  const [selectedCouponId] = useState<number | null>(null);
 
   const handleGoBack = useCallback(() => {
     router.back();
@@ -65,7 +64,7 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
         });
       }
     },
-    [unifiedCode, router, onCouponSelect]
+    [unifiedCode, router, onCouponSelect],
   );
 
   const formatDate = (dateString: string) => {
@@ -87,7 +86,8 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
         style={styles.couponCard}
         onPress={() => handleCouponPress(item)}
         activeOpacity={0.7}
-        disabled={selectedCouponId !== null && selectedCouponId !== item.id}>
+        disabled={selectedCouponId !== null && selectedCouponId !== item.id}
+      >
         <View style={styles.couponContent}>
           {/* Coupon Image */}
           <Image
@@ -117,7 +117,7 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
         </View>
       </TouchableOpacity>
     ),
-    [handleCouponPress, selectedCouponId]
+    [handleCouponPress, selectedCouponId],
   );
 
   const keyExtractor = useCallback((item: AvailableCoupon) => item.id.toString(), []);

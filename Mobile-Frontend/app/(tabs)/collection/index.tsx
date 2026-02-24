@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, FlatList } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
-import { YStack, Text, Spinner, View, XStack } from 'tamagui';
+import { Stack } from 'expo-router';
+import { YStack, Text, Spinner, View } from 'tamagui';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/app/components/ErrorBoundary';
 import AppHeader from '@/app/components/shared/AppHeader';
@@ -86,7 +86,6 @@ const EmptyState: React.FC = React.memo(() => (
 EmptyState.displayName = 'EmptyState';
 
 const Collection: React.FC = () => {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { dismissStore, isStoreDismissed } = useDismissedStores();
   const { isStoreBlocked } = useBlockedMerchants();
@@ -129,11 +128,8 @@ const Collection: React.FC = () => {
   const filters = useCollectionFilters({ tags, merchants });
 
   const {
-    selectedTags,
-    setSelectedTags,
     expiryFilter,
     selectedMerchant,
-    setSelectedMerchant,
     selectedTagDisplayNames,
     tagFilterLabel,
     expiryFilterLabel,
@@ -145,13 +141,13 @@ const Collection: React.FC = () => {
 
   const publicShareCouponIds = useMemo(
     () => new Set(publicShares.map((s) => s.coupon_id)),
-    [publicShares]
+    [publicShares],
   );
 
   const filteredCoupons = useMemo(() => {
     const activeCoupons = coupons.filter(
       (coupon) =>
-        !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId))
+        !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId)),
     );
     const excludedFromPool = activeCoupons.filter((c) => !c.id || !publicShareCouponIds.has(c.id));
     return filterCoupons(
@@ -159,7 +155,7 @@ const Collection: React.FC = () => {
       searchQuery,
       selectedTagDisplayNames,
       expiryFilter,
-      selectedMerchant
+      selectedMerchant,
     );
   }, [
     coupons,
@@ -201,12 +197,12 @@ const Collection: React.FC = () => {
     ({ item }: { item: CouponType }) => (
       <CouponItem item={item} onMerchantDeleted={handleMerchantDeleted} />
     ),
-    [handleMerchantDeleted]
+    [handleMerchantDeleted],
   );
 
   const keyExtractor = useCallback(
     (item: CouponType) => item.id?.toString() || `item-${Math.random()}`,
-    []
+    [],
   );
 
   const ListHeaderComponent = useMemo(
@@ -240,7 +236,7 @@ const Collection: React.FC = () => {
       shareToken,
       handleGiftAccepted,
       handleOpenDailyDraw,
-    ]
+    ],
   );
 
   const ListEmptyComponent = useMemo(() => {

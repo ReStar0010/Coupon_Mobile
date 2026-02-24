@@ -3,7 +3,7 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { Image, Text, View, Input, XStack, H4, YStack, Card, Spinner } from 'tamagui';
 import { fetchAPI, isUserLoggedIn } from '@/app/utils/authAPI';
-import { TouchableOpacity, Alert, Dimensions, Platform, Linking, StyleSheet } from 'react-native';
+import { TouchableOpacity, Alert, Platform, Linking, StyleSheet } from 'react-native';
 import { AlignJustify, Search, X } from 'lucide-react-native';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,13 +28,10 @@ import Animated, {
   interpolate,
   Extrapolation,
   withSpring,
-  runOnJS,
 } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const { useCallback, useEffect, useMemo, useRef, useState } = React;
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // 位置權限說明：讓用戶了解為何需要位置
 const LOCATION_USAGE_TITLE = '需要位置權限';
@@ -129,7 +126,8 @@ const CouponCard: React.FC<CouponCardProps> = ({
     shadowOffset={{ width: 0, height: 2 }}
     shadowOpacity={0.08}
     elevation={3}
-    height="auto">
+    height="auto"
+  >
     <XStack gap={15} style={{ alignItems: 'center' }}>
       <Image
         source={{
@@ -158,7 +156,8 @@ const CouponCard: React.FC<CouponCardProps> = ({
                   borderRadius: 12,
                   paddingHorizontal: 8,
                   paddingVertical: 4,
-                }}>
+                }}
+              >
                 <Text fontSize={12} color="#FFAD31" fontWeight="500">
                   {tag}
                 </Text>
@@ -205,7 +204,8 @@ const GiftCard: React.FC<GiftCardProps> = ({
     shadowOffset={{ width: 0, height: 2 }}
     shadowOpacity={0.08}
     elevation={3}
-    height="auto">
+    height="auto"
+  >
     <YStack gap={12}>
       <XStack gap={15} style={{ alignItems: 'center' }}>
         <Image
@@ -227,7 +227,8 @@ const GiftCard: React.FC<GiftCardProps> = ({
             fontWeight="700"
             color="#000000"
             numberOfLines={1}
-            ellipsizeMode="tail">
+            ellipsizeMode="tail"
+          >
             {storeName}
           </Text>
           <Text color="#6b7280" numberOfLines={2} ellipsizeMode="tail">
@@ -249,7 +250,8 @@ const GiftCard: React.FC<GiftCardProps> = ({
                 borderRadius: 12,
                 paddingHorizontal: 8,
                 paddingVertical: 4,
-              }}>
+              }}
+            >
               <Text fontSize={12} color="#FFAD31" fontWeight="500">
                 {tag}
               </Text>
@@ -270,7 +272,8 @@ const GiftCard: React.FC<GiftCardProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
         }}
-        activeOpacity={0.8}>
+        activeOpacity={0.8}
+      >
         {isClaiming ? (
           <XStack style={{ alignItems: 'center' }} gap="$2">
             <Spinner size="small" color="#000" />
@@ -324,7 +327,7 @@ const CouPro = () => {
   const [claimingToken, setClaimingToken] = useState<string | null>(null);
   const mapRef = useRef<any>(null);
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(
-    null
+    null,
   );
 
   // Bottom sheet ref
@@ -334,7 +337,7 @@ const CouPro = () => {
   const snapPoints = useMemo(() => ['15%', '50%', '95%'], []);
 
   // Animated position value for coordinating animations
-  const animatedPosition = useSharedValue(0);
+  const _animatedPosition = useSharedValue(0);
   const animatedIndex = useSharedValue(0);
 
   // Track current sheet state for UI logic
@@ -350,7 +353,7 @@ const CouPro = () => {
       restDisplacementThreshold: 0.01,
       restSpeedThreshold: 0.01,
     }),
-    []
+    [],
   );
 
   // Merchant deleted modal state
@@ -396,7 +399,7 @@ const CouPro = () => {
       setCurrentSnapIndex(index);
       animatedIndex.value = withSpring(index, animationConfigs);
     },
-    [animatedIndex, animationConfigs]
+    [animatedIndex, animationConfigs],
   );
 
   const handleAnimate = useCallback(
@@ -408,11 +411,11 @@ const CouPro = () => {
         stiffness: 150,
       });
     },
-    [animatedIndex]
+    [animatedIndex],
   );
 
-  // Collapse to peek state
-  const collapseBottomSheet = useCallback(() => {
+  // Collapse to peek state (reserved for future use)
+  const _collapseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.snapToIndex(0);
   }, []);
 
@@ -444,7 +447,7 @@ const CouPro = () => {
 
   const haversineMeters = (
     a: { latitude: number; longitude: number },
-    b: { latitude: number; longitude: number }
+    b: { latitude: number; longitude: number },
   ) => {
     const R = 6371000;
     const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -475,7 +478,7 @@ const CouPro = () => {
       if (lat == null || lng == null) return null;
       return haversineMeters(userCoords, { latitude: lat, longitude: lng });
     },
-    [userCoords]
+    [userCoords],
   );
 
   const getStoreExpiryInfo = useCallback(
@@ -496,7 +499,7 @@ const CouPro = () => {
       }
       return { expiringSoonCount, soonestExpiry };
     },
-    [coupons]
+    [coupons],
   );
 
   // ============================================
@@ -637,7 +640,7 @@ const CouPro = () => {
         setClaimingToken(null);
       }
     },
-    [router, fetchCoupons]
+    [router, fetchCoupons],
   );
 
   useEffect(() => {
@@ -756,7 +759,7 @@ const CouPro = () => {
         expandBottomSheetHalf();
       }
     },
-    [expandBottomSheetHalf]
+    [expandBottomSheetHalf],
   );
 
   const handleNavigateToStore = useCallback(async (store: Store) => {
@@ -772,7 +775,7 @@ const CouPro = () => {
     try {
       const canOpenGoogle = await Linking.canOpenURL(googleUrl);
       await Linking.openURL(canOpenGoogle ? googleUrl : webUrl);
-    } catch (e) {
+    } catch {
       await Linking.openURL(webUrl);
     }
   }, []);
@@ -780,7 +783,7 @@ const CouPro = () => {
   // Render backdrop callback
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => <CustomBackdrop {...props} />,
-    []
+    [],
   );
 
   return (
@@ -804,7 +807,8 @@ const CouPro = () => {
           {/* Search Bar */}
           <Animated.View
             style={[styles.searchBarContainer, { top: insets.top + 10 }, searchBarAnimatedStyle]}
-            pointerEvents={currentSnapIndex >= 2 ? 'none' : 'box-none'}>
+            pointerEvents={currentSnapIndex >= 2 ? 'none' : 'box-none'}
+          >
             <YStack gap={10} style={styles.searchBarContent}>
               <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <XStack gap={13} style={{ alignItems: 'center' }}>
@@ -842,7 +846,8 @@ const CouPro = () => {
           {Platform.OS !== 'web' && (
             <Animated.View
               style={[styles.locateButton, { top: insets.top + 150 }, locateButtonAnimatedStyle]}
-              pointerEvents={currentSnapIndex >= 2 ? 'none' : 'box-none'}>
+              pointerEvents={currentSnapIndex >= 2 ? 'none' : 'box-none'}
+            >
               <TouchableOpacity
                 onPress={handleLocateUser}
                 style={{
@@ -851,7 +856,8 @@ const CouPro = () => {
                   justifyContent: 'center',
                   alignItems: 'center',
                 }}
-                activeOpacity={0.8}>
+                activeOpacity={0.8}
+              >
                 <Text style={{ fontSize: 24 }}>📍</Text>
               </TouchableOpacity>
             </Animated.View>
@@ -873,12 +879,14 @@ const CouPro = () => {
             style={styles.bottomSheet}
             animationConfigs={animationConfigs}
             enableContentPanningGesture={true}
-            enableHandlePanningGesture={true}>
+            enableHandlePanningGesture={true}
+          >
             {/* Animated container for border radius */}
             <Animated.View style={[styles.sheetContentContainer, sheetContainerAnimatedStyle]}>
               <BottomSheetScrollView
                 contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}>
+                showsVerticalScrollIndicator={false}
+              >
                 <YStack gap={13} style={{ paddingHorizontal: 15, paddingTop: 10 }}>
                   {/* Selected store info */}
                   {selectedStore &&
@@ -887,7 +895,7 @@ const CouPro = () => {
                       const distanceText = meters != null ? formatDistance(meters) : null;
                       const walkMin = meters != null ? estimateWalkMinutes(meters) : null;
                       const { expiringSoonCount, soonestExpiry } = getStoreExpiryInfo(
-                        selectedStore.id
+                        selectedStore.id,
                       );
                       const soonestExpiryText = soonestExpiry
                         ? `${soonestExpiry.getMonth() + 1}/${soonestExpiry.getDate()}`
@@ -904,17 +912,20 @@ const CouPro = () => {
                           shadowRadius={8}
                           shadowOffset={{ width: 0, height: 2 }}
                           shadowOpacity={0.06}
-                          elevation={2}>
+                          elevation={2}
+                        >
                           <YStack gap="$3">
                             <XStack
                               style={{ alignItems: 'center', justifyContent: 'space-between' }}
-                              gap="$3">
+                              gap="$3"
+                            >
                               <YStack flex={1} gap="$1">
                                 <Text
                                   fontSize={18}
                                   fontWeight="700"
                                   color="#000000"
-                                  numberOfLines={1}>
+                                  numberOfLines={1}
+                                >
                                   {selectedStore.name}
                                 </Text>
                                 {!!selectedStore.address && (
@@ -952,7 +963,8 @@ const CouPro = () => {
                                   setSearchQuery('');
                                 }}
                                 activeOpacity={0.7}
-                                style={styles.clearButton}>
+                                style={styles.clearButton}
+                              >
                                 <Text style={{ color: '#111827', fontWeight: '700' }}>清除</Text>
                               </TouchableOpacity>
                             </XStack>
@@ -961,13 +973,15 @@ const CouPro = () => {
                               <TouchableOpacity
                                 onPress={() => expandBottomSheetFull()}
                                 activeOpacity={0.8}
-                                style={styles.viewCouponsButton}>
+                                style={styles.viewCouponsButton}
+                              >
                                 <Text style={{ color: 'white', fontWeight: '800' }}>查看優惠</Text>
                               </TouchableOpacity>
                               <TouchableOpacity
                                 onPress={() => handleNavigateToStore(selectedStore)}
                                 activeOpacity={0.8}
-                                style={styles.navigateButton}>
+                                style={styles.navigateButton}
+                              >
                                 <Text style={{ color: '#000', fontWeight: '800' }}>導航前往</Text>
                               </TouchableOpacity>
                             </XStack>
@@ -980,7 +994,8 @@ const CouPro = () => {
                   <TouchableOpacity
                     onPress={() => router.push('/(tabs)/easyuse/qr-claim')}
                     style={styles.scanQRButton}
-                    activeOpacity={0.8}>
+                    activeOpacity={0.8}
+                  >
                     <Text style={{ color: '#000', fontSize: 16, fontWeight: '700' }}>
                       掃描 QR Code 領取優惠券
                     </Text>
@@ -1031,7 +1046,7 @@ const CouPro = () => {
                           id={coupon.id}
                           onPress={() => onCouponPress(coupon)}
                         />
-                      )
+                      ),
                     )
                   )}
 

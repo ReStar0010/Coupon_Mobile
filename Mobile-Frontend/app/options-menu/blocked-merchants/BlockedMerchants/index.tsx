@@ -40,7 +40,7 @@ export default function BlockedMerchantsScreen() {
             } else {
               Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
             }
-          } catch (error) {
+          } catch {
             Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
           } finally {
             setUnblocking(null);
@@ -58,7 +58,8 @@ export default function BlockedMerchantsScreen() {
         px="$4"
         py="$6"
         style={{ paddingTop: insets.top + 10 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Header with back button and title */}
         <XStack gap="$3" items="center">
           <ChevronLeft size={24} onPress={() => router.back()} color={'black'} />
@@ -93,7 +94,8 @@ export default function BlockedMerchantsScreen() {
                 <Card
                   key={String(blocked.id ?? blocked.store.id)}
                   padding="$3"
-                  backgroundColor="$background">
+                  backgroundColor="$background"
+                >
                   <XStack justify="space-between" items="center" gap="$3">
                     <YStack flex={1}>
                       <Text fontSize="$5" fontWeight="600">
@@ -109,7 +111,8 @@ export default function BlockedMerchantsScreen() {
                       onPress={() =>
                         handleUnblock(blocked.store.id, blocked.store?.name ?? '未知商家')
                       }
-                      disabled={unblocking === blocked.store.id}>
+                      disabled={unblocking === blocked.store.id}
+                    >
                       {unblocking === blocked.store.id ? (
                         <Spinner size="small" color="$white" />
                       ) : (

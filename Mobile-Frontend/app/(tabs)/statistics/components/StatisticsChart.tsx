@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image } from 'react-native';
-import { YStack, XStack, Button, Text } from 'tamagui';
+import { YStack, Button, Text } from 'tamagui';
 import CircularProgress from './CircularProgress';
 
 interface StatisticsChartProps {
@@ -32,7 +32,8 @@ const StatisticsChart: React.FC<StatisticsChartProps> = ({
             bg="#E5E5E5"
             rounded="$8"
             items="center"
-            style={{ justifyContent: 'center' }}>
+            style={{ justifyContent: 'center' }}
+          >
             <Text fontSize={30} color="#999">
               📊
             </Text>
@@ -57,7 +58,8 @@ const StatisticsChart: React.FC<StatisticsChartProps> = ({
             bg="#FFAD31"
             rounded="$8"
             items="center"
-            style={{ justifyContent: 'center' }}>
+            style={{ justifyContent: 'center' }}
+          >
             <Text fontSize={18} color="white">
               🎯
             </Text>
@@ -98,7 +100,8 @@ const StatisticsChart: React.FC<StatisticsChartProps> = ({
         py="$2.5"
         rounded="$6"
         pressStyle={{ bg: '#FF9500' }}
-        onPress={onSetGoal}>
+        onPress={onSetGoal}
+      >
         {hasGoal ? '更改目標' : '設定目標'}
       </Button>
 

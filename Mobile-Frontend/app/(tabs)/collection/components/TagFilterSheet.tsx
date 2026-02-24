@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { Modal, Dimensions, TouchableOpacity, FlatList } from 'react-native';
 import { YStack, XStack, Text } from 'tamagui';
 import { X } from 'lucide-react-native';
@@ -50,7 +50,8 @@ export function TagFilterSheet({
           justifyContent: 'flex-end',
         }}
         activeOpacity={1}
-        onPress={onClose}>
+        onPress={onClose}
+      >
         <TouchableOpacity
           activeOpacity={1}
           onPress={(e) => e.stopPropagation()}
@@ -60,7 +61,8 @@ export function TagFilterSheet({
             borderTopRightRadius: BORDER_RADIUS.xl,
             maxHeight: SCREEN_HEIGHT * 0.8,
             paddingBottom: insets.bottom,
-          }}>
+          }}
+        >
           <YStack gap={16} padding={16}>
             {/* Header */}
             <XStack alignItems="center" justifyContent="space-between" paddingBottom={8}>
@@ -104,12 +106,14 @@ export function TagFilterSheet({
                       marginBottom: 4,
                       borderWidth: isSelected ? 1 : 0,
                       borderColor: COLORS.primary,
-                    }}>
+                    }}
+                  >
                     <XStack alignItems="center" justifyContent="space-between">
                       <Text
                         fontSize={16}
                         color={isSelected ? COLORS.primary : COLORS.text.primary}
-                        fontWeight={isSelected ? '600' : '400'}>
+                        fontWeight={isSelected ? '600' : '400'}
+                      >
                         {item.display_name}
                       </Text>
                       {isSelected && (
@@ -142,7 +146,8 @@ export function TagFilterSheet({
                 paddingVertical: 14,
                 alignItems: 'center',
                 marginTop: 8,
-              }}>
+              }}
+            >
               <Text fontSize={16} color={COLORS.white} fontWeight="600">
                 完成
               </Text>

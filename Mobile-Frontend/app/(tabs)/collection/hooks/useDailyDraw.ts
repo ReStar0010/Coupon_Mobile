@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { DailyDrawResult, DrawTemplate } from '@/app/(tabs)/collection/utils/types';
 import { checkLastDrawDate } from '@/app/(tabs)/collection/utils/couponUtils';
 import { devDebug } from '@/app/utils/devLogger';
@@ -84,7 +84,7 @@ export function useDailyDraw(
   }, []);
 
   const getErrorMessage = useCallback((err: unknown): string => {
-    if (axios.isAxiosError(err)) {
+    if (isAxiosError(err)) {
       // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
       if (err.response?.status === 401) {
         return ''; // Return empty string to prevent UI from displaying auth errors
@@ -142,7 +142,7 @@ export function useDailyDraw(
     } catch (err) {
       console.error('Error during daily draw:', err);
 
-      if (axios.isAxiosError(err) && err.response?.status === 400) {
+      if (isAxiosError(err) && err.response?.status === 400) {
         if (isMountedRef.current) {
           setHasDailyDrawn(true);
         }

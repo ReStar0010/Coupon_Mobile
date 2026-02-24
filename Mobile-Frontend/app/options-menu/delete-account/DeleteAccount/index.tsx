@@ -30,7 +30,7 @@ const DeleteAccount: React.FC = () => {
   const [step, setStep] = useState<DeletionStep>('loading');
   const [warnings, setWarnings] = useState<DeletionWarning[]>([]);
   const [dataSummary, setDataSummary] = useState<PreDeleteCheckResponse['data_summary'] | null>(
-    null
+    null,
   );
   const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
   const [password, setPassword] = useState('');
@@ -219,12 +219,14 @@ const DeleteAccount: React.FC = () => {
                   <TouchableOpacity
                     key={warning.code}
                     onPress={() => toggleAcknowledgment(warning.code)}
-                    activeOpacity={0.7}>
+                    activeOpacity={0.7}
+                  >
                     <Card
                       bordered
                       p="$4"
                       bg={isCritical ? '#FEF2F2' : 'white'}
-                      borderColor={isCritical ? '#FEE2E2' : '$borderColor'}>
+                      borderColor={isCritical ? '#FEE2E2' : '$borderColor'}
+                    >
                       <XStack gap="$3" items="flex-start">
                         {isChecked ? (
                           <CheckSquare size={22} color={isCritical ? '#EF4444' : '#FFAD31'} />
@@ -235,7 +237,8 @@ const DeleteAccount: React.FC = () => {
                           flex={1}
                           fontSize={14}
                           lineHeight={20}
-                          color={isCritical ? '#991B1B' : 'black'}>
+                          color={isCritical ? '#991B1B' : 'black'}
+                        >
                           {warning.message}
                         </Text>
                       </XStack>
@@ -253,7 +256,8 @@ const DeleteAccount: React.FC = () => {
               <TouchableOpacity
                 onPress={handleContinueFromWarnings}
                 style={styles.dangerButton}
-                activeOpacity={0.8}>
+                activeOpacity={0.8}
+              >
                 <Text color="white" fontWeight="600" fontSize={16}>
                   繼續刪除
                 </Text>
@@ -262,7 +266,8 @@ const DeleteAccount: React.FC = () => {
               <TouchableOpacity
                 onPress={handleGoBack}
                 style={styles.cancelButton}
-                activeOpacity={0.8}>
+                activeOpacity={0.8}
+              >
                 <Text fontWeight="600" fontSize={16}>
                   取消
                 </Text>
@@ -301,7 +306,8 @@ const DeleteAccount: React.FC = () => {
               <TouchableOpacity
                 onPress={handleContinueFromPassword}
                 style={styles.dangerButton}
-                activeOpacity={0.8}>
+                activeOpacity={0.8}
+              >
                 <Text color="white" fontWeight="600" fontSize={16}>
                   確認
                 </Text>
@@ -313,7 +319,8 @@ const DeleteAccount: React.FC = () => {
                   setError('');
                 }}
                 style={styles.cancelButton}
-                activeOpacity={0.8}>
+                activeOpacity={0.8}
+              >
                 <Text fontWeight="600" fontSize={16}>
                   返回
                 </Text>
@@ -359,7 +366,8 @@ const DeleteAccount: React.FC = () => {
                 onPress={handleConfirmDeletion}
                 style={[styles.dangerButton, isProcessing && { opacity: 0.6 }]}
                 activeOpacity={0.8}
-                disabled={isProcessing}>
+                disabled={isProcessing}
+              >
                 <Text color="white" fontWeight="600" fontSize={16}>
                   {isProcessing ? '刪除中...' : '確定刪除帳號'}
                 </Text>
@@ -372,7 +380,8 @@ const DeleteAccount: React.FC = () => {
                 }}
                 style={styles.cancelButton}
                 activeOpacity={0.8}
-                disabled={isProcessing}>
+                disabled={isProcessing}
+              >
                 <Text fontWeight="600" fontSize={16}>
                   取消
                 </Text>

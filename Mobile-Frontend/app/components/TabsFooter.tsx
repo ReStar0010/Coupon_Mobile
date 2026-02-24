@@ -2,8 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { XStack } from 'tamagui';
 import { Home, StretchHorizontal, BarChart2 } from 'lucide-react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Shadow } from 'react-native-shadow-2';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface TabsFooterProps {
   activeTab?: 'home' | 'collection' | 'statistics';
@@ -52,20 +51,23 @@ const TabsFooter: React.FC<TabsFooterProps> = ({
         paddingBottom: Math.max(insets.bottom, 20),
         paddingHorizontal: 30,
       }}
-      bg="#ffffffff">
+      bg="#ffffffff"
+    >
       <TouchableOpacity activeOpacity={0.7} onPress={() => handleTabPress('home', onHomePress)}>
         <Home color={getIconColor('home')} size={24} />
       </TouchableOpacity>
 
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => handleTabPress('collection', onCollectionPress)}>
+        onPress={() => handleTabPress('collection', onCollectionPress)}
+      >
         <StretchHorizontal color={getIconColor('collection')} size={24} />
       </TouchableOpacity>
 
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => handleTabPress('statistics', onStatisticsPress)}>
+        onPress={() => handleTabPress('statistics', onStatisticsPress)}
+      >
         <BarChart2 color={getIconColor('statistics')} size={24} />
       </TouchableOpacity>
     </XStack>

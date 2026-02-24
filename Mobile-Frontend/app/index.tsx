@@ -5,7 +5,7 @@ import { ensureValidAuth } from './utils/authAPI';
 
 export default function App() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -28,5 +28,6 @@ export default function App() {
     };
 
     initializeAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 }

@@ -7,19 +7,16 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { qrClaimAPI } from '@/app/utils/authAPI';
 
-const { width } = Dimensions.get('window');
-
 export default function QRClaimScanner() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing, _setFacing] = useState<CameraType>('back');
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +65,7 @@ export default function QRClaimScanner() {
         let qrData: { template_id?: number; session_token?: string };
         try {
           qrData = JSON.parse(data);
-        } catch (parseError) {
+        } catch {
           setError('無效的 QR Code 格式，請掃描正確的優惠券 QR Code');
           setIsLoading(false);
           setIsDisabled(false);
@@ -110,7 +107,7 @@ export default function QRClaimScanner() {
               },
             },
           ],
-          { cancelable: false }
+          { cancelable: false },
         );
       } catch (err: any) {
         console.error('QR claim error:', err);
@@ -143,7 +140,7 @@ export default function QRClaimScanner() {
         isProcessingRef.current = false;
       }
     },
-    [isScanning, isDisabled, isLoading, lastScannedTime, router]
+    [isScanning, isDisabled, isLoading, lastScannedTime, router],
   );
 
   const handleGoBack = useCallback(() => {
@@ -247,7 +244,8 @@ export default function QRClaimScanner() {
                 setIsScanning(true);
                 isProcessingRef.current = false; // Reset processing flag on retry
               }}
-              style={styles.retryButton}>
+              style={styles.retryButton}
+            >
               <Text style={styles.retryButtonText}>重試</Text>
             </TouchableOpacity>
           </View>

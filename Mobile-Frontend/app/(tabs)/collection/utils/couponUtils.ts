@@ -2,7 +2,6 @@
 
 import { fetchAPI } from '@/app/utils/authAPI';
 import { ApiCoupon, CouponType, ExpiryFilter } from './types';
-import axios from 'axios';
 
 /**
  * Get display label for acquisition method

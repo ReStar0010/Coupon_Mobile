@@ -199,7 +199,7 @@ export function decodeJwtPayload(token: string): DecodedToken | null {
     const jsonPayload = decodeBase64(base64);
 
     return JSON.parse(jsonPayload);
-  } catch (error) {
+  } catch (_error) {
     // Graceful fallback - token might not be a valid JWT
     return null;
   }

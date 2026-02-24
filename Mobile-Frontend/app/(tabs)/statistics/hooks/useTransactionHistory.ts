@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { fetchAPI, AuthenticationError } from '@/app/utils/authAPI';
 
 export interface TransactionHistoryItem {
@@ -43,7 +43,7 @@ export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 
       // Check if it's an authentication error
       if (
         err instanceof AuthenticationError ||
-        (axios.isAxiosError(err) && err.response?.status === 401)
+        (isAxiosError(err) && err.response?.status === 401)
       ) {
         console.error('Authentication error fetching transaction history, redirecting to login');
         // Redirect to login immediately
@@ -68,7 +68,7 @@ export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 
         .getHours()
         .toString()
         .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-    } catch (e) {
+    } catch {
       return dateString;
     }
   };
@@ -78,6 +78,7 @@ export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 
     if (isAuthenticated) {
       fetchTransactionHistory();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch on isAuthenticated change only
   }, [isAuthenticated]);
 
   return {

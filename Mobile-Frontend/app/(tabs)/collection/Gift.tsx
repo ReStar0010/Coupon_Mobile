@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Dimensions } from 'react-native';
 import { YStack, XStack, Text, Button, Card, Spinner } from 'tamagui';
 import { useRouter } from 'expo-router';
 import SuccessPopup from '../easyuse/[id]/redeem/SuccessPopup';
@@ -19,8 +18,6 @@ export type GiftType = {
   };
   onAccepted?: () => void;
 };
-
-const { width } = Dimensions.get('window');
 
 const Gift: React.FC<GiftType> = ({
   className = '',
@@ -112,13 +109,15 @@ const Gift: React.FC<GiftType> = ({
         elevation={4}
         minHeight={120}
         backgroundColor="$background"
-        marginVertical="$1">
+        marginVertical="$1"
+      >
         <XStack
           flex={1}
           alignItems="center"
           justifyContent="space-between"
           paddingHorizontal="$6"
-          paddingVertical="$4">
+          paddingVertical="$4"
+        >
           {/* Left side - Gift info */}
           <YStack marginRight="$4" flex={1}>
             <Text
@@ -126,7 +125,8 @@ const Gift: React.FC<GiftType> = ({
               marginBottom="$2"
               fontSize="$6"
               fontWeight="bold"
-              numberOfLines={2}>
+              numberOfLines={2}
+            >
               🎁 {GiftType || (couponInfo ? `來自好友的優惠券` : '優惠券禮物')}
             </Text>
 
@@ -160,7 +160,8 @@ const Gift: React.FC<GiftType> = ({
             onPress={token ? handleAccept : undefined}
             disabled={isAccepting || !token}
             opacity={isAccepting ? 0.7 : 1}
-            pressStyle={{ opacity: 0.7 }}>
+            pressStyle={{ opacity: 0.7 }}
+          >
             {isAccepting ? (
               <XStack alignItems="center">
                 <Spinner size="small" color="#000" />

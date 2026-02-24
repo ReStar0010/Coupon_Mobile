@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Dimensions } from 'react-native';
 import { YStack, XStack, Text, Button, Card, Spinner, Separator } from 'tamagui';
-import { DailyDrawResult } from '@/app/utils/types';
+import { DailyDrawResult } from '../utils/types';
 
 interface DailyDrawModalProps {
   isOpen: boolean;
@@ -43,14 +43,16 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
         flex={1}
         alignItems="center"
         justifyContent="center"
-        backgroundColor="rgba(0,0,0,0.5)">
+        backgroundColor="rgba(0,0,0,0.5)"
+      >
         <Card
           alignItems="center"
           borderRadius="$4"
           backgroundColor="$background"
           padding="$6"
           maxWidth={width * 0.9}
-          width={Math.min(350, width * 0.9)}>
+          width={Math.min(350, width * 0.9)}
+        >
           {!result ? (
             <>
               <Text color="$color12" marginBottom="$4" fontSize="$7" fontWeight="bold">
@@ -90,12 +92,14 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
                 style={{ borderRadius: 12 }}
                 borderWidth={0}
                 pressStyle={{ opacity: 0.7 }}
-                opacity={isLoading || templatesAvailable === 0 ? 0.6 : 1}>
+                opacity={isLoading || templatesAvailable === 0 ? 0.6 : 1}
+              >
                 <Text
                   color={isLoading || templatesAvailable === 0 ? '#FFFFFF' : '#000000'}
                   fontSize={18}
                   fontWeight="600"
-                  style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}>
+                  style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
+                >
                   {isLoading
                     ? '抽獎中...'
                     : templatesAvailable === 0 && !isLoadingTemplates
@@ -110,7 +114,8 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
                 backgroundColor="transparent"
                 pressStyle={{ opacity: 0.7 }}
                 color="$color11"
-                fontSize="$4">
+                fontSize="$4"
+              >
                 下次再抽
               </Button>
             </>
@@ -122,7 +127,8 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
                 fontWeight="bold"
                 color="$color12"
                 marginBottom="$8"
-                textAlign="center">
+                textAlign="center"
+              >
                 {result.success ? '抽獎成功' : '抽獎結果'}
               </Text>
 
@@ -150,7 +156,8 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
                     fontWeight="600"
                     maxWidth={180}
                     textAlign="right"
-                    numberOfLines={2}>
+                    numberOfLines={2}
+                  >
                     {result.success && result.coupon ? result.coupon.name : '今天沒有抽中'}
                   </Text>
                 </XStack>
@@ -164,12 +171,14 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
                 height={48}
                 style={{ borderRadius: 12 }}
                 borderWidth={0}
-                pressStyle={{ opacity: 0.8 }}>
+                pressStyle={{ opacity: 0.8 }}
+              >
                 <Text
                   color="#000000"
                   fontSize={18}
                   fontWeight="bold"
-                  style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}>
+                  style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
+                >
                   完成
                 </Text>
               </Button>

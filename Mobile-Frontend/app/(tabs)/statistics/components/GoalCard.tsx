@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image } from 'react-native';
 import { StatisticsData } from '../hooks/useStatisticsData';
-import { YStack, XStack, Button, Text } from 'tamagui';
+import { YStack, Button, Text } from 'tamagui';
 
 interface Goal {
   id: string;
@@ -14,11 +14,6 @@ interface StatisticsContentProps {
   onSetGoal: () => void;
 }
 
-interface GoalCardProps {
-  goal: Goal | null;
-  onSetGoal: () => void;
-}
-
 const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
   if (stats.savingsGoalAmount === 0) {
     // Empty state - show placeholder with set goal button
@@ -28,7 +23,8 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
         style={{ borderWidth: 1, borderColor: 'white' }}
         bg="#f5f5f5"
         p="$4"
-        elevation="$1">
+        elevation="$1"
+      >
         {/* Progress Bar Background */}
         <YStack mb="$3" height={16} width="100%" rounded="$6" bg="#e0e0e0" />
 
@@ -41,14 +37,16 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
             items="center"
             rounded="$3"
             style={{ borderWidth: 1, borderColor: 'white', justifyContent: 'center' }}
-            bg="white">
+            bg="white"
+          >
             <YStack
               height={48}
               width={48}
               items="center"
               style={{ justifyContent: 'center' }}
               rounded="$2"
-              bg="#8F8F8F">
+              bg="#8F8F8F"
+            >
               <Image
                 source={require('@/assets/battery.svg')}
                 style={{ height: 24, width: 24, tintColor: '#FFFFFF' }}
@@ -62,7 +60,8 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
             bg="#FFAD31"
             px="$3"
             py="$2"
-            pressStyle={{ opacity: 0.8 }}>
+            pressStyle={{ opacity: 0.8 }}
+          >
             <Text fontSize={13} fontWeight="normal" color="#333333">
               設定目標
             </Text>
@@ -105,7 +104,8 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
             fontSize={14}
             fontWeight="bold"
             lineHeight={17.5}
-            color="#333333">
+            color="#333333"
+          >
             {isCompleted ? '目標達成！' : `剩下 ${remaining} 塊，加油！`}
           </Text>
         </YStack>

@@ -7,7 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { TamaguiProvider } from 'tamagui';
+import { TamaguiProvider, Spinner, Text, YStack } from 'tamagui';
 import { PortalProvider } from '@tamagui/portal';
 import Toast from 'react-native-toast-message';
 import { config } from '../tamagui.config';
@@ -16,11 +16,9 @@ import AuthProvider from './components/providers/SessionProvider';
 import AuthOrchestrator from './components/providers/AuthOrchestrator';
 import ToastProvider from './components/providers/ToastProvider';
 import DismissedStoresProvider from './components/providers/DismissedStoresProvider';
-import AuthRedirectHandler from './components/AuthRedirectHandler';
 import { getApiConfig } from './config/api';
 import BlockedMerchantsProvider from './components/providers/BlockedMerchantsProvider';
 import { toastConfig } from './config/toastConfig';
-import { Spinner, Text, YStack } from 'tamagui';
 
 export type InitStatus = 'checking' | 'downloading';
 
@@ -106,14 +104,16 @@ function DeepLinkHandler() {
         initialUrlHandled.current = true;
       }
     });
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleUrl is stable, only run on mount
+  }, []);
 
   useEffect(() => {
     const sub = Linking.addEventListener('url', ({ url }) => {
       handleUrl(url);
     });
     return () => sub.remove();
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleUrl is stable, listener only on mount
+  }, []);
 
   return null;
 }

@@ -31,7 +31,7 @@ export default function OTPVerifyScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<RouteParams>();
 
-  const [otpCode, setOtpCode] = useState('');
+  const [_otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
@@ -39,7 +39,7 @@ export default function OTPVerifyScreen() {
   // Timer states
   const [expiresIn, setExpiresIn] = useState(parseInt(params.expiresInSeconds || '600'));
   const [cooldownRemaining, setCooldownRemaining] = useState(
-    parseInt(params.cooldownSeconds || '60')
+    parseInt(params.cooldownSeconds || '60'),
   );
   const [resending, setResending] = useState(false);
 
@@ -209,7 +209,8 @@ export default function OTPVerifyScreen() {
                   p="$3"
                   borderRadius="$3"
                   borderWidth={1}
-                  borderColor="$yellow6">
+                  borderColor="$yellow6"
+                >
                   <Text color="$yellow11" fontSize="$3" textAlign="center">
                     🔧 開發模式：驗證碼為 <Text fontWeight="bold">{params.devOtpCode}</Text>
                   </Text>
@@ -240,7 +241,8 @@ export default function OTPVerifyScreen() {
                   borderRadius="$3"
                   borderWidth={1}
                   borderColor="$red6"
-                  gap="$2">
+                  gap="$2"
+                >
                   <XStack gap="$2" alignItems="center">
                     <AlertCircle size={16} color="$red11" />
                     <Text color="$red11" fontSize="$3" flex={1}>
@@ -262,7 +264,8 @@ export default function OTPVerifyScreen() {
                 justifyContent="center"
                 p="$3"
                 bg={isExpired ? '$red2' : '$blue2'}
-                borderRadius="$3">
+                borderRadius="$3"
+              >
                 <Clock size={16} color={isExpired ? '#EF4444' : '#3B82F6'} />
                 <Text color={isExpired ? '$red11' : '$blue11'} fontSize="$3">
                   {isExpired ? '驗證碼已過期' : `驗證碼將於 ${formatTime(expiresIn)} 後過期`}
@@ -278,7 +281,8 @@ export default function OTPVerifyScreen() {
                 color="$gray12"
                 height={48}
                 borderRadius="$3"
-                icon={<RefreshCw size={18} />}>
+                icon={<RefreshCw size={18} />}
+              >
                 <Text fontSize={15} color={cooldownRemaining > 0 ? '$gray10' : '$gray11'}>
                   {resending
                     ? '發送中...'

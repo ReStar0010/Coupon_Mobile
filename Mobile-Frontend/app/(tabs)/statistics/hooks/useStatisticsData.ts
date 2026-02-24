@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
+import { isAxiosError, isCancel } from 'axios';
 import { useRouter } from 'expo-router';
 import { useToast } from '@/app/components/providers/ToastProvider';
 import { devDebug } from '@/app/utils/devLogger';
@@ -82,7 +82,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
       // Check if it's an authentication error
       if (
         err instanceof AuthenticationError ||
-        (axios.isAxiosError(err) && err.response?.status === 401)
+        (isAxiosError(err) && err.response?.status === 401)
       ) {
         devDebug('Authentication error in fetchCompletedGoals, redirecting to login');
         if (isMountedRef.current) {
@@ -129,7 +129,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
 
       await fetchCompletedGoals();
     } catch (err) {
-      if (axios.isCancel(err)) {
+      if (isCancel(err)) {
         devDebug('Request cancelled');
         return;
       }
@@ -137,7 +137,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
       // Check if it's an authentication error
       if (
         err instanceof AuthenticationError ||
-        (axios.isAxiosError(err) && err.response?.status === 401)
+        (isAxiosError(err) && err.response?.status === 401)
       ) {
         devDebug('Authentication error detected, redirecting to login');
         if (isMountedRef.current) {
@@ -156,7 +156,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
         setIsLoading(false);
       }
     }
-  }, [isAuthenticated, fetchCompletedGoals]);
+  }, [isAuthenticated, fetchCompletedGoals, router]);
 
   const setSavingsGoal = useCallback(
     async (goalName: string, goalAmount: number, goalImage: string) => {

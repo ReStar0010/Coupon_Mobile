@@ -1,10 +1,6 @@
 import React from 'react';
 import {
-  Select,
-  TooltipSimple,
-  Paragraph,
   Sheet,
-  Text,
   Button,
   XStack,
   YStack,
@@ -16,10 +12,9 @@ import {
   Fieldset,
   Label,
   Input,
-  Unspaced,
   Adapt,
 } from 'tamagui';
-import { X, Pencil, ChevronLeft, ChevronDown } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 
@@ -47,7 +42,8 @@ const UserData: React.FC = () => {
             <ListItem
               style={{ borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
               bg="white"
-              size="$6">
+              size="$6"
+            >
               <ListItem.Text>名稱</ListItem.Text>
               <ListItem.Text text="right">RickyLu</ListItem.Text>
             </ListItem>
@@ -57,7 +53,8 @@ const UserData: React.FC = () => {
             <ListItem
               style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
               bg="white"
-              size="$6">
+              size="$6"
+            >
               <ListItem.Text>Email</ListItem.Text>
               <ListItem.Text text="right">rickylu@gmail.com</ListItem.Text>
             </ListItem>
@@ -137,7 +134,8 @@ function DialogInstance({ disableAdapt }: { disableAdapt?: boolean }) {
           ]}
           enterStyle={{ x: 0, y: 20, opacity: 0 }}
           exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
-          gap="$4">
+          gap="$4"
+        >
           <Dialog.Title>編輯</Dialog.Title>
           <Dialog.Description>在這裡更改您的個人資料，完成後點擊儲存。</Dialog.Description>
 

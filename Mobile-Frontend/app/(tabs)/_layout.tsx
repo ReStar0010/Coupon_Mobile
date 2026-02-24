@@ -1,6 +1,6 @@
 import { Tabs, useSegments } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import { Home, StretchHorizontal, BarChart2 } from 'lucide-react-native';
+import { StretchHorizontal, BarChart2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TAB_BAR_PADDING_TOP = 8;
@@ -61,7 +61,8 @@ export default function TabLayout() {
         headerShown: false,
         lazy: true,
         freezeOnBlur: true,
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="easyuse"
         options={{

@@ -38,11 +38,11 @@ const ShareModal = ({
         Platform.select({
           ios: { url: shareLink },
           default: { message: shareLink },
-        })!
+        })!,
       );
 
       onClose();
-    } catch (e) {
+    } catch {
       Alert.alert('分享失敗', '無法開啟系統分享面板，請稍後再試');
     }
   };
@@ -54,7 +54,7 @@ const ShareModal = ({
       [
         { text: '取消', style: 'cancel' },
         { text: '確定分享', style: 'destructive', onPress: onCouProShare },
-      ]
+      ],
     );
   };
 
@@ -68,7 +68,8 @@ const ShareModal = ({
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 20,
-          }}>
+          }}
+        >
           <TouchableWithoutFeedback>
             <Card
               bg="#fff"
@@ -82,7 +83,8 @@ const ShareModal = ({
                 shadowOpacity: 0.25,
                 shadowRadius: 12,
                 elevation: 8,
-              }}>
+              }}
+            >
               <YStack gap="$5">
                 {/* Header */}
                 <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -102,7 +104,8 @@ const ShareModal = ({
                       alignItems: 'center',
                       opacity: isSharing ? 0.5 : 1,
                     }}
-                    disabled={isSharing}>
+                    disabled={isSharing}
+                  >
                     <X size={20} color="#666" />
                   </Button>
                 </XStack>
@@ -128,7 +131,8 @@ const ShareModal = ({
                       opacity: isSharing ? 0.7 : 1,
                       paddingHorizontal: 8,
                     }}
-                    disabled={isSharing}>
+                    disabled={isSharing}
+                  >
                     <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
                       {isSharing && <ActivityIndicator size="small" color="#333" />}
                       <Text
@@ -138,7 +142,8 @@ const ShareModal = ({
                         numberOfLines={1}
                         adjustsFontSizeToFit
                         minimumFontScale={0.8}
-                        style={{ textAlign: 'center' }}>
+                        style={{ textAlign: 'center' }}
+                      >
                         {isSharing ? '分享中...' : '分享到 CouPro'}
                       </Text>
                     </XStack>
@@ -158,7 +163,8 @@ const ShareModal = ({
                       opacity: isSharing ? 0.7 : 1,
                       paddingHorizontal: 8,
                     }}
-                    disabled={isSharing}>
+                    disabled={isSharing}
+                  >
                     <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
                       {isSharing && <ActivityIndicator size="small" color="#333" />}
                       <Text
@@ -166,7 +172,8 @@ const ShareModal = ({
                         fontSize={14}
                         fontWeight="600"
                         numberOfLines={1}
-                        style={{ textAlign: 'center' }}>
+                        style={{ textAlign: 'center' }}
+                      >
                         {isSharing ? '生成中...' : '分享連結'}
                       </Text>
                       {!isSharing && <Share2 size={16} color="#333" />}

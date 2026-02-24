@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchAPI } from '@/app/utils/authAPI';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 
 export interface Tag {
   id: number;
@@ -62,7 +62,7 @@ export function useTags(isAuthenticated: boolean): UseTagsReturn {
       console.error('Error fetching tags:', err);
       // API 失败时使用默认标签
       setTags(DEFAULT_TAGS);
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setError(err.message);
       } else {
         setError('無法載入標籤列表');

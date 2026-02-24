@@ -4,23 +4,8 @@ import { Alert, Linking, Platform } from 'react-native';
 // 位置權限說明（此頁用於優惠券瀏覽分析，協助改善服務與推薦；未授權時不干擾用戶，僅不傳送位置）
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
-import { ArrowLeft, Share2, MapPin, ShieldBan, ShieldCheck } from 'lucide-react-native';
-import * as Sharing from 'expo-sharing';
-import * as Clipboard from 'expo-clipboard';
-import {
-  YStack,
-  XStack,
-  ScrollView,
-  Card,
-  Text,
-  Button,
-  Spinner,
-  View,
-  H1,
-  H2,
-  H3,
-  Paragraph,
-} from 'tamagui';
+import { ArrowLeft, MapPin, ShieldBan, ShieldCheck } from 'lucide-react-native';
+import { YStack, XStack, ScrollView, Card, Text, Button, Spinner, View } from 'tamagui';
 import SuccessPopup from './redeem/SuccessPopup';
 import ShareModal from './components/ShareModal';
 import ReportButton from '../../../components/ReportButton';
@@ -422,7 +407,7 @@ const CouponDetailPage: React.FC = () => {
               } else {
                 Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
               }
-            } catch (error) {
+            } catch {
               Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
             } finally {
               setIsBlockingStore(false);
@@ -460,14 +445,14 @@ const CouponDetailPage: React.FC = () => {
                 } else {
                   Alert.alert('錯誤', '封鎖失敗，請稍後再試');
                 }
-              } catch (error) {
+              } catch {
                 Alert.alert('錯誤', '封鎖失敗，請稍後再試');
               } finally {
                 setIsBlockingStore(false);
               }
             },
           },
-        ]
+        ],
       );
     }
   };
@@ -520,7 +505,8 @@ const CouponDetailPage: React.FC = () => {
         flex={1}
         bg="#f5f5f5"
         style={{ alignItems: 'center', justifyContent: 'center' }}
-        px="$4">
+        px="$4"
+      >
         <Text mb="$4" style={{ textAlign: 'center' }} fontSize="$6" color="#ef4444">
           {error}
         </Text>
@@ -556,7 +542,8 @@ const CouponDetailPage: React.FC = () => {
           style={{
             justifyContent: 'space-between',
             alignItems: 'center',
-          }}>
+          }}
+        >
           <Button onPress={onGoBackContainerClick} bg="transparent" p="$0">
             <ArrowLeft size={24} color="#333" />
           </Button>
@@ -578,7 +565,8 @@ const CouponDetailPage: React.FC = () => {
                 disabled={isBlockingStore}
                 bg="transparent"
                 p="$2"
-                chromeless>
+                chromeless
+              >
                 {isBlockingStore ? (
                   <Spinner size="small" color="#666" />
                 ) : isStoreBlocked(coupon.store_id) ? (
@@ -598,7 +586,8 @@ const CouponDetailPage: React.FC = () => {
                 py="$2"
                 style={{
                   borderRadius: 12,
-                }}>
+                }}
+              >
                 <Text color="#333" fontWeight="600" fontSize="$4">
                   分享
                 </Text>
@@ -620,14 +609,16 @@ const CouponDetailPage: React.FC = () => {
             shadowRadius={8}
             shadowOffset={{ width: 0, height: 2 }}
             shadowOpacity={0.08}
-            elevation={3}>
+            elevation={3}
+          >
             <YStack gap="$3" style={{ alignItems: 'center' }}>
               <Text
                 color="#333"
                 fontSize="$9"
                 fontWeight="bold"
                 lineHeight={36}
-                style={{ textAlign: 'center', letterSpacing: 0.3 }}>
+                style={{ textAlign: 'center', letterSpacing: 0.3 }}
+              >
                 {coupon?.store_name || '魚樂鮮魷魚羹'}
               </Text>
               <Text
@@ -636,14 +627,16 @@ const CouponDetailPage: React.FC = () => {
                 fontWeight="500"
                 lineHeight={24}
                 style={{ textAlign: 'center' }}
-                numberOfLines={2}>
+                numberOfLines={2}
+              >
                 {coupon?.coupon_name || '來店消費滿120送 滷蛋一顆'}
               </Text>
 
               {coupon?.tags && coupon.tags.length > 0 && (
                 <XStack
                   gap={6}
-                  style={{ flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
+                  style={{ flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}
+                >
                   {coupon.tags.map((tag, index) => (
                     <View
                       key={index}
@@ -652,7 +645,8 @@ const CouponDetailPage: React.FC = () => {
                         borderRadius: 12,
                         paddingHorizontal: 12,
                         paddingVertical: 6,
-                      }}>
+                      }}
+                    >
                       <Text fontSize={14} color="#FFAD31" fontWeight="500">
                         {tag}
                       </Text>
@@ -687,7 +681,8 @@ const CouponDetailPage: React.FC = () => {
             shadowRadius={8}
             shadowOffset={{ width: 0, height: 2 }}
             shadowOpacity={0.08}
-            elevation={3}>
+            elevation={3}
+          >
             <YStack gap="$4" style={{ alignItems: 'flex-start' }}>
               <Text color="#333" fontSize="$5" fontWeight="600" lineHeight={26}>
                 {coupon?.coupon_detail
@@ -767,7 +762,8 @@ const CouponDetailPage: React.FC = () => {
                 elevation: 5,
                 opacity: isRedeeming || !coupon.can_use_today ? 0.5 : 1,
               }}
-              disabled={isRedeeming || !coupon.can_use_today}>
+              disabled={isRedeeming || !coupon.can_use_today}
+            >
               <Text color="#333" fontSize="$6" fontWeight="bold">
                 {isRedeeming ? '處理中...' : !coupon.can_use_today ? '今日已使用' : '使用'}
               </Text>
@@ -788,7 +784,8 @@ const CouponDetailPage: React.FC = () => {
                   shadowOpacity: 0.15,
                   shadowRadius: 8,
                   elevation: 5,
-                }}>
+                }}
+              >
                 <Text color="#333" fontSize="$6" fontWeight="bold">
                   使用
                 </Text>
@@ -807,7 +804,8 @@ const CouponDetailPage: React.FC = () => {
                   shadowOpacity: 0.15,
                   shadowRadius: 8,
                   elevation: 5,
-                }}>
+                }}
+              >
                 <MapPin size={24} color="#333" />
               </Button>
             </XStack>

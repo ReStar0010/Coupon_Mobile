@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
+import { isAxiosError, isCancel } from 'axios';
 import { devDebug } from '@/app/utils/devLogger';
 import { fetchAPI } from '@/app/utils/authAPI';
 
@@ -33,7 +33,7 @@ export function useMyPublicShares(
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const getErrorMessage = useCallback((err: unknown): string => {
-    if (axios.isAxiosError(err)) {
+    if (isAxiosError(err)) {
       // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
       if (err.response?.status === 401) {
         return ''; // Return empty string to prevent UI from displaying auth errors
@@ -88,7 +88,7 @@ export function useMyPublicShares(
         setPublicShares(response.data);
       }
     } catch (err) {
-      if (axios.isCancel(err)) {
+      if (isCancel(err)) {
         devDebug('Request cancelled');
         return;
       }

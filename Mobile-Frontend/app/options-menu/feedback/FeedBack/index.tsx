@@ -1,18 +1,6 @@
 import React, { useState } from 'react';
 import { Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import {
-  View,
-  Text,
-  H4,
-  H5,
-  XStack,
-  YStack,
-  Tabs,
-  Separator,
-  TextArea,
-  Button,
-  ScrollView,
-} from 'tamagui';
+import { View, Text, H4, XStack, YStack, Tabs, TextArea, Button } from 'tamagui';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft, Bug, Lightbulb, Send } from 'lucide-react-native';
 
@@ -64,14 +52,16 @@ const FeedBack: React.FC = () => {
               onValueChange={setActiveTab}
               flex={1}
               orientation="horizontal"
-              flexDirection="column">
+              flexDirection="column"
+            >
               <Tabs.List backgroundColor="$background" disablePassBorderRadius="bottom">
                 <Tabs.Tab
                   value="bug"
                   flex={1}
                   bordered
                   borderColor="#e1e1e1"
-                  focusStyle={{ bg: '#ffad31' }}>
+                  focusStyle={{ bg: '#ffad31' }}
+                >
                   <XStack gap="$2" items="center">
                     <Bug size={18} />
                     <Text>Bug 回報</Text>
@@ -109,7 +99,8 @@ const FeedBack: React.FC = () => {
                     onPress={handleSubmit}
                     disabled={!bugReport.trim()}
                     opacity={bugReport.trim() ? 1 : 0.5}
-                    iconAfter={Send}>
+                    iconAfter={Send}
+                  >
                     提交
                   </Button>
                 </YStack>
@@ -138,7 +129,8 @@ const FeedBack: React.FC = () => {
                     onPress={handleSubmit}
                     disabled={!featureRequest.trim()}
                     opacity={featureRequest.trim() ? 1 : 0.5}
-                    iconAfter={Send}>
+                    iconAfter={Send}
+                  >
                     提交
                   </Button>
                 </YStack>

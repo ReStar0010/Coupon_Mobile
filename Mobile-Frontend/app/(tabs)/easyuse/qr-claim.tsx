@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
 import { usePathname, useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
@@ -40,7 +39,7 @@ export default function QRClaimScanner() {
   const params = useLocalSearchParams<{ token?: string }>();
   const deepLinkToken = params.token ?? null;
   const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing, _setFacing] = useState<CameraType>('back');
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +71,7 @@ export default function QRClaimScanner() {
           '獲得優惠券',
           `成功領取優惠券：${result.coupon_name}`,
           [{ text: '確定', onPress: () => router.replace('/Collection') }],
-          { cancelable: false }
+          { cancelable: false },
         );
       })
       .catch((err: any) => {
@@ -178,7 +177,7 @@ export default function QRClaimScanner() {
               },
             },
           ],
-          { cancelable: false }
+          { cancelable: false },
         );
       } catch (err: any) {
         console.error('QR claim error:', err);
@@ -236,7 +235,7 @@ export default function QRClaimScanner() {
         }
       }
     },
-    [isScanning, isDisabled, isLoading, router]
+    [isScanning, isDisabled, isLoading, router],
   );
 
   const handleGoBack = useCallback(() => {
@@ -343,7 +342,8 @@ export default function QRClaimScanner() {
                   lastScannedCodeRef.current = '';
                   setIsScanning(true);
                 }}
-                style={styles.retryButton}>
+                style={styles.retryButton}
+              >
                 <Text style={styles.retryButtonText}>重試</Text>
               </TouchableOpacity>
             )}

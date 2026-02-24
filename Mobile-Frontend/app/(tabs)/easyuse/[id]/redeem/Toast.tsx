@@ -45,7 +45,7 @@ const Toast: React.FC<ToastProps> = ({
     } else {
       hideToast();
     }
-  }, [visible, duration]);
+  }, [visible, duration]); // eslint-disable-line react-hooks/exhaustive-deps -- refs and hideToast stable
 
   const hideToast = () => {
     Animated.parallel([
@@ -83,7 +83,8 @@ const Toast: React.FC<ToastProps> = ({
         zIndex: 1000,
       }}
       items="center"
-      px="$5">
+      px="$5"
+    >
       <Animated.View
         style={{
           borderRadius: 12,
@@ -98,7 +99,8 @@ const Toast: React.FC<ToastProps> = ({
           shadowOpacity: 0.25,
           shadowRadius: 4,
           elevation: 5,
-        }}>
+        }}
+      >
         <Text style={{ textAlign: 'center' }} fontSize={14} fontWeight="500" color="white">
           {message}
         </Text>

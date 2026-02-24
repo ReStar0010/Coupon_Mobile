@@ -45,7 +45,7 @@ const ReportButton: React.FC<ReportButtonProps> = ({
       setLoading(true);
       const status = await checkReportStatus(contentType, contentId);
       setHasReported(status.has_reported && !status.can_report_again);
-    } catch (err) {
+    } catch (_err) {
       // Silently fail - assume user hasn't reported
       setHasReported(false);
     } finally {
@@ -147,7 +147,8 @@ const ReportButton: React.FC<ReportButtonProps> = ({
         onPress={handlePress}
         disabled={hasReported}
         style={[getButtonStyle(), style]}
-        activeOpacity={hasReported ? 1 : 0.7}>
+        activeOpacity={hasReported ? 1 : 0.7}
+      >
         <Ionicons
           name={hasReported ? 'checkmark-circle' : 'flag-outline'}
           size={getIconSize()}

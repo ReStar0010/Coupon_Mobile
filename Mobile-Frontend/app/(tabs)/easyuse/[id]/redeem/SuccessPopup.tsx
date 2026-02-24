@@ -51,8 +51,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
     }
   };
 
-  // Format discount value
-  const formatDiscountValue = (value?: number | string) => {
+  // Format discount value (kept for potential future use in UI)
+  const _formatDiscountValue = (value?: number | string) => {
     if (value === undefined || value === null) return '—';
     if (typeof value === 'number') {
       if (value === 0) return '免費';
@@ -71,7 +71,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
           justifyContent: 'center',
           alignItems: 'center',
           paddingHorizontal: 20,
-        }}>
+        }}
+      >
         <View
           style={{
             backgroundColor: '#fff',
@@ -84,7 +85,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
             shadowOpacity: 0.25,
             shadowRadius: 12,
             elevation: 8,
-          }}>
+          }}
+        >
           {/* Title */}
           <Text
             style={{
@@ -93,7 +95,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
               color: '#333',
               textAlign: 'center',
               marginBottom: 24,
-            }}>
+            }}
+          >
             {titleType}
           </Text>
 
@@ -107,7 +110,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                 textAlign: 'center',
                 marginBottom: 24,
               }}
-              numberOfLines={2}>
+              numberOfLines={2}
+            >
               {couponName}
             </Text>
           )}
@@ -148,13 +152,15 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: 20,
-              }}>
+              }}
+            >
               <Text
                 style={{
                   fontSize: 16,
                   color: '#999',
                   fontWeight: '500',
-                }}>
+                }}
+              >
                 核銷時間
               </Text>
               <Text
@@ -162,7 +168,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                   fontSize: 16,
                   color: '#333',
                   fontWeight: '600',
-                }}>
+                }}
+              >
                 {formatTimestamp(redeemedAt)}
               </Text>
             </View>
@@ -174,13 +181,15 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: redemptionId ? 20 : 0,
-              }}>
+              }}
+            >
               <Text
                 style={{
                   fontSize: 16,
                   color: '#999',
                   fontWeight: '500',
-                }}>
+                }}
+              >
                 商家名稱
               </Text>
               <Text
@@ -191,7 +200,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                   maxWidth: 180,
                   textAlign: 'right',
                 }}
-                numberOfLines={1}>
+                numberOfLines={1}
+              >
                 {storeName}
               </Text>
             </View>
@@ -203,13 +213,15 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                }}>
+                }}
+              >
                 <Text
                   style={{
                     fontSize: 12,
                     color: '#999',
                     fontWeight: '400',
-                  }}>
+                  }}
+                >
                   交易編號
                 </Text>
                 <Text
@@ -217,7 +229,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                     fontSize: 12,
                     color: '#999',
                     fontWeight: '400',
-                  }}>
+                  }}
+                >
                   #{redemptionId}
                 </Text>
               </View>
@@ -239,13 +252,15 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
               shadowRadius: 4,
               elevation: 3,
             }}
-            activeOpacity={0.8}>
+            activeOpacity={0.8}
+          >
             <Text
               style={{
                 fontSize: 18,
                 fontWeight: 'bold',
                 color: '#333',
-              }}>
+              }}
+            >
               完成
             </Text>
           </TouchableOpacity>

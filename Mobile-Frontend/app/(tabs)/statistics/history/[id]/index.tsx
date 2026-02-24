@@ -63,7 +63,7 @@ const CouponHistoryDetail: React.FC = () => {
           .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`,
         weekday: date.toLocaleDateString('zh-TW', { weekday: 'long' }),
       };
-    } catch (e) {
+    } catch {
       return { date: dateString, time: '', weekday: '' };
     }
   };
@@ -143,7 +143,7 @@ const CouponHistoryDetail: React.FC = () => {
       return `${date.getFullYear()}年${(date.getMonth() + 1)
         .toString()
         .padStart(2, '0')}月${date.getDate().toString().padStart(2, '0')}日`;
-    } catch (e) {
+    } catch {
       return dateString;
     }
   };
@@ -170,7 +170,8 @@ const CouponHistoryDetail: React.FC = () => {
           bg="white"
           rounded="$3"
           style={{ borderWidth: 1, borderColor: '#e5e7eb' }}
-          elevation="$1">
+          elevation="$1"
+        >
           <YStack gap="$3">
             {/* Store Name */}
             <YStack items="center" gap="$2">
@@ -204,7 +205,8 @@ const CouponHistoryDetail: React.FC = () => {
           mb="$4"
           bg="white"
           rounded="$3"
-          style={{ borderWidth: 1, borderColor: '#e5e7eb' }}>
+          style={{ borderWidth: 1, borderColor: '#e5e7eb' }}
+        >
           <YStack gap="$4">
             <Text fontSize={18} fontWeight="bold" color="#333333">
               使用詳情
@@ -298,7 +300,8 @@ const CouponHistoryDetail: React.FC = () => {
             mb="$8"
             bg="white"
             rounded="$3"
-            style={{ borderWidth: 1, borderColor: '#e5e7eb' }}>
+            style={{ borderWidth: 1, borderColor: '#e5e7eb' }}
+          >
             <YStack gap="$3">
               <Text fontSize={18} fontWeight="bold" color="#333333">
                 價格明細
@@ -312,7 +315,8 @@ const CouponHistoryDetail: React.FC = () => {
                   <Text
                     fontSize={16}
                     color="#707070"
-                    style={{ textDecorationLine: 'line-through' }}>
+                    style={{ textDecorationLine: 'line-through' }}
+                  >
                     ${couponDetail.original_price}
                   </Text>
                 </XStack>

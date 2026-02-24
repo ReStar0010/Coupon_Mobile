@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { YStack, XStack, H4, Button, Text, Card } from 'tamagui';
@@ -28,7 +27,7 @@ export default function PhoneSettings() {
   useFocusEffect(
     React.useCallback(() => {
       loadPhone();
-    }, [])
+    }, []),
   );
 
   const loadPhone = async () => {
@@ -116,7 +115,8 @@ export default function PhoneSettings() {
                   pressStyle={{ bg: '#FF9500' }}
                   height={48}
                   borderRadius="$3"
-                  icon={maskedPhone ? <Edit2 size={18} /> : undefined}>
+                  icon={maskedPhone ? <Edit2 size={18} /> : undefined}
+                >
                   <Text fontSize={16} fontWeight="600" color="$gray11">
                     {maskedPhone ? '更換手機號碼' : '新增手機號碼'}
                   </Text>

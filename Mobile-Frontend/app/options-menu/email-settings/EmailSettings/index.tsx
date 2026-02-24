@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, TextInput } from 'react-native';
+import { TextInput } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { YStack, XStack, H4, Button, Text, Card } from 'tamagui';
-import { ChevronLeft, Mail, Shield } from 'lucide-react-native';
+import { ChevronLeft, Shield } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchAPI } from '@/app/utils/authAPI';
 import Toast from 'react-native-toast-message';
@@ -31,7 +31,7 @@ export default function EmailSettings() {
   useFocusEffect(
     React.useCallback(() => {
       loadEmail();
-    }, [])
+    }, []),
   );
 
   const loadEmail = async () => {
@@ -190,7 +190,8 @@ export default function EmailSettings() {
                   color="white"
                   onPress={handleAddOrChangeEmail}
                   disabled={isSubmitting || !newEmail}
-                  opacity={isSubmitting || !newEmail ? 0.5 : 1}>
+                  opacity={isSubmitting || !newEmail ? 0.5 : 1}
+                >
                   {isSubmitting ? '發送中...' : '發送驗證信件'}
                 </Button>
               </YStack>
