@@ -25,7 +25,8 @@ const CouponTag: React.FC<CouponTagProps> = React.memo(({ tag }) => (
       borderRadius: BORDER_RADIUS.md,
       paddingHorizontal: SPACING.sm,
       paddingVertical: SPACING.xs,
-    }}>
+    }}
+  >
     <Text fontSize={12} color={COLORS.tag.text} fontWeight="500">
       {tag}
     </Text>
@@ -72,7 +73,7 @@ const Coupon: React.FC<CouponProps> = ({
       width: 64,
       height: 64,
     }),
-    [imageUrl]
+    [imageUrl],
   );
 
   return (
@@ -89,7 +90,8 @@ const Coupon: React.FC<CouponProps> = ({
       shadowOffset={{ width: 0, height: 2 }}
       shadowOpacity={0.08}
       elevation={3}
-      height="auto">
+      height="auto"
+    >
       <XStack gap={15} style={{ alignItems: 'center' }}>
         <Image source={imageSource} style={{ borderRadius: BORDER_RADIUS.sm }} />
 

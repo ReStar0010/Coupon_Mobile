@@ -64,7 +64,8 @@ export default function PrivacyPolicyScreen() {
         backgroundColor={colors.primary}
         alignItems="center"
         borderBottomWidth={1}
-        borderBottomColor={colors.border}>
+        borderBottomColor={colors.border}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -102,7 +103,8 @@ export default function PrivacyPolicyScreen() {
               padding="$3"
               borderRadius="$3"
               borderWidth={1}
-              borderColor={colors.border}>
+              borderColor={colors.border}
+            >
               <Text fontSize={14} color={colors.textSecondary}>
                 最後更新：
                 {new Date(policyData.last_updated).toLocaleDateString('zh-TW', {
@@ -119,7 +121,8 @@ export default function PrivacyPolicyScreen() {
               padding="$4"
               borderRadius="$4"
               borderWidth={1}
-              borderColor={colors.border}>
+              borderColor={colors.border}
+            >
               <Text fontSize="18" fontWeight="600" color={colors.textPrimary} marginBottom="$3">
                 {policyData.title}
               </Text>
@@ -135,7 +138,8 @@ export default function PrivacyPolicyScreen() {
               borderRadius="$4"
               borderWidth={1}
               borderColor={colors.border}
-              gap="$2">
+              gap="$2"
+            >
               <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
                 聯絡我們
               </Text>

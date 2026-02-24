@@ -112,7 +112,7 @@ export interface UserReportsResponse {
 export async function submitReport(
   contentType: ReportContentType,
   contentId: number,
-  data: ContentReportRequest
+  data: ContentReportRequest,
 ): Promise<SubmitReportResponse> {
   return authAPI.post<SubmitReportResponse>(`/content/${contentType}/${contentId}/report/`, data);
 }
@@ -126,7 +126,7 @@ export async function submitReport(
  */
 export async function checkReportStatus(
   contentType: ReportContentType,
-  contentId: number
+  contentId: number,
 ): Promise<ReportStatusResponse> {
   return authAPI.get<ReportStatusResponse>(`/content/${contentType}/${contentId}/report/status/`);
 }
@@ -140,7 +140,7 @@ export async function checkReportStatus(
  */
 export async function getUserReports(
   page: number = 1,
-  pageSize: number = 20
+  pageSize: number = 20,
 ): Promise<UserReportsResponse> {
   return authAPI.get<UserReportsResponse>(`/user/reports/?page=${page}&page_size=${pageSize}`);
 }

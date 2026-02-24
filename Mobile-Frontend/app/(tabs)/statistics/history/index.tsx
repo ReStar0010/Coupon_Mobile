@@ -18,7 +18,7 @@ const HistoryPage: React.FC = () => {
   // Transaction history hook - fetch all history (no limit)
   const { transactionHistory, isLoading, error, formatDate, refetch } = useTransactionHistory(
     isAuthenticated,
-    0
+    0,
   ); // 0 means no limit
 
   const [refreshing, setRefreshing] = useState(false);
@@ -41,7 +41,7 @@ const HistoryPage: React.FC = () => {
         console.error('Error storing coupon history:', error);
       }
     },
-    [router]
+    [router],
   );
 
   // Pull to refresh handler
@@ -77,7 +77,8 @@ const HistoryPage: React.FC = () => {
         style={{ justifyContent: 'space-between' }}
         px="$5"
         pt={insets.top + 10}
-        pb="$4">
+        pb="$4"
+      >
         <XStack gap="$3" items="center">
           <Button unstyled onPress={handleGoBack} p="$0">
             <ChevronLeft size={24} color="#333333" />
@@ -100,7 +101,8 @@ const HistoryPage: React.FC = () => {
             colors={['#FFAD31']}
             tintColor="#FFAD31"
           />
-        }>
+        }
+      >
         <YStack rounded="$2" style={{ borderWidth: 1, borderColor: 'white' }} bg="#f5f5f5" mb="$8">
           {isLoading ? (
             <YStack p="$6" items="center">
@@ -127,7 +129,8 @@ const HistoryPage: React.FC = () => {
                     hoverTheme
                     pressTheme
                     p="$3"
-                    onPress={() => handleHistoryItemClick(item.coupon_id, item)}>
+                    onPress={() => handleHistoryItemClick(item.coupon_id, item)}
+                  >
                     <ListItem.Text fontSize={13} color="#333333">
                       {item.store_name}
                     </ListItem.Text>

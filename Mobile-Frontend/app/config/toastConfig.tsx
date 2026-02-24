@@ -23,7 +23,8 @@ export const toastConfig = {
         shadowOpacity: 0.25,
         shadowRadius: 6,
         elevation: 6,
-      }}>
+      }}
+    >
       <Text color="white" fontWeight="bold" fontSize={16}>
         {text1}
       </Text>
@@ -45,7 +46,8 @@ export const toastConfig = {
         shadowOpacity: 0.25,
         shadowRadius: 6,
         elevation: 6,
-      }}>
+      }}
+    >
       <Text color="white" fontWeight="bold" fontSize={16}>
         {text1}
       </Text>

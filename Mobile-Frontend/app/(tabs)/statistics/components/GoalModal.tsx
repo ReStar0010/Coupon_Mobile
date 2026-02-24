@@ -81,13 +81,15 @@ const GoalModal: React.FC<GoalModalProps> = ({
           flex={1}
           items="center"
           style={{ justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}
-          px="$5">
+          px="$5"
+        >
           <YStack
             width="100%"
             rounded="$3"
             style={{ borderWidth: 1, borderColor: 'white', maxWidth: 280 }}
             bg="#f5f5f5"
-            p="$6">
+            p="$6"
+          >
             {/* Header */}
             <XStack mb="$6" items="center" style={{ justifyContent: 'space-between' }}>
               <Text fontSize={20} fontWeight="bold" lineHeight={25} color="#333333">
@@ -105,7 +107,8 @@ const GoalModal: React.FC<GoalModalProps> = ({
                 }}
                 px="$1"
                 pressStyle={{ opacity: 0.8 }}
-                unstyled>
+                unstyled
+              >
                 {isConfirmMode ? (
                   <Check size={16} color="#333333" />
                 ) : (
@@ -180,7 +183,8 @@ const GoalModal: React.FC<GoalModalProps> = ({
                   py="$2"
                   bg={canSave ? '#FFAD31' : '#9ca3af'}
                   disabled={!canSave}
-                  pressStyle={{ opacity: 0.8 }}>
+                  pressStyle={{ opacity: 0.8 }}
+                >
                   <Text fontSize={13} fontWeight="normal" color="#333333">
                     設定目標
                   </Text>

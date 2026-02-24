@@ -143,11 +143,13 @@ export default function OTPRequestScreen() {
                 bg={sending || !phone ? '$gray5' : '#FFAD31'}
                 pressStyle={{ bg: '#FF9500' }}
                 height={48}
-                borderRadius="$3">
+                borderRadius="$3"
+              >
                 <Text
                   fontSize={16}
                   fontWeight="600"
-                  color={sending || !phone ? '$gray10' : '$gray11'}>
+                  color={sending || !phone ? '$gray10' : '$gray11'}
+                >
                   {sending ? '發送中...' : '發送驗證碼'}
                 </Text>
               </Button>

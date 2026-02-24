@@ -104,7 +104,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 20,
-          }}>
+          }}
+        >
           <View
             style={{
               backgroundColor: '#fff',
@@ -117,11 +118,13 @@ const ReportModal: React.FC<ReportModalProps> = ({
               shadowOpacity: 0.25,
               shadowRadius: 12,
               elevation: 8,
-            }}>
+            }}
+          >
             <ScrollView
               contentContainerStyle={{ padding: 24 }}
               showsVerticalScrollIndicator={false}
-              keyboardDismissMode="on-drag">
+              keyboardDismissMode="on-drag"
+            >
               {/* Header */}
               <View style={{ marginBottom: 20 }}>
                 <Text
@@ -130,7 +133,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                     fontWeight: 'bold',
                     color: '#333',
                     textAlign: 'center',
-                  }}>
+                  }}
+                >
                   檢舉{contentTypeLabel}
                 </Text>
                 {contentName && (
@@ -141,7 +145,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                       textAlign: 'center',
                       marginTop: 8,
                     }}
-                    numberOfLines={1}>
+                    numberOfLines={1}
+                  >
                     {contentName}
                   </Text>
                 )}
@@ -155,7 +160,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                     fontWeight: '600',
                     color: '#333',
                     marginBottom: 12,
-                  }}>
+                  }}
+                >
                   檢舉原因 *
                 </Text>
                 {REPORT_REASONS.map((reason) => (
@@ -173,7 +179,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                       borderWidth: 2,
                       borderColor: selectedReason === reason.value ? '#FFAD31' : 'transparent',
                     }}
-                    activeOpacity={0.7}>
+                    activeOpacity={0.7}
+                  >
                     {/* Radio Button */}
                     <View
                       style={{
@@ -185,7 +192,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                         justifyContent: 'center',
                         alignItems: 'center',
                         marginRight: 12,
-                      }}>
+                      }}
+                    >
                       {selectedReason === reason.value && (
                         <View
                           style={{
@@ -202,7 +210,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                         fontSize: 15,
                         color: '#333',
                         fontWeight: selectedReason === reason.value ? '600' : '400',
-                      }}>
+                      }}
+                    >
                       {reason.label}
                     </Text>
                   </TouchableOpacity>
@@ -217,7 +226,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                     fontWeight: '600',
                     color: '#333',
                     marginBottom: 12,
-                  }}>
+                  }}
+                >
                   補充說明（選填）
                 </Text>
                 <TextInput
@@ -244,7 +254,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                     color: '#999',
                     textAlign: 'right',
                     marginTop: 4,
-                  }}>
+                  }}
+                >
                   {details.length}/500
                 </Text>
               </View>
@@ -257,7 +268,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                     borderRadius: 8,
                     padding: 12,
                     marginBottom: 16,
-                  }}>
+                  }}
+                >
                   <Text style={{ fontSize: 14, color: '#DC2626' }}>{error}</Text>
                 </View>
               )}
@@ -275,13 +287,15 @@ const ReportModal: React.FC<ReportModalProps> = ({
                     justifyContent: 'center',
                     alignItems: 'center',
                   }}
-                  activeOpacity={0.7}>
+                  activeOpacity={0.7}
+                >
                   <Text
                     style={{
                       fontSize: 16,
                       fontWeight: '600',
                       color: '#666',
-                    }}>
+                    }}
+                  >
                     取消
                   </Text>
                 </TouchableOpacity>
@@ -297,7 +311,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                     justifyContent: 'center',
                     alignItems: 'center',
                   }}
-                  activeOpacity={0.7}>
+                  activeOpacity={0.7}
+                >
                   {loading ? (
                     <ActivityIndicator color="#333" size="small" />
                   ) : (
@@ -306,7 +321,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
                         fontSize: 16,
                         fontWeight: '600',
                         color: '#333',
-                      }}>
+                      }}
+                    >
                       提交檢舉
                     </Text>
                   )}

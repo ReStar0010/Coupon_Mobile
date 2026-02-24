@@ -56,7 +56,8 @@ export default function HelpSupportScreen() {
         backgroundColor={colors.primary}
         alignItems="center"
         borderBottomWidth={1}
-        borderBottomColor={colors.border}>
+        borderBottomColor={colors.border}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -74,7 +75,8 @@ export default function HelpSupportScreen() {
             padding="$4"
             borderRadius="$4"
             borderWidth={1}
-            borderColor={colors.border}>
+            borderColor={colors.border}
+          >
             <Text fontSize="$md" color={colors.textPrimary} lineHeight={24}>
               如果您有任何問題或需要協助，請透過以下方式聯絡我們。我們將盡快回覆您的詢問。
             </Text>
@@ -87,7 +89,8 @@ export default function HelpSupportScreen() {
               padding="$4"
               borderRadius="$4"
               borderWidth={1}
-              borderColor={colors.border}>
+              borderColor={colors.border}
+            >
               <XStack alignItems="center" gap="$3">
                 <YStack
                   width={48}
@@ -95,7 +98,8 @@ export default function HelpSupportScreen() {
                   borderRadius={24}
                   backgroundColor={colors.primary}
                   justifyContent="center"
-                  alignItems="center">
+                  alignItems="center"
+                >
                   <Ionicons name="mail" size={24} color="#fff" />
                 </YStack>
                 <YStack flex={1}>
@@ -118,7 +122,8 @@ export default function HelpSupportScreen() {
               padding="$4"
               borderRadius="$4"
               borderWidth={1}
-              borderColor={colors.border}>
+              borderColor={colors.border}
+            >
               <XStack alignItems="center" gap="$3">
                 <YStack
                   width={48}
@@ -126,7 +131,8 @@ export default function HelpSupportScreen() {
                   borderRadius={24}
                   backgroundColor={colors.primary}
                   justifyContent="center"
-                  alignItems="center">
+                  alignItems="center"
+                >
                   <Ionicons name="globe" size={24} color="#fff" />
                 </YStack>
                 <YStack flex={1}>
@@ -149,7 +155,8 @@ export default function HelpSupportScreen() {
             borderRadius="$4"
             borderWidth={1}
             borderColor={colors.border}
-            gap="$3">
+            gap="$3"
+          >
             <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
               常見問題
             </Text>
@@ -188,7 +195,8 @@ export default function HelpSupportScreen() {
             padding="$3"
             borderRadius="$3"
             borderWidth={1}
-            borderColor={colors.border}>
+            borderColor={colors.border}
+          >
             <Text fontSize={14} color={colors.textSecondary} textAlign="center" lineHeight={20}>
               客服回覆時間：週一至週五 09:00-18:00
             </Text>

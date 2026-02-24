@@ -344,13 +344,13 @@ export interface RegistrationOTPVerifyResponse {
  * @throws Error with ErrorResponse data on failure
  */
 export async function sendRegistrationOtp(
-  phoneNumber: string
+  phoneNumber: string,
 ): Promise<RegistrationOTPSendResponse> {
   const normalized = normalizePhoneNumber(phoneNumber);
 
   const response = await authAPI.post<RegistrationOTPSendResponse | ErrorResponse>(
     '/register/send-otp/',
-    { phone_number: normalized }
+    { phone_number: normalized },
   );
 
   if ('error' in response) {
@@ -371,7 +371,7 @@ export async function sendRegistrationOtp(
 export async function verifyRegistrationOtp(
   phoneNumber: string,
   otpCode: string,
-  password: string
+  password: string,
 ): Promise<RegistrationOTPVerifyResponse> {
   const normalized = normalizePhoneNumber(phoneNumber);
 
@@ -381,7 +381,7 @@ export async function verifyRegistrationOtp(
       phone_number: normalized,
       otp_code: otpCode,
       password: password,
-    }
+    },
   );
 
   if ('error' in response) {
@@ -446,13 +446,13 @@ export interface ForgotPasswordPhoneResetResponse {
  * @throws Error with ErrorResponse data on failure
  */
 export async function sendPasswordResetOtp(
-  phoneNumber: string
+  phoneNumber: string,
 ): Promise<ForgotPasswordPhoneSendResponse> {
   const normalized = normalizePhoneNumber(phoneNumber);
 
   const response = await authAPI.post<ForgotPasswordPhoneSendResponse | ErrorResponse>(
     '/forgot-password/phone/send-otp/',
-    { phone_number: normalized }
+    { phone_number: normalized },
   );
 
   if ('error' in response) {
@@ -473,7 +473,7 @@ export async function sendPasswordResetOtp(
 export async function verifyPasswordResetOtp(
   phoneNumber: string,
   otpCode: string,
-  newPassword: string
+  newPassword: string,
 ): Promise<ForgotPasswordPhoneResetResponse> {
   const normalized = normalizePhoneNumber(phoneNumber);
 
@@ -483,7 +483,7 @@ export async function verifyPasswordResetOtp(
       phone_number: normalized,
       otp_code: otpCode,
       new_password: newPassword,
-    }
+    },
   );
 
   if ('error' in response) {

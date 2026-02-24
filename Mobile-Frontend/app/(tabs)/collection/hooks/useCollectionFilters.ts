@@ -48,7 +48,7 @@ export function useCollectionFilters({
 
   const selectedTagDisplayNames = useMemo(
     () => selectedTags.map((name) => tagMap.get(name) ?? name),
-    [selectedTags, tagMap]
+    [selectedTags, tagMap],
   );
 
   const tagFilterLabel = useMemo((): string | null => {
@@ -81,7 +81,7 @@ export function useCollectionFilters({
       '選擇分類',
       '請選擇要篩選的分類標籤',
       [...options, { text: '取消', style: 'cancel' as const }],
-      { cancelable: true }
+      { cancelable: true },
     );
   }, [tags]);
 
@@ -94,7 +94,7 @@ export function useCollectionFilters({
       '選擇有效期',
       '請選擇要篩選的有效期範圍',
       [...options, { text: '取消', style: 'cancel' as const }],
-      { cancelable: true }
+      { cancelable: true },
     );
   }, []);
 
@@ -110,7 +110,7 @@ export function useCollectionFilters({
       '選擇商家',
       '請選擇要篩選的商家',
       [...options, { text: '取消', style: 'cancel' as const }],
-      { cancelable: true }
+      { cancelable: true },
     );
   }, [merchants]);
 

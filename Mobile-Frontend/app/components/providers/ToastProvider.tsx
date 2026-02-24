@@ -122,7 +122,8 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               transform: [{ translateY: slideAnim }],
               maxWidth: screenWidth * 0.9,
             }}
-            className={`${getBackgroundColor()} flex-row items-center rounded-lg px-4 py-3 shadow-lg`}>
+            className={`${getBackgroundColor()} flex-row items-center rounded-lg px-4 py-3 shadow-lg`}
+          >
             <Text className="mr-2 text-base font-medium text-white">{getIcon()}</Text>
             <Text className="flex-1 text-center text-base text-white" numberOfLines={3}>
               {message}

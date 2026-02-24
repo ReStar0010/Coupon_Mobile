@@ -10,14 +10,16 @@ const Footer = () => {
       <TouchableOpacity
         onPress={() => router.push('/demo')}
         className="rounded border-2 border-white bg-white px-4 py-2 text-3xl font-medium"
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+      >
         <Text className="text-lg font-medium text-black">Demo</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => router.push('/OptionsMenu')}
         className="rounded border-2 border-white bg-white px-4 py-2 text-3xl font-medium"
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+      >
         <Text className="text-lg font-medium text-black">OptionsMenu</Text>
       </TouchableOpacity>
     </View>

@@ -90,7 +90,8 @@ export const VerifyFormContainer: React.FC<VerifyFormContainerProps> = ({
           pressStyle={{ bg: AUTH_COLORS.primaryPressed }}
           onPress={onVerify}
           disabled={isLoading}
-          opacity={isLoading ? 0.5 : 1}>
+          opacity={isLoading ? 0.5 : 1}
+        >
           {isLoading ? (
             <ActivityIndicator color={AUTH_COLORS.text} size="small" />
           ) : (

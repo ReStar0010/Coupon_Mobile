@@ -17,12 +17,14 @@ export const LinkText: React.FC<LinkTextProps> = ({ normalText, linkText, onLink
           style={{
             fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif',
             textAlign: 'center',
-          }}>
+          }}
+        >
           <Text color="#374151">{normalText}</Text>
           <Text
             color="#FFAD31"
             onPress={onLinkPress}
-            style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}>
+            style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
+          >
             {linkText}
           </Text>
         </Text>

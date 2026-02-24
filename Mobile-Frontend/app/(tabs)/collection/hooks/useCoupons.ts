@@ -73,7 +73,7 @@ export function useCoupons(isAuthenticated: boolean, authLoading: boolean): UseC
       }
 
       const transformedCoupons = response.data.map((coupon: ApiCoupon) =>
-        transformApiCoupon(coupon)
+        transformApiCoupon(coupon),
       );
 
       if (isMountedRef.current) {

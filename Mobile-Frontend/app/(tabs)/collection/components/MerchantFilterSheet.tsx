@@ -69,7 +69,8 @@ export function MerchantFilterSheet({
           justifyContent: 'flex-end',
         }}
         activeOpacity={1}
-        onPress={handleClose}>
+        onPress={handleClose}
+      >
         <TouchableOpacity
           activeOpacity={1}
           onPress={(e) => e.stopPropagation()}
@@ -79,7 +80,8 @@ export function MerchantFilterSheet({
             borderTopRightRadius: BORDER_RADIUS.xl,
             maxHeight: SCREEN_HEIGHT * 0.8,
             paddingBottom: insets.bottom,
-          }}>
+          }}
+        >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={{ flex: 1 }}>
               <YStack gap={16} padding={16}>
@@ -104,7 +106,8 @@ export function MerchantFilterSheet({
                     paddingHorizontal: 12,
                     paddingVertical: 10,
                     alignItems: 'center',
-                  }}>
+                  }}
+                >
                   <Search color={COLORS.text.secondary} size={20} />
                   <Input
                     value={searchQuery}
@@ -137,12 +140,14 @@ export function MerchantFilterSheet({
                           backgroundColor: isSelected ? COLORS.tag.background : 'transparent',
                           borderRadius: BORDER_RADIUS.md,
                           marginBottom: 4,
-                        }}>
+                        }}
+                      >
                         <XStack alignItems="center" justifyContent="space-between">
                           <Text
                             fontSize={16}
                             color={isSelected ? COLORS.primary : COLORS.text.primary}
-                            fontWeight={isSelected ? '600' : '400'}>
+                            fontWeight={isSelected ? '600' : '400'}
+                          >
                             {item}
                           </Text>
                           {isSelected && (

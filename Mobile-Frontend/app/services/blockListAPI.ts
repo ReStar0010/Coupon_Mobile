@@ -135,7 +135,7 @@ function normalizeBlockedMerchant(raw: Record<string, unknown>): BlockedMerchant
  */
 export async function getBlockedMerchants(): Promise<BlockedMerchantsListResponse> {
   const res = await authAPI.get<{ results?: unknown[]; total?: number }>(
-    '/user/blocked-merchants/'
+    '/user/blocked-merchants/',
   );
   const rawResults = res?.results ?? [];
   const results = rawResults

@@ -56,7 +56,8 @@ class ErrorBoundary extends Component<Props, State> {
             onPress={this.handleReset}
             bg="#FFAD31"
             color="white"
-            pressStyle={{ opacity: 0.8 }}>
+            pressStyle={{ opacity: 0.8 }}
+          >
             重試
           </Button>
         </View>

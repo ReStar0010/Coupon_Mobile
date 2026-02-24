@@ -106,7 +106,7 @@ export function BlockedMerchantsProvider({ children }: BlockedMerchantsProviderP
     (storeId: number): boolean => {
       return blockedStoreIds.has(storeId);
     },
-    [blockedStoreIds]
+    [blockedStoreIds],
   );
 
   /**
@@ -131,7 +131,7 @@ export function BlockedMerchantsProvider({ children }: BlockedMerchantsProviderP
         return false;
       }
     },
-    [fetchBlockedMerchants]
+    [fetchBlockedMerchants],
   );
 
   /**

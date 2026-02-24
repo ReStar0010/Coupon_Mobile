@@ -18,16 +18,16 @@ const SupportMore: React.FC = () => {
   const handleGoBack = useCallback(() => router.back(), [router]);
   const handleContactUs = useCallback(
     () => router.push('/options-menu/contact-us/ContactUs'),
-    [router]
+    [router],
   );
   const handleTerms = useCallback(() => router.push('/options-menu/terms/Terms'), [router]);
   const handleHelpSupport = useCallback(
     () => router.push('/options-menu/help-support/HelpSupport'),
-    [router]
+    [router],
   );
   const handlePrivacyPolicy = useCallback(
     () => router.push('/options-menu/privacy-policy/PrivacyPolicy'),
-    [router]
+    [router],
   );
 
   return (
@@ -49,7 +49,8 @@ const SupportMore: React.FC = () => {
             hoverTheme
             pressTheme
             size="$6"
-            onPress={handleContactUs}>
+            onPress={handleContactUs}
+          >
             <ListItem.Text>聯絡我們</ListItem.Text>
           </ListItem>
           <Separator />
@@ -60,7 +61,8 @@ const SupportMore: React.FC = () => {
             hoverTheme
             pressTheme
             size="$6"
-            onPress={handleTerms}>
+            onPress={handleTerms}
+          >
             <ListItem.Text>服務條款</ListItem.Text>
           </ListItem>
           <Separator />
@@ -71,7 +73,8 @@ const SupportMore: React.FC = () => {
             hoverTheme
             pressTheme
             size="$6"
-            onPress={handleHelpSupport}>
+            onPress={handleHelpSupport}
+          >
             <ListItem.Text>幫助與支援</ListItem.Text>
           </ListItem>
           <Separator />
@@ -83,7 +86,8 @@ const SupportMore: React.FC = () => {
             hoverTheme
             pressTheme
             size="$6"
-            onPress={handlePrivacyPolicy}>
+            onPress={handlePrivacyPolicy}
+          >
             <ListItem.Text>隱私政策</ListItem.Text>
           </ListItem>
         </YStack>

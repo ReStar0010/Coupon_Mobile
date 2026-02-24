@@ -67,7 +67,7 @@ const DismissedStoresProvider = ({ children }: DismissedStoresProviderProps) => 
     (storeId: number) => {
       return dismissedStoreIds.has(storeId);
     },
-    [dismissedStoreIds]
+    [dismissedStoreIds],
   );
 
   const contextValue: DismissedStoresContextType = {

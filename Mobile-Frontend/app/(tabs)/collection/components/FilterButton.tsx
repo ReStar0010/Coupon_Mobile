@@ -23,7 +23,8 @@ export function FilterButton({ label, selectedValue, onPress }: FilterButtonProp
       <View style={containerStyle}>
         <Text
           style={[styles.label, isSelected ? styles.labelSelected : styles.labelDefault]}
-          numberOfLines={1}>
+          numberOfLines={1}
+        >
           {displayText}
         </Text>
         <ChevronDown size={16} color={isSelected ? COLORS.white : COLORS.text.secondary} />

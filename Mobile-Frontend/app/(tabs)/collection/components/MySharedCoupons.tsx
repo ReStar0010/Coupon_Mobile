@@ -38,7 +38,8 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
           shadowOffset={{ width: 0, height: 2 }}
           shadowOpacity={0.08}
           elevation={3}
-          height="auto">
+          height="auto"
+        >
           <XStack gap={12} alignItems="center">
             <Image
               source={{
@@ -67,7 +68,8 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
                     borderRadius: 8,
                     paddingHorizontal: 8,
                     paddingVertical: 2,
-                  }}>
+                  }}
+                >
                   <Text fontSize={12} color="#D97706" fontWeight="500">
                     等待被領取
                   </Text>

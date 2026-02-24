@@ -20,7 +20,7 @@ interface UseDailyDrawReturn {
 export function useDailyDraw(
   isAuthenticated: boolean,
   authLoading: boolean,
-  onDrawSuccess: () => void
+  onDrawSuccess: () => void,
 ): UseDailyDrawReturn {
   const [showDailyDraw, setShowDailyDraw] = useState(false);
   const [dailyDrawResult, setDailyDrawResult] = useState<DailyDrawResult | null>(null);

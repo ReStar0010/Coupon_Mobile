@@ -210,7 +210,8 @@ export default function LoginPage() {
           {/* Privacy Policy Link (UGC Compliance) */}
           <TouchableOpacity
             onPress={() => router.push('/options-menu/privacy-policy')}
-            style={styles.privacyLink}>
+            style={styles.privacyLink}
+          >
             <Text fontSize={14} color={AUTH_COLORS.primary} style={{ textAlign: 'center' }}>
               隱私政策
             </Text>

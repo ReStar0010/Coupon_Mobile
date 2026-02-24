@@ -26,7 +26,7 @@ export default function AuthRedirectHandler() {
     // Don't redirect if already on login page or index page
     const publicRoutes = ['/Login', '/', '/index'];
     const isPublicRoute = publicRoutes.some(
-      (route) => currentPath === route || currentPath.startsWith(route)
+      (route) => currentPath === route || currentPath.startsWith(route),
     );
 
     if (isPublicRoute) {

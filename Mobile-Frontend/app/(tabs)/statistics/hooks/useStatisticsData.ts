@@ -196,7 +196,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
 
       await fetchUserStats();
     },
-    [showToast, fetchCompletedGoals, fetchUserStats]
+    [showToast, fetchCompletedGoals, fetchUserStats],
   );
 
   const resetGoal = useCallback(async () => {

@@ -153,7 +153,7 @@ export const filterCoupons = (
   searchQuery: string,
   selectedTags?: string[],
   expiryFilter?: ExpiryFilter,
-  selectedMerchant?: string | null
+  selectedMerchant?: string | null,
 ): CouponType[] => {
   return coupons.filter((coupon) => {
     // Search filter
@@ -175,7 +175,7 @@ export const filterCoupons = (
 
       // Check if coupon has at least one of the selected tags
       const hasMatchingTag = selectedTags.some((selectedTag) =>
-        coupon.tags!.some((tag) => tag.toLowerCase() === selectedTag.toLowerCase())
+        coupon.tags!.some((tag) => tag.toLowerCase() === selectedTag.toLowerCase()),
       );
 
       if (!hasMatchingTag) return false;

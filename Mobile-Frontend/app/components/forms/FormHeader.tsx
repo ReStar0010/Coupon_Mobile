@@ -13,7 +13,8 @@ export const FormHeader: React.FC<FormHeaderProps> = ({ title }) => {
         fontWeight="800"
         color="#374151"
         lineHeight={37.5}
-        style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}>
+        style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
+      >
         {title}
       </H1>
     </YStack>

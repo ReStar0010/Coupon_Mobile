@@ -307,7 +307,7 @@ export const ensureValidAuth = async (): Promise<boolean> => {
  */
 export const fetchAPI = async (
   endpoint: string,
-  options: AxiosRequestConfig = {}
+  options: AxiosRequestConfig = {},
 ): Promise<AxiosResponse> => {
   // Get access token from memory (synchronous after initStorage)
   const accessToken = getAccessToken();
@@ -587,7 +587,7 @@ export const qrClaimAPI = {
    */
   claimCouponViaQR: async (
     templateId: number,
-    sessionToken: string
+    sessionToken: string,
   ): Promise<{
     message: string;
     coupon_id: number;
@@ -631,7 +631,7 @@ export const qrClaimAPI = {
 
   /** Claim by single token (deep link). Backend resolves claim_token to session/template. */
   claimCouponByToken: async (
-    claimToken: string
+    claimToken: string,
   ): Promise<{
     message: string;
     coupon_id: number;

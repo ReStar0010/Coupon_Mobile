@@ -43,18 +43,22 @@ const UserInfoElement: React.FC<UserInfoElementType> = ({
 
   return (
     <View
-      className={`flex flex-col items-start justify-start gap-[18px] self-stretch ${className}`}>
+      className={`flex flex-col items-start justify-start gap-[18px] self-stretch ${className}`}
+    >
       <View
         className="flex flex-row items-start justify-start gap-[25px] self-stretch"
-        style={contentStyle}>
+        style={contentStyle}
+      >
         <View
           className="relative inline-block w-[60px] shrink-0 whitespace-nowrap leading-[150%] tracking-[-0.01em]"
-          style={userIconsStyle}>
+          style={userIconsStyle}
+        >
           <Text className="text-sec-black text-base leading-[150%] tracking-[-0.01em]">{prop}</Text>
         </View>
         <View
           className="relative inline-block flex-1 text-right leading-[150%] tracking-[-0.01em]"
-          style={userAvatarsStyle}>
+          style={userAvatarsStyle}
+        >
           <Text className="text-sec-black text-right text-base leading-[150%] tracking-[-0.01em]">
             {content}
           </Text>

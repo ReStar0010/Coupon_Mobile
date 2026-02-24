@@ -43,7 +43,8 @@ const ContactUsPage: React.FC = () => {
             bg="white"
             pressTheme
             size="$6"
-            onPress={handleInstagramPress}>
+            onPress={handleInstagramPress}
+          >
             <ListItem.Text>CouPro</ListItem.Text>
           </ListItem>
           <Separator borderColor="#e1e1e1" />
@@ -51,7 +52,8 @@ const ContactUsPage: React.FC = () => {
             icon={Mail}
             style={{ borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}
             bg="white"
-            size="$6">
+            size="$6"
+          >
             <ListItem.Text>coupro707@gmail.com</ListItem.Text>
           </ListItem>
         </YStack>

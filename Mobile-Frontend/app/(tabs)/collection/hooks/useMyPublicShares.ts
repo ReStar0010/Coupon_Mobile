@@ -24,7 +24,7 @@ interface UseMyPublicSharesReturn {
 
 export function useMyPublicShares(
   isAuthenticated: boolean,
-  authLoading: boolean
+  authLoading: boolean,
 ): UseMyPublicSharesReturn {
   const [publicShares, setPublicShares] = useState<PublicShare[]>([]);
   const [isLoading, setIsLoading] = useState(false);

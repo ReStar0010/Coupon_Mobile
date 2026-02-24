@@ -23,7 +23,8 @@ const MerchantDeletedModal: React.FC<MerchantDeletedModalProps> = ({
           justifyContent: 'center',
           alignItems: 'center',
           paddingHorizontal: 20,
-        }}>
+        }}
+      >
         <View
           style={{
             backgroundColor: '#fff',
@@ -36,13 +37,15 @@ const MerchantDeletedModal: React.FC<MerchantDeletedModalProps> = ({
             shadowOpacity: 0.25,
             shadowRadius: 12,
             elevation: 8,
-          }}>
+          }}
+        >
           {/* Warning Icon */}
           <View
             style={{
               alignItems: 'center',
               marginBottom: 20,
-            }}>
+            }}
+          >
             <View
               style={{
                 width: 60,
@@ -51,7 +54,8 @@ const MerchantDeletedModal: React.FC<MerchantDeletedModalProps> = ({
                 backgroundColor: '#FEF3C7',
                 justifyContent: 'center',
                 alignItems: 'center',
-              }}>
+              }}
+            >
               <Text style={{ fontSize: 32 }}>!</Text>
             </View>
           </View>
@@ -64,7 +68,8 @@ const MerchantDeletedModal: React.FC<MerchantDeletedModalProps> = ({
               color: '#333',
               textAlign: 'center',
               marginBottom: 16,
-            }}>
+            }}
+          >
             商家已停止服務
           </Text>
 
@@ -76,7 +81,8 @@ const MerchantDeletedModal: React.FC<MerchantDeletedModalProps> = ({
               textAlign: 'center',
               lineHeight: 24,
               marginBottom: 12,
-            }}>
+            }}
+          >
             <Text style={{ fontWeight: '600', color: '#333' }}>{storeName}</Text> 已停止與 CouPro
             合作。
           </Text>
@@ -87,7 +93,8 @@ const MerchantDeletedModal: React.FC<MerchantDeletedModalProps> = ({
               textAlign: 'center',
               lineHeight: 24,
               marginBottom: 32,
-            }}>
+            }}
+          >
             此商家的所有優惠券將不再提供服務，點擊確認後這些優惠券將從您的列表中移除。
           </Text>
 
@@ -106,13 +113,15 @@ const MerchantDeletedModal: React.FC<MerchantDeletedModalProps> = ({
               shadowRadius: 4,
               elevation: 3,
             }}
-            activeOpacity={0.8}>
+            activeOpacity={0.8}
+          >
             <Text
               style={{
                 fontSize: 18,
                 fontWeight: 'bold',
                 color: '#333',
-              }}>
+              }}
+            >
               我知道了
             </Text>
           </TouchableOpacity>
