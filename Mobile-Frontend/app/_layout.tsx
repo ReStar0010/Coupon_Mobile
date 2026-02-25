@@ -22,22 +22,39 @@ import { toastConfig } from './config/toastConfig';
 
 export type InitStatus = 'checking' | 'downloading';
 
+/** JS 端更新檢查逾時（毫秒）。fallbackToCacheTimeout 僅處理 native 啟動，此處避免殭屍 Wi-Fi 導致 checkForUpdateAsync 永久掛起。 */
+const UPDATE_CHECK_TIMEOUT_MS = 3000;
+
+function timeoutReject(ms: number): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('UPDATE_CHECK_TIMEOUT')), ms);
+  });
+}
+
 /**
  * Update Gate: 在正式環境檢查 OTA 更新，若有則下載並重載，避免使用者先看到舊版嵌入程式碼。
+ * 以 Promise.race 加上 JS 逾時，避免殭屍 Wi-Fi 時 await 永久掛起卡在載入畫面。
  * onStatus 可選，用於更新畫面上的載入訊息（例如「正在檢查更新…」「正在下載最新版本…」）。
  */
 async function handleAppInitialization(onStatus?: (status: InitStatus) => void): Promise<void> {
   if (__DEV__) return;
   try {
     onStatus?.('checking');
-    const update = await Updates.checkForUpdateAsync();
+    const update = await Promise.race([
+      Updates.checkForUpdateAsync(),
+      timeoutReject(UPDATE_CHECK_TIMEOUT_MS),
+    ]);
     if (update.isAvailable) {
       onStatus?.('downloading');
       await Updates.fetchUpdateAsync();
       await Updates.reloadAsync();
     }
   } catch (error) {
-    console.error('OTA 更新檢查失敗', error);
+    if (error instanceof Error && error.message === 'UPDATE_CHECK_TIMEOUT') {
+      console.warn('OTA 更新檢查逾時，略過並繼續啟動');
+    } else {
+      console.error('OTA 更新檢查失敗', error);
+    }
   }
 }
 
