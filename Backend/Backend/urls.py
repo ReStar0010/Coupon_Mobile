@@ -65,8 +65,6 @@ from drf_yasg import openapi
 def trigger_sentry_error(request):
     raise Exception("This is a test error")
 
-path('api/test-sentry/', trigger_sentry_error, name='trigger_sentry_error'), #test sentry error
-
 def health_check(request):
     try:
         with connection.cursor() as cursor:
@@ -96,6 +94,9 @@ urlpatterns = [
     re_path(r'^swagger(?P<format>\.json|\.yaml)$',schema_view.without_ui(cache_timeout=0),name='schema-json'),
     re_path(r'^swagger/$',schema_view.with_ui('swagger', cache_timeout=0),name='schema-swagger-ui'),
     re_path(r'^redoc/$',schema_view.with_ui('redoc', cache_timeout=0),name='schema-redoc'),
+
+    # test sentry error
+    path('api/test-sentry/', trigger_sentry_error, name='trigger_sentry_error'),
 
     # Coupon endpoints
     path('api/store-coupons/', get_store_coupons),  # Type A (store) coupons - 隨取及用
