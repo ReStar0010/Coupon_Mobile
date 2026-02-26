@@ -77,6 +77,11 @@ next-env.d.ts
 # Vercel
 .vercel
 
+# Load test artifacts and generated credentials
+load-test-results/
+load_tests/config/test_users.json
+load_tests/config/stores.json
+
 # images
 media/
 images/
