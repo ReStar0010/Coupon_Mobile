@@ -62,6 +62,10 @@ from django.urls import path, re_path
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
+def trigger_sentry_error(request):
+    raise Exception("This is a test error")
+
+path('api/test-sentry/', trigger_sentry_error, name='trigger_sentry_error'), #test sentry error
 
 def health_check(request):
     try:
