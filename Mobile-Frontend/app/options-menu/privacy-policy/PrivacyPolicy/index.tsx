@@ -69,7 +69,7 @@ export default function PrivacyPolicyScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text fontSize="18" fontWeight="600" color="#fff" marginLeft="$2">
+        <Text fontSize={18} fontWeight="600" color="#fff" marginLeft="$2">
           隱私政策
         </Text>
       </XStack>
@@ -123,7 +123,7 @@ export default function PrivacyPolicyScreen() {
               borderWidth={1}
               borderColor={colors.border}
             >
-              <Text fontSize="18" fontWeight="600" color={colors.textPrimary} marginBottom="$3">
+              <Text fontSize={18} fontWeight="600" color={colors.textPrimary} marginBottom="$3">
                 {policyData.title}
               </Text>
               <Text fontSize={14} color={colors.textPrimary} lineHeight={24}>

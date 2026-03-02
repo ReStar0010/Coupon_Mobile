@@ -613,7 +613,7 @@ export default function TemplateAnalyticsCountScreen() {
 
               {/* Trend Chart Section */}
               <View style={styles.sectionCard}>
-                <Text fontSize="18" fontWeight="700" color={colors.textPrimary} marginBottom="$3">
+                <Text fontSize={18} fontWeight="700" color={colors.textPrimary} marginBottom="$3">
                   {getMetricLabel(selectedMetric)}趨勢
                 </Text>
                 <YStack gap="$2" marginBottom="$3">

@@ -51,7 +51,7 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
         <XStack alignItems="center" justifyContent="space-between" marginBottom="$2">
           <XStack flex={1} alignItems="center" gap="$2" minWidth={0}>
             <Text
-              fontSize="18"
+              fontSize={18}
               fontWeight="700"
               color={colors.textPrimary}
               flex={1}

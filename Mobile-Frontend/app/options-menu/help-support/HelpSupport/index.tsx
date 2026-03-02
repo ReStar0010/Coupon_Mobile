@@ -61,7 +61,7 @@ export default function HelpSupportScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text fontSize="18" fontWeight="600" color="#fff" marginLeft="$2">
+        <Text fontSize={18} fontWeight="600" color="#fff" marginLeft="$2">
           幫助與支援
         </Text>
       </XStack>
