@@ -16,8 +16,12 @@ SECRET_KEY = os.environ.get('SECRET_KEY')  # Use a different key than production
 
 API_BASE_URL = os.environ.get('API_BASE_URL', 'https://api.staging.coupro.pro')
 
+_render_internal = os.environ.get('RENDER_SERVICE_NAME')
 _allowed_hosts = [
     os.environ.get('RENDER_EXTERNAL_HOSTNAME'),
     'api.staging.coupro.pro',
 ]
+if _render_internal:
+    _allowed_hosts.append(_render_internal)
+    _allowed_hosts.append(f"{_render_internal}:10000")
 ALLOWED_HOSTS = [h for h in _allowed_hosts if h]
