@@ -74,7 +74,8 @@ ALLOWED_HOSTS = [
     'coupro-123.loca.lt',
     'api.coupro.pro',
     'app.coupro.pro',
-    'coupon-mobile-dev'
+    'coupon-mobile-dev',
+    'coupon-mobile-dev:10000',
 ]
 
 # Origins allowed to submit to this backend (frontend URLs where requests come from)
