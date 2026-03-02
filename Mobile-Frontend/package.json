@@ -16,6 +16,8 @@
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-firebase/app": "^23.8.6",
+    "@sentry/react-native": "~7.2.0",
     "@tamagui/babel-plugin": "^1.136.6",
     "@tamagui/config": "^1.136.6",
     "@tamagui/core": "^1.136.6",
@@ -23,6 +25,7 @@
     "@tamagui/portal": "^1.136.6",
     "axios": "^1.11.0",
     "expo": "~54.0.33",
+    "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.10",
@@ -54,7 +57,7 @@
     "@types/react": "~19.1.10",
     "baseline-browser-mapping": "^2.9.18",
     "eslint": "^9.15.0",
-    "eslint-config-expo": "^9.0.0",
+    "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
   }
 }
