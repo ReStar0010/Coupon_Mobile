@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "737465277357",
+    "project_id": "coupro-mercahnt",
+    "storage_bucket": "coupro-mercahnt.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:737465277357:android:dd731daa5d6e757f791f24",
+        "android_client_info": {
+          "package_name": "com.cokayne.MobileMerchantFrontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQAQYKb7QMo45k_8yT0Y0lxIwWo-nu8F4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

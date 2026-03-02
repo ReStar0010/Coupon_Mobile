@@ -2,8 +2,10 @@
   "expo": {
     "name": "CouPro",
     "slug": "Mobile-Frontend",
-    "version": "1.0.0",
-    "scheme": ["coupro"],
+    "version": "1.0.1",
+    "scheme": [
+      "coupro"
+    ],
     "web": {
       "favicon": "./assets/icon.png",
       "bundler": "metro"
@@ -38,16 +40,40 @@
           "locationAlwaysPermission": "CouPro 需要存取您的位置資訊，以便顯示附近的商家與優惠。",
           "locationWhenInUsePermission": "CouPro 需要存取您的位置資訊，以便顯示附近的商家與優惠。"
         }
-      ]
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "consumer-frontend",
+          "organization": "coupro"
+        }
+      ],
+      "@react-native-firebase/app",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "@sentry/react-native"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.cokayne.MobileFrontend",
-      "associatedDomains": ["applinks:api.coupro.pro", "applinks:app.coupro.pro"],
+      "associatedDomains": [
+        "applinks:api.coupro.pro",
+        "applinks:app.coupro.pro"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -57,7 +83,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "googleServicesFile": "./google-services.json",
       "package": "com.cokayne.MobileFrontend"
     },
     "extra": {
@@ -72,7 +102,7 @@
     "updates": {
       "url": "https://u.expo.dev/ba247e6a-3cfa-4285-99f6-5867b5257c0e",
       "fallbackToCacheTimeout": 3000,
-      "checkOnLaunch": "ALWAYS",
+      "checkAutomatically": "ON_LOAD",
       "enabled": true
     }
   }
