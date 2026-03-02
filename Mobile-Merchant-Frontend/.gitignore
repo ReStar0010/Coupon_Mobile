@@ -46,3 +46,4 @@ app-example
 # tamagui
 .tamagui/
 tamagui-web.css
+.env.local
