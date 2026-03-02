@@ -41,3 +41,5 @@ urllib3==2.4.0
 uvicorn==0.34.2
 whitenoise==6.9.0
 yarl==1.22.0
+# Load test harness (optional; for run_stage.py and locust)
+locust>=2.20.0
