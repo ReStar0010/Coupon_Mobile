@@ -1,10 +1,20 @@
-// https://docs.expo.dev/guides/using-eslint/
-const { defineConfig } = require('eslint/config');
-const expoConfig = require('eslint-config-expo/flat');
+let expoConfig = [];
+try {
+  const expo = require('eslint-config-expo/flat');
+  expoConfig = Array.isArray(expo) ? expo : [expo];
+} catch {
+  // eslint-config-expo not installed — run: npm install eslint-config-expo --save-dev
+}
 
-module.exports = defineConfig([
-  expoConfig,
+module.exports = [
+  ...expoConfig,
   {
-    ignores: ['dist/**', '.expo/**'],
+    ignores: ['dist/*', '.tamagui/**', 'node_modules/**'],
   },
-]);
+  {
+    rules: {
+      'react/display-name': 'off',
+      'import/no-unresolved': [2, { ignore: ['../tamagui-web.css'] }],
+    },
+  },
+];
