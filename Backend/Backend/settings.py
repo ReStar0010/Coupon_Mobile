@@ -6,10 +6,12 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
+import dj_database_url
+
 from dotenv import load_dotenv
 
 load_dotenv()
-
+# BASE_DIR is set below; load Backend/.env after paths are available (see end of Paths section)
 import sentry_sdk
 
 sentry_sdk.init(
@@ -34,6 +36,7 @@ sentry_sdk.init(
 # Paths & environment
 # -----------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')  # Backend/.env (optional, for local Postgres etc.)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-dev-only')
 DEBUG = True
@@ -71,6 +74,7 @@ ALLOWED_HOSTS = [
     'coupro-123.loca.lt',
     'api.coupro.pro',
     'app.coupro.pro',
+    'coupon-mobile-dev'
 ]
 
 # Origins allowed to submit to this backend (frontend URLs where requests come from)
@@ -132,12 +136,23 @@ TEMPLATES = [
 # -----------------------------------------------------------------------------
 # Database
 # -----------------------------------------------------------------------------
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    },
-}
+# Use Postgres when DATABASE_URL is set (e.g. Backend/.env with local Docker);
+# otherwise SQLite for development.
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.environ.get('DATABASE_URL'),
+            conn_max_age=0,
+        ),
+    }
+    DATABASES['default'].setdefault('DISABLE_SERVER_SIDE_CURSORS', True)
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        },
+    }
 
 # -----------------------------------------------------------------------------
 # Auth & passwords
