@@ -1,6 +1,8 @@
 """
 Views for merchant account deletion (App Store Guideline 5.1.1 compliance).
 """
+import logging
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,6 +11,8 @@ from django.contrib.auth.hashers import check_password
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 from api.models import (
     Store, MerchantProfile, CouponTemplate, Coupon,
@@ -217,7 +221,7 @@ def delete_account(request):
             
     except Exception as e:
         # Log error and return failure
-        print(f"Account deletion error: {str(e)}")
+        logger.error("Account deletion error: %s", e, exc_info=True)
         
         # Create failed deletion log if possible
         try:
@@ -231,9 +235,9 @@ def delete_account(request):
                 status='failed',
                 retry_count=0
             )
-        except:
-            pass
-        
+        except Exception as log_exc:
+            logger.warning("Failed to create deletion audit log: %s", log_exc)
+
         return Response(
             {'error': '刪除帳號時發生錯誤,請稍後再試'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

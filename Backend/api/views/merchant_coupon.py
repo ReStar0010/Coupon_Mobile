@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -9,6 +11,8 @@ import secrets
 import os
 from pathlib import Path
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -584,12 +588,12 @@ def delete_coupon_template(request, id):
                     # Delete the file if it exists
                     if file_path.exists() and file_path.is_file():
                         os.remove(file_path)
-                        print(f'[Delete] Successfully deleted image file: {file_path}')
+                        logger.info("Successfully deleted image file: %s", file_path)
                     else:
-                        print(f'[Delete] Image file not found: {file_path}')
+                        logger.debug("Image file not found during cleanup: %s", file_path)
                 except Exception as e:
                     # Log error but don't fail the deletion
-                    print(f'[Delete] Failed to delete image file {filename}: {e}')
+                    logger.error("Failed to delete image file %s: %s", filename, e)
         
         # Delete the template
         template.delete()

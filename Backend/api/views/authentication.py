@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -17,6 +19,8 @@ from drf_yasg import openapi
 
 from django.http import HttpResponse
 from urllib.parse import urlencode
+
+logger = logging.getLogger(__name__)
 
 from ..serializers import LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, MerchantRegisterSerializer, PhoneLoginSerializer
 from ..models import StudentProfile, PasswordResetProfile, MerchantProfile, Store
@@ -221,14 +225,14 @@ def send_verification_email(user_email, token):
         }
 
         email = resend.Emails.send(params)
-        print(email)     
-        print(f"✅ 已成功寄送驗證郵件到 {user_email}")
+        logger.debug("Resend API response for student verification: %s", email)
+        logger.info("Successfully sent verification email to %s", user_email)
 
         return True
 
     except Exception as e:
 
-        print(f"❌ 寄送驗證郵件到 {user_email} 失敗: {e}")
+        logger.error("Failed to send verification email to %s: %s", user_email, e)
         return False
 
 # Merchant verification email function
@@ -437,13 +441,13 @@ def send_merchant_verification_email(user_email, token):
         }
 
         email = resend.Emails.send(params)
-        print(email)     
-        print(f"✅ 已成功寄送商家驗證郵件到 {user_email}")
+        logger.debug("Resend API response for merchant verification: %s", email)
+        logger.info("Successfully sent merchant verification email to %s", user_email)
         return True
 
     except Exception as e:
         error_message = str(e)
-        print(f"❌ 寄送商家驗證郵件到 {user_email} 失敗: {error_message}")
+        logger.error("Failed to send merchant verification email to %s: %s", user_email, error_message)
         
         # Provide user-friendly error messages based on error type
         if 'rate_limit' in error_message.lower() or '429' in error_message:
@@ -694,14 +698,13 @@ def send_password_reset_email(user_email, token, user_type='student'):
         }
 
         email = resend.Emails.send(params)
-        print(email)
-        
-        print(f"✅ 已成功寄送密碼重設郵件到 {user_email}")
+        logger.debug("Resend API response for password reset: %s", email)
+        logger.info("Successfully sent password reset email to %s", user_email)
         return True
 
     except Exception as e:
         error_message = str(e)
-        print(f"❌ 寄送密碼重設郵件到 {user_email} 失敗: {error_message}")
+        logger.error("Failed to send password reset email to %s: %s", user_email, error_message)
         
         # Provide user-friendly error messages based on error type
         if 'rate_limit' in error_message.lower() or '429' in error_message:
@@ -762,7 +765,7 @@ def register(request):
         serializer = MerchantRegisterSerializer(data=data)
         if not serializer.is_valid():
             user.delete()  # Clean up user if validation fails
-            print(f"Merchant registration validation errors: {serializer.errors}")
+            logger.warning("Merchant registration validation errors: %s", serializer.errors)
             return Response({
                 'error': 'Validation failed',
                 'details': serializer.errors
@@ -803,7 +806,7 @@ def register(request):
             send_merchant_verification_email(email, token)
         except Exception as email_error:
             # Log the error but don't fail registration
-            print(f"警告：無法發送驗證郵件，但帳號已創建: {email_error}")
+            logger.warning("Verification email failed but account created: %s", email_error)
             # Still return success, but note that email may not have been sent
             return Response({
                 'message': '註冊成功！但驗證郵件發送失敗，請稍後重新申請驗證郵件。',
@@ -1033,7 +1036,7 @@ def login(request):
             # If the user doesn't have a student profile (e.g., is a merchant or admin), skip verification check
         except StudentProfile.DoesNotExist:
             # This case should ideally not happen for student users after registration changes
-            print(f"Warning: StudentProfile not found for user {getattr(user, 'email', user.username)} during login.")
+            logger.warning("StudentProfile not found for user %s during login", getattr(user, 'email', user.username))
             # For now, let's allow login if profile is missing, assuming they might be non-student users
         
         # Check merchant verification status
@@ -1047,7 +1050,7 @@ def login(request):
                         'email': user.email
                     }, status=status.HTTP_403_FORBIDDEN)
             except MerchantProfile.DoesNotExist:
-                print(f"Warning: MerchantProfile not found for merchant user {user.email}")
+                logger.warning("MerchantProfile not found for merchant user %s", user.email)
                 # Allow login if profile is missing (shouldn't happen in normal flow)
 
         if check_password(password, user.password):
@@ -1127,7 +1130,7 @@ def logout(request):
             try:
                 token = RefreshToken(refresh_token)
                 token.blacklist()  # 將 refresh token 加入黑名單
-                print(f"Token blacklisted successfully")
+                logger.info("Token blacklisted successfully")
             except TokenError:
                 pass  # Token 已經無效或過期，忽略錯誤
         
@@ -1284,8 +1287,8 @@ def reset_password(request):
     token = request.data.get('token')
     new_password = request.data.get('new_password')
     
-    print(f"Reset password attempt for email: {email}")
-    
+    logger.info("Reset password attempt for email: %s", email)
+
     if not all([email, token, new_password]):
         return Response({'error': '所有欄位均為必填'}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -1294,13 +1297,12 @@ def reset_password(request):
     
     try:
         user = User.objects.get(email=email)
-        print(f"User found: {user.username}")
-        
+        logger.debug("User found for password reset: %s", user.username)
+
         # Get reset profile
         try:
             reset_profile = PasswordResetProfile.objects.get(user=user)
-            print(f"Reset profile token: {reset_profile.token}")
-            print(f"Token from request: {token}")
+            logger.debug("Reset profile token present: %s", bool(reset_profile.token))
             
             # Verify token
             if not reset_profile.token or reset_profile.token != token:
@@ -1319,17 +1321,17 @@ def reset_password(request):
             reset_profile.token_created_at = None
             reset_profile.save()
             
-            print("Password reset successful")
+            logger.info("Password reset successful for user %s", user.username)
             return Response({'message': '密碼已成功重設，請使用新密碼登入'})
             
         except PasswordResetProfile.DoesNotExist:
-            print("No reset profile found")
+            logger.warning("No reset profile found for user %s", email)
             return Response({'error': '無效的重設密碼連結'}, status=status.HTTP_400_BAD_REQUEST)
             
     except User.DoesNotExist:
         return Response({'error': '找不到使用者'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        logger.error("Unexpected error during password reset: %s", e, exc_info=True)
         return Response({'error': f'發生未預期的錯誤: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1395,8 +1397,8 @@ def refresh_token(request):
             if settings.SIMPLE_JWT.get('BLACKLIST_AFTER_ROTATION', False):
                 try:
                     refresh.blacklist()
-                except:
-                    pass
+                except Exception as blacklist_exc:
+                    logger.warning("Failed to blacklist token during rotation: %s", blacklist_exc)
             
             # Create a new refresh token
             token_user_id = refresh.payload.get('user_id')
@@ -1423,7 +1425,7 @@ def refresh_token(request):
         })
         
     except Exception as e:
-        print(f"Token refresh error: {e}")
+        logger.warning("Token refresh error: %s", e)
         return Response({
             "error": "Invalid or expired refresh token"
         }, status=status.HTTP_401_UNAUTHORIZED)

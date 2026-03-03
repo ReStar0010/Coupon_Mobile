@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,6 +12,8 @@ from drf_yasg import openapi
 
 from ..serializers import SetSavingsGoalSerializer
 from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log
+
+logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -87,7 +91,7 @@ def coupon_history(request):
             'total_count': len(history)
         })
     except Exception as e:
-        print(f"Error retrieving coupon history: {e}")
+        logger.error("Error retrieving coupon history: %s", e, exc_info=True)
         return Response(
             {'error': '無法取得優惠券使用紀錄'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -119,7 +123,7 @@ def coupon_history_detail(request, id):
     except Http404:
         raise
     except Exception as e:
-        print(f"Error retrieving coupon history detail: {e}")
+        logger.error("Error retrieving coupon history detail: %s", e, exc_info=True)
         return Response(
             {'error': '無法取得優惠券使用紀錄詳情'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -220,7 +224,7 @@ def add_completed_goal(request):
             "completedDate": completed_goal.completed_date.isoformat()
         })
     except Exception as e:
-        print(f"Error adding completed goal: {e}")
+        logger.error("Error adding completed goal: %s", e, exc_info=True)
         return Response(
             {'error': f'無法新增目標: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -274,7 +278,7 @@ def completed_goals(request):
         
         return Response(completed_goals_data)
     except Exception as e:
-        print(f"Error retrieving completed goals: {e}")
+        logger.error("Error retrieving completed goals: %s", e, exc_info=True)
         return Response(
             {'error': '無法取得已完成目標列表'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -368,6 +372,6 @@ def assign_pending_coupons(user, phone_number):
             )
         except Exception as e:
             # Log creation failure shouldn't block the assignment
-            print(f"Failed to create log for pending coupon assignment: {e}")
+            logger.warning("Failed to create log for pending coupon assignment: %s", e)
     
     return count

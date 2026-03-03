@@ -53,9 +53,13 @@ from api.views.admin_moderation import (
     EscalatedReportsView, MerchantViolationsView, ModerationStatsView
 )
 
+import logging
+
 from django.http import HttpResponse, JsonResponse
 from django.db import connection
 from django.urls import re_path
+
+logger = logging.getLogger(__name__)
 
 from rest_framework import permissions
 from django.urls import path, re_path
@@ -71,6 +75,7 @@ def health_check(request):
             cursor.execute("SELECT 1")
         return JsonResponse({"status": "ok", "db": "ok"})
     except Exception as e:
+        logger.error("Health check database query failed: %s", e, exc_info=True)
         return JsonResponse({"status": "error", "db": str(e)}, status=503)
 
 

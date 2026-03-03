@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import logging
+
 import sentry_sdk
 
 sentry_sdk.init(
@@ -240,3 +242,43 @@ ESCALATION_HOURS_CRITICAL = 24
 VIOLATION_SUSPENSION_THRESHOLD = 10
 REPORT_DUPLICATE_WINDOW_HOURS = 24
 REPORT_RETENTION_DAYS = 7
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+# Sentry's LoggingIntegration (enabled by default) captures:
+#   - Breadcrumbs for INFO+ logs
+#   - Sentry error events for ERROR+ logs
+# This LOGGING config controls what Python emits to the console and Sentry.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO' if not DEBUG else 'DEBUG',
+    },
+    'loggers': {
+        'api': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

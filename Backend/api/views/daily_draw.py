@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
@@ -11,6 +13,8 @@ import string
 
 from api.models import CouponTemplate, Coupon, StudentProfile, Log
 from ..serializers import DrawCouponSerializer
+
+logger = logging.getLogger(__name__)
 
 def generate_random_code(length=6):
     """Generate a random alphanumeric code for coupon redemption"""
@@ -78,8 +82,10 @@ def draw_coupon(request):
             student_profile.last_draw_time = timezone.now()
             student_profile.save()
         except StudentProfile.DoesNotExist:
-            # This shouldn't happen with proper permission checks
-            pass
+            logger.warning(
+                "StudentProfile not found for authenticated user %s during daily draw",
+                request.user.id,
+            )
         
         # Determine if user successfully draws the coupon based on probability
         success = random.random() < template.draw_probability
