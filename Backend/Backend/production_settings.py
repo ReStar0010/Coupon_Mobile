@@ -23,11 +23,16 @@ COOKIE_DOMAIN = '.coupro.pro'
 # -----------------------------------------------------------------------------
 # Hosts & CSRF
 # -----------------------------------------------------------------------------
-# Backend hostnames that can receive requests (Host header)
+# Backend hostnames that can receive requests (Host header).
+# Include internal host so same-repo services (e.g. Locust) can call this backend via private URL.
+_render_internal = os.environ.get('RENDER_SERVICE_NAME')  # e.g. coupon-mobile-dev
 _allowed_hosts = [
     os.environ.get('RENDER_EXTERNAL_HOSTNAME'),
     'api.coupro.pro',
 ]
+if _render_internal:
+    _allowed_hosts.append(_render_internal)
+    _allowed_hosts.append(f"{_render_internal}:10000")  # Render internal HTTP port
 ALLOWED_HOSTS = [h for h in _allowed_hosts if h]
 
 # Origins allowed to submit to this backend (Origin header = frontend URL where the request came from)
