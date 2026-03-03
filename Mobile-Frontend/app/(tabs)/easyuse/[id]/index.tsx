@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import * as Sentry from '@sentry/react-native';
 import { Alert, Linking, Platform } from 'react-native';
 
 // 位置權限說明（此頁用於優惠券瀏覽分析，協助改善服務與推薦；未授權時不干擾用戶，僅不傳送位置）
@@ -130,6 +131,7 @@ const CouponDetailPage: React.FC = () => {
     } catch (error) {
       // Silently fail - don't interrupt user experience
       console.error('Failed to track template view:', error);
+      Sentry.captureException(error, { data: { context: 'easyuse.trackTemplateView' } });
     }
   };
 
@@ -481,6 +483,7 @@ const CouponDetailPage: React.FC = () => {
         })
         .catch((err) => {
           console.error('Error opening maps:', err);
+          Sentry.captureException(err, { data: { context: 'easyuse.openMapsNavigation' } });
           Alert.alert('錯誤', '無法開啟地圖應用程式');
         });
     } else {

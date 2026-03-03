@@ -3,7 +3,8 @@ import { RefreshControl, FlatList } from 'react-native';
 import { Stack } from 'expo-router';
 import { YStack, Text, Spinner, View } from 'tamagui';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import ErrorBoundary from '@/app/components/ErrorBoundary';
+import * as Sentry from '@sentry/react-native';
+import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import AppHeader from '@/app/components/shared/AppHeader';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import Gift from './Gift';
@@ -259,7 +260,19 @@ const Collection: React.FC = () => {
   }
 
   return (
-    <ErrorBoundary>
+    <Sentry.ErrorBoundary
+      fallback={({ error, componentStack, resetError }) => (
+        <ScreenErrorFallback
+          error={error as Error}
+          componentStack={componentStack}
+          resetError={resetError}
+        />
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'collection-screen');
+        scope.setTag('boundary_type', 'screen');
+      }}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
       <YStack flex={1}>
@@ -327,7 +340,7 @@ const Collection: React.FC = () => {
           storeName={merchantDeletedModal.storeName}
         />
       </YStack>
-    </ErrorBoundary>
+    </Sentry.ErrorBoundary>
   );
 };
 

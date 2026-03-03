@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import * as Sentry from '@sentry/react-native';
+import WidgetErrorFallback from './WidgetErrorFallback';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { devLog } from '@/app/utils/devLogger';
@@ -201,46 +203,54 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
   return (
     <View style={[styles.container, { borderRadius: 12, overflow: 'hidden' }]}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={mapRegion}
-        region={mapRegion}
-        onRegionChangeComplete={setMapRegion}
-        onMapReady={onMapReady}
-        onPress={onMapPress}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        showsScale={false}
-        showsBuildings={true}
-        showsTraffic={false}
-        showsIndoors={true}
-        loadingEnabled={true}
-        mapType="standard"
+      <Sentry.ErrorBoundary
+        fallback={<WidgetErrorFallback message="地圖暫時無法顯示" minHeight={200} />}
+        beforeCapture={(scope) => {
+          scope.setTag('boundary', 'map-widget');
+          scope.setTag('boundary_type', 'widget');
+        }}
       >
-        {/* User location marker (custom) */}
-        {userLocation && (
-          <Marker coordinate={userLocation} title="您的位置" pinColor="blue" zIndex={1000} />
-        )}
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={mapRegion}
+          region={mapRegion}
+          onRegionChangeComplete={setMapRegion}
+          onMapReady={onMapReady}
+          onPress={onMapPress}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          showsCompass={false}
+          showsScale={false}
+          showsBuildings={true}
+          showsTraffic={false}
+          showsIndoors={true}
+          loadingEnabled={true}
+          mapType="standard"
+        >
+          {/* User location marker (custom) */}
+          {userLocation && (
+            <Marker coordinate={userLocation} title="您的位置" pinColor="blue" zIndex={1000} />
+          )}
 
-        {/* Store markers */}
-        {stores.map((store) => (
-          <Marker
-            key={store.id}
-            coordinate={{
-              latitude: store.location.lat,
-              longitude: store.location.lng,
-            }}
-            title={store.name}
-            description={store.address}
-            pinColor="#FFAD31"
-            onPress={() => onMarkerPress(store)}
-          >
-            {selectedStore?.id === store.id && <CustomCallout store={store} />}
-          </Marker>
-        ))}
-      </MapView>
+          {/* Store markers */}
+          {stores.map((store) => (
+            <Marker
+              key={store.id}
+              coordinate={{
+                latitude: store.location.lat,
+                longitude: store.location.lng,
+              }}
+              title={store.name}
+              description={store.address}
+              pinColor="#FFAD31"
+              onPress={() => onMarkerPress(store)}
+            >
+              {selectedStore?.id === store.id && <CustomCallout store={store} />}
+            </Marker>
+          ))}
+        </MapView>
+      </Sentry.ErrorBoundary>
 
       {/* Custom locate user button - removed, will be added in parent component */}
 

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import * as Sentry from '@sentry/react-native';
+import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -89,6 +91,7 @@ export default function MerchantProfileScreen() {
         ]);
         return;
       }
+      Sentry.captureException(error, { data: { context: 'merchant.profile.loadData' } });
     } finally {
       setIsLoading(false);
     }
@@ -125,6 +128,7 @@ export default function MerchantProfileScreen() {
             router.replace('/(auth)/login');
           } catch (error) {
             console.error('Logout error:', error);
+            Sentry.captureException(error, { data: { context: 'merchant.profile.logout' } });
             Alert.alert('錯誤', '登出失敗，請稍後再試');
           }
         },
@@ -133,172 +137,188 @@ export default function MerchantProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
-      <YStack flex={1} backgroundColor={colors.white}>
-        <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
+    <Sentry.ErrorBoundary
+      fallback={({ error, componentStack, resetError }) => (
+        <ScreenErrorFallback
+          error={error as Error}
+          componentStack={componentStack}
+          resetError={resetError}
+        />
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'profile-screen');
+        scope.setTag('boundary_type', 'screen');
+      }}
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
+        <YStack flex={1} backgroundColor={colors.white}>
+          <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
 
-        <ScrollView
-          flex={1}
-          paddingHorizontal="$4"
-          paddingTop="$4"
-          paddingBottom="$6"
-          showsVerticalScrollIndicator={false}
-        >
-          {isLoading ? (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-          ) : (
-            <>
-              {/* Merchant Name Section */}
-              <View style={styles.merchantNameSection}>
-                <XStack alignItems="center" justifyContent="space-between" width="100%">
-                  <Text fontSize={32} fontWeight="700" color={colors.textPrimary}>
-                    {profile?.store?.name || '商家名稱'}
-                  </Text>
-                  <Button
-                    variant="primary"
-                    onPress={() => {
-                      router.push('/(profile)/edit');
-                    }}
-                  >
-                    編輯
-                  </Button>
-                </XStack>
+          <ScrollView
+            flex={1}
+            paddingHorizontal="$4"
+            paddingTop="$4"
+            paddingBottom="$6"
+            showsVerticalScrollIndicator={false}
+          >
+            {isLoading ? (
+              <View
+                style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}
+              >
+                <ActivityIndicator size="large" color={colors.primary} />
               </View>
-
-              {/* Metrics Cards */}
-              <XStack gap="$3" marginTop="$4" marginBottom="$4" flexWrap="wrap">
-                <MetricCard label="優惠數" value={statistics?.active_coupons ?? 0} />
-                <MetricCard label="總核銷" value={statistics?.total_redemptions ?? 0} />
-                <MetricCard label="總曝光" value={statistics?.total_views ?? 0} />
-                <MetricCard
-                  label="今日成本"
-                  value={
-                    statistics?.today_cost_currency
-                      ? `${statistics.today_cost_currency} ${Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
-                      : Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 2,
-                        })
-                  }
-                />
-              </XStack>
-
-              {/* Merchant Information Card */}
-              <View style={styles.infoCard}>
-                <InfoRow label="地址" value={profile?.store?.address || '未設定'} />
-                <InfoRow label="電話號碼" value={profile?.merchant?.phone || '未設定'} />
-                {businessHours.length > 0 && (
-                  <XStack
-                    paddingVertical="$3"
-                    borderBottomWidth={1}
-                    borderBottomColor={colors.border}
-                    alignItems="flex-start"
-                  >
-                    <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} width={100}>
-                      營業時間
+            ) : (
+              <>
+                {/* Merchant Name Section */}
+                <View style={styles.merchantNameSection}>
+                  <XStack alignItems="center" justifyContent="space-between" width="100%">
+                    <Text fontSize={32} fontWeight="700" color={colors.textPrimary}>
+                      {profile?.store?.name || '商家名稱'}
                     </Text>
-                    <YStack flex={1} gap="$2">
-                      {businessHours.map((hours: string, index: number) => (
-                        <Text key={index} fontSize="$md" color={colors.textSecondary}>
-                          {hours}
-                        </Text>
-                      ))}
-                    </YStack>
-                  </XStack>
-                )}
-              </View>
-
-              {/* Account Actions */}
-              <YStack marginTop="$6" marginBottom="$4" gap="$3">
-                {/* Logout Button */}
-                {/* Content Guidelines Button (UGC Compliance) */}
-                <Button
-                  variant="outline"
-                  fullWidth
-                  onPress={() => router.push('/OptionsMenu/ContentGuidelines')}
-                  style={styles.contentGuidelinesButton}
-                >
-                  <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
-                    <MaterialIcons name="info-outline" size={18} color={colors.primary} />
-                    <Text color={colors.primary}>內容規範</Text>
-                  </XStack>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  fullWidth
-                  onPress={handleLogout}
-                  borderColor="#FF6369"
-                  color="#FF6369"
-                >
-                  登出帳號
-                </Button>
-
-                {/* Delete Account Section - Collapsible */}
-                <YStack gap="$2">
-                  {!showDeleteAccount ? (
-                    <TouchableOpacity
-                      onPress={() => setShowDeleteAccount(true)}
-                      style={styles.showDeleteButton}
+                    <Button
+                      variant="primary"
+                      onPress={() => {
+                        router.push('/(profile)/edit');
+                      }}
                     >
-                      <Text
-                        fontSize="$sm"
-                        color={colors.textSecondary}
-                        style={{ textAlign: 'center' }}
-                      >
-                        進階設定
+                      編輯
+                    </Button>
+                  </XStack>
+                </View>
+
+                {/* Metrics Cards */}
+                <XStack gap="$3" marginTop="$4" marginBottom="$4" flexWrap="wrap">
+                  <MetricCard label="優惠數" value={statistics?.active_coupons ?? 0} />
+                  <MetricCard label="總核銷" value={statistics?.total_redemptions ?? 0} />
+                  <MetricCard label="總曝光" value={statistics?.total_views ?? 0} />
+                  <MetricCard
+                    label="今日成本"
+                    value={
+                      statistics?.today_cost_currency
+                        ? `${statistics.today_cost_currency} ${Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+                        : Number(statistics?.today_cost ?? 0).toLocaleString('zh-TW', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          })
+                    }
+                  />
+                </XStack>
+
+                {/* Merchant Information Card */}
+                <View style={styles.infoCard}>
+                  <InfoRow label="地址" value={profile?.store?.address || '未設定'} />
+                  <InfoRow label="電話號碼" value={profile?.merchant?.phone || '未設定'} />
+                  {businessHours.length > 0 && (
+                    <XStack
+                      paddingVertical="$3"
+                      borderBottomWidth={1}
+                      borderBottomColor={colors.border}
+                      alignItems="flex-start"
+                    >
+                      <Text fontSize="$md" fontWeight="500" color={colors.textPrimary} width={100}>
+                        營業時間
                       </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <YStack gap="$2">
+                      <YStack flex={1} gap="$2">
+                        {businessHours.map((hours: string, index: number) => (
+                          <Text key={index} fontSize="$md" color={colors.textSecondary}>
+                            {hours}
+                          </Text>
+                        ))}
+                      </YStack>
+                    </XStack>
+                  )}
+                </View>
+
+                {/* Account Actions */}
+                <YStack marginTop="$6" marginBottom="$4" gap="$3">
+                  {/* Logout Button */}
+                  {/* Content Guidelines Button (UGC Compliance) */}
+                  <Button
+                    variant="outline"
+                    fullWidth
+                    onPress={() => router.push('/OptionsMenu/ContentGuidelines')}
+                    style={styles.contentGuidelinesButton}
+                  >
+                    <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
+                      <MaterialIcons name="info-outline" size={18} color={colors.primary} />
+                      <Text color={colors.primary}>內容規範</Text>
+                    </XStack>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    fullWidth
+                    onPress={handleLogout}
+                    borderColor="#FF6369"
+                    color="#FF6369"
+                  >
+                    登出帳號
+                  </Button>
+
+                  {/* Delete Account Section - Collapsible */}
+                  <YStack gap="$2">
+                    {!showDeleteAccount ? (
                       <TouchableOpacity
-                        onPress={() => setShowDeleteAccount(false)}
-                        style={styles.hideDeleteButton}
+                        onPress={() => setShowDeleteAccount(true)}
+                        style={styles.showDeleteButton}
                       >
                         <Text
                           fontSize="$sm"
                           color={colors.textSecondary}
                           style={{ textAlign: 'center' }}
                         >
-                          隱藏進階設定
+                          進階設定
                         </Text>
                       </TouchableOpacity>
-                      <View style={styles.deleteAccountContainer}>
-                        <Text
-                          fontSize="$xs"
-                          color={colors.textSecondary}
-                          style={{ marginBottom: 8, textAlign: 'center' }}
+                    ) : (
+                      <YStack gap="$2">
+                        <TouchableOpacity
+                          onPress={() => setShowDeleteAccount(false)}
+                          style={styles.hideDeleteButton}
                         >
-                          刪除帳號是永久性操作，無法復原
-                        </Text>
-                        <Button
-                          variant="outline"
-                          fullWidth
-                          onPress={() => router.push('/(profile)/delete-account')}
-                          borderColor="#EF4444"
-                          color="#EF4444"
-                          style={styles.deleteAccountButton}
-                        >
-                          <XStack
-                            gap="$2"
-                            style={{ alignItems: 'center', justifyContent: 'center' }}
+                          <Text
+                            fontSize="$sm"
+                            color={colors.textSecondary}
+                            style={{ textAlign: 'center' }}
                           >
-                            <MaterialIcons name="warning" size={16} color="#EF4444" />
-                            <Text color="#EF4444">刪除帳號</Text>
-                          </XStack>
-                        </Button>
-                      </View>
-                    </YStack>
-                  )}
+                            隱藏進階設定
+                          </Text>
+                        </TouchableOpacity>
+                        <View style={styles.deleteAccountContainer}>
+                          <Text
+                            fontSize="$xs"
+                            color={colors.textSecondary}
+                            style={{ marginBottom: 8, textAlign: 'center' }}
+                          >
+                            刪除帳號是永久性操作，無法復原
+                          </Text>
+                          <Button
+                            variant="outline"
+                            fullWidth
+                            onPress={() => router.push('/(profile)/delete-account')}
+                            borderColor="#EF4444"
+                            color="#EF4444"
+                            style={styles.deleteAccountButton}
+                          >
+                            <XStack
+                              gap="$2"
+                              style={{ alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <MaterialIcons name="warning" size={16} color="#EF4444" />
+                              <Text color="#EF4444">刪除帳號</Text>
+                            </XStack>
+                          </Button>
+                        </View>
+                      </YStack>
+                    )}
+                  </YStack>
                 </YStack>
-              </YStack>
-            </>
-          )}
-        </ScrollView>
-      </YStack>
-    </SafeAreaView>
+              </>
+            )}
+          </ScrollView>
+        </YStack>
+      </SafeAreaView>
+    </Sentry.ErrorBoundary>
   );
 }
 

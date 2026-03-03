@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import * as Sentry from '@sentry/react-native';
 import { YStack, XStack, Text } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -180,6 +181,9 @@ export default function TemplateAnalyticsScreen() {
         setIsStoreTemplate(templateData.total_quantity === 0);
       } catch (err) {
         console.error('Failed to load template name:', err);
+        Sentry.captureException(err, {
+          data: { context: 'merchant.templateAnalytics.loadTemplateName' },
+        });
       }
 
       const options =
@@ -192,6 +196,9 @@ export default function TemplateAnalyticsScreen() {
       setAnalytics(data);
     } catch (err: any) {
       console.error('Failed to load analytics:', err);
+      Sentry.captureException(err, {
+        data: { context: 'merchant.templateAnalytics.loadAnalytics' },
+      });
       const msg = err?.response?.data?.error ?? err.message ?? '載入數據失敗';
       setError(msg);
     } finally {

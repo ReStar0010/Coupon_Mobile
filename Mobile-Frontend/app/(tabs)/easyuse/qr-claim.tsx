@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import * as Sentry from '@sentry/react-native';
+import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import {
   View,
   Text,
@@ -33,7 +35,7 @@ function isClaimUrl(payload: string): boolean {
   return /^https?:\/\/.+\/(claim|cl)\//i.test(s) || /^coupro:\/\/claim\?/i.test(s);
 }
 
-export default function QRClaimScanner() {
+function QRClaimScannerContent() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useLocalSearchParams<{ token?: string }>();
@@ -355,6 +357,26 @@ export default function QRClaimScanner() {
         <Text style={styles.footerText}>將 QR Code 對準掃描框</Text>
       </View>
     </SafeAreaView>
+  );
+}
+
+export default function QRClaimScanner() {
+  return (
+    <Sentry.ErrorBoundary
+      fallback={({ error, componentStack, resetError }) => (
+        <ScreenErrorFallback
+          error={error as Error}
+          componentStack={componentStack}
+          resetError={resetError}
+        />
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'qr-claim-screen');
+        scope.setTag('boundary_type', 'screen');
+      }}
+    >
+      <QRClaimScannerContent />
+    </Sentry.ErrorBoundary>
   );
 }
 

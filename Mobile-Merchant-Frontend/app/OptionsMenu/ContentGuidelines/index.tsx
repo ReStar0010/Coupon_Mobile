@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import * as Sentry from '@sentry/react-native';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
@@ -88,6 +89,9 @@ export default function ContentGuidelinesScreen() {
       setGuidelinesData(transformedData);
     } catch (err: any) {
       console.error('Failed to load content guidelines:', err);
+      Sentry.captureException(err, {
+        data: { context: 'merchant.contentGuidelines.loadGuidelines' },
+      });
       setError('無法載入內容規範，請稍後再試');
     } finally {
       setLoading(false);

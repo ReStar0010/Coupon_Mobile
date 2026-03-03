@@ -67,6 +67,7 @@ async function handleAppInitialization(onStatus?: (status: InitStatus) => void):
       console.warn('OTA 更新檢查逾時，略過並繼續啟動');
     } else {
       console.error('OTA 更新檢查失敗', error);
+      Sentry.captureException(error, { data: { context: 'OTA update non-timeout failure' } });
     }
   }
 }

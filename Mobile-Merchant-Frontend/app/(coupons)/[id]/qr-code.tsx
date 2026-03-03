@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import * as Sentry from '@sentry/react-native';
 import { YStack, Text } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -46,6 +47,7 @@ export default function QRCodeScreen() {
       setClaimLinkWeb(result.claim_link_web ?? result.claim_link ?? null);
     } catch (err: any) {
       console.error('QR code generation error:', err);
+      Sentry.captureException(err, { data: { context: 'merchant.generateQRSession' } });
       setError(err?.message || '生成 QR Code 失敗，請稍後再試');
     } finally {
       setIsLoading(false);

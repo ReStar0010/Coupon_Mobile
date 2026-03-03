@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import * as Sentry from '@sentry/react-native';
+import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
@@ -117,46 +119,60 @@ export default function CouponRedemptionScreen() {
   const isPhoneValid = TW_PHONE_REGEX.test(phoneNumber.trim());
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
-      <DismissKeyboardView>
-        <View style={styles.mainContainer}>
-          <Header onLogoPress={() => router.push('/(coupons)/')} />
+    <Sentry.ErrorBoundary
+      fallback={({ error, componentStack, resetError }) => (
+        <ScreenErrorFallback
+          error={error as Error}
+          componentStack={componentStack}
+          resetError={resetError}
+        />
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'coupon-detail-screen');
+        scope.setTag('boundary_type', 'screen');
+      }}
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
+        <DismissKeyboardView>
+          <View style={styles.mainContainer}>
+            <Header onLogoPress={() => router.push('/(coupons)/')} />
 
-          {/* Main Content */}
-          <View style={styles.mainContent}>
-            {/* Phone Number Input */}
-            <Input
-              placeholder="0912345678"
-              value={phoneNumber}
-              onChangeText={handlePhoneChange}
-              keyboardType="phone-pad"
-              width="100%"
-              maxLength={10}
-            />
+            {/* Main Content */}
+            <View style={styles.mainContent}>
+              {/* Phone Number Input */}
+              <Input
+                placeholder="0912345678"
+                value={phoneNumber}
+                onChangeText={handlePhoneChange}
+                keyboardType="phone-pad"
+                width="100%"
+                maxLength={10}
+              />
 
-            {/* Generate QR Code Button */}
-            <Button
-              variant="secondary"
-              width="100%"
-              onPress={() => router.push(`/(coupons)/${id}/qr-code`)}
-            >
-              生成 QR Code
-            </Button>
+              {/* Generate QR Code Button */}
+              <Button
+                variant="secondary"
+                width="100%"
+                onPress={() => router.push(`/(coupons)/${id}/qr-code`)}
+              >
+                生成 QR Code
+              </Button>
 
-            {/* Send Coupon Button */}
-            <Button
-              variant="secondary"
-              width="100%"
-              onPress={handleSendCoupon}
-              disabled={!isPhoneValid}
-              opacity={!isPhoneValid ? 0.6 : 1}
-            >
-              發送優惠券
-            </Button>
+              {/* Send Coupon Button */}
+              <Button
+                variant="secondary"
+                width="100%"
+                onPress={handleSendCoupon}
+                disabled={!isPhoneValid}
+                opacity={!isPhoneValid ? 0.6 : 1}
+              >
+                發送優惠券
+              </Button>
+            </View>
           </View>
-        </View>
-      </DismissKeyboardView>
-    </SafeAreaView>
+        </DismissKeyboardView>
+      </SafeAreaView>
+    </Sentry.ErrorBoundary>
   );
 }
 

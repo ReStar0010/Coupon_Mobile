@@ -1,5 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
+import * as Sentry from '@sentry/react-native';
+import WidgetErrorFallback from './WidgetErrorFallback';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, Linking } from 'react-native';
 import { colors } from '@/constants/colors';
 
@@ -165,49 +167,61 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   };
 
   return (
-    <View style={[styles.container, { height }]}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={mapRegion}
-        region={mapRegion}
-        onRegionChangeComplete={setMapRegion}
-        onPress={handleMapPress}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        showsScale={false}
-        mapType="standard"
-      >
-        {selectedLocation && (
-          <Marker
-            coordinate={selectedLocation}
-            draggable
-            onDragEnd={handleMarkerDragEnd}
-            pinColor="#FFAD31"
-          />
-        )}
-      </MapView>
-
-      {/* Location info display */}
-      {selectedLocation && (
-        <View style={styles.locationInfo}>
-          <Text style={styles.locationInfoText}>經度: {selectedLocation.longitude.toFixed(6)}</Text>
-          <Text style={styles.locationInfoText}>緯度: {selectedLocation.latitude.toFixed(6)}</Text>
-        </View>
-      )}
-
-      {/* Get current location button */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.locationButton}
-          onPress={getCurrentLocation}
-          activeOpacity={0.8}
+    <Sentry.ErrorBoundary
+      fallback={<WidgetErrorFallback message="位置選擇器暫時無法使用" />}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'location-picker-widget');
+        scope.setTag('boundary_type', 'widget');
+      }}
+    >
+      <View style={[styles.container, { height }]}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={mapRegion}
+          region={mapRegion}
+          onRegionChangeComplete={setMapRegion}
+          onPress={handleMapPress}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          showsCompass={false}
+          showsScale={false}
+          mapType="standard"
         >
-          <Text style={styles.locationButtonText}>📍</Text>
-        </TouchableOpacity>
+          {selectedLocation && (
+            <Marker
+              coordinate={selectedLocation}
+              draggable
+              onDragEnd={handleMarkerDragEnd}
+              pinColor="#FFAD31"
+            />
+          )}
+        </MapView>
+
+        {/* Location info display */}
+        {selectedLocation && (
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationInfoText}>
+              經度: {selectedLocation.longitude.toFixed(6)}
+            </Text>
+            <Text style={styles.locationInfoText}>
+              緯度: {selectedLocation.latitude.toFixed(6)}
+            </Text>
+          </View>
+        )}
+
+        {/* Get current location button */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={getCurrentLocation}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.locationButtonText}>📍</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </Sentry.ErrorBoundary>
   );
 };
 

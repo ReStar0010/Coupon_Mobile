@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import * as Sentry from '@sentry/react-native';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -81,6 +82,7 @@ export default function CouponEditScreen() {
         setAvailableTags(tags);
       } catch (error) {
         console.error('Failed to load tags:', error);
+        Sentry.captureException(error, { data: { context: 'merchant.couponEdit.loadTags' } });
       }
     };
     loadTags();
@@ -164,6 +166,7 @@ export default function CouponEditScreen() {
       });
     } catch (error) {
       console.error('Failed to load coupon:', error);
+      Sentry.captureException(error, { data: { context: 'merchant.couponEdit.loadCoupon' } });
       Alert.alert('錯誤', '無法載入優惠券資料');
     } finally {
       setIsLoading(false);
@@ -220,6 +223,9 @@ export default function CouponEditScreen() {
           Alert.alert('成功', '圖片上傳成功');
         } catch (uploadError: any) {
           console.error('Image upload error:', uploadError);
+          Sentry.captureException(uploadError, {
+            data: { context: 'merchant.couponEdit.uploadImage' },
+          });
           Alert.alert('錯誤', uploadError?.message || '圖片上傳失敗，請稍後再試');
         } finally {
           setIsLoading(false);
@@ -227,6 +233,7 @@ export default function CouponEditScreen() {
       }
     } catch (error) {
       console.error('Image picker error:', error);
+      Sentry.captureException(error, { data: { context: 'merchant.couponEdit.pickImage' } });
       Alert.alert('錯誤', '選擇圖片時發生錯誤');
       setIsLoading(false);
     }
@@ -350,6 +357,7 @@ export default function CouponEditScreen() {
       router.back();
     } catch (error: any) {
       console.error('Failed to delete coupon:', error);
+      Sentry.captureException(error, { data: { context: 'merchant.couponEdit.deleteCoupon' } });
       Alert.alert('錯誤', error?.message || '刪除失敗，請稍後再試');
       setShowDeleteModal(false);
     }

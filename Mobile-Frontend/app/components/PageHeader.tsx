@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 import Navbar from './Navbar';
 import SearchBar from './SearchBar';
 import InfoPopup from './InfoPopup';
@@ -41,6 +42,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
       await AsyncStorage.setItem('optionsMenuSource', sourcePage);
     } catch (error) {
       console.error('Error storing options menu source:', error);
+      Sentry.captureException(error, { data: { context: 'PageHeader.saveOptionsMenuSource' } });
     }
     router.push('/OptionsMenu');
   }, [router, sourcePage]);
