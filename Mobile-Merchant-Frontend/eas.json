@@ -9,7 +9,7 @@
       "distribution": "internal",
       "environment": "development",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com"
       },
       "channel": "development"
     },
@@ -17,7 +17,7 @@
       "distribution": "internal",
       "environment": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com"
       },
       "channel": "preview"
     },
@@ -25,7 +25,7 @@
       "autoIncrement": true,
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com"
       },
       "channel": "production"
     }

@@ -3,9 +3,7 @@
     "name": "CouPro",
     "slug": "Mobile-Frontend",
     "version": "1.0.1",
-    "scheme": [
-      "coupro"
-    ],
+    "scheme": ["coupro"],
     "web": {
       "favicon": "./assets/icon.png",
       "bundler": "metro"
@@ -63,17 +61,12 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.cokayne.MobileFrontend",
-      "associatedDomains": [
-        "applinks:api.coupro.pro",
-        "applinks:app.coupro.pro"
-      ],
+      "associatedDomains": ["applinks:api.coupro.pro", "applinks:app.coupro.pro"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -83,10 +76,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ],
+      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
       "googleServicesFile": "./google-services.json",
       "package": "com.cokayne.MobileFrontend"
     },

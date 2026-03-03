@@ -3,9 +3,7 @@
     "name": "CouPro 商家端",
     "slug": "Mobile-Merchant-Frontend",
     "version": "1.0.1",
-    "scheme": [
-      "coupromerchant"
-    ],
+    "scheme": ["coupromerchant"],
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
@@ -51,7 +49,7 @@
         {
           "url": "https://sentry.io/",
           "project": "merchant-frontend",
-          "organization": "coupro",
+          "organization": "coupro"
         }
       ],
       "@react-native-firebase/app",
@@ -68,9 +66,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
