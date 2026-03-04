@@ -2,17 +2,21 @@
 Test settings for merchant panel demo testing.
 This configuration uses a separate test database and media directory
 to ensure production data is not affected.
+When DATABASE_URL is set (e.g. local Postgres), tests use the same Postgres DB
+(Django test runner creates/drops test_* database or uses transactions).
 """
+import os
 from pathlib import Path
 from .settings import *  # Import all settings from main settings.py
 
-# Override database configuration for testing
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_test.sqlite3',  # Separate test database
+# Override database only when not using Postgres (no DATABASE_URL)
+if not os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db_test.sqlite3',  # Separate test database
+        }
     }
-}
 
 # Override media files configuration for testing
 MEDIA_ROOT = BASE_DIR / 'images_test'  # Separate test media directory

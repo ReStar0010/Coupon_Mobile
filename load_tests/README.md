@@ -8,6 +8,7 @@ Load testing for the CouPro platform using [Locust](https://locust.io/). Four st
    - Python 3.10+
    - Backend Django app with DB (e.g. staging)
    - Install harness deps: `pip install -r load_tests/requirements.txt`
+   - **Local runs:** Use PostgreSQL for the Backend (set `DATABASE_URL`). SQLite cannot handle concurrent load and will cause 500 errors under Locust. See `docs/load-test-500-diagnosis.md` if you see 500s on `/api/login/`.
 
 2. **Environment**
    Set before running:

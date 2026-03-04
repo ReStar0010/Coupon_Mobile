@@ -12,6 +12,10 @@ python manage.py runserver
 
 Use a virtual environment and install dependencies from `requirements.txt`.
 
+### Local Postgres (Docker)
+
+To use PostgreSQL locally, start the DB with `docker compose up -d`. Data is stored in **`Backend/postgres_data/`** (gitignored). That folder may be hidden in the file tree; the actual cluster files are under `postgres_data/18/docker/`. Set `DATABASE_URL` in `Backend/.env` (see `.env.example`), then run `python manage.py migrate`.
+
 ## Running tests
 
 All commands below are run from this directory (Backend root). No real SMS or email is sent when tests run; the test environment uses `SMS_DEV_MODE` or mocks.

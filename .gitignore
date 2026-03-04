@@ -68,7 +68,12 @@ web-build/
 .env
 .env.local
 .env.production
+Backend/.env
 
+# Local Postgres data (Docker volume)
+Backend/postgres_data/
+.env.example
+docker-compose.yml
 # Next.js
 .next/
 out/

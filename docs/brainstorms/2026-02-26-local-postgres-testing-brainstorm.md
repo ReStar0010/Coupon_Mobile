@@ -28,7 +28,10 @@
 
 | Decision | Choice |
 |----------|--------|
-| How to run Postgres locally | Docker Compose, single Postgres service (Backend or repo root). |
+| How to run Postgres locally | Docker Compose, single Postgres service in **Backend/**. |
+| Compose location | `docker-compose.yml` in **Backend/**. |
+| Database | **Single** Postgres DB (e.g. `coupro_local`) for both dev and tests; Django test runner handles isolation. |
+| Gitignore | Add Backend-local entries (e.g. `Backend/.env`, `Backend/postgres_data`) so secrets and local DB data are not committed. |
 | When to use Postgres | If `DATABASE_URL` is set in env (e.g. `.env`), use `dj_database_url` in base `settings.py`; else keep SQLite. |
 | Test settings | `test_settings.py` continues to inherit from `settings`; no separate “postgres test” settings file. |
 | Stage 4 load testing | Unchanged; run on remote dev server. |
@@ -44,16 +47,11 @@
 
 ---
 
-## Open Questions
-
-- **Compose location:** Put `docker-compose.yml` in `Backend/` or repo root? (Repo root allows one compose to add more services later; Backend-only keeps DB next to the app.)
-- **Default DB name:** Use a single database (e.g. `coupro_local`) for both dev and test runs, or separate DBs (e.g. `coupro_dev` / `coupro_test`)? Single is simpler; separate avoids test runs touching dev data if someone runs tests without Django’s test DB isolation.
-
----
-
 ## Resolved Questions
 
-*(None yet.)*
+- **Compose location:** `docker-compose.yml` in **Backend/**.
+- **Default DB:** **Single** Postgres database for both dev and test (Django test runner provides isolation).
+- **Gitignore:** Add Backend-local entries for `.env` and local Postgres data (e.g. `postgres_data`) so they are not committed.
 
 ---
 

@@ -4,6 +4,7 @@ Uses test_users.json (one credential per virtual user) and stores.json (unified_
 """
 import json
 import random
+import time
 from pathlib import Path
 
 from locust import HttpUser, task, between
@@ -63,21 +64,21 @@ class CouProUser(HttpUser):
         password = cred.get("password")
         if not email or not password:
             return
-        r = self.client.post(
-            "/api/login/",
-            json={
-                "email": email,
-                "password": password,
-                "client_type": "user",
-            },
-            name="/api/login/",
-        )
-        if r.status_code == 200 and "access_token" in r.json():
-            token = r.json()["access_token"]
-            self.client.headers["Authorization"] = f"Bearer {token}"
-        else:
-            # Mark login failure; Locust will count it
-            r.raise_for_status()
+        while True:
+            r = self.client.post(
+                "/api/login/",
+                json={
+                    "email": email,
+                    "password": password,
+                    "client_type": "user",
+                },
+                name="/api/login/",
+            )
+            if r.status_code == 200 and "access_token" in r.json():
+                token = r.json()["access_token"]
+                self.client.headers["Authorization"] = f"Bearer {token}"
+                break
+            time.sleep(1)
 
     wait_time = between(0.5, 2.0)
 
