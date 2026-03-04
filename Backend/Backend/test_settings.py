@@ -9,14 +9,9 @@ import os
 from pathlib import Path
 from .settings import *  # Import all settings from main settings.py
 
-# Override database only when not using Postgres (no DATABASE_URL)
-if not os.environ.get('DATABASE_URL'):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db_test.sqlite3',  # Separate test database
-        }
-    }
+# Use a separate SQLite file for tests whenever the default DB is SQLite
+if DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
+    DATABASES['default']['NAME'] = BASE_DIR / 'db_test.sqlite3'
 
 # Override media files configuration for testing
 MEDIA_ROOT = BASE_DIR / 'images_test'  # Separate test media directory

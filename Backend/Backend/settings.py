@@ -139,9 +139,24 @@ TEMPLATES = [
 # -----------------------------------------------------------------------------
 # Database
 # -----------------------------------------------------------------------------
-# Use Postgres when DATABASE_URL is set (e.g. Backend/.env with local Docker);
-# otherwise SQLite for development.
-if os.environ.get('DATABASE_URL'):
+# Use Postgres when DATABASE_URL is set and reachable; otherwise SQLite.
+def _postgres_available():
+    """Return True if DATABASE_URL points to a reachable PostgreSQL instance."""
+    if not os.environ.get('DATABASE_URL'):
+        return False
+    try:
+        import psycopg2
+        conn = psycopg2.connect(
+            os.environ.get('DATABASE_URL'),
+            connect_timeout=2,
+        )
+        conn.close()
+        return True
+    except Exception:
+        return False
+
+
+if _postgres_available():
     DATABASES = {
         'default': dj_database_url.config(
             default=os.environ.get('DATABASE_URL'),
@@ -150,6 +165,10 @@ if os.environ.get('DATABASE_URL'):
     }
     DATABASES['default'].setdefault('DISABLE_SERVER_SIDE_CURSORS', True)
 else:
+    if os.environ.get('DATABASE_URL'):
+        logging.getLogger(__name__).info(
+            'PostgreSQL unreachable (DATABASE_URL set); using SQLite.'
+        )
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',

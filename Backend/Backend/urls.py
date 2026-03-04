@@ -124,6 +124,7 @@ urlpatterns = [
     # Universal Link fallback pages (https://api.coupro.pro/collection/<token>)
     path('collection/<str:token>/', collection_landing, name='collection_landing'),
     path('claim/<str:token>/', claim_landing, name='claim_landing'),
+    path('cl/<str:token>/', claim_landing, name='claim_landing_short'),
     # iOS/Android verification (https://api.coupro.pro/.well-known/...)
     path('.well-known/apple-app-site-association', apple_app_site_association, name='apple_app_site_association'),
     path('.well-known/assetlinks.json', assetlinks_json, name='assetlinks_json'),
