@@ -12,6 +12,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
 import axios, { AxiosRequestConfig, AxiosResponse, isAxiosError } from 'axios';
+import perf from '@react-native-firebase/perf';
 import { API_URL } from '../config/api';
 import { authEvents, AUTH_EVENT_TYPES } from './authEvents';
 import {
@@ -24,6 +25,57 @@ import {
 } from './tokenUtils';
 
 const API_BASE_URL = API_URL;
+
+// Extend axios config to carry the Firebase HTTP metric across interceptors
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    metadata?: {
+      httpMetric: Awaited<ReturnType<ReturnType<typeof perf>['newHttpMetric']>>;
+    };
+  }
+}
+
+// Firebase Performance Monitoring — request interceptor
+axios.interceptors.request.use(async (config) => {
+  try {
+    const httpMetric = perf().newHttpMetric(
+      config.url ?? '',
+      (config.method ?? 'GET').toUpperCase() as any,
+    );
+    config.metadata = { httpMetric };
+    await httpMetric.start();
+  } finally {
+    return config;
+  }
+});
+
+// Firebase Performance Monitoring — response interceptors
+axios.interceptors.response.use(
+  async (response) => {
+    try {
+      const { httpMetric } = response.config.metadata ?? {};
+      if (httpMetric) {
+        httpMetric.setHttpResponseCode(response.status);
+        httpMetric.setResponseContentType(response.headers['content-type']);
+        await httpMetric.stop();
+      }
+    } finally {
+      return response;
+    }
+  },
+  async (error) => {
+    try {
+      const { httpMetric } = error.config?.metadata ?? {};
+      if (httpMetric) {
+        httpMetric.setHttpResponseCode(error.response?.status ?? 0);
+        httpMetric.setResponseContentType(error.response?.headers['content-type']);
+        await httpMetric.stop();
+      }
+    } finally {
+      return Promise.reject(error);
+    }
+  },
+);
 
 /**
  * Custom error class for authentication failures
