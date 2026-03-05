@@ -54,6 +54,13 @@ Config per stage: `load_tests/stages/stage1_baseline.py` … `stage4_breaking.py
 
 See `specs/010-locust-load-testing/contracts/load-test-config.md` for required/optional env vars (`BASE_URL`, `OUTPUT_DIR`, `STAGE`, `RUN_TIME`, `SPAWN_RATE`, `ERROR_RATE_STOP`, DB connection for consistency).
 
+## Scripts (remote run + fetch results)
+
+- **Run on server:** `load_tests/scripts/run_load_test.sh [STAGE] [BASE_URL]` — set `STAGE`, `BASE_URL`, `OUTPUT_DIR`, `DATABASE_URL` (env or `load_tests/.env`). Use from repo root on the remote host (e.g. over SSH).
+- **Fetch results locally:** `REMOTE=user@host ./load_tests/scripts/fetch_load_test_results.sh` — copies the remote `load-test-results` directory to your machine (uses rsync or scp).
+
+See **load_tests/scripts/README.md** for full usage and examples.
+
 ## Full quickstart
 
 See **specs/010-locust-load-testing/quickstart.md** for prerequisites, one-time setup, and stage-by-stage flow.

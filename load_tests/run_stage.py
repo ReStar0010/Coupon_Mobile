@@ -32,6 +32,7 @@ def main() -> int:
         ensure_output_dir,
         run_time,
         spawn_rate,
+        error_rate_stop,
     )
 
     st = stage()
@@ -67,9 +68,12 @@ def main() -> int:
         print("Reset failed.", file=sys.stderr)
         return rc
 
-    # 2. Locust (stage params from above)
+    # 2. Locust (stage params from above; STAGE and ERROR_RATE_STOP in env for locustfile / stop-at-error)
     print("Step 2: Run Locust...")
     csv_prefix = str(Path(out) / f"stage{st}")
+    locust_env = {**os.environ, "STAGE": str(st)}
+    if st == 4:
+        locust_env["ERROR_RATE_STOP"] = str(error_rate_stop())
     locust_cmd = [
         sys.executable,
         "-m",
@@ -88,7 +92,7 @@ def main() -> int:
         "--html",
         f"{csv_prefix}_report.html",
     ]
-    rc = run(locust_cmd)
+    rc = run(locust_cmd, env=locust_env)
     if rc != 0:
         print("Locust run had failures (check artifacts).", file=sys.stderr)
         # Still run consistency check
