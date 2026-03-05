@@ -144,7 +144,9 @@ class CouProUser(HttpUser):
 
 
 class BrowseAndRedeemUser(CouProUser):
-    """Stage 1: browse store coupons, then redeem one (store coupon with unified code)."""
+    """Stage 1/2: browse store coupons, then redeem one (store coupon with unified code)."""
+
+    abstract = STAGE >= 3  # Only concrete for Stage 1–2; avoid duplicate user class name with FullFlowUser
 
     @task(10)
     def browse_store_coupons(self):
@@ -187,6 +189,8 @@ class BrowseAndRedeemUser(CouProUser):
 
 class FullFlowUser(CouProUser):
     """Stage 3/4: full consumer flow — EasyUse, Collection, share, daily draw; task weights from config."""
+
+    abstract = STAGE < 3  # Only concrete for Stage 3–4; avoid duplicate user class name with BrowseAndRedeemUser
 
     def browse_store_coupons(self):
         self.client.get("/api/store-coupons/", name="/api/store-coupons/")
@@ -367,9 +371,3 @@ FullFlowUser.tasks = [
 ]
 # Drop zero-weight tasks so Locust doesn't run them
 FullFlowUser.tasks = [(t, w) for t, w in FullFlowUser.tasks if w > 0]
-
-# Default user class: FullFlowUser for Stage 3/4, else BrowseAndRedeemUser
-if STAGE >= 3:
-    WebUser = FullFlowUser
-else:
-    WebUser = BrowseAndRedeemUser
