@@ -13,6 +13,7 @@ import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
 import axios, { AxiosRequestConfig, AxiosResponse, isAxiosError } from 'axios';
 import perf from '@react-native-firebase/perf';
+import * as Sentry from '@sentry/react-native';
 import { API_URL } from '../config/api';
 import { authEvents, AUTH_EVENT_TYPES } from './authEvents';
 import {
@@ -35,7 +36,7 @@ declare module 'axios' {
   }
 }
 
-// Firebase Performance Monitoring — request interceptor
+// // Firebase Performance Monitoring — request interceptor
 axios.interceptors.request.use(async (config) => {
   try {
     const httpMetric = perf().newHttpMetric(
@@ -49,7 +50,7 @@ axios.interceptors.request.use(async (config) => {
   }
 });
 
-// Firebase Performance Monitoring — response interceptors
+// // Firebase Performance Monitoring — response interceptors
 axios.interceptors.response.use(
   async (response) => {
     try {
@@ -287,6 +288,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     return false;
   } catch (error) {
     console.error('Token refresh error:', error);
+    Sentry.captureException(error, { data: { context: 'authAPI.refreshAccessToken' } });
     isRefreshing = false;
     onRefreshComplete(false);
 
@@ -347,6 +349,7 @@ export const ensureValidAuth = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Error ensuring valid auth:', error);
+    Sentry.captureException(error, { data: { context: 'authAPI.ensureValidAuth' } });
     return false;
   }
 };
@@ -420,11 +423,17 @@ export const fetchAPI = async (
         const errorMessage =
           errorData.error || errorData.message || `API request failed: ${error.response?.status}`;
         console.error('API request error:', new Error(errorMessage));
+        Sentry.captureException(error, {
+          data: { context: 'authAPI.fetchAPI', endpoint, status: error.response?.status },
+        });
         throw error; // Throw original Axios error to preserve response info
       } else {
         // For non-Axios errors, wrap in a new Error
         const apiError = new Error('API request failed: Unknown error');
         console.error('API request error:', apiError);
+        Sentry.captureException(error, {
+          data: { context: 'authAPI.fetchAPI', endpoint },
+        });
         throw apiError;
       }
     }
@@ -525,6 +534,7 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
     authEvents.emit({ type: AUTH_EVENT_TYPES.SESSION_REFRESHED });
   } catch (error) {
     console.error('Error storing login data:', error);
+    Sentry.captureException(error, { data: { context: 'authAPI.storeLoginData' } });
     throw error;
   }
 };
@@ -579,6 +589,7 @@ export const logout = async (): Promise<void> => {
     await fetchAPI('/logout/', { method: 'POST' });
   } catch (_error) {
     devLog('Logout API call failed, proceeding with local logout');
+    Sentry.captureException(_error, { data: { context: 'authAPI.logout' } });
   }
 
   // Clear all stored tokens
