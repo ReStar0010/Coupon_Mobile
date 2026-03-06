@@ -26,7 +26,6 @@ jobs:
 
       - run: npm ci
 
-      # - run: npm run lint
-      - run: eslint \"**/*.{js,jsx,ts,tsx}\
+      - run: npm run lint
 
       - run: npx tsc --noEmit

@@ -13,6 +13,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
       [
         "expo-camera",
         {
@@ -48,7 +49,6 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/analytics",
       "@react-native-firebase/perf",
       [
         "expo-build-properties",
