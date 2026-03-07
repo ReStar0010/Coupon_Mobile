@@ -3,9 +3,12 @@ Versioned seed for load test stages.
 Creates N merchants (with stores + store coupons), P test users.
 Writes test user credentials to load_tests/config/test_users.json for Locust.
 N, P derived from STAGE or SEED_MERCHANTS, SEED_USERS env.
+Stage 3+: also creates exclusive coupons, public pool share, private shares, daily-draw template.
 """
 import json
 import os
+import secrets
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
@@ -18,6 +21,7 @@ from api.models import (
     Store,
     Coupon,
     CouponTemplate,
+    CouponShareRequest,
     StudentProfile,
     MerchantProfile,
 )
@@ -93,6 +97,7 @@ class Command(BaseCommand):
             )
         )
 
+        private_share_tokens = []
         with transaction.atomic():
             merchant_group, _ = Group.objects.get_or_create(name="Merchant")
             credentials = []
@@ -231,6 +236,63 @@ class Command(BaseCommand):
                         )
                         store_codes[0]["shared_exclusive_coupon_id"] = exc.id
 
+            # Stage 3+: full flow — exclusive template, coupons for students, public pool, private shares, daily-draw
+            if n_merchants >= 3 and store_codes and credentials:
+                first_store = Store.objects.get(id=store_codes[0]["store_id"])
+                # Remove previous Stage 3+ template so seed is idempotent (cascade deletes coupons and share requests)
+                CouponTemplate.objects.filter(
+                    store=first_store, coupon_name="LoadTest Daily Draw"
+                ).delete()
+                students = list(
+                    User.objects.filter(username__startswith=USERNAME_PREFIX_STUDENT).order_by("id")[:80]
+                )
+                if students:
+                    now = timezone.now()
+                    expiry = now + timedelta(days=365)
+                    tpl = CouponTemplate.objects.create(
+                        store=first_store,
+                        coupon_name="LoadTest Daily Draw",
+                        coupon_detail="For daily draw and sharing load test",
+                        start_date=now,
+                        expiry_date=expiry,
+                        total_quantity=150,
+                        remaining_quantity=150,
+                        template_redeem_code=first_store.unified_redeem_code,
+                        is_active=True,
+                        draw_probability=0.5,
+                    )
+                    exclusive_coupons = []
+                    for student in students:
+                        c = tpl.generate_coupon(recipient=student)
+                        if c:
+                            exclusive_coupons.append((c, student))
+                    # Public pool: one coupon shared to public (current_holder=None)
+                    if exclusive_coupons:
+                        pub_coupon, pub_owner = exclusive_coupons[0]
+                        CouponShareRequest.objects.create(
+                            coupon=pub_coupon,
+                            from_user=pub_owner,
+                            token=secrets.token_urlsafe(32),
+                            is_public=True,
+                            status="pending",
+                            to_user=None,
+                        )
+                        pub_coupon.last_holder = pub_coupon.current_holder
+                        pub_coupon.current_holder = None
+                        pub_coupon.save()
+                    # Private shares: coupons 1..41 get a pending private share; collect tokens
+                    for (c, holder) in exclusive_coupons[1:41]:
+                        token = secrets.token_urlsafe(32)
+                        CouponShareRequest.objects.create(
+                            coupon=c,
+                            from_user=holder,
+                            token=token,
+                            is_public=False,
+                            status="pending",
+                            to_user=None,
+                        )
+                        private_share_tokens.append(token)
+
         # Write credentials and store codes to load_tests/config/ (repo root relative to Backend)
         out_dir = Path(settings.BASE_DIR).parent / "load_tests" / "config"
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -240,6 +302,15 @@ class Command(BaseCommand):
         stores_file = out_dir / "stores.json"
         with open(stores_file, "w", encoding="utf-8") as f:
             json.dump(store_codes, f, indent=2)
+        if n_merchants >= 3 and private_share_tokens:
+            tokens_file = out_dir / "private_share_tokens.json"
+            with open(tokens_file, "w", encoding="utf-8") as f:
+                json.dump(private_share_tokens, f, indent=2)
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Wrote {len(private_share_tokens)} private share tokens to {tokens_file}"
+                )
+            )
         self.stdout.write(
             self.style.SUCCESS(
                 f"Wrote {len(credentials)} credentials to {out_file}, "

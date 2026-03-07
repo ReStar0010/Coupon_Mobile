@@ -3,8 +3,26 @@ Load test harness configuration.
 Reads BASE_URL, OUTPUT_DIR, STAGE, DATABASE_URL (or DB_*) from environment.
 See specs/010-locust-load-testing/contracts/load-test-config.md.
 """
+import json
 import os
 from pathlib import Path
+
+# Default task weights for Stage 3/4 full flow (used when task_weights.json missing or key missing)
+DEFAULT_TASK_WEIGHTS = {
+    "browse_store_coupons": 10,
+    "redeem_store_coupon": 2,
+    "claim_public_pool": 1,
+    "browse_exclusive_coupons": 5,
+    "coupon_detail": 3,
+    "share_private": 1,
+    "accept_private_share": 1,
+    "share_public": 1,
+    "my_public_shares": 1,
+    "daily_draw_templates": 2,
+    "daily_draw": 1,
+    "draw_history": 1,
+    "redeem_shared_exclusive_idempotency": 0,
+}
 
 
 def get(key: str, default: str | None = None) -> str | None:
@@ -64,3 +82,37 @@ def ensure_output_dir() -> Path:
     d = Path(output_dir())
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _config_dir() -> Path:
+    """Directory containing task_weights.json (load_tests/config)."""
+    return Path(__file__).resolve().parent
+
+
+def load_task_weights() -> dict[str, int]:
+    """
+    Load task weights from task_weights.json; merge with DEFAULT_TASK_WEIGHTS.
+    Env TASK_WEIGHT_<KEY> (uppercase, key with underscores) overrides, e.g. TASK_WEIGHT_REDEEM_STORE=3.
+    """
+    config_path = _config_dir() / "task_weights.json"
+    weights = dict(DEFAULT_TASK_WEIGHTS)
+    if config_path.exists():
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                for k, v in loaded.items():
+                    if isinstance(v, (int, float)):
+                        weights[k] = int(v)
+        except (json.JSONDecodeError, OSError):
+            pass
+    # Env override: TASK_WEIGHT_BROWSE_STORE_COUPONS=10 etc.
+    for key in list(weights.keys()):
+        env_key = "TASK_WEIGHT_" + key.upper()
+        val = os.environ.get(env_key)
+        if val is not None:
+            try:
+                weights[key] = int(val)
+            except ValueError:
+                pass
+    return weights

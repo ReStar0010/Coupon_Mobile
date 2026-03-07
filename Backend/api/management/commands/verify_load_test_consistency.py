@@ -12,7 +12,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Count
 
-from api.models import Coupon, CouponRedemption, CouponTemplate
+from api.models import Coupon, CouponRedemption, CouponTemplate, CouponShareRequest
 
 
 class Command(BaseCommand):
@@ -74,7 +74,27 @@ class Command(BaseCommand):
                 f"sum(per-store)={merchant_sum}"
             )
 
-        # (d) API success implies DB record — we cannot correlate without request log
+        # (d) Share accept uniqueness: every accepted share request has exactly one to_user (non-null)
+        accepted_shares = CouponShareRequest.objects.filter(status="accepted")
+        for share in accepted_shares:
+            if share.to_user_id is None:
+                errors.append(
+                    f"(d) Share accept: share_request_id={share.id} token={share.token} "
+                    "has status=accepted but to_user is null"
+                )
+        # Per-token uniqueness: each token appears once; accepted implies one recipient
+        token_counts = (
+            CouponShareRequest.objects.filter(status="accepted")
+            .values("token")
+            .annotate(cnt=Count("id"))
+        )
+        for row in token_counts:
+            if row["cnt"] > 1:
+                errors.append(
+                    f"(d) Share accept: token {row['token']} has {row['cnt']} accepted records"
+                )
+
+        # (e) API success implies DB record — we cannot correlate without request log
         # Skip unless we have a side-car of successful request IDs from the load test.
         # (e) Dashboard vs DB: compare dashboard-style aggregates with DB
         # Dashboard uses Log (template_view), CouponRedemption per template/store.
