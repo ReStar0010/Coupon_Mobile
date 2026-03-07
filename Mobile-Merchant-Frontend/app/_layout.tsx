@@ -21,6 +21,9 @@ Sentry.init({
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
   sendDefaultPii: true,
 
+  // Disable SDK debug output in console so app logs stay clear (Sentry still captures/sends everything)
+  debug: false,
+
   // Enable Logs
   enableLogs: true,
 
