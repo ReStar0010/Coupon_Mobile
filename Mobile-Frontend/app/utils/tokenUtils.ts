@@ -2,7 +2,7 @@
  * Token Utilities - Centralized token storage and JWT operations
  *
  * This module consolidates all token-related operations including:
- * - AsyncStorage operations for token persistence
+ * - expo-secure-store for secure token persistence (Keychain / EncryptedSharedPreferences)
  * - In-memory cache for synchronous access after initialization
  * - Optional JWT decoding for proactive refresh
  * - Token expiration checking
@@ -11,6 +11,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import * as Sentry from '@sentry/react-native';
 
 /**
@@ -25,7 +26,7 @@ export const STORAGE_KEYS = {
 
 /**
  * In-memory token cache for synchronous access
- * Tokens are loaded from AsyncStorage on app startup via initStorage()
+ * Tokens are loaded from SecureStore on app startup via initStorage()
  */
 let tokenStorage: {
   access_token: string | null;
@@ -36,21 +37,43 @@ let tokenStorage: {
 };
 
 /**
- * Initialize storage - loads tokens from AsyncStorage into memory
+ * Initialize storage - loads tokens from SecureStore into memory.
+ * One-time migration: if SecureStore is empty, migrates tokens from AsyncStorage (legacy).
  * MUST be called on app startup before any token access!
  */
 export const initStorage = async (): Promise<void> => {
   try {
-    const accessToken = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-    const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    let [accessToken, refreshToken] = await Promise.all([
+      SecureStore.getItemAsync(STORAGE_KEYS.ACCESS_TOKEN),
+      SecureStore.getItemAsync(STORAGE_KEYS.REFRESH_TOKEN),
+    ]);
+
+    // One-time migration: existing users may have tokens only in AsyncStorage
+    if (!accessToken && !refreshToken) {
+      const [legacyAccess, legacyRefresh] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN),
+        AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN),
+      ]);
+      if (legacyAccess || legacyRefresh) {
+        accessToken = legacyAccess;
+        refreshToken = legacyRefresh;
+        console.log('[TokenStorage] Migrating tokens from AsyncStorage to SecureStore');
+        await Promise.all([
+          accessToken ? SecureStore.setItemAsync(STORAGE_KEYS.ACCESS_TOKEN, accessToken) : Promise.resolve(),
+          refreshToken ? SecureStore.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, refreshToken) : Promise.resolve(),
+        ]);
+        await AsyncStorage.multiRemove([STORAGE_KEYS.ACCESS_TOKEN, STORAGE_KEYS.REFRESH_TOKEN]);
+      }
+    }
+
     tokenStorage.access_token = accessToken;
     tokenStorage.refresh_token = refreshToken;
-    console.log('[TokenStorage] Loaded tokens from AsyncStorage:', {
+    console.log('[TokenStorage] Loaded tokens from SecureStore:', {
       hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshToken,
     });
   } catch (error) {
-    console.error('[TokenStorage] Failed to load tokens from AsyncStorage:', error);
+    console.error('[TokenStorage] Failed to load tokens from SecureStore:', error);
     Sentry.captureException(error, { data: { context: 'tokenUtils.initStorage' } });
     // Keep in-memory storage as fallback
     console.log('[TokenStorage] Using in-memory storage fallback');
@@ -95,7 +118,7 @@ export function getTokenState(): TokenState {
 }
 
 /**
- * Store tokens in both memory and AsyncStorage
+ * Store tokens in both memory and SecureStore
  * @param accessToken JWT access token
  * @param refreshToken JWT refresh token
  */
@@ -110,21 +133,21 @@ export async function storeTokens(accessToken: string, refreshToken: string): Pr
   });
 
   try {
-    await AsyncStorage.multiSet([
-      [STORAGE_KEYS.ACCESS_TOKEN, accessToken],
-      [STORAGE_KEYS.REFRESH_TOKEN, refreshToken],
+    await Promise.all([
+      SecureStore.setItemAsync(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
+      SecureStore.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
     ]);
-    console.log('[TokenStorage] Tokens saved to AsyncStorage');
+    console.log('[TokenStorage] Tokens saved to SecureStore');
   } catch (error) {
-    console.error('[TokenStorage] Failed to save tokens to AsyncStorage:', error);
+    console.error('[TokenStorage] Failed to save tokens to SecureStore:', error);
     Sentry.captureException(error, { data: { context: 'tokenUtils.storeTokens' } });
     // In-memory storage still works as fallback
   }
 }
 
 /**
- * Clear all auth tokens from both memory and AsyncStorage
- * Also cleans up legacy keys for backward compatibility
+ * Clear all auth tokens from both memory and SecureStore
+ * Also cleans up legacy keys from AsyncStorage for backward compatibility
  */
 export async function clearTokens(): Promise<void> {
   // Clear in-memory cache immediately
@@ -132,15 +155,22 @@ export async function clearTokens(): Promise<void> {
   tokenStorage.refresh_token = null;
 
   try {
-    await AsyncStorage.multiRemove([
-      STORAGE_KEYS.ACCESS_TOKEN,
-      STORAGE_KEYS.REFRESH_TOKEN,
-      ...STORAGE_KEYS.LEGACY_KEYS,
+    await Promise.all([
+      SecureStore.deleteItemAsync(STORAGE_KEYS.ACCESS_TOKEN),
+      SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN),
     ]);
-    console.log('[TokenStorage] Tokens cleared from AsyncStorage');
+    console.log('[TokenStorage] Tokens cleared from SecureStore');
   } catch (error) {
-    console.error('[TokenStorage] Failed to clear tokens from AsyncStorage:', error);
+    console.error('[TokenStorage] Failed to clear tokens from SecureStore:', error);
     Sentry.captureException(error, { data: { context: 'tokenUtils.clearTokens' } });
+  }
+
+  // Clean up legacy keys that may still exist in AsyncStorage
+  try {
+    await AsyncStorage.multiRemove(STORAGE_KEYS.LEGACY_KEYS);
+    console.log('[TokenStorage] Legacy keys cleared from AsyncStorage');
+  } catch (legacyError) {
+    console.warn('[TokenStorage] Failed to clear legacy keys from AsyncStorage:', legacyError);
   }
 }
 
