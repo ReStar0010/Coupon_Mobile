@@ -39,7 +39,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
    * Check authentication status
    * Single source of truth: refresh_token presence = authenticated
    *
-   * IMPORTANT: Must call initStorage() first to load tokens from AsyncStorage into memory!
+   * IMPORTANT: Must call initStorage() first to load tokens from SecureStore into memory!
    */
   const checkAuth = useCallback(async () => {
     try {
