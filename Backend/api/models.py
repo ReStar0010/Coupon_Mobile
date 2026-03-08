@@ -96,7 +96,7 @@ class MerchantProfile(models.Model):
 
     # Merchant contact informations
     phone = models.CharField(max_length=20) # Merchant contact phone
-    contact_person = models.CharField(max_length=100)
+    contact_person = models.CharField(max_length=100, blank=True)
     contact_info = models.CharField(max_length=100, help_text="e.g., Line ID or alternative phone") # Combined contact info
 
     # Email verification fields
@@ -185,10 +185,10 @@ class Store(models.Model):
     owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='owned_stores', limit_choices_to={'groups__name': "Merchant"})
 
     # store information
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, blank=True)
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
-    address = models.CharField(max_length=200)
+    address = models.CharField(max_length=200, blank=True)
     business_hours = models.TextField(blank=True, null=True)
     image_url = models.CharField(max_length=255, blank=True, null=True)
     store_type = models.CharField(max_length=20, choices=STORE_TYPE_CHOICES, blank=True, null=True)
