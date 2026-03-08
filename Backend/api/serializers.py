@@ -224,17 +224,19 @@ class SetSavingsGoalSerializer(serializers.Serializer):
 class MerchantRegisterSerializer(serializers.Serializer):
     """
     Serializer for merchant registration.
+    contact_person, store_name, store_address are optional at registration;
+    merchants can fill them later in profile/store edit (models allow blank).
     """
     email = serializers.EmailField(help_text="Merchant's email address")
     password = serializers.CharField(help_text="Merchant's password", style={'input_type': 'password'})
     phone = serializers.CharField(max_length=20, help_text="Merchant contact phone")
-    contact_person = serializers.CharField(max_length=100, help_text="Contact person name")
+    contact_person = serializers.CharField(max_length=100, required=False, allow_blank=True, default='', help_text="Contact person name")
     contact_info = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True, help_text="Additional contact info (e.g., Line ID)")
-    # Store information
-    store_name = serializers.CharField(max_length=100, help_text="Store name")
-    store_address = serializers.CharField(max_length=200, help_text="Store address")
-    store_lat = serializers.FloatField(help_text="Store latitude")
-    store_lng = serializers.FloatField(help_text="Store longitude")
+    # Store information (optional at registration; can complete later)
+    store_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default='', help_text="Store name")
+    store_address = serializers.CharField(max_length=200, required=False, allow_blank=True, default='', help_text="Store address")
+    store_lat = serializers.FloatField(required=False, allow_null=True, default=None, help_text="Store latitude")
+    store_lng = serializers.FloatField(required=False, allow_null=True, default=None, help_text="Store longitude")
     business_hours = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Business hours")
 
 class CouponTemplateSerializer(serializers.Serializer):
