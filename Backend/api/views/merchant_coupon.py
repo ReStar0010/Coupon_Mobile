@@ -93,10 +93,20 @@ def merchant_consolidate_coupon(request):
         generated_coupon.save()
         
         # Log the consolidation action
-        Log.objects.create(
-            user=user,
-            coupon=generated_coupon,
-            action='consolidate_coupon',
+        logger.info(
+            "Coupon consolidated",
+            extra={
+                "user_id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "action": "consolidate_coupon",
+                "coupon_id": generated_coupon.id,
+                "coupon_name": generated_coupon.coupon_name,
+                "coupon_detail": generated_coupon.coupon_detail,
+                "coupon_type": generated_coupon.coupon_type,
+                "store_name": generated_coupon.store.name,
+                "acquisition_method": generated_coupon.acquisition_method,
+            }
         )
         
         # T018: Return with recipient_status
@@ -697,10 +707,21 @@ def merchant_redeem(request):
                 pass
 
             # Log the redemption
-            Log.objects.create(
-                user=user,
-                coupon=coupon,
-                action='redeem',
+            logger.info(
+                "Coupon redeemed",
+                extra={
+                    "user_id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "action": "redeem_coupon",
+                    "coupon_id": coupon.id,
+                    "coupon_name": coupon.coupon_name,
+                    "coupon_detail": coupon.coupon_detail,
+                    "coupon_type": coupon.coupon_type,
+                    "store_name": coupon.store.name,
+                    "savings_amount": savings_amount,
+                    "redeemed_at": timezone.now().isoformat()
+                }
             )
             
             return Response({
@@ -1288,10 +1309,16 @@ def generate_unified_redemption_code_view(request):
     store = get_merchant_store(request.user)
     if not store:
         # Log failed attempt
-        Log.objects.create(
-            user=request.user,
-            action='unified_code_gen_fail',
+        logger.error(
+            "Failed to generate unified redemption code",
+            extra={
+                "user_id": request.user.id,
+                "username": request.user.username,
+                "email": request.user.email,
+                "action": "unified_code_gen_fail",
+            }
         )
+
         return Response({
             'error': '此商家沒有關聯的商店'
         }, status=status.HTTP_400_BAD_REQUEST)
@@ -1311,9 +1338,17 @@ def generate_unified_redemption_code_view(request):
     store.save()
     
     # Log the successful generation
-    Log.objects.create(
-        user=request.user,
-        action='unified_code_gen',
+    logger.info(
+        "Unified redemption code generated",
+        extra={
+            "user_id": request.user.id,
+            "username": request.user.username,
+            "email": request.user.email,
+            "action": "unified_code_gen",
+            "unified_redeem_code": new_code,
+            "store_id": store.id,
+            "store_name": store.name,
+        }
     )
     
     # Return response
