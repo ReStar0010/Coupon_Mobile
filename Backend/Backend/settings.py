@@ -148,11 +148,16 @@ def _postgres_available():
         import psycopg2
         conn = psycopg2.connect(
             os.environ.get('DATABASE_URL'),
-            connect_timeout=2,
+            connect_timeout=5,
         )
         conn.close()
         return True
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            'PostgreSQL unreachable: %s (DATABASE_URL=%s); will use SQLite if configured.',
+            e,
+            os.environ.get('DATABASE_URL', '')[:50] + '...' if len(os.environ.get('DATABASE_URL', '')) > 50 else os.environ.get('DATABASE_URL', ''),
+        )
         return False
 
 
@@ -315,5 +320,8 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        # Silence urllib3 DEBUG logs from Sentry's ingest HTTP client (Sentry still works).
+        'urllib3': {'level': 'WARNING', 'propagate': False},
+        'urllib3.connectionpool': {'level': 'WARNING', 'propagate': False},
     },
 }
