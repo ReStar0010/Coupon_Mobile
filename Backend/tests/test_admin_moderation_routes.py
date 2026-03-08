@@ -5,10 +5,11 @@ reports/<id>/action/, escalations/, merchants/<id>/violations/, stats/
 """
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
+from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from api.models import MerchantProfile, Store
+from api.models import MerchantProfile, Store, ContentReport
 
 
 class AdminModerationRoutesTest(TestCase):
@@ -31,7 +32,7 @@ class AdminModerationRoutesTest(TestCase):
             contact_person='Test',
             contact_info='line@test',
         )
-        Store.objects.create(
+        self.store = Store.objects.create(
             owner=self.merchant,
             name='Test Store',
             lat=25.0,
@@ -42,6 +43,31 @@ class AdminModerationRoutesTest(TestCase):
             username='admin@test.com',
             email='admin@test.com',
             password='adminpass123',
+        )
+        self.reporter = User.objects.create_user(
+            username='reporter@test.com',
+            email='reporter@test.com',
+            password='testpass123',
+        )
+        ct = ContentType.objects.get_for_model(Store)
+        # Report with non-existent object_id: content_object is None so report detail view
+        # returns 200 without accessing Store.description (Store has no description field).
+        self.report = ContentReport.objects.create(
+            reporter=self.reporter,
+            content_type=ct,
+            object_id=99999,
+            reason='inappropriate',
+            details='test report',
+            status='pending',
+        )
+        # Report with real store for moderation action (action view needs content_object).
+        self.report_for_action = ContentReport.objects.create(
+            reporter=self.reporter,
+            content_type=ct,
+            object_id=self.store.id,
+            reason='inappropriate',
+            details='test report',
+            status='pending',
         )
 
     def test_moderation_queue_unauth_401(self):
@@ -90,3 +116,67 @@ class AdminModerationRoutesTest(TestCase):
         self.client.force_authenticate(user=self.merchant)
         response = self.client.get('/api/admin/moderation/stats/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    # --- Admin success paths ---
+
+    def test_report_detail_returns_200_and_shape(self):
+        """GET api/admin/moderation/reports/<id>/ with admin returns 200 and expected keys."""
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(
+            f'/api/admin/moderation/reports/{self.report.id}/'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertIn('id', response.data)
+        self.assertIn('reporter', response.data)
+        self.assertIn('content', response.data)
+        self.assertIn('reason', response.data)
+        self.assertIn('status', response.data)
+        self.assertIn('created_at', response.data)
+        self.assertIn('actions', response.data)
+
+    def test_moderation_action_approve_returns_200(self):
+        """POST api/admin/moderation/reports/<id>/action/ with action approve returns 200."""
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(
+            f'/api/admin/moderation/reports/{self.report_for_action.id}/action/',
+            {'action': 'approve', 'notes': 'test dismiss'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertIn('message', response.data)
+        self.report_for_action.refresh_from_db()
+        self.assertEqual(self.report_for_action.status, 'dismissed')
+
+    def test_escalations_returns_200_and_shape(self):
+        """GET api/admin/moderation/escalations/ with admin returns 200 and expected keys."""
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get('/api/admin/moderation/escalations/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('warning', response.data)
+        self.assertIn('critical', response.data)
+        self.assertIn('warning_count', response.data)
+        self.assertIn('critical_count', response.data)
+
+    def test_merchant_violations_returns_200(self):
+        """GET api/admin/moderation/merchants/<id>/violations/ with admin returns 200."""
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(
+            f'/api/admin/moderation/merchants/{self.merchant.id}/violations/'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('merchant', response.data)
+        self.assertIn('violations', response.data)
+        self.assertIn('total_violations', response.data)
+
+    def test_moderation_stats_returns_200_and_shape(self):
+        """GET api/admin/moderation/stats/ with admin returns 200 and expected keys."""
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get('/api/admin/moderation/stats/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('pending', response.data)
+        self.assertIn('reviewed', response.data)
+        self.assertIn('dismissed', response.data)
+        self.assertIn('escalated', response.data)
+        self.assertIn('critical', response.data)
+        self.assertIn('flagged_merchants', response.data)
+        self.assertIn('average_response_hours', response.data)

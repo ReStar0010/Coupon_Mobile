@@ -7,12 +7,17 @@ api/privacy-policy/
 """
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
+from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
+from django.conf import settings
 from datetime import timedelta
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from api.models import MerchantProfile, Store, CouponTemplate
+from api.models import (
+    MerchantProfile, Store, CouponTemplate,
+    ContentReport, BlockedMerchant,
+)
 
 
 class UGCEulaRoutesTest(TestCase):
@@ -110,3 +115,120 @@ class UGCEulaRoutesTest(TestCase):
         """GET api/privacy-policy/ returns 200 (public)."""
         response = self.client.get('/api/privacy-policy/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    # --- UGC success paths (authenticated as self.user, reporting/blocking merchant content) ---
+
+    def test_report_content_store_success(self):
+        """POST api/content/store/<id>/report/ with auth and reason returns 201 and creates report."""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            f'/api/content/store/{self.store.id}/report/',
+            {'reason': 'inappropriate', 'details': 'test details'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertIn('message', response.data)
+        self.assertIn('report', response.data)
+        self.assertTrue(
+            ContentReport.objects.filter(reporter=self.user, object_id=self.store.id).exists()
+        )
+
+    def test_report_status_after_report_success(self):
+        """GET api/content/store/<id>/report/status/ after reporting returns 200 with has_reported."""
+        self.client.force_authenticate(user=self.user)
+        ct = ContentType.objects.get_for_model(Store)
+        ContentReport.objects.create(
+            reporter=self.user,
+            content_type=ct,
+            object_id=self.store.id,
+            reason='inappropriate',
+            details='',
+        )
+        response = self.client.get(
+            f'/api/content/store/{self.store.id}/report/status/',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('has_reported', response.data)
+        self.assertIn('can_report_again', response.data)
+
+    def test_block_merchant_success(self):
+        """POST api/user/blocked-merchants/add/ with store_id returns 201 and creates block."""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            '/api/user/blocked-merchants/add/',
+            {'store_id': self.store.id},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertIn('message', response.data)
+        self.assertIn('blocked_merchant', response.data)
+        self.assertTrue(
+            BlockedMerchant.objects.filter(user=self.user, store=self.store).exists()
+        )
+
+    def test_blocked_merchants_list_success(self):
+        """GET api/user/blocked-merchants/ returns 200 with results and total."""
+        self.client.force_authenticate(user=self.user)
+        BlockedMerchant.objects.create(user=self.user, store=self.store)
+        response = self.client.get('/api/user/blocked-merchants/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+        self.assertIn('total', response.data)
+
+    def test_block_status_success(self):
+        """GET api/store/<id>/block-status/ returns 200 with is_blocked and store_id."""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(f'/api/store/{self.store.id}/block-status/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('is_blocked', response.data)
+        self.assertEqual(response.data.get('store_id'), self.store.id)
+
+    def test_unblock_merchant_success(self):
+        """DELETE api/user/blocked-merchants/<id>/ after blocking returns 200; block-status then is_blocked false."""
+        self.client.force_authenticate(user=self.user)
+        BlockedMerchant.objects.create(user=self.user, store=self.store)
+        response = self.client.delete(
+            f'/api/user/blocked-merchants/{self.store.id}/',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(
+            BlockedMerchant.objects.filter(user=self.user, store=self.store).exists()
+        )
+        status_response = self.client.get(f'/api/store/{self.store.id}/block-status/')
+        self.assertEqual(status_response.data.get('is_blocked'), False)
+
+    # --- EULA success paths (authenticated as merchant) ---
+
+    def test_eula_status_success(self):
+        """GET api/merchant/eula/status/ with merchant auth returns 200 and expected keys."""
+        self.client.force_authenticate(user=self.merchant)
+        response = self.client.get('/api/merchant/eula/status/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('has_accepted', response.data)
+        self.assertIn('current_version', response.data)
+        self.assertIn('needs_acceptance', response.data)
+
+    def test_eula_accept_success(self):
+        """POST api/merchant/eula/accept/ with version and agreed true returns 201."""
+        self.client.force_authenticate(user=self.merchant)
+        version = getattr(settings, 'CURRENT_EULA_VERSION', '1.0.0')
+        response = self.client.post(
+            '/api/merchant/eula/accept/',
+            {'version': version, 'agreed': True},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertIn('id', response.data)
+        self.assertIn('version', response.data)
+        self.assertIn('accepted_at', response.data)
+        self.assertIn('message', response.data)
+
+    def test_eula_content_success(self):
+        """GET api/merchant/eula/content/ with merchant auth returns 200 and content keys."""
+        self.client.force_authenticate(user=self.merchant)
+        response = self.client.get('/api/merchant/eula/content/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('version', response.data)
+        self.assertIn('title', response.data)
+        self.assertIn('content', response.data)
+        self.assertIn('content_guidelines', response.data)
