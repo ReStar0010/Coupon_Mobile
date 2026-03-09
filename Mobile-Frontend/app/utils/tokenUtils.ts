@@ -196,7 +196,7 @@ export function getRefreshToken(): string | null {
  */
 export function hasValidRefreshToken(): boolean {
   const refreshToken = tokenStorage.refresh_token;
-  return refreshToken !== null && refreshToken.length > 0;
+  return (refreshToken ?? '').length > 0;
 }
 
 /**
