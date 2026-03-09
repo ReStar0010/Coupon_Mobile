@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>Batch issue platform vouchers</h1>
+<form method="post">
+  {% csrf_token %}
+  <table>
+    {{ form.as_table }}
+  </table>
+  <input type="submit" value="Create vouchers">
+  <a href="{% url 'admin:api_platformvoucher_changelist' %}">Cancel</a>
+</form>
+{% endblock %}

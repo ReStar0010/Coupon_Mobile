@@ -25,6 +25,7 @@ All commands below are run from this directory (Backend root). No real SMS or em
 | **Full suite** (app-level + project-level) | `python manage.py test api tests` |
 | **App-level only** (api app tests) | `python manage.py test api` |
 | **Project-level only** | `python manage.py test tests` |
+| **Platform voucher (011)** | `python manage.py test api.tests.test_platform_voucher_*` (migrations, redemption, views, sharing) |
 
 ## Test organization
 
