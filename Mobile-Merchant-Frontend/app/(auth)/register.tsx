@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/react-native';
 import { YStack, Text, XStack, ScrollView } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Input, Button, AlertModal } from '@/components/ui';
+import { Input, PasswordInput, Button, AlertModal } from '@/components/ui';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { colors } from '@/constants/colors';
 import { RegisterFormData } from '@/types';
@@ -199,11 +199,10 @@ export default function RegisterScreen() {
             />
 
             {/* Password Input */}
-            <Input
+            <PasswordInput
               placeholder="密碼（必填）"
               value={formData.password}
               onChangeText={handlePasswordChange}
-              secureTextEntry
               autoCapitalize="none"
               autoComplete="password"
               editable={!isLoading}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { YStack, Text, XStack } from 'tamagui';
 import { useRouter } from 'expo-router';
-import { Input, Button, AlertModal } from '@/components/ui';
+import { Input, PasswordInput, Button, AlertModal } from '@/components/ui';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { colors } from '@/constants/colors';
 import { LoginFormData } from '@/types';
@@ -232,11 +232,10 @@ export default function LoginScreen() {
         />
 
         {/* Password Input */}
-        <Input
+        <PasswordInput
           placeholder="輸入密碼"
           value={formData.password}
           onChangeText={handlePasswordChange}
-          secureTextEntry
           autoCapitalize="none"
           autoComplete="password"
           editable={!isLoading}
