@@ -1,0 +1,12 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+<li>
+  <a href="{% url 'admin:api_platformvoucher_participating_stores' %}" class="viewsitelink">可核銷店家</a>
+</li>
+<li>
+  <a href="{% url 'admin:api_platformvoucher_batch_issue' %}" class="addlink">Batch issue 批量發券</a>
+</li>
+{{ block.super }}
+{% endblock %}

@@ -3,12 +3,10 @@
 Run a single load test stage: reset -> Locust -> consistency check.
 Reads BASE_URL, OUTPUT_DIR, STAGE from env (see load_tests/config/settings.py).
 When BASE_URL is remote (or LOAD_TEST_REMOTE=1), uses reset and verify-consistency APIs.
-If load_tests/config/test_users.json exists (pushed config), sends config to reset and
-only overwrites stores.json with response (actual store_ids for this backend); otherwise
-writes full config from response. When local, uses manage.py reset_load_test and
-verify_load_test_consistency (reset uses repo config when test_users.json exists).
+Remote reset only clears redemptions and returns {ok: true}; client uses shared repo config
+(load_tests/config/) and does not send or write config. When local, uses manage.py
+reset_load_test and verify_load_test_consistency.
 """
-import json
 import os
 import subprocess
 import sys
@@ -80,74 +78,40 @@ def main() -> int:
         run_t = run_time()
 
     if is_remote_run(url):
-        # Remote: reset and verify via HTTP
+        # Remote: reset (clear redemptions only) and verify via HTTP; skip reset if RUN_LOCUST_ONLY=1
         import requests
+        run_locust_only = os.environ.get("RUN_LOCUST_ONLY") == "1"
         secret = os.environ.get("LOAD_TEST_SECRET")
         if not secret:
             print("LOAD_TEST_SECRET is required for remote load test.", file=sys.stderr)
             return 1
         headers = {"X-Load-Test-Secret": secret, "Content-Type": "application/json"}
 
-        # Use pushed config if present
-        repo_config = None
-        test_users_file = CONFIG_DIR / "test_users.json"
-        stores_file = CONFIG_DIR / "stores.json"
-        if test_users_file.exists() and stores_file.exists():
+        if not run_locust_only:
+            reset_timeout = int(os.environ.get("LOAD_TEST_RESET_TIMEOUT", "60"))
+            print("Step 1: Reset (POST /api/load-test/reset/)...")
             try:
-                with open(test_users_file, encoding="utf-8") as f:
-                    repo_config = {"test_users": json.load(f)}
-                with open(stores_file, encoding="utf-8") as f:
-                    repo_config["stores"] = json.load(f)
-                for name, path in [
-                    ("task_weights", CONFIG_DIR / "task_weights.json"),
-                    ("private_share_tokens", CONFIG_DIR / "private_share_tokens.json"),
-                ]:
-                    if path.exists():
-                        with open(path, encoding="utf-8") as f:
-                            repo_config[name] = json.load(f)
-            except (json.JSONDecodeError, OSError):
-                repo_config = None
-
-        # Step 1: Reset (with repo config if available)
-        print("Step 1: Reset (POST /api/load-test/reset/)...")
-        body = {"stage": st}
-        if repo_config is not None:
-            body["config"] = repo_config
-        try:
-            r = requests.post(
-                f"{url}/api/load-test/reset/",
-                json=body,
-                headers=headers,
-                timeout=120,
-            )
-        except requests.RequestException as e:
-            print(f"Reset request failed: {e}", file=sys.stderr)
-            return 1
-        if r.status_code != 200:
-            print(f"Reset failed: {r.status_code} {r.text}", file=sys.stderr)
-            return 1
-        data = r.json()
-        if not data.get("ok") or "config" not in data:
-            print(f"Reset returned not ok or missing config: {data}", file=sys.stderr)
-            return 1
-        config = data["config"]
-
-        # Step 2: Only overwrite stores.json (actual store_ids for this backend); keep pushed test_users/task_weights/private_share_tokens
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_DIR / "stores.json", "w", encoding="utf-8") as f:
-            json.dump(config.get("stores", []), f, indent=2)
-        if repo_config is None:
-            with open(CONFIG_DIR / "test_users.json", "w", encoding="utf-8") as f:
-                json.dump(config.get("test_users", []), f, indent=2)
-            with open(CONFIG_DIR / "task_weights.json", "w", encoding="utf-8") as f:
-                json.dump(config.get("task_weights", {}), f, indent=2)
-            with open(CONFIG_DIR / "private_share_tokens.json", "w", encoding="utf-8") as f:
-                json.dump(config.get("private_share_tokens", []), f, indent=2)
-            print("Config written to load_tests/config/.")
+                r = requests.post(
+                    f"{url}/api/load-test/reset/",
+                    json={"stage": st},
+                    headers=headers,
+                    timeout=reset_timeout,
+                )
+            except requests.RequestException as e:
+                print(f"Reset request failed: {e}", file=sys.stderr)
+                return 1
+            if r.status_code != 200:
+                print(f"Reset failed: {r.status_code} {r.text}", file=sys.stderr)
+                return 1
+            data = r.json() if r.content else {}
+            if not data.get("ok"):
+                print(f"Reset returned not ok: {data}", file=sys.stderr)
+                return 1
+            print("Reset ok; using repo config for Locust.")
         else:
-            print("Using pushed config; stores.json updated for this backend.")
+            print("RUN_LOCUST_ONLY=1: skipping reset, using repo config.")
 
-        # Step 3: Run Locust
+        # Step 2: Run Locust
         print("Step 2: Run Locust...")
         csv_prefix = str(Path(out) / f"stage{st}")
         locust_env = {**os.environ, "STAGE": str(st)}

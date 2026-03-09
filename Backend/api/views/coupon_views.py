@@ -16,7 +16,7 @@ from api.exceptions import (
     UnifiedCodeInvalid,
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
-from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant
+from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher
 
 logger = logging.getLogger(__name__)
 
@@ -451,8 +451,10 @@ def validate_unified_redemption_code(request, code):
     Returns:
         Store information and list of available coupons for the authenticated consumer
     """
+    logger = logging.getLogger(__name__)
     # Validate code format (6 digits)
     if not code or len(code) != 6 or not code.isdigit():
+        # Log invalid format attempt using Python logging (goes to Sentry)
         if request.user.is_authenticated:
             logger.warning(
                 "Unified redemption code validation failed: invalid format",
@@ -512,6 +514,25 @@ def validate_unified_redemption_code(request, code):
             "is_redeemed": coupon.is_redeemed(),
             "image_url": coupon.image_url,
         })
+
+    # Platform vouchers: only when store participates
+    available_platform_vouchers = []
+    if getattr(store, "accepts_platform_vouchers", False):
+        from ..models import PlatformVoucherRedemption
+        redeemed_voucher_ids = PlatformVoucherRedemption.objects.values_list("voucher_id", flat=True)
+        platform_vouchers = PlatformVoucher.objects.filter(
+            current_holder=request.user,
+            expiry_date__gt=now,
+            start_date__lte=now,
+        ).exclude(id__in=redeemed_voucher_ids)
+        for pv in platform_vouchers:
+            available_platform_vouchers.append({
+                "id": pv.id,
+                "face_value": str(pv.face_value),
+                "redeem_code": pv.redeem_code,
+                "expiry_date": pv.expiry_date.isoformat(),
+                "batch_name": pv.batch_name or "",
+            })
     
     # Prepare response
     response_data = {
@@ -520,7 +541,8 @@ def validate_unified_redemption_code(request, code):
             "name": store.name,
             "address": store.address,
         },
-        "available_coupons": coupon_data
+        "available_coupons": coupon_data,
+        "available_platform_vouchers": available_platform_vouchers,
     }
     
     # Log successful validation

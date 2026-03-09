@@ -12,7 +12,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
 import axios, { AxiosRequestConfig, AxiosResponse, isAxiosError } from 'axios';
-import perf from '@react-native-firebase/perf';
+// import perf from '@react-native-firebase/perf';
 import * as Sentry from '@sentry/react-native';
 import { API_URL } from '../config/api';
 import { authEvents, AUTH_EVENT_TYPES } from './authEvents';
@@ -727,6 +727,46 @@ export const unifiedRedemptionAPI = {
     const response = await fetchAPI(`/redeem/${couponId}/`, {
       method: 'POST',
       data: { redeem_code: unifiedCode },
+    });
+    return response.data;
+  },
+};
+
+/** Platform voucher list item (GET /api/platform-vouchers/) */
+export interface PlatformVoucherListItem {
+  id: number;
+  face_value: string;
+  currency_code: string;
+  redeem_code: string;
+  expiry_date: string;
+  batch_name: string;
+}
+
+/** Platform voucher detail (GET /api/platform-vouchers/<id>/) */
+export interface PlatformVoucherDetail extends PlatformVoucherListItem {
+  start_date: string;
+  is_redeemed: boolean;
+  current_holder_id: number | null;
+}
+
+/**
+ * Platform voucher API (011-platform-cash-voucher)
+ */
+export const platformVoucherAPI = {
+  list: async (): Promise<PlatformVoucherListItem[]> => {
+    const response = await fetchAPI('/platform-vouchers/', { method: 'GET' });
+    return response.data;
+  },
+
+  detail: async (id: number): Promise<PlatformVoucherDetail> => {
+    const response = await fetchAPI(`/platform-vouchers/${id}/`, { method: 'GET' });
+    return response.data;
+  },
+
+  redeem: async (voucherId: number, storeCode: string): Promise<{ message: string }> => {
+    const response = await fetchAPI(`/platform-voucher/${voucherId}/redeem/`, {
+      method: 'POST',
+      data: { redeem_code: storeCode },
     });
     return response.data;
   },

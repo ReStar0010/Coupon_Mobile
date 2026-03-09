@@ -64,6 +64,35 @@ def generate_unified_redemption_code() -> str:
     return ''.join(str(secrets.randbelow(10)) for _ in range(6))
 
 
+def generate_platform_voucher_redeem_code() -> str:
+    """
+    Generate a unique 6-character redeem_code for PlatformVoucher (distinct from store
+    unified_redeem_code). Ensures DB uniqueness by checking existing PlatformVoucher
+    and Store.unified_redeem_code to avoid collisions.
+    
+    Returns:
+        6-character alphanumeric string (e.g., "A1B2C3") unique in DB.
+    """
+    from django.apps import apps
+    
+    def _random_6() -> str:
+        # Alphanumeric 0-9, A-Z (no lowercase to avoid confusion)
+        chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        return ''.join(secrets.choice(chars) for _ in range(6))
+    
+    PlatformVoucher = apps.get_model('api', 'PlatformVoucher')
+    Store = apps.get_model('api', 'Store')
+    max_attempts = 100
+    for _ in range(max_attempts):
+        code = _random_6()
+        if PlatformVoucher.objects.filter(redeem_code=code).exists():
+            continue
+        if Store.objects.filter(unified_redeem_code=code).exists():
+            continue
+        return code
+    raise RuntimeError("Could not generate unique platform voucher redeem_code after %d attempts" % max_attempts)
+
+
 def get_store_today(store) -> date:
     """
     Return "today" as a date in the store's timezone.

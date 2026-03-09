@@ -360,6 +360,35 @@ class UnifiedRedemptionValidateSerializer(serializers.Serializer):
     """
     store = serializers.DictField(read_only=True, help_text="Store information (id, name, address)")
     available_coupons = serializers.ListField(read_only=True, help_text="List of available coupons for the consumer")
+    available_platform_vouchers = serializers.ListField(read_only=True, required=False, allow_empty=True, help_text="List of platform vouchers redeemable at this store (when store participates)")
+
+
+class PlatformVoucherRedeemRequestSerializer(serializers.Serializer):
+    """Request body for POST /api/platform-voucher/<id>/redeem/ (store's 6-digit code)."""
+    redeem_code = serializers.CharField(max_length=6, min_length=6, help_text="Store's unified redemption code (6 digits)")
+
+
+class PlatformVoucherListSerializer(serializers.Serializer):
+    """List item for GET /api/platform-vouchers/ (contract: id, face_value, currency_code, redeem_code, expiry_date, batch_name)."""
+    id = serializers.IntegerField(read_only=True)
+    face_value = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    currency_code = serializers.CharField(read_only=True)
+    redeem_code = serializers.CharField(read_only=True)
+    expiry_date = serializers.DateTimeField(read_only=True)
+    batch_name = serializers.CharField(read_only=True, allow_blank=True)
+
+
+class PlatformVoucherDetailSerializer(serializers.Serializer):
+    """Detail for GET /api/platform-vouchers/<id>/ (contract: id, face_value, ..., is_redeemed, current_holder_id)."""
+    id = serializers.IntegerField(read_only=True)
+    face_value = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    currency_code = serializers.CharField(read_only=True)
+    start_date = serializers.DateTimeField(read_only=True)
+    expiry_date = serializers.DateTimeField(read_only=True)
+    batch_name = serializers.CharField(read_only=True, allow_blank=True)
+    redeem_code = serializers.CharField(read_only=True)
+    is_redeemed = serializers.BooleanField(read_only=True)
+    current_holder_id = serializers.IntegerField(read_only=True, allow_null=True)
 
 
 class GenerateQRSessionSerializer(serializers.Serializer):
