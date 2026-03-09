@@ -381,13 +381,40 @@ export const fetchAPI = async (endpoint: string, options: FetchOptions = {}): Pr
 };
 
 /** Error with HTTP status for components to distinguish expected (4xx) vs unexpected errors */
-export type ApiError = Error & { statusCode?: number };
+export type ApiError = Error & {
+  statusCode?: number;
+  errorCode?: string;
+  context?: Record<string, unknown>;
+};
 
-function createApiError(message: string, status: number): ApiError {
+function createApiError(
+  message: string,
+  status: number,
+  errorCode?: string,
+  context?: Record<string, unknown>,
+): ApiError {
   const err = new Error(message) as ApiError;
   err.statusCode = status;
+  if (errorCode !== undefined) err.errorCode = errorCode;
+  if (context !== undefined) err.context = context;
   return err;
 }
+
+/**
+ * Maps legacy backend error string values to standardised error_code constants.
+ * Used as a fallback while views are being migrated to raise CouProAPIException.
+ */
+const LEGACY_ERROR_MAP: Record<string, string> = {
+  email_not_verified: 'EMAIL_NOT_VERIFIED',
+  wrong_client_type: 'WRONG_CLIENT_TYPE_USER',
+  missing_token: 'MISSING_TOKEN',
+  already_verified: 'ALREADY_VERIFIED',
+  expired_token: 'EXPIRED_TOKEN',
+  invalid_token: 'INVALID_TOKEN',
+  missing_email: 'FIELD_REQUIRED',
+  email_send_failed: 'EMAIL_SEND_FAILED',
+  INVALID_PASSWORD: 'INVALID_PASSWORD',
+};
 
 // Helper function to parse JSON response
 export const parseResponse = async <T>(response: Response): Promise<T> => {
@@ -412,12 +439,24 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
     // Extract error message from various possible formats
     // Handle Django REST Framework error format
     if (typeof errorData === 'object' && errorData !== null) {
+      // ✅ New standardised format: {error_code, developer_message, context}
+      if (errorData.error_code) {
+        throw createApiError(
+          errorData.developer_message || errorData.error_code,
+          status,
+          errorData.error_code,
+          errorData.context ?? {},
+        );
+      }
+
       // Special handling for email_not_verified error - preserve original structure
       if (errorData.error === 'email_not_verified') {
         const unverifiedError: any = new Error(errorData.message || '請先驗證您的電子郵件');
         unverifiedError.error = 'email_not_verified';
         unverifiedError.email = errorData.email;
         unverifiedError.statusCode = status;
+        unverifiedError.errorCode = 'EMAIL_NOT_VERIFIED';
+        unverifiedError.context = {};
         throw unverifiedError;
       }
 
@@ -426,6 +465,8 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         const wrongClientError: any = new Error(errorData.message || '請使用正確的 App 登入');
         wrongClientError.error = 'wrong_client_type';
         wrongClientError.statusCode = status;
+        wrongClientError.errorCode = 'WRONG_CLIENT_TYPE_USER';
+        wrongClientError.context = {};
         throw wrongClientError;
       }
 
@@ -443,7 +484,9 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         );
         // Clear tokens since user is not authorized for merchant endpoints
         await clearTokens();
-        const merchantErr = new MerchantAuthorizationError('您不是商家用戶，無法使用商家功能。') as MerchantAuthorizationError & { statusCode?: number };
+        const merchantErr = new MerchantAuthorizationError(
+          '您不是商家用戶，無法使用商家功能。',
+        ) as MerchantAuthorizationError & { statusCode?: number };
         merchantErr.statusCode = status;
         throw merchantErr;
       }
@@ -472,7 +515,11 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         errorData.non_field_errors?.[0] ||
         `HTTP ${response.status}: ${response.statusText}`;
 
-      throw createApiError(errorMessage, status);
+      // Attempt to map legacy error string to a standardised error_code
+      const legacyCode =
+        typeof errorData.error === 'string' ? LEGACY_ERROR_MAP[errorData.error] : undefined;
+
+      throw createApiError(errorMessage, status, legacyCode, {});
     }
 
     // If errorData is a string

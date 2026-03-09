@@ -1,3 +1,4 @@
+import '../utils/i18n'; // 必須在所有其他 import 之前
 import '../tamagui-web.css';
 
 import { useEffect, useRef, useState } from 'react';

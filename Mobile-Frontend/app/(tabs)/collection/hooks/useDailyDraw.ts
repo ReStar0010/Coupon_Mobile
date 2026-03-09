@@ -5,6 +5,7 @@ import { DailyDrawResult, DrawTemplate } from '@/app/(tabs)/collection/utils/typ
 import { checkLastDrawDate } from '@/app/(tabs)/collection/utils/couponUtils';
 import { devDebug } from '@/app/utils/devLogger';
 import { fetchAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 
 interface UseDailyDrawReturn {
   showDailyDraw: boolean;
@@ -23,6 +24,7 @@ export function useDailyDraw(
   authLoading: boolean,
   onDrawSuccess: () => void,
 ): UseDailyDrawReturn {
+  const { getErrorMessage } = useApiError();
   const [showDailyDraw, setShowDailyDraw] = useState(false);
   const [dailyDrawResult, setDailyDrawResult] = useState<DailyDrawResult | null>(null);
   const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
@@ -85,29 +87,6 @@ export function useDailyDraw(
     return templates[randomIndex];
   }, []);
 
-  const getErrorMessage = useCallback((err: unknown): string => {
-    if (isAxiosError(err)) {
-      // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
-      if (err.response?.status === 401) {
-        return ''; // Return empty string to prevent UI from displaying auth errors
-      }
-      if (err.response?.status === 400) {
-        return err.response.data.message || '抽獎失敗，請稍後再試。';
-      }
-      if (err.response?.data?.error) {
-        return err.response.data.error;
-      }
-    }
-    if (err instanceof Error) {
-      // Also check error message for authentication-related errors
-      if (err.message.includes('Authentication') || err.message.includes('401')) {
-        return ''; // Filter authentication errors
-      }
-      return err.message;
-    }
-    return '抽獎失敗，請稍後再試。';
-  }, []);
-
   const handleDailyDraw = useCallback(async () => {
     setIsDailyDrawLoading(true);
 
@@ -151,15 +130,10 @@ export function useDailyDraw(
       }
 
       if (isMountedRef.current) {
-        const errorMessage = getErrorMessage(err);
-        // Only set error message if it's not empty (i.e., not a 401 auth error)
-        if (errorMessage) {
-          setDailyDrawResult({
-            success: false,
-            message: errorMessage,
-          });
-        }
-        // For 401 errors, silently let AuthOrchestrator handle the redirect
+        setDailyDrawResult({
+          success: false,
+          message: getErrorMessage(err),
+        });
       }
     } finally {
       if (isMountedRef.current) {

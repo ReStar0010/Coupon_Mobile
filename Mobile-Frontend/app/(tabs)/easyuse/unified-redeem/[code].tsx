@@ -12,6 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { unifiedRedemptionAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import Toast from '../[id]/redeem/Toast';
 import SuccessPopup from '../[id]/redeem/SuccessPopup';
 
@@ -39,6 +40,7 @@ const DEFAULT_IMAGE_URL =
 export default function UnifiedRedeemScreen() {
   const router = useRouter();
   const { code } = useLocalSearchParams<{ code: string }>();
+  const { getErrorMessage } = useApiError();
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,9 +72,9 @@ export default function UnifiedRedeemScreen() {
 
         setStore(response.store);
         setAvailableCoupons(response.available_coupons || []);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to validate unified redemption code:', err);
-        const errorMessage = err?.response?.data?.error || '無效的統一核銷碼';
+        const errorMessage = getErrorMessage(err);
         setError(errorMessage);
         setErrorToastMessage(errorMessage);
         setShowErrorToast(true);
@@ -112,9 +114,9 @@ export default function UnifiedRedeemScreen() {
         });
 
         setShowSuccessPopup(true);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to redeem coupon:', err);
-        const errorMessage = err?.response?.data?.error || '兌換失敗，請稍後再試';
+        const errorMessage = getErrorMessage(err);
         setError(errorMessage);
         setErrorToastMessage(errorMessage);
         setShowErrorToast(true);
@@ -122,7 +124,7 @@ export default function UnifiedRedeemScreen() {
         setIsRedeeming(false);
       }
     },
-    [code, isRedeeming],
+    [code, isRedeeming, getErrorMessage],
   );
 
   const handleCloseSuccessPopup = useCallback(() => {

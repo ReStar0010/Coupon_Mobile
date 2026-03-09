@@ -34,7 +34,95 @@ declare module 'axios' {
       httpMetric: Awaited<ReturnType<ReturnType<typeof perf>['newHttpMetric']>>;
     };
   }
+  interface AxiosError {
+    errorCode?: string;
+    errorContext?: Record<string, unknown>;
+  }
 }
+
+/** Legacy backend error string → standardised error_code (向後相容) */
+const LEGACY_ERROR_MAP: Record<string, string> = {
+  email_not_verified: 'EMAIL_NOT_VERIFIED',
+  wrong_client_type: 'WRONG_CLIENT_TYPE_USER',
+  missing_token: 'MISSING_TOKEN',
+  already_verified: 'ALREADY_VERIFIED',
+  expired_token: 'EXPIRED_TOKEN',
+  invalid_token: 'INVALID_TOKEN',
+  email_send_failed: 'EMAIL_SEND_FAILED',
+  INVALID_PASSWORD: 'INVALID_PASSWORD',
+};
+
+/** Expected error codes (not reported to Sentry). Same set as Merchant. */
+const EXPECTED_ERROR_CODES = new Set<string>([
+  'USER_NOT_FOUND',
+  'EMAIL_ALREADY_EXISTS',
+  'INVALID_CREDENTIALS',
+  'EMAIL_NOT_VERIFIED',
+  'WRONG_CLIENT_TYPE_MERCHANT',
+  'WRONG_CLIENT_TYPE_USER',
+  'NOT_AUTHENTICATED',
+  'AUTHENTICATION_FAILED',
+  'PERMISSION_DENIED',
+  'REFRESH_TOKEN_MISSING',
+  'REFRESH_TOKEN_INVALID',
+  'MISSING_TOKEN',
+  'INVALID_TOKEN',
+  'EXPIRED_TOKEN',
+  'ALREADY_VERIFIED',
+  'PASSWORD_TOO_SHORT',
+  'INVALID_RESET_LINK',
+  'EXPIRED_RESET_LINK',
+  'INVALID_PASSWORD',
+  'OTP_NOT_FOUND',
+  'OTP_EXPIRED',
+  'OTP_MAX_ATTEMPTS',
+  'OTP_INVALID',
+  'OTP_RATE_LIMITED',
+  'PHONE_ALREADY_REGISTERED',
+  'PHONE_NOT_REGISTERED',
+  'PHONE_ALREADY_USED_BY_OTHER',
+  'NOT_A_MERCHANT',
+  'MERCHANT_PROFILE_NOT_FOUND',
+  'NO_STORE_FOR_MERCHANT',
+  'EULA_NOT_ACCEPTED',
+  'EULA_ALREADY_ACCEPTED',
+  'EULA_VERSION_MISMATCH',
+  'COUPON_TEMPLATE_NOT_FOUND',
+  'COUPON_TEMPLATE_EXPIRED',
+  'COUPON_TEMPLATE_OUT_OF_STOCK',
+  'TEMPLATE_QUANTITY_DECREASE_NOT_ALLOWED',
+  'COUPON_ALREADY_REDEEMED',
+  'COUPON_NOT_HOLDER',
+  'REDEEM_CODE_INVALID',
+  'UNIFIED_CODE_INVALID',
+  'QR_SESSION_EXPIRED',
+  'QR_SESSION_NOT_FOUND',
+  'QR_SESSION_UNAUTHORIZED',
+  'IMAGE_TYPE_INVALID',
+  'IMAGE_TOO_LARGE',
+  'INVALID_DATE_FORMAT',
+  'INVALID_DATE_RANGE',
+  'DATE_RANGE_FUTURE',
+  'DATE_RANGE_TOO_LONG',
+  'INVALID_CONTENT_TYPE',
+  'CONTENT_NOT_FOUND',
+  'SELF_REPORT_NOT_ALLOWED',
+  'REPORT_DUPLICATE',
+  'ALREADY_BLOCKED',
+  'DELETE_ACKNOWLEDGMENT_REQUIRED',
+  'MERCHANT_ONLY_FEATURE',
+  'VALIDATION_ERROR',
+  'FIELD_BLANK',
+  'FIELD_REQUIRED',
+  'FIELD_TOO_LONG',
+  'FIELD_INVALID',
+  'FIELD_NOT_UNIQUE',
+  'PHONE_FORMAT_INVALID',
+  'OTP_CODE_FORMAT_INVALID',
+  'RATE_LIMITED',
+  'METHOD_NOT_ALLOWED',
+  'NOT_FOUND',
+]);
 
 // // Firebase Performance Monitoring — request interceptor
 axios.interceptors.request.use(async (config) => {
@@ -415,20 +503,27 @@ export const fetchAPI = async (
         });
       }
 
-      // Handle other error responses
-      // Preserve the original error object to maintain response information for retry logic
+      // Handle other error responses: parse error_code/context, Sentry only for 5xx or unknown codes
       if (isAxiosError(error)) {
-        // For Axios errors, keep the original error to preserve response data
-        const errorData = error.response?.data || {};
-        const errorMessage =
-          errorData.error || errorData.message || `API request failed: ${error.response?.status}`;
-        console.error('API request error:', new Error(errorMessage));
-        Sentry.captureException(error, {
-          data: { context: 'authAPI.fetchAPI', endpoint, status: error.response?.status },
-        });
-        throw error; // Throw original Axios error to preserve response info
+        const responseData = error.response?.data ?? {};
+        const statusCode = error.response?.status ?? 0;
+
+        if (responseData.error_code) {
+          error.errorCode = responseData.error_code;
+          error.errorContext = responseData.context ?? {};
+        } else if (responseData.error) {
+          error.errorCode = LEGACY_ERROR_MAP[responseData.error] ?? undefined;
+          error.errorContext = {};
+        }
+
+        const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(error.errorCode ?? '');
+        if (isUnexpected) {
+          Sentry.captureException(error, {
+            data: { context: 'authAPI.fetchAPI', endpoint, status: statusCode },
+          });
+        }
+        throw error;
       } else {
-        // For non-Axios errors, wrap in a new Error
         const apiError = new Error('API request failed: Unknown error');
         console.error('API request error:', apiError);
         Sentry.captureException(error, {

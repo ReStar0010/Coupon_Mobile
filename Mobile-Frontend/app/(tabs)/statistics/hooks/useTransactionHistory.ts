@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { isAxiosError } from 'axios';
 import { fetchAPI, AuthenticationError } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 
 export interface TransactionHistoryItem {
   redemption_id: number;
@@ -16,6 +17,7 @@ export interface TransactionHistoryItem {
 
 export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 2) => {
   const router = useRouter();
+  const { getErrorMessage } = useApiError();
   const [transactionHistory, setTransactionHistory] = useState<TransactionHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export const useTransactionHistory = (isAuthenticated: boolean, limit: number = 
       }
 
       console.error('Error fetching transaction history:', err);
-      setError('Failed to load transaction history');
+      setError(getErrorMessage(err));
       setIsLoading(false);
     }
   };

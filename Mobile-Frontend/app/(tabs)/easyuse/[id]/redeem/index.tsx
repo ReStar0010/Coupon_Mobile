@@ -17,7 +17,9 @@ import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } f
 import SuccessPopup from './SuccessPopup';
 import Toast from './Toast';
 import { devLog } from '@/app/utils/devLogger';
+import { isAxiosError } from 'axios';
 import { fetchAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 
 // Define the coupon interface
 interface Coupon {
@@ -31,6 +33,7 @@ interface Coupon {
 
 export default function RedeemPage() {
   const router = useRouter();
+  const { getErrorMessage } = useApiError();
   const { id, unifiedCode, source } = useLocalSearchParams<{
     id: string;
     unifiedCode?: string;
@@ -155,32 +158,14 @@ export default function RedeemPage() {
         setRedeemCode('');
       } catch (error) {
         console.error('處理錯誤:', error);
-
-        let errorMessage = '發生錯誤，請稍後再試';
-
-        if (error instanceof Error) {
-          // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
-          if (error.message.includes('401') || error.message.includes('Authentication')) {
-            setErrorToastMessage('');
-            setShowErrorToast(false);
-          } else if (error.message.includes('400')) {
-            errorMessage = '兌換碼錯誤或已使用';
-            setErrorToastMessage(errorMessage);
-            setShowErrorToast(true);
-          } else if (error.message.includes('404')) {
-            errorMessage = '找不到此優惠券';
-            setErrorToastMessage(errorMessage);
-            setShowErrorToast(true);
-          } else {
-            errorMessage = error.message;
-            setErrorToastMessage(errorMessage);
-            setShowErrorToast(true);
-          }
+        // 401 由 AuthOrchestrator 靜默處理，不顯示 toast
+        if (isAxiosError(error) && error.response?.status === 401) {
+          setErrorToastMessage('');
+          setShowErrorToast(false);
         } else {
-          setErrorToastMessage(errorMessage);
+          setErrorToastMessage(getErrorMessage(error));
           setShowErrorToast(true);
         }
-
         setInputError(true);
         if (codeToUse === undefined) {
           setRedeemCode('');
@@ -189,7 +174,7 @@ export default function RedeemPage() {
         setIsLoading(false);
       }
     },
-    [id, redeemCode],
+    [id, redeemCode, getErrorMessage],
   );
 
   const handleBarCodeScanned = useCallback(

@@ -1,4 +1,5 @@
 import '../tamagui-web.css';
+import '../utils/i18n';
 
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';

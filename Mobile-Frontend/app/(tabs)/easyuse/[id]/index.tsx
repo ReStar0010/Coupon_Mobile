@@ -12,6 +12,7 @@ import ShareModal from './components/ShareModal';
 import ReportButton from '../../../components/ReportButton';
 import { useBlockedMerchants } from '@/app/components/providers/BlockedMerchantsProvider';
 import { isUserLoggedIn, fetchAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import { devLog } from '@/app/utils/devLogger';
 import StatCard from '../../statistics/components/StatCard';
 
@@ -77,6 +78,7 @@ const CouponDetailPage: React.FC = () => {
   const { id } = useLocalSearchParams();
   const params = useLocalSearchParams();
   const sourceParam = params.source as string;
+  const { getErrorMessage } = useApiError();
 
   const [coupon, setCoupon] = useState<CouponDetailType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -308,25 +310,9 @@ const CouponDetailPage: React.FC = () => {
 
         devLog('Public share successful:', response.data);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error sharing to public pool:', err);
-
-      let errorMessage = '無法分享優惠券，請稍後再試';
-
-      if (err?.response?.data?.error) {
-        const backendError = err.response.data.error;
-        if (backendError === 'You do not own this coupon.') {
-          errorMessage = '您不是此優惠券的持有者';
-        } else if (backendError === 'This coupon has already been redeemed.') {
-          errorMessage = '此優惠券已被使用';
-        } else if (backendError === 'This coupon is already shared to the public pool.') {
-          errorMessage = '此優惠券已在公開交換池中';
-        } else {
-          errorMessage = backendError;
-        }
-      }
-
-      Alert.alert('分享失敗', errorMessage);
+      Alert.alert('分享失敗', getErrorMessage(err));
     } finally {
       setIsSharing(false);
     }
@@ -357,25 +343,9 @@ const CouponDetailPage: React.FC = () => {
         return link;
       }
       throw new Error('Failed to generate share link');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error sharing link:', err);
-
-      let errorMessage = '無法生成分享連結，請稍後再試';
-
-      if (err?.response?.data?.error) {
-        const backendError = err.response.data.error;
-        if (backendError === 'You do not own this coupon.') {
-          errorMessage = '您不是此優惠券的持有者';
-        } else if (err?.response?.status === 404) {
-          errorMessage = '找不到此優惠券';
-        } else if (err?.response?.status === 403) {
-          errorMessage = '您沒有權限分享此優惠券';
-        } else {
-          errorMessage = backendError;
-        }
-      }
-
-      Alert.alert('分享失敗', errorMessage);
+      Alert.alert('分享失敗', getErrorMessage(err));
       return;
     } finally {
       setIsSharing(false);

@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { Image, Text, View, Input, XStack, H4, YStack, Card, Spinner } from 'tamagui';
 import { fetchAPI, isUserLoggedIn } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import { TouchableOpacity, Alert, Platform, Linking, StyleSheet } from 'react-native';
 import { AlignJustify, Search, X } from 'lucide-react-native';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
@@ -319,6 +320,7 @@ const CouPro = () => {
   const insets = useSafeAreaInsets();
   const { dismissStore, isStoreDismissed } = useDismissedStores();
   const { isStoreBlocked } = useBlockedMerchants();
+  const { getErrorMessage } = useApiError();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [coupons, setCoupons] = useState<CouponType[]>([]);
@@ -620,22 +622,9 @@ const CouPro = () => {
             },
           },
         ]);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error claiming gift:', err);
-        let errorMessage = '無法領取優惠券';
-
-        if (err?.response?.data?.error) {
-          const backendError = err.response.data.error;
-          if (backendError === 'You cannot claim your own shared coupon.') {
-            errorMessage = '您不能領取自己分享的優惠券';
-          } else if (backendError === 'This request has already been processed.') {
-            errorMessage = '此優惠券已被其他人領取';
-          } else if (backendError === 'This coupon has already been claimed.') {
-            errorMessage = '此優惠券已被領取';
-          } else {
-            errorMessage = backendError;
-          }
-        }
+        const errorMessage = getErrorMessage(err);
 
         Alert.alert('領取失敗', errorMessage);
       } finally {
