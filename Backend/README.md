@@ -42,6 +42,6 @@ Django discovers test modules matching `test_*.py` and test methods named `test_
 For remote load testing, the backend exposes:
 
 - **GET /api/load-test/verify-consistency/** — Returns `{passed: bool, errors: list[str]}`.
-- **POST /api/load-test/reset/** — Clears redemptions, runs seed for the given stage, returns `{ok: true, config: {...}}` with Locust config (test_users, stores, task_weights, private_share_tokens).
+- **POST /api/load-test/reset/** — Clears redemptions only; returns `{ok: true}`. No seed and no config in response; the client uses shared repo config (`load_tests/config/`). Deploy should run `seed_load_test` (e.g. in `build.sh` after migrate) so the DB has load test data.
 
-Both require authentication via **LOAD_TEST_SECRET**: set this env var on the server and send it on each request as header `X-Load-Test-Secret: <secret>` or `Authorization: Bearer <secret>`. Do not commit the secret; set it in deployment (e.g. Render env vars).
+Both require authentication via **LOAD_TEST_SECRET**: set this env var on the server and send it on each request as header `X-Load-Test-Secret: <secret>` or `Authorization: Bearer <secret>`. Do not commit the secret; set it in deployment (e.g. Render env vars). See **docs/load-test-deploy-and-reset-plan.md** for the full flow.

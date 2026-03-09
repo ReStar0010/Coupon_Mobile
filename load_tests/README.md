@@ -18,9 +18,9 @@ Generate the full dataset **once** locally, then use it for all stages (local an
 3. **Run any stage (local or remote)**  
    Both use this config; only load parameters change per stage (user count, spawn rate, run time).  
    - **Local:** `reset_load_test` sees `test_users.json` and seeds from that config (writes back `stores.json` with actual DB store IDs).  
-   - **Remote:** Runner sends config to `POST /api/load-test/reset/` and overwrites only `stores.json` with the backend’s store IDs.
+   - **Remote:** Backend deploy runs `seed_load_test` so DB has load test data. Reset API only clears redemptions and returns `{ok: true}`; the runner does not send or receive config and uses the shared repo config as-is.’s store IDs.
 
-No need to regenerate config per stage or per environment.
+No need to regenerate config per stage or per environment. See **docs/load-test-deploy-and-reset-plan.md** for deploy and reset behaviour.
 
 ## Quick start
 
@@ -66,8 +66,9 @@ Config per stage: `load_tests/stages/stage1_baseline.py` … `stage4_breaking.py
 
 ## Backend commands (invoked by runner)
 
-- **Seed**: `python Backend/manage.py seed_load_test` (from repo root: run from `Backend/` with `STAGE` set). Use `STAGE=4` or `generate_full_config.py` for the single shared dataset.
-- **Reset**: `python Backend/manage.py reset_load_test` (clears redemptions; if `load_tests/config/test_users.json` exists, seeds from that config and updates `stores.json`; otherwise re-runs seed for current `STAGE`).
+- **Seed**: `python Backend/manage.py seed_load_test` (from repo root: run from `Backend/` with `STAGE` set). Use `STAGE=4` or `generate_full_config.py` for the single shared dataset. **Remote deploy** should run seed in the build (e.g. in `Backend/build.sh` after `migrate`) so the DB has load test data.
+- **Reset (local)**: `python Backend/manage.py reset_load_test` (clears redemptions; if `load_tests/config/test_users.json` exists, seeds from that config and updates `stores.json`; otherwise re-runs seed for current `STAGE`).
+- **Reset (remote)**: `POST /api/load-test/reset/` only clears redemptions and returns `{ok: true}`; no config in request or response; client uses repo config.
 - **Consistency**: `python Backend/manage.py verify_load_test_consistency --output-dir <OUTPUT_DIR>`
 
 ## Config contract
