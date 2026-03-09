@@ -3,6 +3,7 @@ import { YStack, XStack, Text, Button, Card, Spinner } from 'tamagui';
 import { useRouter } from 'expo-router';
 import SuccessPopup from '../easyuse/[id]/redeem/SuccessPopup';
 import { isUserLoggedIn, fetchAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import { devLog } from '@/app/utils/devLogger';
 
 export type GiftType = {
@@ -28,6 +29,7 @@ const Gift: React.FC<GiftType> = ({
   couponInfo,
   onAccepted,
 }) => {
+  const { getErrorMessage } = useApiError();
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -57,25 +59,9 @@ const Gift: React.FC<GiftType> = ({
       devLog('Gift accepted:', response.data);
       setAcceptSuccess(true);
       setShowSuccessPopup(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error accepting gift:', err);
-
-      const errorMessage = err?.response?.data?.error;
-      let displayError = '領取失敗，請稍後再試';
-
-      if (errorMessage === 'This request has already been processed.') {
-        displayError = '此優惠券已被領取';
-      } else if (errorMessage === 'This coupon has already been redeemed.') {
-        displayError = '此優惠券已被使用';
-      } else if (err?.response?.status === 404) {
-        displayError = '找不到此分享邀請';
-      } else if (err?.response?.status === 403) {
-        displayError = '無效的分享邀請';
-      } else if (errorMessage) {
-        displayError = errorMessage;
-      }
-
-      setError(displayError);
+      setError(getErrorMessage(err));
     } finally {
       setIsAccepting(false);
     }

@@ -86,6 +86,13 @@
     "NETWORK_ERROR":                          "網路連線異常，請確認後再試。",
     "RATE_LIMITED":                           "操作過於頻繁，請稍後再試。",
     "METHOD_NOT_ALLOWED":                     "此操作不被允許，請使用正確的方式操作。",
-    "NOT_FOUND":                              "找不到此資源，請確認後再試。"
+    "NOT_FOUND":                              "找不到此資源，請確認後再試。",
+
+    "SHARE_REQUEST_NOT_FOUND":                "分享連結無效或已過期，請確認後再試。",
+    "SHARE_ALREADY_PUBLIC":                   "此優惠券已分享至公共池，無法重複分享。",
+    "SHARE_FAILED":                           "分享失敗，請稍後再試。",
+    "SELF_CLAIM_NOT_ALLOWED":                 "無法領取自己分享的優惠券。",
+    "SHARE_REQUEST_ALREADY_PROCESSED":        "此分享已處理完成，無法重複操作。",
+    "SHARE_ALREADY_CLAIMED":                  "此優惠券已被其他人領取。"
   }
 }

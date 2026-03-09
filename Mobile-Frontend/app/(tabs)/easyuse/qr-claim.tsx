@@ -13,7 +13,9 @@ import {
 import { usePathname, useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
+import { isAxiosError } from 'axios';
 import { qrClaimAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 
 /** Parse claim token from claim URL (web or app scheme). Returns null if not a claim URL. */
 function parseClaimTokenFromPayload(payload: string): string | null {
@@ -40,11 +42,13 @@ function QRClaimScannerContent() {
   const pathname = usePathname();
   const params = useLocalSearchParams<{ token?: string }>();
   const deepLinkToken = params.token ?? null;
+  const { getErrorMessage } = useApiError();
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, _setFacing] = useState<CameraType>('back');
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastErrorCode, setLastErrorCode] = useState<string | null>(null);
   const [isDisabled, setIsDisabled] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const lastScannedTimeRef = useRef<number>(0);
@@ -76,14 +80,8 @@ function QRClaimScannerContent() {
           { cancelable: false },
         );
       })
-      .catch((err: any) => {
-        const msg = err?.response?.data?.error || err?.message || '';
-        let displayMessage = '無效的連結';
-        if (/expired|過期|invalid/.test(msg)) displayMessage = '連結已過期';
-        else if (/invalid|無效/.test(msg)) displayMessage = '無效的連結';
-        else if (/out of stock|已領取完畢/.test(msg)) displayMessage = '優惠券已領取完畢';
-        else if (msg) displayMessage = msg;
-        setError(displayMessage);
+      .catch((err: unknown) => {
+        setError(getErrorMessage(err));
         setIsDisabled(true);
       })
       .finally(() => setIsLoading(false));
@@ -181,33 +179,17 @@ function QRClaimScannerContent() {
           ],
           { cancelable: false },
         );
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('QR claim error:', err);
 
-        // T035: Handle specific error messages
-        const errorMessage = err?.response?.data?.error || err?.message || '領取失敗';
-        let displayMessage = errorMessage;
-
-        if (
-          errorMessage.includes('expired') ||
-          errorMessage.includes('過期') ||
-          errorMessage.includes('invalid')
-        ) {
-          displayMessage = 'QR Code 已過期，請商家重新生成';
-        } else if (errorMessage.includes('out of stock') || errorMessage.includes('已領取完畢')) {
-          displayMessage = '優惠券已領取完畢';
-        } else if (errorMessage.includes('expired template') || errorMessage.includes('已過期')) {
-          displayMessage = '優惠券已過期';
-        } else if (errorMessage.includes('network') || errorMessage.includes('連線')) {
-          displayMessage = '無法連線，請檢查網路後重試';
-        } else if (errorMessage.includes('retry') || errorMessage.includes('重試')) {
-          displayMessage = '網路連線失敗，正在重試...';
-        }
-
+        const code = isAxiosError(err) ? ((err as { errorCode?: string }).errorCode ?? null) : null;
+        setLastErrorCode(code);
+        const displayMessage = getErrorMessage(err);
         setError(displayMessage);
 
         // If out-of-stock: show message briefly then auto-return to previous page (fallback: (tabs)/easyuse)
-        if (displayMessage === '優惠券已領取完畢') {
+        const isOutOfStock = code === 'COUPON_TEMPLATE_OUT_OF_STOCK';
+        if (isOutOfStock) {
           setIsScanning(false);
           setIsDisabled(true);
 
@@ -334,10 +316,11 @@ function QRClaimScannerContent() {
         {error && (
           <View style={styles.errorOverlay}>
             <Text style={styles.errorText}>{error}</Text>
-            {error !== '優惠券已領取完畢' && (
+            {lastErrorCode !== 'COUPON_TEMPLATE_OUT_OF_STOCK' && (
               <TouchableOpacity
                 onPress={() => {
                   setError(null);
+                  setLastErrorCode(null);
                   setIsDisabled(false);
                   scanLockRef.current = false;
                   lastScannedTimeRef.current = 0;

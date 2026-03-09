@@ -10,6 +10,7 @@ import { Input, Button } from '@/components/ui';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 
 import { merchantAPI } from '@/utils/api';
+import { useApiError } from '@/hooks/useApiError';
 
 /** 台灣手機號碼格式：09 開頭，共 10 碼 */
 const TW_PHONE_REGEX = /^09\d{8}$/;
@@ -23,6 +24,7 @@ const TW_PHONE_REGEX = /^09\d{8}$/;
 export default function CouponRedemptionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { getErrorMessage } = useApiError();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [guardPassed, setGuardPassed] = useState(false);
@@ -96,9 +98,9 @@ export default function CouponRedemptionScreen() {
       }
 
       setPhoneNumber('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Send coupon error:', error);
-      alert(error?.message || '發送失敗，請稍後再試');
+      alert(getErrorMessage(error));
     }
   };
 

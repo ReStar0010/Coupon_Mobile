@@ -15,6 +15,7 @@ import { DeleteModal } from './components/DeleteModal';
 import { merchantAPI, getAbsoluteImageUrl } from '@/utils/api';
 import EULAModal from '@/app/components/EULAModal';
 import { useEULACheck } from '@/app/hooks/useEULACheck';
+import { useApiError } from '@/hooks/useApiError';
 
 function formatDateTime(date: Date): string {
   const year = date.getFullYear();
@@ -28,6 +29,7 @@ function formatDateTime(date: Date): string {
 export default function CouponEditScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const { getErrorMessage } = useApiError();
   const isEditMode = !!id;
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -167,7 +169,7 @@ export default function CouponEditScreen() {
     } catch (error) {
       console.error('Failed to load coupon:', error);
       Sentry.captureException(error, { data: { context: 'merchant.couponEdit.loadCoupon' } });
-      Alert.alert('錯誤', '無法載入優惠券資料');
+      Alert.alert('錯誤', getErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -221,12 +223,12 @@ export default function CouponEditScreen() {
           setImage(imageUrl);
 
           Alert.alert('成功', '圖片上傳成功');
-        } catch (uploadError: any) {
+        } catch (uploadError: unknown) {
           console.error('Image upload error:', uploadError);
           Sentry.captureException(uploadError, {
             data: { context: 'merchant.couponEdit.uploadImage' },
           });
-          Alert.alert('錯誤', uploadError?.message || '圖片上傳失敗，請稍後再試');
+          Alert.alert('錯誤', getErrorMessage(uploadError));
         } finally {
           setIsLoading(false);
         }
@@ -343,9 +345,9 @@ export default function CouponEditScreen() {
         Alert.alert('成功', '優惠券已建立');
       }
       router.back();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save coupon:', error);
-      Alert.alert('錯誤', error?.message || '儲存失敗，請稍後再試');
+      Alert.alert('錯誤', getErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
@@ -363,10 +365,10 @@ export default function CouponEditScreen() {
       Alert.alert('成功', '優惠券已刪除');
       setShowDeleteModal(false);
       router.back();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to delete coupon:', error);
       Sentry.captureException(error, { data: { context: 'merchant.couponEdit.deleteCoupon' } });
-      Alert.alert('錯誤', error?.message || '刪除失敗，請稍後再試');
+      Alert.alert('錯誤', getErrorMessage(error));
       setShowDeleteModal(false);
     }
   };

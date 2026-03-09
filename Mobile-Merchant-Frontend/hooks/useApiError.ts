@@ -61,9 +61,10 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'QR_SESSION_EXPIRED',
   'QR_SESSION_NOT_FOUND',
   'QR_SESSION_UNAUTHORIZED',
-  // Image upload (413 is an expected user error)
+  // Image upload (413/500 are expected user/server errors)
   'IMAGE_TYPE_INVALID',
   'IMAGE_TOO_LARGE',
+  'IMAGE_UPLOAD_FAILED',
   // Analytics
   'INVALID_DATE_FORMAT',
   'INVALID_DATE_RANGE',
@@ -91,6 +92,13 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'RATE_LIMITED',
   'METHOD_NOT_ALLOWED',
   'NOT_FOUND',
+  // Sharing
+  'SHARE_REQUEST_NOT_FOUND',
+  'SHARE_ALREADY_PUBLIC',
+  'SHARE_FAILED',
+  'SELF_CLAIM_NOT_ALLOWED',
+  'SHARE_REQUEST_ALREADY_PROCESSED',
+  'SHARE_ALREADY_CLAIMED',
 ]);
 
 /**

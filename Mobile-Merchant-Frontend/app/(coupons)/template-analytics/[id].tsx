@@ -15,6 +15,7 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { colors } from '@/constants/colors';
 import { Header } from '../components/Header';
 import { merchantAPI } from '@/utils/api';
+import { useApiError } from '@/hooks/useApiError';
 import TrendChart from '../../(profile)/components/TrendChart';
 
 interface TrendData {
@@ -115,6 +116,7 @@ function MetricCard({
 export default function TemplateAnalyticsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { getErrorMessage } = useApiError();
   const templateId = params.id ? parseInt(params.id as string, 10) : null;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -194,13 +196,12 @@ export default function TemplateAnalyticsScreen() {
             : { days: timeRange };
       const data = (await merchantAPI.getTemplateAnalytics(templateId, options)) as AnalyticsData;
       setAnalytics(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load analytics:', err);
       Sentry.captureException(err, {
         data: { context: 'merchant.templateAnalytics.loadAnalytics' },
       });
-      const msg = err?.response?.data?.error ?? err.message ?? '載入數據失敗';
-      setError(msg);
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

@@ -15,6 +15,7 @@ import { AddButton } from './components/AddButton';
 import { BarcodeVerificationButton } from './components/BarcodeVerificationButton';
 import { QRCodeModal } from './components/QRCodeModal';
 import { merchantAPI, AuthenticationError } from '@/utils/api';
+import { useApiError } from '@/hooks/useApiError';
 
 export interface Coupon {
   id: number;
@@ -56,12 +57,14 @@ const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
 
 export default function CouponsScreen() {
   const router = useRouter();
+  const { getErrorMessage } = useApiError();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<CouponStatus>('active');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
   const [qrCodeValue, setQrCodeValue] = useState('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
@@ -69,21 +72,22 @@ export default function CouponsScreen() {
   const loadCoupons = useCallback(async () => {
     try {
       setIsLoading(true);
+      setLoadError(null);
       const data = (await merchantAPI.listTemplates()) as Coupon[];
       setCoupons(data ?? []);
     } catch (error) {
       console.error('Failed to load coupons:', error);
-      // Check if it's an authentication error
       if (error instanceof AuthenticationError) {
         console.log('[Coupons] Authentication error detected, redirecting to login');
         router.replace('/(auth)/login');
         return;
       }
       Sentry.captureException(error, { data: { context: 'merchant.couponList.loadCoupons' } });
+      setLoadError(getErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [router, getErrorMessage]);
 
   // Load coupons on initial mount
   useEffect(() => {
@@ -264,12 +268,12 @@ export default function CouponsScreen() {
       const response = await merchantAPI.generateUnifiedRedemptionCode();
       setQrCodeValue(response.unified_redeem_code);
       setIsQRCodeModalOpen(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to generate unified redemption code:', error);
       Sentry.captureException(error, {
         data: { context: 'merchant.couponList.generateUnifiedRedemptionCode' },
       });
-      Alert.alert('錯誤', error?.message || '無法生成統一核銷碼，請稍後再試');
+      Alert.alert('錯誤', getErrorMessage(error));
     } finally {
       setIsGeneratingCode(false);
     }
@@ -369,6 +373,10 @@ export default function CouponsScreen() {
                 {isLoading ? (
                   <Text textAlign="center" color={colors.textSecondary} padding="$4">
                     載入中...
+                  </Text>
+                ) : loadError ? (
+                  <Text textAlign="center" color={colors.error} padding="$4">
+                    {loadError}
                   </Text>
                 ) : filteredCoupons.length === 0 ? (
                   <Text textAlign="center" color={colors.textSecondary} padding="$4">

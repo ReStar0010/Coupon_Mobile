@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { X, Share2 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { YStack, XStack, Text, Button, View, Card } from 'tamagui';
 
 interface ShareModalProps {
@@ -25,11 +26,13 @@ const ShareModal = ({
   onLinkShare,
   isSharing = false,
 }: ShareModalProps) => {
+  const { t } = useTranslation();
+
   const handleNativeLinkShare = async () => {
     try {
       const shareLink = await onLinkShare();
       if (!shareLink) {
-        Alert.alert('分享失敗', '無法生成分享連結，請稍後再試');
+        Alert.alert(t('shareModal.shareFailedTitle'), t('shareModal.noLink'));
         return;
       }
 
@@ -43,7 +46,7 @@ const ShareModal = ({
 
       onClose();
     } catch {
-      Alert.alert('分享失敗', '無法開啟系統分享面板，請稍後再試');
+      Alert.alert(t('shareModal.shareFailedTitle'), t('shareModal.panelFailed'));
     }
   };
 

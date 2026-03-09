@@ -122,6 +122,13 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'RATE_LIMITED',
   'METHOD_NOT_ALLOWED',
   'NOT_FOUND',
+  // Sharing
+  'SHARE_REQUEST_NOT_FOUND',
+  'SHARE_ALREADY_PUBLIC',
+  'SHARE_FAILED',
+  'SELF_CLAIM_NOT_ALLOWED',
+  'SHARE_REQUEST_ALREADY_PROCESSED',
+  'SHARE_ALREADY_CLAIMED',
 ]);
 
 // // Firebase Performance Monitoring — request interceptor

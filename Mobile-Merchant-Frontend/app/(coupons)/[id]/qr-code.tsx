@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import * as Sentry from '@sentry/react-native';
 import { YStack, Text } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -8,10 +7,12 @@ import { colors } from '@/constants/colors';
 import { Header } from '../components/Header';
 import { QRCode } from '../components/QRCode';
 import { merchantAPI } from '@/utils/api';
+import { useApiError } from '@/hooks/useApiError';
 
 export default function QRCodeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { getErrorMessage } = useApiError();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -45,14 +46,13 @@ export default function QRCodeScreen() {
       setSessionId(result.session_id);
       setQrCodeData(result.qr_code_data);
       setClaimLinkWeb(result.claim_link_web ?? result.claim_link ?? null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('QR code generation error:', err);
-      Sentry.captureException(err, { data: { context: 'merchant.generateQRSession' } });
-      setError(err?.message || '生成 QR Code 失敗，請稍後再試');
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, getErrorMessage]);
 
   // Generate QR code session on mount
   useEffect(() => {

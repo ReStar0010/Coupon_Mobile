@@ -7,6 +7,7 @@ import { StyleSheet, View, ActivityIndicator, TouchableOpacity, ScrollView } fro
 import { colors } from '@/constants/colors';
 import { Header } from './components/Header';
 import { merchantAPI } from '@/utils/api';
+import { useApiError } from '@/hooks/useApiError';
 import TrendChart from '../(profile)/components/TrendChart';
 
 interface TrendData {
@@ -106,6 +107,7 @@ function MetricCard({
 export default function TemplateAnalyticsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { getErrorMessage } = useApiError();
   const templateId = params.id ? parseInt(params.id as string, 10) : null;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -145,16 +147,16 @@ export default function TemplateAnalyticsScreen() {
         days: timeRange,
       })) as AnalyticsData;
       setAnalytics(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load analytics:', err);
       Sentry.captureException(err, {
         data: { context: 'merchant.templateAnalyticsList.loadAnalytics' },
       });
-      setError(err.message || '載入數據失敗');
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
-  }, [templateId, timeRange]);
+  }, [templateId, timeRange, getErrorMessage]);
 
   useEffect(() => {
     loadAnalytics();
