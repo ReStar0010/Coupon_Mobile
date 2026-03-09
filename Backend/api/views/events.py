@@ -2,11 +2,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
+from ..models import CouponTemplate, Coupon
+import logging
 
-from ..models import Log, CouponTemplate, Coupon
-
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -53,16 +52,25 @@ def track_template_view(request):
     user = request.user if request.user.is_authenticated else None
     
     # Create log entry
-    Log.objects.create(
-        action='template_view',
-        user=user,
-        coupon=coupon,
-        template=template,
-        lat=lat,
-        lng=lng
+    logger.info(
+        "Template view tracked",
+        extra={
+            "user_id": user.id if user else None,
+            "username": user.username if user else None,
+            "email": user.email if user else None,
+            "action": "template_view",
+            "template_id": template.id,
+            "template_name": template.coupon_name,
+            "coupon_id": coupon.id if coupon else None,
+            "coupon_name": coupon.coupon_name if coupon else None,
+            "coupon_detail": coupon.coupon_detail if coupon else None,
+            "coupon_type": coupon.coupon_type if coupon else None,
+            "store_name": coupon.store.name if coupon else None,
+            "lat": lat,
+            "lng": lng,
+        }
     )
-    
+
     return Response({
         'message': 'Template view tracked successfully'
     }, status=status.HTTP_201_CREATED)
-

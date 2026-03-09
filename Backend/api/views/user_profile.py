@@ -364,11 +364,20 @@ def assign_pending_coupons(user, phone_number):
         
         # Log the assignment
         try:
-            Log.objects.create(
-                user=user,
-                coupon=coupon,
-                action='pending_coupon_claimed',
-                store=coupon.store
+            logger.info(
+                "Pending coupon claimed",
+                extra={
+                    "user_id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "action": "pending_coupon_claimed",
+                    "coupon_id": coupon.id,
+                    "coupon_name": coupon.coupon_name,
+                    "coupon_detail": coupon.coupon_detail,
+                    "coupon_type": coupon.coupon_type,
+                    "store_name": coupon.store.name,
+                    "acquisition_method": coupon.acquisition_method,
+                }
             )
         except Exception as e:
             # Log creation failure shouldn't block the assignment

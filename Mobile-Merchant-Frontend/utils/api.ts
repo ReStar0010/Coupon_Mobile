@@ -380,6 +380,15 @@ export const fetchAPI = async (endpoint: string, options: FetchOptions = {}): Pr
   }
 };
 
+/** Error with HTTP status for components to distinguish expected (4xx) vs unexpected errors */
+export type ApiError = Error & { statusCode?: number };
+
+function createApiError(message: string, status: number): ApiError {
+  const err = new Error(message) as ApiError;
+  err.statusCode = status;
+  return err;
+}
+
 // Helper function to parse JSON response
 export const parseResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
@@ -398,6 +407,8 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
       errorData,
     });
 
+    const status = response.status;
+
     // Extract error message from various possible formats
     // Handle Django REST Framework error format
     if (typeof errorData === 'object' && errorData !== null) {
@@ -406,6 +417,7 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         const unverifiedError: any = new Error(errorData.message || '請先驗證您的電子郵件');
         unverifiedError.error = 'email_not_verified';
         unverifiedError.email = errorData.email;
+        unverifiedError.statusCode = status;
         throw unverifiedError;
       }
 
@@ -413,6 +425,7 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
       if (response.status === 403 && errorData.error === 'wrong_client_type') {
         const wrongClientError: any = new Error(errorData.message || '請使用正確的 App 登入');
         wrongClientError.error = 'wrong_client_type';
+        wrongClientError.statusCode = status;
         throw wrongClientError;
       }
 
@@ -430,7 +443,9 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         );
         // Clear tokens since user is not authorized for merchant endpoints
         await clearTokens();
-        throw new MerchantAuthorizationError('您不是商家用戶，無法使用商家功能。');
+        const merchantErr = new MerchantAuthorizationError('您不是商家用戶，無法使用商家功能。') as MerchantAuthorizationError & { statusCode?: number };
+        merchantErr.statusCode = status;
+        throw merchantErr;
       }
 
       // Check for field-specific errors (e.g., {phone: ['This field is required.']})
@@ -446,7 +461,7 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
       }
 
       if (fieldErrors.length > 0) {
-        throw new Error(fieldErrors.join('\n'));
+        throw createApiError(fieldErrors.join('\n'), status);
       }
 
       // Check for general error fields
@@ -457,15 +472,15 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         errorData.non_field_errors?.[0] ||
         `HTTP ${response.status}: ${response.statusText}`;
 
-      throw new Error(errorMessage);
+      throw createApiError(errorMessage, status);
     }
 
     // If errorData is a string
     if (typeof errorData === 'string') {
-      throw new Error(errorData);
+      throw createApiError(errorData, status);
     }
 
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    throw createApiError(`HTTP ${response.status}: ${response.statusText}`, status);
   }
   return response.json();
 };

@@ -10,6 +10,9 @@ from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
 import secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 from ..models import Coupon, CouponShareRequest, Log, QRCodeSession
 
@@ -34,7 +37,21 @@ def share_coupon(request, coupon_id):
     )
 
     # Log the share action
-    Log.objects.create(action="share", user=request.user, coupon=coupon)
+    logger.info(
+        "Coupon shared",
+        extra={
+            "user_id": request.user.id,
+            "username": request.user.username,
+            "email": request.user.email,
+            "action": "share",
+            "coupon_id": coupon.id,
+            "coupon_name": coupon.coupon_name,
+            "coupon_detail": coupon.coupon_detail,
+            "coupon_type": coupon.coupon_type,
+            "store_name": coupon.store.name,
+            "acquisition_method": coupon.acquisition_method,
+        }
+    )
     
     # Deep link: custom scheme (for in-app / native share) and Universal Link (clickable in messages)
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
@@ -213,9 +230,39 @@ def share_coupon_public(request, coupon_id):
             coupon.save()
 
             # Log the share action
-            Log.objects.create(action="share_public", user=request.user, coupon=coupon)
+            logger.info(
+                "Coupon shared to public pool",
+                extra={
+                    "user_id": request.user.id,
+                    "username": request.user.username,
+                    "email": request.user.email,
+                    "action": "share_public",
+                    "coupon_id": coupon.id,
+                    "coupon_name": coupon.coupon_name,
+                    "coupon_detail": coupon.coupon_detail,
+                    "coupon_type": coupon.coupon_type,
+                    "store_name": coupon.store.name,
+                    "acquisition_method": coupon.acquisition_method,
+                }
+            )
 
     except Exception as e:
+        logger.error(
+            "Failed to share coupon to public pool",
+            extra={
+                "user_id": request.user.id,
+                "username": request.user.username,
+                "email": request.user.email,
+                "action": "share_public_fail",
+                "coupon_id": coupon.id,
+                "coupon_name": coupon.coupon_name,
+                "coupon_detail": coupon.coupon_detail,
+                "coupon_type": coupon.coupon_type,
+                "store_name": coupon.store.name,
+                "acquisition_method": coupon.acquisition_method,
+                "error": str(e),
+            }
+        )
         return Response({'error': f'Failed to share coupon: {str(e)}'}, status=500)
 
     return Response({
@@ -286,7 +333,21 @@ def accept_share_request(request, token):
         share_request.responded_at = timezone.now()
         share_request.save()
 
-    Log.objects.create(action="share_accept", user=request.user, coupon=coupon)
+    logger.info(
+        "Coupon accepted",
+        extra={
+            "user_id": request.user.id,
+            "username": request.user.username,
+            "email": request.user.email,
+            "action": "share_accept",
+            "coupon_id": coupon.id,
+            "coupon_name": coupon.coupon_name,
+            "coupon_detail": coupon.coupon_detail,
+            "coupon_type": coupon.coupon_type,
+            "store_name": coupon.store.name,
+            "acquisition_method": coupon.acquisition_method,
+        }
+    )
     return Response({
         'message': 'Coupon transferred successfully.',
         'coupon_id': coupon.id,

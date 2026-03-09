@@ -100,12 +100,22 @@ def draw_coupon(request):
                     coupon.save()
                     
                     # Log the successful draw
-                    Log.objects.create(
-                        user=request.user,
-                        coupon=coupon,
-                        action='draw'
+                    logger.info(
+                        "Daily draw successful",
+                        extra={
+                            "user_id": request.user.id,
+                            "username": request.user.username,
+                            "email": request.user.email,
+                            "action": "daily_draw_success",
+                            "template_id": template.id,
+                            "template_name": template.coupon_name,
+                            "coupon_id": coupon.id,
+                            "coupon_name": coupon.coupon_name,
+                            "coupon_detail": coupon.coupon_detail,
+                            "coupon_type": coupon.coupon_type,
+                            "store_name": coupon.store.name,
+                        }
                     )
-                     
                     # Return coupon details
                     return Response({
                         'success': True,
@@ -130,9 +140,17 @@ def draw_coupon(request):
                     }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 # Log the unsuccessful draw
-                Log.objects.create(
-                    user=request.user,
-                    action='draw'
+                logger.info(
+                    "Daily draw unsuccessful",
+                    extra={
+                        "user_id": request.user.id,
+                        "username": request.user.username,
+                        "email": request.user.email,
+                        "action": "daily_draw_unsuccessful",
+                        "template_id": template.id,
+                        "template_name": template.coupon_name,
+                        "draw_probability": template.draw_probability,
+                    }
                 )
                 
                 return Response({

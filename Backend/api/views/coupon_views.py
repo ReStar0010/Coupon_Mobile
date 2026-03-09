@@ -5,6 +5,7 @@ from rest_framework import status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
+import logging
 from drf_yasg.utils import swagger_auto_schema
 
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
@@ -18,9 +19,6 @@ def get_store_coupons(request):
     These are the general "identification" coupons that can be used multiple times,
     plus exclusive coupons that have been shared to the public pool.
     """
-    # Track view easy use page event
-    if request.user.is_authenticated:
-        Log.objects.create(action="view EasyUse", user=request.user)
 
     now = timezone.now()
 
@@ -148,10 +146,6 @@ def get_exclusive_coupons(request):
     Get type B coupons (exclusive coupons) that belong to the authenticated user.
     These are coupons received by drawing or shared from others.
     """
-    # Track view easy use page event
-    if request.user.is_authenticated:
-        Log.objects.create(action="view Collection", user=request.user)
-
     now = timezone.now()
 
     # UGC Compliance: Get blocked store IDs
@@ -236,15 +230,7 @@ def get_coupon_detail(request, id):
         except (ValueError, TypeError):
             # Invalid location data, continue without location
             pass
-        
-        Log.objects.create(
-            action="view coupon", 
-            user=request.user, 
-            coupon=coupon,
-            lat=lat_float,
-            lng=lng_float
-        )
-    
+         
     if coupon.coupon_type == 'store':
         # Type A: Store coupon (可多次使用的識別型優惠券)
         
@@ -437,10 +423,7 @@ def redeem_coupon(request, id):
     except (StudentProfile.DoesNotExist, AttributeError):
         # 處理用戶沒有學生檔案的情況
         pass
-        
-    # 記錄兌換活動
-    Log.objects.create(action="redeem", user=request.user, coupon=coupon)
-    
+         
     return Response({
         "message": "優惠券兌換成功", 
         "coupon_name": coupon.coupon_name,
@@ -465,11 +448,17 @@ def validate_unified_redemption_code(request, code):
     """
     # Validate code format (6 digits)
     if not code or len(code) != 6 or not code.isdigit():
-        # Log invalid format attempt
+        # Log invalid format attempt using Python logging (goes to Sentry)
+        logger = logging.getLogger(__name__)
         if request.user.is_authenticated:
-            Log.objects.create(
-                user=request.user,
-                action='validate_unified_redemption_code_failed',
+            logger.warning(
+                "Unified redemption code validation failed: invalid format",
+                extra={
+                    "user_id": request.user.id,
+                    "username": request.user.username,
+                    "email": request.user.email,
+                    "action": "validate_unified_redemption_code_failed",
+                }
             )
         return Response({
             "error": "無效的統一核銷碼格式"
@@ -481,9 +470,14 @@ def validate_unified_redemption_code(request, code):
     except Store.DoesNotExist:
         # Log invalid code attempt
         if request.user.is_authenticated:
-            Log.objects.create(
-                user=request.user,
-                action='validate_unified_redemption_code_failed',
+            logger.warning(
+                "Unified redemption code validation failed: code not found",
+                extra={
+                    "user_id": request.user.id,
+                    "username": request.user.username,
+                    "email": request.user.email,
+                    "action": "validate_unified_redemption_code_failed",
+                }
             )
         return Response({
             "error": "無效的統一核銷碼"
@@ -533,9 +527,18 @@ def validate_unified_redemption_code(request, code):
     
     # Log successful validation
     if request.user.is_authenticated:
-        Log.objects.create(
-            user=request.user,
-            action='validate_unified_redemption_code',
+        logger.info(
+            "Unified redemption code validation successful",
+            extra={
+                "user_id": request.user.id,
+                "username": request.user.username,
+                "email": request.user.email,
+                "code": code,
+                "action": "validate_unified_redemption_code_success",
+                "store_id": store.id,
+                "store_name": store.name,
+                "available_coupons": len(coupon_data),
+            }
         )
     
     serializer = UnifiedRedemptionValidateSerializer(response_data)

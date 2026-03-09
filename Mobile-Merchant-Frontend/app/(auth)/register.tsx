@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Modal, TouchableOpacity, View } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 import { YStack, Text, XStack, ScrollView } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import { Input, Button, AlertModal } from '@/components/ui';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { colors } from '@/constants/colors';
 import { RegisterFormData } from '@/types';
+import type { ApiError } from '@/utils/api';
 import LocationPicker from '@/app/components/LocationPicker';
 
 export default function RegisterScreen() {
@@ -47,6 +49,7 @@ export default function RegisterScreen() {
     businessHours: '',
   });
   const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
   const handleRegister = async () => {
     if (!formData.email || !formData.password) {
@@ -115,29 +118,27 @@ export default function RegisterScreen() {
       // Check if verification is required
       setVerificationRequired(response.verification_required || false);
       setShowSuccessModal(true);
-    } catch (error: any) {
-      console.error('[Register] Registration error:', error);
-      // Extract error message, handling both Error objects and API response errors
-      let errorMsg = '註冊失敗，請稍後再試';
-      if (error?.message) {
-        errorMsg = error.message;
-        // If error message contains field-specific errors, format them nicely
-        if (typeof error.message === 'object') {
-          const errorObj = error.message;
-          const fieldErrors = Object.entries(errorObj)
-            .map(([field, messages]: [string, any]) => {
-              const fieldName = field.replace(/_/g, ' ');
-              const msg = Array.isArray(messages) ? messages.join(', ') : messages;
-              return `${fieldName}: ${msg}`;
-            })
-            .join('\n');
-          errorMsg = fieldErrors || errorMsg;
+    } catch (error: unknown) {
+      const apiError = error as ApiError;
+      const status = apiError?.statusCode;
+      const isExpectedError = typeof status === 'number' && status >= 400 && status < 500;
+
+      if (isExpectedError) {
+        // 預期錯誤：必填未填、格式錯誤、重複註冊等，直接顯示 API 訊息
+        let errorMsg = '請檢查輸入內容後再試';
+        if (apiError?.message && typeof apiError.message === 'string') {
+          errorMsg = apiError.message;
+        } else if (typeof error === 'string') {
+          errorMsg = error;
         }
-      } else if (typeof error === 'string') {
-        errorMsg = error;
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      } else {
+        // 非預期錯誤：網路、伺服器錯誤等，回報 Sentry 並顯示通用訊息
+        Sentry.captureException(error);
+        setErrorMessage('註冊失敗，請稍後再試');
+        setShowErrorModal(true);
       }
-      setErrorMessage(errorMsg);
-      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -244,17 +245,29 @@ export default function RegisterScreen() {
               width="100%"
             />
 
-            {/* Location Picker */}
-            <YStack width="100%" gap="$2" style={styles.locationSection}>
-              <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
+            {/* Location trigger: opens map in Modal so scroll is never affected */}
+            <YStack width="100%" style={styles.locationSection}>
+              <Text fontSize="$md" fontWeight="600" color={colors.textPrimary} marginBottom="$2">
                 選擇店家位置（選填）
               </Text>
-              <LocationPicker onLocationSelect={handleLocationSelect} height={250} />
-              {!hasSelectedLocation && (
-                <Text fontSize="$sm" color={colors.textSecondary}>
-                  請在地圖上點擊或拖動標記來選擇位置
+              <TouchableOpacity
+                style={styles.locationTrigger}
+                onPress={() => setShowLocationModal(true)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  fontSize="$md"
+                  color={hasSelectedLocation ? colors.textPrimary : colors.textSecondary}
+                  numberOfLines={1}
+                >
+                  {hasSelectedLocation
+                    ? `已選擇：${merchantData.storeLat.toFixed(4)}, ${merchantData.storeLng.toFixed(4)}`
+                    : '點擊選擇位置'}
                 </Text>
-              )}
+                <Text fontSize="$sm" color={colors.primary} marginTop="$1">
+                  開啟地圖選擇
+                </Text>
+              </TouchableOpacity>
             </YStack>
 
             <Input
@@ -317,6 +330,48 @@ export default function RegisterScreen() {
             />
           </ScrollView>
         </YStack>
+
+        {/* Location picker modal: map outside scroll tree so it never affects scrolling */}
+        <Modal
+          visible={showLocationModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowLocationModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <XStack alignItems="center" justifyContent="space-between" style={styles.modalHeader}>
+                <Text fontSize={18} fontWeight="700" color={colors.textPrimary}>
+                  選擇店家位置
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowLocationModal(false)}
+                  activeOpacity={0.7}
+                  style={styles.modalCloseButton}
+                >
+                  <Text fontSize="$md" color={colors.primary}>
+                    關閉
+                  </Text>
+                </TouchableOpacity>
+              </XStack>
+              <View style={styles.modalMapWrapper}>
+                <LocationPicker
+                  initialLatitude={merchantData.storeLat || undefined}
+                  initialLongitude={merchantData.storeLng || undefined}
+                  onLocationSelect={handleLocationSelect}
+                  height={300}
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => setShowLocationModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalConfirmText}>確定</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </DismissKeyboardView>
     </SafeAreaView>
   );
@@ -343,6 +398,53 @@ const styles = StyleSheet.create({
   locationSection: {
     width: '100%',
     marginTop: 8,
+  },
+  locationTrigger: {
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 32,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    marginBottom: 16,
+  },
+  modalCloseButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  modalMapWrapper: {
+    width: '100%',
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalConfirmButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
   },
   loginLinkRow: {
     gap: 10,
