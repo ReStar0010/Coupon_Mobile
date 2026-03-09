@@ -1,0 +1,91 @@
+{
+  "errors": {
+    "GENERIC_ERROR":                          "發生未知錯誤，請稍後再試。",
+
+    "USER_NOT_FOUND":                         "找不到此帳號，請確認後再試。",
+    "EMAIL_ALREADY_EXISTS":                   "此電子郵件已被使用，請使用其他電子郵件或直接登入。",
+    "INVALID_CREDENTIALS":                    "帳號或密碼錯誤，請確認後再試。",
+    "EMAIL_NOT_VERIFIED":                     "您的電子郵件尚未驗證，請先至信箱完成驗證。",
+    "WRONG_CLIENT_TYPE_MERCHANT":             "此帳號為一般使用者帳號，請使用消費者 App 登入。",
+    "WRONG_CLIENT_TYPE_USER":                 "此帳號為商家帳號，請使用商家端 App 登入。",
+    "NOT_AUTHENTICATED":                      "請先登入後再繼續操作。",
+    "AUTHENTICATION_FAILED":                  "身份驗證失敗，請重新登入。",
+    "PERMISSION_DENIED":                      "您沒有執行此操作的權限。",
+    "REFRESH_TOKEN_MISSING":                  "登入已過期，請重新登入。",
+    "REFRESH_TOKEN_INVALID":                  "登入憑證無效，請重新登入。",
+
+    "MISSING_TOKEN":                          "驗證連結不完整，請重新點選信件中的連結。",
+    "INVALID_TOKEN":                          "驗證連結無效或已過期，請重新申請。",
+    "EXPIRED_TOKEN":                          "驗證連結已過期，請重新申請驗證郵件。",
+    "ALREADY_VERIFIED":                       "此帳號已完成驗證，無需重複驗證。",
+    "EMAIL_SEND_FAILED":                      "郵件發送失敗，請稍後再試或聯繫客服。",
+
+    "PASSWORD_TOO_SHORT":                     "密碼長度至少需要 {{min_length}} 個字元，請重新設定。",
+    "INVALID_RESET_LINK":                     "密碼重設連結無效，請重新申請。",
+    "EXPIRED_RESET_LINK":                     "密碼重設連結已過期，請重新申請。",
+    "INVALID_PASSWORD":                       "密碼錯誤，請確認後再試。",
+
+    "OTP_NOT_FOUND":                          "找不到待驗證的驗證碼，請重新發送。",
+    "OTP_EXPIRED":                            "驗證碼已過期，請重新取得。",
+    "OTP_MAX_ATTEMPTS":                       "驗證碼輸入錯誤次數過多，請重新取得驗證碼。",
+    "OTP_INVALID":                            "驗證碼錯誤，請重新輸入（剩餘 {{attempts_remaining}} 次）。",
+    "OTP_RATE_LIMITED":                       "發送過於頻繁，請於 {{retry_after_seconds}} 秒後再試。",
+    "SMS_SEND_FAILED":                        "簡訊發送失敗，請稍後再試。",
+    "PHONE_ALREADY_REGISTERED":               "此手機號碼已被註冊，請直接登入或使用其他號碼。",
+    "PHONE_NOT_REGISTERED":                   "此手機號碼尚未註冊，請先建立帳號。",
+    "PHONE_ALREADY_USED_BY_OTHER":            "此手機號碼已被其他帳號使用，請更換號碼。",
+
+    "NOT_A_MERCHANT":                         "此功能僅限商家帳號使用。",
+    "MERCHANT_PROFILE_NOT_FOUND":             "找不到商家資料，請聯繫客服。",
+    "NO_STORE_FOR_MERCHANT":                  "您尚未建立商店，請先新增商店資料。",
+
+    "EULA_NOT_ACCEPTED":                      "請先接受使用條款才能繼續操作。",
+    "EULA_ALREADY_ACCEPTED":                  "您已接受過此版本的使用條款。",
+    "EULA_VERSION_MISMATCH":                  "使用條款版本不符，請重新載入後再試。",
+
+    "COUPON_TEMPLATE_NOT_FOUND":              "找不到此優惠券，請確認後再試。",
+    "COUPON_TEMPLATE_EXPIRED":                "此優惠券已過期，無法領取。",
+    "COUPON_TEMPLATE_OUT_OF_STOCK":           "此優惠券已發放完畢，請留意下次活動。",
+    "TEMPLATE_QUANTITY_DECREASE_NOT_ALLOWED": "優惠券數量不得減少，目前數量為 {{current}} 張。",
+    "COUPON_ALREADY_REDEEMED":                "此優惠券已被兌換，無法重複使用。",
+    "COUPON_NOT_HOLDER":                      "您不是此優惠券的持有者。",
+    "REDEEM_CODE_INVALID":                    "兌換碼無效，請確認後再試。",
+    "UNIFIED_CODE_INVALID":                   "統一核銷碼無效，請確認後再試。",
+
+    "QR_SESSION_EXPIRED":                     "QR Code 已過期，請重新產生。",
+    "QR_SESSION_NOT_FOUND":                   "找不到此 QR Code，請重新產生。",
+    "QR_SESSION_UNAUTHORIZED":                "您無權操作此 QR Code。",
+
+    "IMAGE_TYPE_INVALID":                     "不支援此圖片格式，請上傳 JPG、PNG、GIF 或 WebP 檔案。",
+    "IMAGE_TOO_LARGE":                        "圖片檔案過大，最大限制為 {{max_mb}} MB。",
+    "IMAGE_UPLOAD_FAILED":                    "圖片上傳失敗，請稍後再試。",
+
+    "INVALID_DATE_FORMAT":                    "日期格式不正確，請使用 YYYY-MM-DD 格式。",
+    "INVALID_DATE_RANGE":                     "結束日期不得早於開始日期，請重新設定。",
+    "DATE_RANGE_FUTURE":                      "結束日期不得超過今天，請重新設定。",
+    "DATE_RANGE_TOO_LONG":                    "查詢區間不得超過 {{max_days}} 天，請縮短範圍。",
+
+    "INVALID_CONTENT_TYPE":                   "內容類型無效，請確認後再試。",
+    "CONTENT_NOT_FOUND":                      "找不到此內容，可能已被移除。",
+    "SELF_REPORT_NOT_ALLOWED":                "您無法檢舉自己的內容。",
+    "REPORT_DUPLICATE":                       "您已在 24 小時內檢舉過此內容，請稍後再試。",
+    "ALREADY_BLOCKED":                        "您已封鎖此商家。",
+
+    "DELETE_ACKNOWLEDGMENT_REQUIRED":         "請確認您已了解刪除帳號的後果後再繼續。",
+    "MERCHANT_ONLY_FEATURE":                  "此功能僅限商家帳號使用。",
+
+    "VALIDATION_ERROR":                       "輸入內容有誤，請確認後再試。",
+    "FIELD_BLANK":                            "「{{field}}」不得為空白，請填寫後再送出。",
+    "FIELD_REQUIRED":                         "「{{field}}」為必填欄位，請填寫後再送出。",
+    "FIELD_TOO_LONG":                         "「{{field}}」字數不能超過 {{limit}} 個字，請修改後再試。",
+    "FIELD_INVALID":                          "「{{field}}」格式不正確，請確認後再試。",
+    "FIELD_NOT_UNIQUE":                       "「{{field}}」已被使用，請更換後再試。",
+    "PHONE_FORMAT_INVALID":                   "請輸入有效的台灣手機號碼（09 開頭，共 10 碼）。",
+    "OTP_CODE_FORMAT_INVALID":                "驗證碼必須為 6 位數字。",
+
+    "NETWORK_ERROR":                          "網路連線異常，請確認後再試。",
+    "RATE_LIMITED":                           "操作過於頻繁，請稍後再試。",
+    "METHOD_NOT_ALLOWED":                     "此操作不被允許，請使用正確的方式操作。",
+    "NOT_FOUND":                              "找不到此資源，請確認後再試。"
+  }
+}
