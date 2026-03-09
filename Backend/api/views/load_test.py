@@ -75,16 +75,10 @@ def load_test_verify_consistency(request):
     return JsonResponse(result)
 
 
-@require_http_methods(["POST"])
-@csrf_exempt
-@require_load_test_secret
-def load_test_reset(request):
-    """
-    POST /api/load-test/reset/ — clear redemptions, run seed for stage, return config.
-    Body: {"stage": N} or query ?stage=N. Default stage 1.
-    Returns: {"ok": true, "config": {...}} or {"ok": false, "error": "..."}.
-    """
+def _parse_reset_body(request):
+    """Parse stage and optional config from request body. Returns (stage, config or None)."""
     stage = 1
+    config = None
     if request.GET.get("stage"):
         try:
             stage = int(request.GET["stage"])
@@ -95,10 +89,29 @@ def load_test_reset(request):
             body = json.loads(request.body)
             if isinstance(body.get("stage"), int) and body["stage"] in (1, 2, 3, 4):
                 stage = body["stage"]
+            if isinstance(body.get("config"), dict):
+                cfg = body["config"]
+                if cfg.get("test_users") and cfg.get("stores"):
+                    config = cfg
         except (json.JSONDecodeError, TypeError):
             pass
     if stage not in (1, 2, 3, 4):
         stage = 1
+    return stage, config
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+@require_load_test_secret
+def load_test_reset(request):
+    """
+    POST /api/load-test/reset/ — clear redemptions, run seed for stage, return config.
+    Body: {"stage": N} or {"stage": N, "config": {...}} to use pushed config (seed from config).
+    When config is provided: test_users and stores (unified_redeem_code) are used; stores in
+    response have actual store_id for this DB.
+    Returns: {"ok": true, "config": {...}} or {"ok": false, "error": "..."}.
+    """
+    stage, config = _parse_reset_body(request)
 
     try:
         CouponRedemption.objects.all().delete()
@@ -106,12 +119,20 @@ def load_test_reset(request):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
     try:
-        from api.management.commands.seed_load_test import run_seed
-        credentials, store_codes, private_share_tokens = run_seed(stage)
+        if config is not None:
+            from api.management.commands.seed_load_test import seed_from_config
+            credentials, store_codes, private_share_tokens = seed_from_config(config, stage)
+        else:
+            from api.management.commands.seed_load_test import run_seed
+            credentials, store_codes, private_share_tokens = run_seed(stage)
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
-    config = build_load_test_config(
+    out_config = build_load_test_config(
         credentials, store_codes, private_share_tokens, stage
     )
-    return JsonResponse({"ok": True, "config": config})
+    if config is not None:
+        out_config["test_users"] = config.get("test_users", credentials)
+        out_config["task_weights"] = config.get("task_weights") or out_config["task_weights"]
+        out_config["private_share_tokens"] = config.get("private_share_tokens", private_share_tokens)
+    return JsonResponse({"ok": True, "config": out_config})

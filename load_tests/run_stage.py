@@ -2,9 +2,11 @@
 """
 Run a single load test stage: reset -> Locust -> consistency check.
 Reads BASE_URL, OUTPUT_DIR, STAGE from env (see load_tests/config/settings.py).
-When BASE_URL is remote (or LOAD_TEST_REMOTE=1), uses reset and verify-consistency APIs
-and writes config from reset response to load_tests/config/. When local, uses
-manage.py reset_load_test and verify_load_test_consistency.
+When BASE_URL is remote (or LOAD_TEST_REMOTE=1), uses reset and verify-consistency APIs.
+If load_tests/config/test_users.json exists (pushed config), sends config to reset and
+only overwrites stores.json with response (actual store_ids for this backend); otherwise
+writes full config from response. When local, uses manage.py reset_load_test and
+verify_load_test_consistency (reset uses repo config when test_users.json exists).
 """
 import json
 import os
@@ -78,7 +80,7 @@ def main() -> int:
         run_t = run_time()
 
     if is_remote_run(url):
-        # Remote: reset and verify via HTTP; config from reset response
+        # Remote: reset and verify via HTTP
         import requests
         secret = os.environ.get("LOAD_TEST_SECRET")
         if not secret:
@@ -86,12 +88,35 @@ def main() -> int:
             return 1
         headers = {"X-Load-Test-Secret": secret, "Content-Type": "application/json"}
 
-        # Step 1: Reset and get config
+        # Use pushed config if present
+        repo_config = None
+        test_users_file = CONFIG_DIR / "test_users.json"
+        stores_file = CONFIG_DIR / "stores.json"
+        if test_users_file.exists() and stores_file.exists():
+            try:
+                with open(test_users_file, encoding="utf-8") as f:
+                    repo_config = {"test_users": json.load(f)}
+                with open(stores_file, encoding="utf-8") as f:
+                    repo_config["stores"] = json.load(f)
+                for name, path in [
+                    ("task_weights", CONFIG_DIR / "task_weights.json"),
+                    ("private_share_tokens", CONFIG_DIR / "private_share_tokens.json"),
+                ]:
+                    if path.exists():
+                        with open(path, encoding="utf-8") as f:
+                            repo_config[name] = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                repo_config = None
+
+        # Step 1: Reset (with repo config if available)
         print("Step 1: Reset (POST /api/load-test/reset/)...")
+        body = {"stage": st}
+        if repo_config is not None:
+            body["config"] = repo_config
         try:
             r = requests.post(
                 f"{url}/api/load-test/reset/",
-                json={"stage": st},
+                json=body,
                 headers=headers,
                 timeout=120,
             )
@@ -107,17 +132,20 @@ def main() -> int:
             return 1
         config = data["config"]
 
-        # Step 2: Write config to load_tests/config/
+        # Step 2: Only overwrite stores.json (actual store_ids for this backend); keep pushed test_users/task_weights/private_share_tokens
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_DIR / "test_users.json", "w", encoding="utf-8") as f:
-            json.dump(config.get("test_users", []), f, indent=2)
         with open(CONFIG_DIR / "stores.json", "w", encoding="utf-8") as f:
             json.dump(config.get("stores", []), f, indent=2)
-        with open(CONFIG_DIR / "task_weights.json", "w", encoding="utf-8") as f:
-            json.dump(config.get("task_weights", {}), f, indent=2)
-        with open(CONFIG_DIR / "private_share_tokens.json", "w", encoding="utf-8") as f:
-            json.dump(config.get("private_share_tokens", []), f, indent=2)
-        print("Config written to load_tests/config/.")
+        if repo_config is None:
+            with open(CONFIG_DIR / "test_users.json", "w", encoding="utf-8") as f:
+                json.dump(config.get("test_users", []), f, indent=2)
+            with open(CONFIG_DIR / "task_weights.json", "w", encoding="utf-8") as f:
+                json.dump(config.get("task_weights", {}), f, indent=2)
+            with open(CONFIG_DIR / "private_share_tokens.json", "w", encoding="utf-8") as f:
+                json.dump(config.get("private_share_tokens", []), f, indent=2)
+            print("Config written to load_tests/config/.")
+        else:
+            print("Using pushed config; stores.json updated for this backend.")
 
         # Step 3: Run Locust
         print("Step 2: Run Locust...")
