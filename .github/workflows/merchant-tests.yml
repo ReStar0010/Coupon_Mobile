@@ -1,0 +1,29 @@
+name: Merchant tests
+
+on:
+  pull_request:
+    paths:
+      - Mobile-Merchant-Frontend/**
+      - .github/workflows/merchant-tests.yml
+  push:
+    branches: [main]
+    paths: [Mobile-Merchant-Frontend/**]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: Mobile-Merchant-Frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: Mobile-Merchant-Frontend
+
+      - name: Run tests
+        run: npm test
+        working-directory: Mobile-Merchant-Frontend
