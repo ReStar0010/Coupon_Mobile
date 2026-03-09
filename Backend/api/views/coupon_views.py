@@ -8,8 +8,17 @@ from django.db.models import Count
 import logging
 from drf_yasg.utils import swagger_auto_schema
 
+from api.exceptions import (
+    CouProAPIException,
+    CouponAlreadyRedeemed,
+    CouponNotHolder,
+    RedeemCodeInvalid,
+    UnifiedCodeInvalid,
+)
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
 from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant
+
+logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])  # 允許匿名訪問
@@ -293,13 +302,9 @@ def get_coupon_detail(request, id):
         # 檢查請求用戶是否有權查看此優惠券的詳細信息
         is_authorized = request.user.is_authenticated and coupon.current_holder == request.user
         
-        # 如果未登錄或不是券的持有者，返回有限信息
+        # 如果未登錄或不是券的持有者，回傳標準錯誤（前端以 error_code COUPON_NOT_HOLDER 顯示翻譯）
         if not is_authorized:
-            return Response({
-                "error": "您沒有權限查看此優惠券的詳細信息",
-                "coupon_name": coupon.coupon_name,
-                "store_name": coupon.store.name
-            }, status=status.HTTP_403_FORBIDDEN)
+            raise CouponNotHolder(developer_message="User is not the holder of this coupon.")
         
         data = {
             "id": coupon.id,
@@ -342,16 +347,16 @@ def redeem_coupon(request, id):
         
         # 檢查是否已被兌換
         if coupon.is_redeemed():
-            return Response({"error": "此優惠券已被兌換"}, status=status.HTTP_400_BAD_REQUEST)
+            raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed.")
 
         # 檢查用戶是否為優惠券持有者
         if coupon.current_holder != request.user:
-            return Response({"error": "您不是此優惠券的持有者"}, status=status.HTTP_403_FORBIDDEN)
-        
+            raise CouponNotHolder(developer_message="User is not the holder of this coupon.")
+
         # 檢查兌換碼
         submitted_code = request.data.get('redeem_code')
         if not submitted_code:
-            return Response({"error": "兌換碼為必填項目"}, status=status.HTTP_400_BAD_REQUEST)
+            raise RedeemCodeInvalid(developer_message="Redeem code is required.")
 
         # Validate unified redemption code first (if provided)
         # Check if submitted code matches store's unified_redeem_code
@@ -360,7 +365,7 @@ def redeem_coupon(request, id):
                 store = Store.objects.get(unified_redeem_code=submitted_code)
                 # Unified code validation: code must match the coupon's store
                 if store.id != coupon.store.id:
-                    return Response({"error": "統一核銷碼與優惠券店家不符"}, status=status.HTTP_400_BAD_REQUEST)
+                    raise UnifiedCodeInvalid(developer_message="Unified code does not match coupon's store.")
                 # Unified code validation passed, proceed with coupon redemption
             except Store.DoesNotExist:
                 # Not a unified code, continue with coupon-specific code validation
@@ -378,16 +383,16 @@ def redeem_coupon(request, id):
         if not (submitted_code and len(submitted_code) == 6 and submitted_code.isdigit() and Store.objects.filter(unified_redeem_code=submitted_code, id=coupon.store.id).exists()):
             # This is not a unified code, so validate as coupon-specific code
             if not expected_code:
-                return Response({"error": "此優惠券未設定兌換碼"}, status=status.HTTP_400_BAD_REQUEST)
-            
+                raise RedeemCodeInvalid(developer_message="This coupon has no redeem code configured.")
+
             if expected_code != submitted_code:
-                return Response({"error": "無效的兌換碼"}, status=status.HTTP_400_BAD_REQUEST)
+                raise RedeemCodeInvalid(developer_message="Invalid redeem code.")
             
     elif coupon.coupon_type == 'store':
         pass
     else:
-        # 不支援的優惠券類型
-        return Response({"error": "不支援的優惠券類型"}, status=status.HTTP_400_BAD_REQUEST)
+        # 不支援的優惠券類型（前端以 GENERIC_ERROR 顯示翻譯）
+        raise CouProAPIException(developer_message="Unsupported coupon type.")
     
     # 建立兌換記錄（適用於兩種類型）
     savings_amount = coupon.estimated_savings or 0
@@ -401,9 +406,9 @@ def redeem_coupon(request, id):
             coupon_type=coupon.coupon_type  # 設置 coupon_type 用於條件約束
         )
         redemption.save()
-    except ValueError as e:
+    except ValueError:
         # 處理 exclusive coupon 已被此用戶兌換的情況
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed by this user.")
     
     # 更新用戶統計資料
     try:
@@ -448,8 +453,6 @@ def validate_unified_redemption_code(request, code):
     """
     # Validate code format (6 digits)
     if not code or len(code) != 6 or not code.isdigit():
-        # Log invalid format attempt using Python logging (goes to Sentry)
-        logger = logging.getLogger(__name__)
         if request.user.is_authenticated:
             logger.warning(
                 "Unified redemption code validation failed: invalid format",
@@ -458,17 +461,14 @@ def validate_unified_redemption_code(request, code):
                     "username": request.user.username,
                     "email": request.user.email,
                     "action": "validate_unified_redemption_code_failed",
-                }
+                },
             )
-        return Response({
-            "error": "無效的統一核銷碼格式"
-        }, status=status.HTTP_400_BAD_REQUEST)
+        raise CouProAPIException(developer_message="Invalid unified code format.")
     
     # Find store with matching unified_redeem_code
     try:
         store = Store.objects.get(unified_redeem_code=code)
     except Store.DoesNotExist:
-        # Log invalid code attempt
         if request.user.is_authenticated:
             logger.warning(
                 "Unified redemption code validation failed: code not found",
@@ -477,11 +477,9 @@ def validate_unified_redemption_code(request, code):
                     "username": request.user.username,
                     "email": request.user.email,
                     "action": "validate_unified_redemption_code_failed",
-                }
+                },
             )
-        return Response({
-            "error": "無效的統一核銷碼"
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise UnifiedCodeInvalid(developer_message="Unified code not found.")
     
     # Get consumer's available coupons for this store
     # Filter: owned by consumer, active, non-expired, not redeemed, exclusive type

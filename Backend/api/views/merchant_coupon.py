@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import ValidationError as DRFValidationError, ErrorDetail
 from django.utils import timezone
 from django.conf import settings
 import secrets
@@ -14,6 +14,24 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+from api.exceptions import (
+    NoStoreForMerchant,
+    NotAMerchant,
+    CouponTemplateNotFound,
+    CouponTemplateOutOfStock,
+    TemplateQuantityDecreaseNotAllowed,
+    CouponAlreadyRedeemed,
+    EulaNotAccepted,
+    InvalidDateFormat,
+    InvalidDateRange,
+    DateRangeFuture,
+    DateRangeTooLong,
+    ImageTypeInvalid,
+    ImageTooLarge,
+    ImageUploadFailed,
+    PhoneNotRegistered,
+    PhoneFormatInvalid,
+)
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from ..models import Coupon, CouponShareRequest, Log, StudentProfile, CouponTemplate, Store, Tag, CouponRedemption
@@ -84,9 +102,7 @@ def merchant_consolidate_coupon(request):
         # Generate coupon and check if successful
         generated_coupon = coupon_template.generate_coupon(user)
         if not generated_coupon:
-            return Response({
-                'error': 'Failed to generate coupon. Template may be out of stock.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise CouponTemplateOutOfStock(developer_message="Failed to generate coupon. Template may be out of stock.")
         
         # Set acquisition method to 'consolidate' (電話歸戶)
         generated_coupon.acquisition_method = 'consolidate'
@@ -241,9 +257,7 @@ def list_coupon_templates(request):
     """
     store = get_merchant_store(request.user)
     if not store:
-        return Response({
-            'error': 'No store found for this merchant. Please create a store first.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise NoStoreForMerchant(developer_message="No store found for this merchant. Please create a store first.")
     
     templates = CouponTemplate.objects.filter(store=store).order_by('-created_at')
     
@@ -287,16 +301,12 @@ def get_coupon_template(request, id):
     """
     store = get_merchant_store(request.user)
     if not store:
-        return Response({
-            'error': 'No store found for this merchant.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise NoStoreForMerchant(developer_message="No store found for this merchant.")
     
     try:
         template = CouponTemplate.objects.get(id=id, store=store)
     except CouponTemplate.DoesNotExist:
-        return Response({
-            'error': 'Coupon template not found or you do not have permission to access it.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise CouponTemplateNotFound(developer_message="Coupon template not found or you do not have permission to access it.")
     
     template_data = {
         'id': template.id,
@@ -344,16 +354,11 @@ def create_coupon_template(request):
     ).exists()
     
     if not has_valid_eula:
-        return Response(
-            {'error': '請先接受使用條款才能建立優惠券'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        raise EulaNotAccepted(developer_message="請先接受使用條款才能建立優惠券")
     
     store = get_merchant_store(request.user)
     if not store:
-        return Response({
-            'error': 'No store found for this merchant. Please create a store first.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise NoStoreForMerchant(developer_message="No store found for this merchant. Please create a store first.")
     
     serializer = CouponTemplateSerializer(data=request.data)
     if serializer.is_valid():
@@ -424,16 +429,12 @@ def update_coupon_template(request, id):
     """
     store = get_merchant_store(request.user)
     if not store:
-        return Response({
-            'error': 'No store found for this merchant.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise NoStoreForMerchant(developer_message="No store found for this merchant.")
     
     try:
         template = CouponTemplate.objects.get(id=id, store=store)
     except CouponTemplate.DoesNotExist:
-        return Response({
-            'error': 'Coupon template not found or you do not have permission to access it.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise CouponTemplateNotFound(developer_message="Coupon template not found or you do not have permission to access it.")
     
     serializer = CouponTemplateSerializer(data=request.data, partial=True)
     if serializer.is_valid():
@@ -470,9 +471,10 @@ def update_coupon_template(request, id):
             
             # Validate: new total quantity cannot be less than redeemed quantity
             if new_total < template.total_quantity:
-                return Response({
-                    'error': f'Total quantity cannot be reduced below the current total ({template.total_quantity}). Only increases are allowed.'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                raise TemplateQuantityDecreaseNotAllowed(
+                    developer_message="Total quantity cannot be reduced below the current total. Only increases are allowed.",
+                    context={"current": template.total_quantity},
+                )
             
             difference = new_total - template.total_quantity
             template.total_quantity = new_total
@@ -551,9 +553,7 @@ def delete_coupon_template(request, id):
     """
     store = get_merchant_store(request.user)
     if not store:
-        return Response({
-            'error': 'No store found for this merchant.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise NoStoreForMerchant(developer_message="No store found for this merchant.")
     
     try:
         template = CouponTemplate.objects.get(id=id, store=store)
@@ -611,9 +611,7 @@ def delete_coupon_template(request, id):
             'message': 'Coupon template deleted successfully'
         }, status=status.HTTP_200_OK)
     except CouponTemplate.DoesNotExist:
-        return Response({
-            'error': 'Coupon template not found or you do not have permission to delete it.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise CouponTemplateNotFound(developer_message="Coupon template not found or you do not have permission to delete it.")
 
 
 @swagger_auto_schema(
@@ -650,9 +648,7 @@ def merchant_redeem(request):
         
         store = get_merchant_store(request.user)
         if not store:
-            return Response({
-                'error': 'No store found for this merchant.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            raise NoStoreForMerchant(developer_message="No store found for this merchant.")
         
         try:
             # Check if the phone_number can find the user
@@ -675,16 +671,14 @@ def merchant_redeem(request):
             ).first()
             
             if not coupon:
-                return Response({
-                    'error': 'No coupon found for this user from this template.'
-                }, status=status.HTTP_404_NOT_FOUND)
+                raise CouponTemplateNotFound(
+                    developer_message="No coupon found for this user from this template."
+                )
             
             # Check if already redeemed
             from ..models import CouponRedemption
             if CouponRedemption.objects.filter(coupon=coupon, user=user).exists():
-                return Response({
-                    'error': 'This coupon has already been redeemed.'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed.")
             
             # Savings amount for achievement list (use template amount; fallback to 0)
             savings_amount = template.estimated_savings or 0
@@ -731,13 +725,11 @@ def merchant_redeem(request):
             }, status=status.HTTP_200_OK)
             
         except StudentProfile.DoesNotExist:
-            return Response({
-                'error': 'User with this phone number does not exist.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            raise PhoneNotRegistered(developer_message="User with this phone number does not exist.")
         except CouponTemplate.DoesNotExist:
-            return Response({
-                'error': 'Coupon template does not exist, is not active, or is out of stock.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            raise CouponTemplateNotFound(
+                developer_message="Coupon template does not exist, is not active, or is out of stock."
+            )
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -789,16 +781,11 @@ def upload_image(request):
     ).exists()
     
     if not has_valid_eula:
-        return Response(
-            {'error': '請先接受使用條款才能上傳內容'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        raise EulaNotAccepted(developer_message="請先接受使用條款才能上傳內容")
     
     # Check if file is present
     if 'image' not in request.FILES:
-        return Response({
-            'error': 'No image file provided. Please include an "image" field in the request.'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        raise DRFValidationError({"image": [ErrorDetail("No image file provided. Please include an \"image\" field in the request.", code="required")]})
     
     image_file = request.FILES['image']
     
@@ -808,16 +795,14 @@ def upload_image(request):
     file_extension = Path(file_name).suffix
     
     if file_extension not in allowed_extensions:
-        return Response({
-            'error': f'Invalid file type. Allowed types: {", ".join(allowed_extensions)}'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        raise ImageTypeInvalid(
+            developer_message=f"Invalid file type. Allowed types: {', '.join(allowed_extensions)}"
+        )
     
     # Validate file size (5MB limit)
     max_size = 5 * 1024 * 1024  # 5MB in bytes
     if image_file.size > max_size:
-        return Response({
-            'error': 'File too large. Maximum size is 5MB.'
-        }, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        raise ImageTooLarge(developer_message="File too large. Maximum size is 5MB.", context={"max_mb": 5})
     
     try:
         # Ensure images directory exists
@@ -844,9 +829,7 @@ def upload_image(request):
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        return Response({
-            'error': f'Failed to upload image: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        raise ImageUploadFailed(developer_message=f"Failed to upload image: {str(e)}")
 
 
 @swagger_auto_schema(
@@ -880,23 +863,17 @@ def get_template_analytics(request, id):
     # Check if user is a merchant
     is_merchant = user.groups.filter(name='Merchant').exists()
     if not is_merchant:
-        return Response({
-            'error': 'User is not a merchant.'
-        }, status=status.HTTP_403_FORBIDDEN)
+        raise NotAMerchant(developer_message="User is not a merchant.")
     
     store = get_merchant_store(user)
     if not store:
-        return Response({
-            'error': 'No store found for this merchant.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise NoStoreForMerchant(developer_message="No store found for this merchant.")
     
     # Get template and verify ownership
     try:
         template = CouponTemplate.objects.get(id=id, store=store)
     except CouponTemplate.DoesNotExist:
-        return Response({
-            'error': 'Template not found or you do not have permission to access it.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise CouponTemplateNotFound(developer_message="Template not found or you do not have permission to access it.")
     
     # Time range: either date_from/date_to (ISO YYYY-MM-DD) or days fallback
     date_from_param = request.query_params.get('date_from')
@@ -909,21 +886,13 @@ def get_template_analytics(request, id):
             date_from = date_type.fromisoformat(date_from_param)
             date_to = date_type.fromisoformat(date_to_param)
         except (ValueError, TypeError):
-            return Response({
-                'error': 'Invalid date format. Use ISO date YYYY-MM-DD for date_from and date_to.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise InvalidDateFormat(developer_message="Invalid date format. Use ISO date YYYY-MM-DD for date_from and date_to.")
         if date_to < date_from:
-            return Response({
-                'error': 'End date must be on or after start date.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise InvalidDateRange(developer_message="End date must be on or after start date.")
         if date_to > store_today:
-            return Response({
-                'error': 'End date must be on or before today (store timezone).'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise DateRangeFuture(developer_message="End date must be on or before today (store timezone).")
         if (date_to - date_from).days > 730:
-            return Response({
-                'error': 'Date range cannot exceed 730 days (2 years).'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise DateRangeTooLong(developer_message="Date range cannot exceed 730 days (2 years).", context={"max_days": 730})
         tz_name = getattr(store, 'timezone', None) or 'Asia/Taipei'
         try:
             store_zone = ZoneInfo(tz_name)
@@ -1319,9 +1288,7 @@ def generate_unified_redemption_code_view(request):
             }
         )
 
-        return Response({
-            'error': '此商家沒有關聯的商店'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        raise NoStoreForMerchant(developer_message="此商家沒有關聯的商店")
     
     # Generate new unified redemption code
     new_code = generate_unified_redemption_code()
