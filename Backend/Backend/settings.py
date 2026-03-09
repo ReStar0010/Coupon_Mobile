@@ -245,6 +245,7 @@ REST_FRAMEWORK = {
         'api.auth.CookieJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+    'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
 }
 
 SIMPLE_JWT = {
