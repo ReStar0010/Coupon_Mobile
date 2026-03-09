@@ -25,6 +25,26 @@ logger = logging.getLogger(__name__)
 from ..serializers import LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, MerchantRegisterSerializer, PhoneLoginSerializer
 from ..models import StudentProfile, PasswordResetProfile, MerchantProfile, Store
 from ..auth import generate_password_reset_token, is_token_valid
+from ..exceptions import (
+    CouProAPIException,
+    EmailAlreadyExists,
+    MissingToken,
+    InvalidToken,
+    AlreadyVerified,
+    ExpiredToken,
+    EmailNotVerified,
+    WrongClientTypeMerchant,
+    WrongClientTypeUser,
+    InvalidCredentials,
+    UserNotFound,
+    PhoneNotRegistered,
+    PasswordTooShort,
+    InvalidResetLink,
+    ExpiredResetLink,
+    RefreshTokenMissing,
+    RefreshTokenInvalid,
+    EmailSendFailed,
+)
 from django.contrib.auth.models import Group
 
 # Initialize the Resend client
@@ -753,7 +773,7 @@ def register(request):
         return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
 
     if User.objects.filter(username=email).exists():
-        return Response({'error': 'Email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        raise EmailAlreadyExists(developer_message="Email already exists")
 
     # Create user
     user = User(email=email, username=email)
@@ -844,7 +864,7 @@ def register(request):
 def verify_email(request):
     token = request.GET.get('token')
     if not token:
-        return Response({"error": "Missing token"}, status=status.HTTP_400_BAD_REQUEST)
+        raise MissingToken(developer_message="Missing token")
     try:
         # Find the profile by the token
         profile = StudentProfile.objects.get(email_verification_token=token)
@@ -863,7 +883,7 @@ def verify_email(request):
 
         return Response({"message": "Email verified successfully"})
     except StudentProfile.DoesNotExist:
-        return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+        raise InvalidToken(developer_message="Invalid or expired token")
 
 
 @api_view(['GET'])
@@ -872,27 +892,18 @@ def verify_merchant_email(request):
     """Verify merchant email address using token from verification email."""
     token = request.GET.get('token')
     if not token:
-        return Response({
-            'error': 'missing_token',
-            'message': '缺少驗證碼'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        raise MissingToken(developer_message="缺少驗證碼")
     
     try:
         merchant_profile = MerchantProfile.objects.get(email_verification_token=token)
         
         # Check if already verified
         if merchant_profile.verified:
-            return Response({
-                'error': 'already_verified',
-                'message': '此帳號已經驗證過了。'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise AlreadyVerified(developer_message="此帳號已經驗證過了。")
         
         # Check if token is expired
         if not merchant_profile.is_verification_token_valid():
-            return Response({
-                'error': 'expired_token',
-                'message': '驗證連結已過期，請重新申請驗證郵件。'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise ExpiredToken(developer_message="驗證連結已過期，請重新申請驗證郵件。")
         
         # Mark as verified
         merchant_profile.verify_email()
@@ -903,10 +914,7 @@ def verify_merchant_email(request):
         }, status=status.HTTP_200_OK)
         
     except MerchantProfile.DoesNotExist:
-        return Response({
-            'error': 'invalid_token',
-            'message': '驗證連結無效或已過期，請重新申請驗證郵件。'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        raise InvalidToken(developer_message="驗證連結無效或已過期，請重新申請驗證郵件。")
 
 
 @api_view(['POST'])
@@ -954,11 +962,7 @@ def resend_merchant_verification(request):
         try:
             send_merchant_verification_email(email, token)
         except Exception as email_error:
-            # Return error response if email sending fails
-            return Response({
-                'error': 'email_send_failed',
-                'message': str(email_error)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise EmailSendFailed(developer_message=str(email_error))
         
         return generic_response
         
@@ -1013,11 +1017,11 @@ def login(request):
             # Phone-based login: look up via StudentProfile.phone_number
             profile = StudentProfile.objects.filter(phone_number=phone_number).first()
             if not profile:
-                return Response({"error": "此電話號碼尚未註冊"}, status=status.HTTP_404_NOT_FOUND)
+                raise PhoneNotRegistered(developer_message="此電話號碼尚未註冊")
             
             # Check phone_verified for phone-registered users
             if not profile.phone_verified:
-                return Response({"error": "請先完成手機號碼驗證"}, status=status.HTTP_401_UNAUTHORIZED)
+                raise EmailNotVerified(developer_message="請先完成手機號碼驗證")
             
             user = profile.user
         else:
@@ -1032,7 +1036,7 @@ def login(request):
                 # For phone-based login, phone_verified is checked above
                 # For email-based login, check email verification
                 if email and not profile.verified:
-                    return Response({"error": "請先完成信箱驗證"}, status=status.HTTP_401_UNAUTHORIZED)
+                    raise EmailNotVerified(developer_message="請先完成信箱驗證")
             # If the user doesn't have a student profile (e.g., is a merchant or admin), skip verification check
         except StudentProfile.DoesNotExist:
             # This case should ideally not happen for student users after registration changes
@@ -1044,11 +1048,10 @@ def login(request):
             try:
                 merchant_profile = MerchantProfile.objects.get(user=user)
                 if not merchant_profile.verified:
-                    return Response({
-                        'error': 'email_not_verified',
-                        'message': '請先驗證您的電子郵件',
-                        'email': user.email
-                    }, status=status.HTTP_403_FORBIDDEN)
+                    raise EmailNotVerified(
+                        developer_message="請先驗證您的電子郵件",
+                        context={"email": user.email},
+                    )
             except MerchantProfile.DoesNotExist:
                 logger.warning("MerchantProfile not found for merchant user %s", user.email)
                 # Allow login if profile is missing (shouldn't happen in normal flow)
@@ -1057,15 +1060,9 @@ def login(request):
             # Enforce client_type vs account type: merchant account only on merchant app, user only on user app
             is_merchant = user.groups.filter(name='Merchant').exists()
             if client_type == 'merchant' and not is_merchant:
-                return Response({
-                    'error': 'wrong_client_type',
-                    'message': '此帳號為一般使用者，請使用使用者端 App 登入',
-                }, status=status.HTTP_403_FORBIDDEN)
+                raise WrongClientTypeMerchant(developer_message="此帳號為一般使用者，請使用使用者端 App 登入")
             if client_type == 'user' and is_merchant:
-                return Response({
-                    'error': 'wrong_client_type',
-                    'message': '此帳號為商家帳號，請使用商家端 App 登入',
-                }, status=status.HTTP_403_FORBIDDEN)
+                raise WrongClientTypeUser(developer_message="此帳號為商家帳號，請使用商家端 App 登入")
 
             # Generate both access and refresh tokens
             refresh = RefreshToken.for_user(user)
@@ -1087,9 +1084,9 @@ def login(request):
 
             return response
         else: # 密碼錯誤
-             return Response({"error": "帳號或密碼錯誤"}, status=status.HTTP_401_UNAUTHORIZED)
+            raise InvalidCredentials(developer_message="帳號或密碼錯誤")
     except User.DoesNotExist:
-        return Response({"error": "帳號不存在"}, status=status.HTTP_401_UNAUTHORIZED)
+        raise InvalidCredentials(developer_message="帳號不存在")
 
 
 @swagger_auto_schema(
@@ -1263,10 +1260,7 @@ def forgot_password(request):
             return Response({'message': '密碼重設連結已發送到您的電子郵件'})
         except Exception as email_error:
             # Return user-friendly error message
-            return Response({
-                'error': 'email_send_failed',
-                'message': str(email_error)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise EmailSendFailed(developer_message=str(email_error))
             
     except User.DoesNotExist:
         # Still return success to prevent email enumeration attacks
@@ -1293,7 +1287,7 @@ def reset_password(request):
         return Response({'error': '所有欄位均為必填'}, status=status.HTTP_400_BAD_REQUEST)
     
     if len(new_password) < 8:
-        return Response({'error': '密碼長度至少需要8個字符'}, status=status.HTTP_400_BAD_REQUEST)
+        raise PasswordTooShort(developer_message="密碼長度至少需要8個字符", context={"min_length": 8})
     
     try:
         user = User.objects.get(email=email)
@@ -1326,10 +1320,10 @@ def reset_password(request):
             
         except PasswordResetProfile.DoesNotExist:
             logger.warning("No reset profile found for user %s", email)
-            return Response({'error': '無效的重設密碼連結'}, status=status.HTTP_400_BAD_REQUEST)
+            raise InvalidResetLink(developer_message="無效的重設密碼連結")
             
     except User.DoesNotExist:
-        return Response({'error': '找不到使用者'}, status=status.HTTP_404_NOT_FOUND)
+        raise UserNotFound(developer_message="找不到使用者")
     except Exception as e:
         logger.error("Unexpected error during password reset: %s", e, exc_info=True)
         return Response({'error': f'發生未預期的錯誤: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1377,17 +1371,13 @@ def refresh_token(request):
         refresh_token_value = request.data.get('refresh_token')
         
         if not refresh_token_value:
-            return Response({
-                "error": "No refresh token provided"
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            raise RefreshTokenMissing(developer_message="No refresh token provided")
         
         # Validate and use the refresh token to get a new access token
         try:
             refresh = RefreshToken(refresh_token_value)
         except TokenError as e:
-            return Response({
-                "error": "Invalid or expired refresh token. Please log in again."
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            raise RefreshTokenInvalid(developer_message="Invalid or expired refresh token. Please log in again.")
         
         access_token = str(refresh.access_token)
         new_refresh_token = refresh_token_value  # Default: keep the same refresh token
@@ -1403,9 +1393,7 @@ def refresh_token(request):
             # Create a new refresh token
             token_user_id = refresh.payload.get('user_id')
             if not token_user_id:
-                return Response({
-                    "error": "Invalid refresh token"
-                }, status=status.HTTP_401_UNAUTHORIZED)
+                raise RefreshTokenInvalid(developer_message="Invalid refresh token")
             
             try:
                 user = User.objects.get(id=token_user_id)
@@ -1424,11 +1412,11 @@ def refresh_token(request):
             "expires_in": int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()),
         })
         
+    except CouProAPIException:
+        raise
     except Exception as e:
         logger.warning("Token refresh error: %s", e)
-        return Response({
-            "error": "Invalid or expired refresh token"
-        }, status=status.HTTP_401_UNAUTHORIZED)
+        raise RefreshTokenInvalid(developer_message="Invalid or expired refresh token")
 
 
 # ============================================

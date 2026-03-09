@@ -24,6 +24,15 @@ from ..serializers import (
     ClaimByTokenRequestSerializer,
     ClaimCouponResponseSerializer
 )
+from ..exceptions import (
+    NoStoreForMerchant,
+    CouponTemplateNotFound,
+    CouponTemplateExpired,
+    CouponTemplateOutOfStock,
+    QRSessionNotFound,
+    QRSessionUnauthorized,
+    QRSessionExpired,
+)
 
 
 def get_merchant_store(user):
@@ -67,9 +76,7 @@ def generate_qr_session(request):
     # T016: Verify merchant owns this template's store
     store = get_merchant_store(request.user)
     if not store:
-        return Response({
-            'error': 'No store found for this merchant.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise NoStoreForMerchant(developer_message="No store found for this merchant.")
     
     # T016: Check if the template exists AND belongs to merchant's store
     try:
@@ -79,9 +86,7 @@ def generate_qr_session(request):
             is_active=True
         )
     except CouponTemplate.DoesNotExist:
-        return Response({
-            'error': 'Coupon template not found or not owned by this merchant.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise CouponTemplateNotFound(developer_message="Coupon template not found or not owned by this merchant.")
     
     # T017: Error handling - allow generation even if out of stock (users will get error on claim)
     # Check remaining_quantity but don't block generation
@@ -144,15 +149,11 @@ def invalidate_qr_session(request, session_id):
     try:
         qr_session = QRCodeSession.objects.get(id=session_id)
     except QRCodeSession.DoesNotExist:
-        return Response({
-            'error': 'QR code session not found.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise QRSessionNotFound(developer_message="QR code session not found.")
     
     # Verify merchant owns this session
     if qr_session.merchant != request.user:
-        return Response({
-            'error': 'Unauthorized: You do not own this QR code session.'
-        }, status=status.HTTP_403_FORBIDDEN)
+        raise QRSessionUnauthorized(developer_message="You do not own this QR code session.")
     
     # Invalidate session
     qr_session.is_active = False
@@ -201,9 +202,7 @@ def claim_coupon_via_qr(request):
                 is_active=True
             )
         except QRCodeSession.DoesNotExist:
-            return Response({
-                'error': 'QR code session expired or invalid'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise QRSessionExpired(developer_message="QR code session expired or invalid")
         template = qr_session.template
         template_id = template.id
         session_token = claim_token
@@ -222,23 +221,17 @@ def claim_coupon_via_qr(request):
                 is_active=True
             )
         except QRCodeSession.DoesNotExist:
-            return Response({
-                'error': 'QR code session expired or invalid'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise QRSessionExpired(developer_message="QR code session expired or invalid")
         try:
             template = CouponTemplate.objects.get(
                 id=template_id,
                 is_active=True
             )
         except CouponTemplate.DoesNotExist:
-            return Response({
-                'error': 'Template not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+            raise CouponTemplateNotFound(developer_message="Template not found")
         # Ensure session's template matches (security: do not allow template_id from client to override)
         if qr_session.template_id != template_id:
-            return Response({
-                'error': 'QR code session expired or invalid'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise QRSessionExpired(developer_message="QR code session expired or invalid")
     
     # Idempotency check: if idempotency_key is provided and already exists, return existing coupon
     if idempotency_key:
@@ -259,15 +252,11 @@ def claim_coupon_via_qr(request):
     
     # Validate template expiry_date
     if template.expiry_date and template.expiry_date <= timezone.now():
-        return Response({
-            'error': 'Coupon template expired'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        raise CouponTemplateExpired(developer_message="Coupon template expired")
     
     # T024: Validate remaining_quantity > 0
     if template.remaining_quantity <= 0:
-        return Response({
-            'error': 'Coupon template out of stock'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        raise CouponTemplateOutOfStock(developer_message="Coupon template out of stock")
     
     # T027: Race condition handling - use atomic transaction with F() expression
     with transaction.atomic():
@@ -298,9 +287,7 @@ def claim_coupon_via_qr(request):
         
         if updated == 0:
             # Quantity became 0 or negative during update
-            return Response({
-                'error': 'Coupon template out of stock'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            raise CouponTemplateOutOfStock(developer_message="Coupon template out of stock")
         
         # Reload template to get updated remaining_quantity
         template.refresh_from_db()
