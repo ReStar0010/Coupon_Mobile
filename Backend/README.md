@@ -36,3 +36,12 @@ Django discovers test modules matching `test_*.py` and test methods named `test_
 **E2E user journeys:** Full flows (register → login → token-based API calls) for consumer, merchant, and sharing (private + public) in `tests/test_e2e_user_journeys.py`. Run with `python manage.py test tests.test_e2e_user_journeys`.
 
 **Contract tests (009):** Template analytics contract tests in `tests/contract/test_template_analytics.py` (date range params, date_range_cost). Merchant statistics contract tests in `tests/contract/test_merchant_statistics.py` (today_cost). Run with `python manage.py test tests.contract`.
+
+## Load test endpoints
+
+For remote load testing, the backend exposes:
+
+- **GET /api/load-test/verify-consistency/** — Returns `{passed: bool, errors: list[str]}`.
+- **POST /api/load-test/reset/** — Clears redemptions, runs seed for the given stage, returns `{ok: true, config: {...}}` with Locust config (test_users, stores, task_weights, private_share_tokens).
+
+Both require authentication via **LOAD_TEST_SECRET**: set this env var on the server and send it on each request as header `X-Load-Test-Secret: <secret>` or `Authorization: Bearer <secret>`. Do not commit the secret; set it in deployment (e.g. Render env vars).

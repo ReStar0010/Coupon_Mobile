@@ -52,6 +52,7 @@ from api.views.admin_moderation import (
     ModerationQueueView, ReportDetailView, ModerationActionView,
     EscalatedReportsView, MerchantViolationsView, ModerationStatsView
 )
+from api.views.load_test import load_test_verify_consistency, load_test_reset
 
 import logging
 
@@ -227,6 +228,8 @@ urlpatterns = [
 
     # Health check endpoint for Render zero-downtime deploys
     path('api/health/', health_check, name='health_check'),
+    path('api/load-test/verify-consistency/', load_test_verify_consistency),
+    path('api/load-test/reset/', load_test_reset),
 
     # UGC Compliance: Content Reporting (User Story 1)
     path('api/content/<str:content_type>/<int:content_id>/report/', ReportContentView.as_view(), name='report_content'),
