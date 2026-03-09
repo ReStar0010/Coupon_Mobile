@@ -1,6 +1,7 @@
 import React from 'react';
 import { FormHeader } from '@/app/components/forms/FormHeader';
 import { FormInput } from '@/app/components/forms/FormInput';
+import { PasswordInput } from '@/app/components/forms/PasswordInput';
 import { FormButton } from '@/app/components/forms/FormButton';
 import { LinkText } from '@/app/components/forms/LinkText';
 import { YStack } from 'tamagui';
@@ -116,11 +117,10 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
               autoCapitalize="none"
             />
           )}
-          <FormInput
+          <PasswordInput
             placeholder="輸入密碼"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry={true}
           />
         </>
       )}
@@ -135,11 +135,10 @@ export const LoginFormContainer: React.FC<LoginFormContainerProps> = ({
             keyboardType="phone-pad"
             autoCapitalize="none"
           />
-          <FormInput
+          <PasswordInput
             placeholder="輸入密碼"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry={true}
           />
         </>
       )}

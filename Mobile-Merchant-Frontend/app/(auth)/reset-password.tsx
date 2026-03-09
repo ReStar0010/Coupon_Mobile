@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, Button, YStack, Input } from 'tamagui';
+import { Text, Button, YStack } from 'tamagui';
+import { PasswordInput } from '@/components/ui';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { authAPI } from '../../utils/api';
 
@@ -124,14 +125,12 @@ export default function ResetPassword() {
                 <Text fontSize="$4" color="$color">
                   新密碼
                 </Text>
-                <Input
+                <PasswordInput
                   placeholder="至少8個字元"
-                  secureTextEntry
                   value={password}
                   onChangeText={setPassword}
                   borderColor="$gray8"
                   focusStyle={{ borderColor: '$orange10' }}
-                  size="$4"
                   autoCapitalize="none"
                 />
               </YStack>
@@ -140,14 +139,12 @@ export default function ResetPassword() {
                 <Text fontSize="$4" color="$color">
                   確認密碼
                 </Text>
-                <Input
+                <PasswordInput
                   placeholder="再次輸入新密碼"
-                  secureTextEntry
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   borderColor="$gray8"
                   focusStyle={{ borderColor: '$orange10' }}
-                  size="$4"
                   autoCapitalize="none"
                 />
               </YStack>
