@@ -245,6 +245,14 @@ export default function CouponEditScreen() {
       Alert.alert('錯誤', '請填寫所有必填欄位');
       return;
     }
+
+    // 建立優惠券前必須已接受 EULA（UGC 合規）；未上傳圖片的商家也會在此看到條款並同意
+    if (!isEditMode) {
+      const eulaAccepted = await checkEULA();
+      if (!eulaAccepted) {
+        return;
+      }
+    }
     if (couponType === '專屬優惠' && !quantity) {
       Alert.alert('錯誤', '請填寫優惠數量');
       return;
