@@ -1,20 +1,29 @@
 import json
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse
-from django.utils import timezone
-from django.conf import settings
-from django.db import transaction
 import secrets
 import logging
 
-logger = logging.getLogger(__name__)
+from django.conf import settings
+from django.db import transaction
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
-from ..models import Coupon, CouponShareRequest, Log, QRCodeSession
+from api.exceptions import (
+    CouponAlreadyRedeemed,
+    CouponNotHolder,
+    ShareAlreadyClaimed,
+    ShareAlreadyPublic,
+    ShareFailed,
+    ShareRequestAlreadyProcessed,
+    ShareRequestNotFound,
+    SelfClaimNotAllowed,
+)
+from api.models import Coupon, CouponShareRequest, QRCodeSession
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['POST'])
@@ -26,7 +35,7 @@ def share_coupon(request, coupon_id):
     coupon = get_object_or_404(Coupon, id=coupon_id, coupon_type='exclusive')
 
     if coupon.current_holder != request.user:
-        return Response({'error': 'You do not own this coupon.'}, status=403)
+        raise CouponNotHolder(developer_message="You do not own this coupon.")
 
     # Create a unique token
     token = secrets.token_urlsafe(32)
@@ -193,11 +202,11 @@ def share_coupon_public(request, coupon_id):
 
     # Verify ownership
     if coupon.current_holder != request.user:
-        return Response({'error': 'You do not own this coupon.'}, status=403)
+        raise CouponNotHolder(developer_message="You do not own this coupon.")
 
     # Check if coupon is already redeemed
     if coupon.is_redeemed():
-        return Response({'error': 'This coupon has already been redeemed.'}, status=400)
+        raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed.")
 
     # Check if there's already a pending public share for this coupon
     existing_public_share = CouponShareRequest.objects.filter(
@@ -207,7 +216,7 @@ def share_coupon_public(request, coupon_id):
     ).exists()
 
     if existing_public_share:
-        return Response({'error': 'This coupon is already shared to the public pool.'}, status=400)
+        raise ShareAlreadyPublic(developer_message="This coupon is already shared to the public pool.")
 
     try:
         with transaction.atomic():
@@ -278,7 +287,10 @@ def get_share_request(request, token):
     """
     Get info about a share request (for displaying accept/decline UI).
     """
-    share_request = get_object_or_404(CouponShareRequest, token=token)
+    try:
+        share_request = CouponShareRequest.objects.get(token=token)
+    except CouponShareRequest.DoesNotExist:
+        raise ShareRequestNotFound(developer_message="Share request not found or expired.")
     data = {
         'coupon_id': share_request.coupon.id,
         'coupon_name': share_request.coupon.coupon_name,
@@ -294,29 +306,41 @@ def accept_share_request(request, token):
     Accept a share request and transfer the coupon to the current user.
     For public shares, implements first-come-first-served with race condition protection.
     """
-    share_request = get_object_or_404(CouponShareRequest, token=token)
+    try:
+        share_request = CouponShareRequest.objects.get(token=token)
+    except CouponShareRequest.DoesNotExist:
+        raise ShareRequestNotFound(developer_message="Share request not found or expired.")
 
     # Block self-claim for public shares
     if share_request.is_public and share_request.from_user == request.user:
-        return Response({'error': 'You cannot claim your own shared coupon.'}, status=400)
+        raise SelfClaimNotAllowed(developer_message="You cannot claim your own shared coupon.")
 
     # Use transaction with select_for_update to prevent race conditions
     with transaction.atomic():
         # Re-fetch with lock to prevent race conditions
-        share_request = CouponShareRequest.objects.select_for_update().get(token=token)
+        try:
+            share_request = CouponShareRequest.objects.select_for_update().get(token=token)
+        except CouponShareRequest.DoesNotExist:
+            raise ShareRequestNotFound(developer_message="Share request not found or expired.")
 
         if share_request.status != 'pending':
-            return Response({'error': 'This request has already been processed.'}, status=400)
+            raise ShareRequestAlreadyProcessed(
+                developer_message="This request has already been processed."
+            )
 
         coupon = share_request.coupon
 
         # Only allow if coupon is still valid and not redeemed
         if coupon.is_redeemed():
-            return Response({'error': 'This coupon has already been redeemed.'}, status=400)
+            raise CouponAlreadyRedeemed(
+                developer_message="This coupon has already been redeemed."
+            )
 
         # For public shares, verify coupon still has no current_holder
         if share_request.is_public and coupon.current_holder is not None:
-            return Response({'error': 'This coupon has already been claimed.'}, status=400)
+            raise ShareAlreadyClaimed(
+                developer_message="This coupon has already been claimed."
+            )
 
         # Transfer coupon
         coupon.current_holder = request.user

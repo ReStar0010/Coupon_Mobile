@@ -191,6 +191,12 @@ class PhoneAlreadyUsedByOther(CouProAPIException):
     error_code = "PHONE_ALREADY_USED_BY_OTHER"
 
 
+class PhoneFormatInvalid(CouProAPIException):
+    """context: optional {"field": "phone_number"}"""
+    status_code = status.HTTP_400_BAD_REQUEST
+    error_code = "PHONE_FORMAT_INVALID"
+
+
 # ---------------------------------------------------------------------------
 # Merchant / Store
 # ---------------------------------------------------------------------------
@@ -276,6 +282,43 @@ class RedeemCodeInvalid(CouProAPIException):
 class UnifiedCodeInvalid(CouProAPIException):
     status_code = status.HTTP_404_NOT_FOUND
     error_code = "UNIFIED_CODE_INVALID"
+
+
+# ---------------------------------------------------------------------------
+# Sharing / Share requests
+# ---------------------------------------------------------------------------
+
+class ShareRequestNotFound(CouProAPIException):
+    status_code = status.HTTP_404_NOT_FOUND
+    error_code = "SHARE_REQUEST_NOT_FOUND"
+
+
+class ShareAlreadyPublic(CouProAPIException):
+    """Coupon is already shared to the public pool."""
+    status_code = status.HTTP_400_BAD_REQUEST
+    error_code = "SHARE_ALREADY_PUBLIC"
+
+
+class ShareFailed(CouProAPIException):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_code = "SHARE_FAILED"
+
+
+class SelfClaimNotAllowed(CouProAPIException):
+    """User cannot claim their own shared coupon."""
+    status_code = status.HTTP_400_BAD_REQUEST
+    error_code = "SELF_CLAIM_NOT_ALLOWED"
+
+
+class ShareRequestAlreadyProcessed(CouProAPIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    error_code = "SHARE_REQUEST_ALREADY_PROCESSED"
+
+
+class ShareAlreadyClaimed(CouProAPIException):
+    """Public share coupon was already claimed by someone else."""
+    status_code = status.HTTP_400_BAD_REQUEST
+    error_code = "SHARE_ALREADY_CLAIMED"
 
 
 # ---------------------------------------------------------------------------

@@ -126,7 +126,7 @@ class PhoneOTPSendTests(PhoneOTPTestBase):
                 status.HTTP_400_BAD_REQUEST,
                 f"Phone {phone} should be invalid"
             )
-            self.assertIn('error', response.data)
+            self.assertIn('error_code', response.data)
 
     def test_send_otp_phone_taken_by_another_user(self):
         """T024: Test OTP send fails if phone belongs to another user."""
@@ -134,8 +134,8 @@ class PhoneOTPSendTests(PhoneOTPTestBase):
             'phone_number': '0911111111'  # other_user's phone
         })
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('此電話號碼已被其他帳號使用', response.data['error'])
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data['error_code'], 'PHONE_ALREADY_USED_BY_OTHER')
 
     def test_send_otp_requires_authentication(self):
         """Test OTP send requires authenticated user."""
@@ -185,8 +185,8 @@ class PhoneOTPVerifyTests(PhoneOTPTestBase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('驗證碼錯誤', response.data['error'])
-        self.assertIn('attempts_remaining', response.data)
+        self.assertEqual(response.data['error_code'], 'OTP_INVALID')
+        self.assertIn('attempts_remaining', response.data.get('context', {}))
 
         # Verify attempt was counted
         self.otp_record.refresh_from_db()
@@ -204,7 +204,7 @@ class PhoneOTPVerifyTests(PhoneOTPTestBase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('已過期', response.data['error'])
+        self.assertEqual(response.data['error_code'], 'OTP_EXPIRED')
 
     def test_verify_otp_no_pending_otp(self):
         """Test verification fails when no pending OTP exists."""
@@ -217,7 +217,7 @@ class PhoneOTPVerifyTests(PhoneOTPTestBase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('找不到待驗證的OTP', response.data['error'])
+        self.assertEqual(response.data['error_code'], 'OTP_NOT_FOUND')
 
 
 @override_settings(SMS_DEV_MODE=True)
@@ -325,8 +325,8 @@ class PhoneOTPRateLimitTests(PhoneOTPTestBase):
             'phone_number': self.test_phone
         })
         self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-        self.assertIn('請等待60秒', response2.data['error'])
-        self.assertIn('retry_after_seconds', response2.data)
+        self.assertEqual(response2.data['error_code'], 'OTP_RATE_LIMITED')
+        self.assertIn('retry_after_seconds', response2.data.get('context', {}))
 
     def test_hourly_rate_limit(self):
         """T036: Test hourly rate limit (3 OTPs/hour)."""
@@ -347,7 +347,7 @@ class PhoneOTPRateLimitTests(PhoneOTPTestBase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-        self.assertIn('已超過每小時OTP請求次數限制', response.data['error'])
+        self.assertEqual(response.data['error_code'], 'OTP_RATE_LIMITED')
 
     def test_max_attempts_enforcement(self):
         """T037: Test max attempts limit (5 attempts/OTP)."""
@@ -360,7 +360,7 @@ class PhoneOTPRateLimitTests(PhoneOTPTestBase):
                 'otp_code': '000000'
             })
             if i < 4:
-                self.assertEqual(response.data.get('attempts_remaining'), 4 - i)
+                self.assertEqual(response.data.get('context', {}).get('attempts_remaining'), 4 - i)
 
         # 6th attempt should be locked
         response = self.client.post('/api/phone-otp/verify/', {
@@ -369,7 +369,7 @@ class PhoneOTPRateLimitTests(PhoneOTPTestBase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('錯誤次數過多', response.data['error'])
+        self.assertEqual(response.data['error_code'], 'OTP_MAX_ATTEMPTS')
 
     def test_otp_expiration(self):
         """T038: Test OTP expiration after 10 minutes."""
@@ -385,7 +385,7 @@ class PhoneOTPRateLimitTests(PhoneOTPTestBase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('已過期', response.data['error'])
+        self.assertEqual(response.data['error_code'], 'OTP_EXPIRED')
 
 
 @override_settings(SMS_DEV_MODE=True)
@@ -518,7 +518,7 @@ class RegistrationOTPSendTests(TestCase):
                 'phone_number': phone
             })
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn('error', response.data)
+            self.assertIn('error_code', response.data)
 
     def test_send_registration_otp_duplicate_phone(self):
         """T015: Test 409 response when phone already registered."""
@@ -538,12 +538,7 @@ class RegistrationOTPSendTests(TestCase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertIn('error', response.data)
-        # Allow for variations in the error message
-        self.assertTrue(
-            '已被註冊' in response.data['error'] or '已註冊' in response.data['error'],
-            f"Expected registration error but got: {response.data['error']}"
-        )
+        self.assertEqual(response.data['error_code'], 'PHONE_ALREADY_REGISTERED')
 
     def test_send_registration_otp_rate_limit(self):
         """T015: Test 429 response when rate limited."""
@@ -558,8 +553,8 @@ class RegistrationOTPSendTests(TestCase):
             'phone_number': self.test_phone
         })
         self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-        self.assertIn('error', response2.data)
-        self.assertIn('retry_after_seconds', response2.data)
+        self.assertEqual(response2.data['error_code'], 'OTP_RATE_LIMITED')
+        self.assertIn('retry_after_seconds', response2.data.get('context', {}))
 
 
 @override_settings(SMS_DEV_MODE=True)
@@ -625,23 +620,22 @@ class RegistrationOTPVerifyTests(TestCase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('error', response.data)
-        self.assertIn('驗證碼錯誤', response.data['error'])
-        self.assertIn('attempts_remaining', response.data)
+        self.assertEqual(response.data['error_code'], 'OTP_INVALID')
+        self.assertIn('attempts_remaining', response.data.get('context', {}))
 
     def test_verify_registration_otp_no_pending(self):
-        """T016: Test 404 response when no pending OTP exists."""
+        """T016: Test 400 response when no pending OTP exists (OTP_NOT_FOUND)."""
         response = self.client.post('/api/register/verify-otp/', {
             'phone_number': self.test_phone,
             'otp_code': '123456',
             'password': self.test_password
         })
 
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn('error', response.data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error_code'], 'OTP_NOT_FOUND')
 
     def test_verify_registration_otp_expired(self):
-        """T016: Test 410 response for expired OTP."""
+        """T016: Test 400 response for expired OTP (OTP_EXPIRED)."""
         # Create expired OTP
         otp_record = PhoneOTPRecord.objects.create(
             phone_number=self.test_phone,
@@ -657,9 +651,8 @@ class RegistrationOTPVerifyTests(TestCase):
             'password': self.test_password
         })
 
-        self.assertEqual(response.status_code, status.HTTP_410_GONE)
-        self.assertIn('error', response.data)
-        self.assertIn('已過期', response.data['error'])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error_code'], 'OTP_EXPIRED')
 
 
 @override_settings(SMS_DEV_MODE=True)
@@ -744,13 +737,13 @@ class RegistrationIntegrationTests(TestCase):
         })
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('attempts_remaining', response.data)
+        self.assertIn('attempts_remaining', response.data.get('context', {}))
         
         # Verify user was NOT created
         self.assertFalse(User.objects.filter(username=self.test_phone).exists())
 
     def test_registration_failure_expired_otp(self):
-        """T018: Test registration fails for expired OTP (410)."""
+        """T018: Test registration fails for expired OTP (400 OTP_EXPIRED)."""
         # Create expired OTP
         PhoneOTPRecord.objects.create(
             phone_number=self.test_phone,
@@ -766,7 +759,8 @@ class RegistrationIntegrationTests(TestCase):
             'password': self.test_password
         })
         
-        self.assertEqual(response.status_code, status.HTTP_410_GONE)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error_code'], 'OTP_EXPIRED')
         self.assertFalse(User.objects.filter(username=self.test_phone).exists())
 
     def test_registration_failure_max_attempts(self):
@@ -793,7 +787,7 @@ class RegistrationIntegrationTests(TestCase):
         })
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('錯誤次數過多', response.data['error'])
+        self.assertEqual(response.data['error_code'], 'OTP_MAX_ATTEMPTS')
 
 
 # =============================================================================
@@ -848,7 +842,7 @@ class PhoneLoginTests(TestCase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertIn('error', response.data)
+        self.assertEqual(response.data['error_code'], 'INVALID_CREDENTIALS')
 
     def test_phone_login_unregistered_phone(self):
         """T027: Test phone login fails for unregistered phone (404)."""
@@ -859,7 +853,7 @@ class PhoneLoginTests(TestCase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn('error', response.data)
+        self.assertEqual(response.data['error_code'], 'PHONE_NOT_REGISTERED')
 
     def test_phone_login_unverified_phone(self):
         """T027: Test phone login fails when phone_verified=False."""
@@ -880,9 +874,9 @@ class PhoneLoginTests(TestCase):
             'client_type': 'user'
         })
 
-        # Should fail because phone not verified
-        self.assertIn(response.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED])
-        self.assertIn('error', response.data)
+        # Should fail because phone not verified (403 or 4xx)
+        self.assertIn(response.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+        self.assertIn('error_code', response.data)
 
     def test_phone_and_email_mutually_exclusive(self):
         """T026: Test validation error when both phone and email provided (400)."""
@@ -994,8 +988,7 @@ class PasswordResetPhoneTests(TestCase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn('error', response.data)
-        self.assertIn('未註冊', response.data['error'])
+        self.assertEqual(response.data['error_code'], 'PHONE_NOT_REGISTERED')
 
     def test_send_password_reset_otp_invalid_format(self):
         """T034: Test 400 response for invalid phone format."""
@@ -1018,7 +1011,8 @@ class PasswordResetPhoneTests(TestCase):
             'phone_number': self.test_phone
         })
         self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-        self.assertIn('retry_after_seconds', response2.data)
+        self.assertEqual(response2.data['error_code'], 'OTP_RATE_LIMITED')
+        self.assertIn('retry_after_seconds', response2.data.get('context', {}))
 
     def test_reset_password_with_otp_success(self):
         """T035: Test successful password reset with OTP."""
@@ -1060,7 +1054,7 @@ class PasswordResetPhoneTests(TestCase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('attempts_remaining', response.data)
+        self.assertIn('attempts_remaining', response.data.get('context', {}))
 
         # Verify password was NOT changed
         self.user.refresh_from_db()
@@ -1083,18 +1077,19 @@ class PasswordResetPhoneTests(TestCase):
             'new_password': self.new_password
         })
 
-        self.assertEqual(response.status_code, status.HTTP_410_GONE)
-        self.assertIn('已過期', response.data['error'])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error_code'], 'OTP_EXPIRED')
 
     def test_reset_password_no_pending_otp(self):
-        """T035: Test 404 response when no pending OTP exists."""
+        """T035: Test 400 response when no pending OTP exists (OTP_NOT_FOUND)."""
         response = self.client.post('/api/forgot-password/phone/reset/', {
             'phone_number': self.test_phone,
             'otp_code': '123456',
             'new_password': self.new_password
         })
 
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error_code'], 'OTP_NOT_FOUND')
 
     def test_password_reset_full_flow(self):
         """T036: Integration test for complete password reset flow."""
