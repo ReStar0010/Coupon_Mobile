@@ -7,6 +7,17 @@ from api.views.authentication import (
     verify_merchant_email, resend_merchant_verification, redirect_verify_email, redirect_reset_password
 )
 from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon, validate_unified_redemption_code
+from api.views.platform_voucher_views import (
+    redeem_platform_voucher,
+    platform_voucher_list,
+    platform_voucher_detail,
+    share_platform_voucher,
+    get_platform_voucher_share,
+    accept_platform_voucher_share,
+    share_platform_voucher_public,
+    my_public_voucher_shares,
+    merchant_redeem_voucher,
+)
 from api.views.sharing_views import (
     share_coupon,
     get_share_request,
@@ -112,6 +123,16 @@ urlpatterns = [
     
     # Unified redemption endpoints
     path('api/unified-redemption/<str:code>/', validate_unified_redemption_code, name='validate_unified_redemption_code'),
+    # Platform voucher (011)
+    path('api/platform-vouchers/', platform_voucher_list, name='platform_voucher_list'),
+    path('api/platform-vouchers/<int:pk>/', platform_voucher_detail, name='platform_voucher_detail'),
+    path('api/platform-voucher/<int:voucher_id>/redeem/', redeem_platform_voucher, name='redeem_platform_voucher'),
+    path('api/platform-voucher/<int:voucher_id>/share/', share_platform_voucher, name='share_platform_voucher'),
+    path('api/platform-voucher/<int:voucher_id>/share-public/', share_platform_voucher_public, name='share_platform_voucher_public'),
+    path('api/platform-voucher/share/<str:token>/', get_platform_voucher_share, name='get_platform_voucher_share'),
+    path('api/platform-voucher/share/<str:token>/accept/', accept_platform_voucher_share, name='accept_platform_voucher_share'),
+    path('api/my-public-voucher-shares/', my_public_voucher_shares, name='my_public_voucher_shares'),
+    path('api/merchant/redeem-voucher/', merchant_redeem_voucher, name='merchant_redeem_voucher'),
     
     # Event tracking endpoints
     path('api/events/template-view/', track_template_view, name='track_template_view'),

@@ -198,6 +198,8 @@ class Store(models.Model):
     timezone = models.CharField(max_length=63, null=True, blank=True)
     # Optional: currency for cost display (e.g. TWD, NT$)
     currency_code = models.CharField(max_length=10, null=True, blank=True)
+    # Platform cash voucher: when True, store accepts platform voucher redemptions
+    accepts_platform_vouchers = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -482,6 +484,103 @@ class CouponShareRequest(models.Model):
     def __str__(self):
         share_type = "Public" if self.is_public else "Private"
         return f"{share_type} Share {self.coupon} from {self.from_user} ({self.status})"
+
+
+# =============================================================================
+# Platform Cash Voucher (011)
+# =============================================================================
+
+ACQUISITION_METHOD_PLATFORM = [
+    ('platform_issue', 'Platform Issue'),
+    ('transfer', 'Transfer'),
+    ('public_pool', 'Public Pool'),
+]
+
+
+class PlatformVoucher(models.Model):
+    """Single-use, transferable platform voucher; redeemable at participating stores only."""
+    face_value = models.DecimalField(max_digits=10, decimal_places=2)
+    currency_code = models.CharField(max_length=10, default='TWD')
+    start_date = models.DateTimeField()
+    expiry_date = models.DateTimeField()
+    current_holder = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='held_platform_vouchers'
+    )
+    original_owner = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='owned_platform_vouchers'
+    )
+    last_holder = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='last_platform_vouchers'
+    )
+    redeem_code = models.CharField(max_length=6, unique=True)
+    batch_name = models.CharField(max_length=255, blank=True)
+    acquisition_method = models.CharField(
+        max_length=20, choices=ACQUISITION_METHOD_PLATFORM, null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"PlatformVoucher #{self.id} {self.face_value} {self.currency_code} ({self.redeem_code})"
+
+
+class PlatformVoucherRedemption(models.Model):
+    """One redemption per platform voucher (full face value)."""
+    voucher = models.OneToOneField(
+        PlatformVoucher, on_delete=models.CASCADE, related_name='redemption'
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='platform_voucher_redemptions')
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='platform_voucher_redemptions')
+    redeemed_at = models.DateTimeField(default=timezone.now)
+    amount_used = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['voucher'], name='unique_platform_voucher_redemption'),
+        ]
+
+    def __str__(self):
+        return f"Redemption of {self.voucher} at {self.store} by {self.user}"
+
+
+class PlatformVoucherShareRequest(models.Model):
+    """Share request for platform voucher (private link or public pool)."""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+    ]
+    voucher = models.ForeignKey(
+        PlatformVoucher, on_delete=models.CASCADE, related_name='share_requests'
+    )
+    from_user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='platform_voucher_share_requests_sent'
+    )
+    to_user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='platform_voucher_share_requests_received'
+    )
+    token = models.CharField(max_length=64, unique=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='pending')
+    is_public = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['voucher'],
+                condition=models.Q(is_public=True, status='pending'),
+                name='unique_pending_public_share_per_platform_voucher',
+            ),
+        ]
+
+    def __str__(self):
+        share_type = "Public" if self.is_public else "Private"
+        return f"{share_type} PlatformVoucher share {self.voucher_id} from {self.from_user} ({self.status})"
+
 
 # Model to track completed savings goals
 class CompletedGoal(models.Model):

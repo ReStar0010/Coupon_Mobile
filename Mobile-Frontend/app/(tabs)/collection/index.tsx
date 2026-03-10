@@ -19,12 +19,14 @@ import { useDailyDraw } from './hooks/useDailyDraw';
 import { useSharedCoupon } from './hooks/useSharedCoupon';
 import { useSearch } from './hooks/useSearch';
 import { useMyPublicShares } from './hooks/useMyPublicShares';
+import { usePlatformVouchers } from './hooks/usePlatformVouchers';
 import { useTags } from './hooks/useTags';
 
 import Coupon from './components/Coupon';
 import DailyDrawBanner from './components/DailyDrawBanner';
 import DailyDrawModal from './components/DailyDrawModal';
 import MySharedCoupons from './components/MySharedCoupons';
+import MyPlatformVouchers from './components/MyPlatformVouchers';
 import { FilterBar } from './components/FilterBar';
 import type { CouponType } from './utils/types';
 import { useCollectionFilters } from './hooks/useCollectionFilters';
@@ -118,6 +120,8 @@ const Collection: React.FC = () => {
     isLoading: sharesLoading,
     fetchPublicShares,
   } = useMyPublicShares(isAuthenticated, authLoading);
+  const { vouchers: platformVouchers, isLoading: vouchersLoading, fetchVouchers } =
+    usePlatformVouchers(isAuthenticated, authLoading);
   const { tags } = useTags(isAuthenticated);
   const merchants = useMemo(() => {
     const merchantSet = new Set<string>();
@@ -172,7 +176,8 @@ const Collection: React.FC = () => {
   const onRefresh = useCallback(() => {
     fetchCoupons();
     fetchPublicShares();
-  }, [fetchCoupons, fetchPublicShares]);
+    fetchVouchers();
+  }, [fetchCoupons, fetchPublicShares, fetchVouchers]);
 
   const handleOpenDailyDraw = useCallback(() => {
     setShowDailyDraw(true);
@@ -212,6 +217,9 @@ const Collection: React.FC = () => {
         {/* My Shared Coupons Section */}
         <MySharedCoupons shares={publicShares} isLoading={sharesLoading} />
 
+        {/* My Platform Vouchers Section */}
+        <MyPlatformVouchers vouchers={platformVouchers} isLoading={vouchersLoading} />
+
         {!hasDailyDrawn && !showSharedGift && <DailyDrawBanner onClick={handleOpenDailyDraw} />}
 
         {showSharedGift && sharedCoupon && (
@@ -231,6 +239,8 @@ const Collection: React.FC = () => {
     [
       publicShares,
       sharesLoading,
+      platformVouchers,
+      vouchersLoading,
       hasDailyDrawn,
       showSharedGift,
       sharedCoupon,
