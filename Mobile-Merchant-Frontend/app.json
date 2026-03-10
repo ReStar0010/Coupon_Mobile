@@ -83,6 +83,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#333333"
       },
+      "blockedPermissions": ["com.google.android.gms.permission.AD_ID"],
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": false,
