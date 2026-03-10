@@ -8,6 +8,8 @@ import { initStorage, clearTokens, storeTokens } from '../tokenUtils';
 import { authEvents, AUTH_EVENT_TYPES } from '../authEvents';
 import { fetchAPI, refreshAccessToken } from '../authAPI';
 
+import axios from 'axios';
+
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 
@@ -24,8 +26,6 @@ jest.mock('axios', () => {
     isAxiosError: jest.fn((e: unknown) => (e as { isAxiosError?: boolean })?.isAxiosError === true),
   };
 });
-
-import axios from 'axios';
 
 describe('authAPI (integration)', () => {
   const API_BASE = 'https://test-api.example.com/api';
@@ -114,7 +114,7 @@ describe('authAPI (integration)', () => {
         response: { status: 401 },
       });
 
-      const listeners: Array<{ type: string; event: unknown }> = [];
+      const listeners: { type: string; event: unknown }[] = [];
       authEvents.subscribe(AUTH_EVENT_TYPES.AUTH_FAILURE, (event) => {
         listeners.push({ type: event.type, event });
       });

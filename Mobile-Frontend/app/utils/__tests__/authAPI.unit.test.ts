@@ -2,6 +2,10 @@
  * Unit tests for authAPI - isPublicEndpoint, refreshAccessToken, logout, storeLoginData
  */
 
+import axios from 'axios';
+import authAPIModule, { refreshAccessToken, logout, storeLoginData } from '../authAPI';
+
+
 const mockEmit = jest.fn();
 const mockGetRefreshToken = jest.fn();
 const mockGetAccessToken = jest.fn();
@@ -41,10 +45,6 @@ jest.mock('axios', () => {
     isAxiosError: jest.fn((e: unknown) => (e as { isAxiosError?: boolean })?.isAxiosError === true),
   };
 });
-
-import axios from 'axios';
-import authAPIModule from '../authAPI';
-import { refreshAccessToken, logout, storeLoginData } from '../authAPI';
 
 const isPublicEndpoint = authAPIModule.isPublicEndpoint as (endpoint: string) => boolean;
 

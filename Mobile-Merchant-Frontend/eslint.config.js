@@ -1,3 +1,5 @@
+const globals = require('globals');
+
 let expoConfig = [];
 try {
   const expo = require('eslint-config-expo/flat');
@@ -10,6 +12,14 @@ module.exports = [
   ...expoConfig,
   {
     ignores: ['dist/*', '.tamagui/**', 'node_modules/**'],
+  },
+  {
+    files: ['**/__tests__/**', '**/*.test.{js,jsx,ts,tsx}', '**/*.spec.{js,jsx,ts,tsx}', 'jest.setup.js'],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
+    },
   },
   {
     rules: {
