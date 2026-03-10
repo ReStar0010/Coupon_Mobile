@@ -50,12 +50,7 @@ const resolveBaseUrl = (): string => {
       return `http://localhost:${ENV.PORT}`;
 
     case 'local-network': {
-      if (!ENV.HOST) {
-        throw new Error('[API Config] Missing EXPO_PUBLIC_LOCAL_HOST for local-network mode.');
-      }
-      // 判斷是否為 Tunnel (包含 domain 特徵或已指定 protocol)
-      const isTunnel = /^(http|https):|\.(loca\.lt|ngrok)/.test(ENV.HOST);
-      return isTunnel ? normalizeUrl(ENV.HOST) : `http://${ENV.HOST}:${ENV.PORT}`;
+      return normalizeUrl(ENV.HOST);
     }
 
     case 'production':
