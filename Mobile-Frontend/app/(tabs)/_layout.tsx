@@ -68,6 +68,9 @@ export default function TabLayout() {
         options={{
           title: 'CouPro',
           tabBarIcon: ({ color, size }) => <LogoIcon color={color} size={size} />,
+          popToTopOnBlur: true,
+          // 讓 tab 按鈕永遠導向 EasyUse 根頁，避免回到上次停留的巢狀頁（例如 redeem）
+          href: '/(tabs)/easyuse',
         }}
       />
       <Tabs.Screen
@@ -75,6 +78,7 @@ export default function TabLayout() {
         options={{
           title: '專屬優惠',
           tabBarIcon: ({ color, size }) => <StretchHorizontal color={color} size={size} />,
+          href: '/(tabs)/collection',
         }}
       />
       <Tabs.Screen
