@@ -2,7 +2,7 @@
   "expo": {
     "name": "CouPro 商家端",
     "slug": "Mobile-Merchant-Frontend",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "scheme": ["coupromerchant"],
     "web": {
       "favicon": "./assets/favicon.png",
