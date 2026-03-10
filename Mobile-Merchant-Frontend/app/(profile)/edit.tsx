@@ -263,7 +263,7 @@ export default function ProfileEditScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
       <DismissKeyboardView>
         <YStack flex={1} backgroundColor={colors.background}>
           {/* Header */}
