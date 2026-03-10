@@ -1,4 +1,5 @@
 import { isAxiosError } from 'axios';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -18,19 +19,22 @@ import { useTranslation } from 'react-i18next';
 export function useApiError() {
   const { t } = useTranslation();
 
-  function getErrorMessage(error: unknown): string {
-    if (isAxiosError(error)) {
-      const code = error.errorCode ?? 'GENERIC_ERROR';
-      const ctx = error.errorContext ?? {};
-      return t(`errors.${code}`, {
-        ...ctx,
-        defaultValue: t('errors.GENERIC_ERROR'),
-      });
-    }
+  const getErrorMessage = useCallback(
+    (error: unknown): string => {
+      if (isAxiosError(error)) {
+        const code = error.errorCode ?? 'GENERIC_ERROR';
+        const ctx = error.errorContext ?? {};
+        return t(`errors.${code}`, {
+          ...ctx,
+          defaultValue: t('errors.GENERIC_ERROR'),
+        });
+      }
 
-    // Non-axios errors (network failures, permission issues, etc.)
-    return t('errors.NETWORK_ERROR');
-  }
+      // Non-axios errors (network failures, permission issues, etc.)
+      return t('errors.NETWORK_ERROR');
+    },
+    [t],
+  );
 
   return { getErrorMessage };
 }

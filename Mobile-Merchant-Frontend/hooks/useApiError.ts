@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react-native';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ApiError } from '@/utils/api';
@@ -117,23 +118,26 @@ const EXPECTED_ERROR_CODES = new Set<string>([
 export function useApiError() {
   const { t } = useTranslation();
 
-  function getErrorMessage(error: unknown): string {
-    const apiError = error as ApiError;
-    const code = apiError.errorCode ?? 'GENERIC_ERROR';
-    const ctx = apiError.context ?? {};
-    const statusCode = apiError.statusCode ?? 0;
+  const getErrorMessage = useCallback(
+    (error: unknown): string => {
+      const apiError = error as ApiError;
+      const code = apiError.errorCode ?? 'GENERIC_ERROR';
+      const ctx = apiError.context ?? {};
+      const statusCode = apiError.statusCode ?? 0;
 
-    // Report unexpected errors to Sentry
-    const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(code);
-    if (isUnexpected) {
-      Sentry.captureException(error);
-    }
+      // Report unexpected errors to Sentry
+      const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(code);
+      if (isUnexpected) {
+        Sentry.captureException(error);
+      }
 
-    return t(`errors.${code}`, {
-      ...ctx,
-      defaultValue: t('errors.GENERIC_ERROR'),
-    });
-  }
+      return t(`errors.${code}`, {
+        ...ctx,
+        defaultValue: t('errors.GENERIC_ERROR'),
+      });
+    },
+    [t],
+  );
 
   return { getErrorMessage };
 }
