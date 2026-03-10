@@ -51,14 +51,10 @@ const ShareModal = ({
   };
 
   const handleCouProSharePress = () => {
-    Alert.alert(
-      '確認分享到 CouPro',
-      '此優惠將從您的「專屬優惠」中移除並改為「隨取即用」，此操作無法復原。確定要分享嗎？',
-      [
-        { text: '取消', style: 'cancel' },
-        { text: '確定分享', style: 'destructive', onPress: onCouProShare },
-      ],
-    );
+    Alert.alert(t('shareModal.confirmTitle'), t('shareModal.confirmMessage'), [
+      { text: t('shareModal.confirmCancel'), style: 'cancel' },
+      { text: t('shareModal.confirmConfirm'), style: 'destructive', onPress: onCouProShare },
+    ]);
   };
 
   return (
@@ -92,7 +88,7 @@ const ShareModal = ({
                 {/* Header */}
                 <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text fontSize="$9" fontWeight="bold" color="#333">
-                    分享
+                    {t('shareModal.share')}
                   </Text>
                   <Button
                     onPress={isSharing ? undefined : onClose}
@@ -116,7 +112,7 @@ const ShareModal = ({
                 {/* Warning Message */}
                 <YStack gap="$3">
                   <Text color="#ef4444" fontSize="$4" lineHeight="$5">
-                    注意：一旦將此優惠分享至「隨取即用」，該優惠將自您的「專屬優惠」中移除，無法復原。
+                    {t('shareModal.warning')}
                   </Text>
                 </YStack>
 
@@ -147,7 +143,7 @@ const ShareModal = ({
                         minimumFontScale={0.8}
                         style={{ textAlign: 'center' }}
                       >
-                        {isSharing ? '分享中...' : '分享到 CouPro'}
+                        {isSharing ? t('shareModal.sharing') : t('shareModal.shareToCouPro')}
                       </Text>
                     </XStack>
                   </Button>
@@ -177,7 +173,7 @@ const ShareModal = ({
                         numberOfLines={1}
                         style={{ textAlign: 'center' }}
                       >
-                        {isSharing ? '生成中...' : '分享連結'}
+                        {isSharing ? t('shareModal.generating') : t('shareModal.shareLink')}
                       </Text>
                       {!isSharing && <Share2 size={16} color="#333" />}
                     </XStack>

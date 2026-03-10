@@ -8,6 +8,7 @@ import {
   Image,
   StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 
@@ -45,6 +46,7 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
   unifiedCode,
   onCouponSelect,
 }) => {
+  const { t } = useTranslation();
   const router = useRouter();
   const [selectedCouponId] = useState<number | null>(null);
 
@@ -108,9 +110,13 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
               {item.coupon_detail}
             </Text>
             <View style={styles.couponMeta}>
-              <Text style={styles.expiryDate}>有效期限: {formatDate(item.expiry_date)}</Text>
+              <Text style={styles.expiryDate}>
+                {t('couponSelection.expiryLabel')}: {formatDate(item.expiry_date)}
+              </Text>
               {item.estimated_savings && (
-                <Text style={styles.savings}>預估節省: ${item.estimated_savings.toFixed(0)}</Text>
+                <Text style={styles.savings}>
+                  {t('couponSelection.savingsLabel')}: ${item.estimated_savings.toFixed(0)}
+                </Text>
               )}
             </View>
           </View>
@@ -130,22 +136,24 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
           <ArrowLeft size={24} color="#333" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>選擇優惠券</Text>
+          <Text style={styles.headerTitle}>{t('couponSelection.title')}</Text>
           <Text style={styles.headerSubtitle}>{store.name}</Text>
         </View>
       </View>
 
       {/* Store Info Banner */}
       <View style={styles.storeBanner}>
-        <Text style={styles.storeBannerTitle}>統一核銷碼: {unifiedCode}</Text>
+        <Text style={styles.storeBannerTitle}>
+          {t('couponSelection.unifiedCode')}: {unifiedCode}
+        </Text>
         {store.address && <Text style={styles.storeBannerAddress}>{store.address}</Text>}
       </View>
 
       {/* Coupon List */}
       {availableCoupons.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>沒有可用的優惠券</Text>
-          <Text style={styles.emptySubtext}>您目前沒有可兌換的優惠券</Text>
+          <Text style={styles.emptyText}>{t('couponSelection.emptyTitle')}</Text>
+          <Text style={styles.emptySubtext}>{t('couponSelection.emptySubtext')}</Text>
         </View>
       ) : (
         <FlatList

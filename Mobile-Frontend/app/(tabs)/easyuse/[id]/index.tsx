@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import * as Sentry from '@sentry/react-native';
 import { Alert, Linking, Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { isAxiosError } from 'axios';
 
 // 位置權限說明（此頁用於優惠券瀏覽分析，協助改善服務與推薦；未授權時不干擾用戶，僅不傳送位置）
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -78,6 +80,7 @@ const CouponDetailPage: React.FC = () => {
   const { id } = useLocalSearchParams();
   const params = useLocalSearchParams();
   const sourceParam = params.source as string;
+  const { t } = useTranslation();
   const { getErrorMessage } = useApiError();
 
   const [coupon, setCoupon] = useState<CouponDetailType | null>(null);
@@ -149,7 +152,6 @@ const CouponDetailPage: React.FC = () => {
           });
 
           devLog('Fetched coupon details:', response.data);
-          console.log('Coupon API Response:', response.data); // Additional console log
           setCoupon(response.data);
 
           // Track template view event if template_id exists
@@ -157,34 +159,22 @@ const CouponDetailPage: React.FC = () => {
             trackTemplateView(response.data.template_id, response.data.id);
           }
         } catch (err) {
-          console.error('Error fetching coupon details:', err);
           devLog('Error fetching coupon:', err);
-          let errorMessage = '無法載入優惠券詳情。';
-          if (err instanceof Error) {
-            // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
-            if (err.message.includes('401') || err.message.includes('Authentication')) {
-              // Don't set error message, let AuthOrchestrator handle silent redirect
-              errorMessage = '';
-            } else if (err.message.includes('404')) {
-              errorMessage = '找不到此優惠券。';
-            } else {
-              errorMessage = `載入錯誤: ${err.message}`;
-            }
+          if (isAxiosError(err) && err.response?.status === 401) {
+            // AuthOrchestrator handles 401 silently
+            return;
           }
-          // Only set error if it's not empty (i.e., not a 401 auth error)
-          if (errorMessage) {
-            setError(errorMessage);
-          }
+          setError(getErrorMessage(err));
         } finally {
           setIsLoading(false);
         }
       };
       fetchCouponDetail();
     } else {
-      setError('無效的優惠券 ID。');
+      setError(t('easyuse.invalidCouponId'));
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, getErrorMessage, t]);
 
   const onGoBackContainerClick = useCallback(() => {
     if (sourceParam === 'collection') {
@@ -233,12 +223,8 @@ const CouponDetailPage: React.FC = () => {
           // Show success popup instead of alert
           setShowSuccessPopup(true);
         } catch (err) {
-          console.error('Error redeeming coupon:', err);
-          let errorMessage = '兌換失敗，請稍後再試。';
-          if (err instanceof Error) {
-            errorMessage = err.message;
-          }
-          Alert.alert('兌換失敗', errorMessage);
+          if (isAxiosError(err) && err.response?.status === 401) return;
+          Alert.alert(t('easyuse.redeemFailed'), getErrorMessage(err));
           setIsRedeeming(false);
         }
       } else {
@@ -284,7 +270,7 @@ const CouponDetailPage: React.FC = () => {
 
   const handleCouProShare = async () => {
     if (!coupon?.id) {
-      Alert.alert('錯誤', '無法分享：優惠券ID不存在');
+      Alert.alert(t('easyuse.error'), t('easyuse.cannotShareNoId'));
       return;
     }
 
@@ -299,20 +285,14 @@ const CouponDetailPage: React.FC = () => {
 
       if (response.data.message) {
         setShowShareModal(false);
-
-        // Show success alert and navigate back to Collection
-        Alert.alert('分享成功', '您的優惠券已分享至隨取即用公開交換池，其他用戶現在可以領取！', [
-          {
-            text: '確定',
-            onPress: () => router.push('/(tabs)/collection'),
-          },
+        Alert.alert(t('easyuse.shareSuccess'), t('easyuse.shareSuccessMessage'), [
+          { text: t('easyuse.ok'), onPress: () => router.push('/(tabs)/collection') },
         ]);
 
         devLog('Public share successful:', response.data);
       }
     } catch (err) {
-      console.error('Error sharing to public pool:', err);
-      Alert.alert('分享失敗', getErrorMessage(err));
+      Alert.alert(t('shareModal.shareFailedTitle'), getErrorMessage(err));
     } finally {
       setIsSharing(false);
     }
@@ -320,7 +300,7 @@ const CouponDetailPage: React.FC = () => {
 
   const handleLinkShare = async (): Promise<string | undefined> => {
     if (!coupon?.id) {
-      Alert.alert('錯誤', '無法分享：優惠券ID不存在');
+      Alert.alert(t('easyuse.error'), t('easyuse.cannotShareNoId'));
       return;
     }
 
@@ -344,8 +324,7 @@ const CouponDetailPage: React.FC = () => {
       }
       throw new Error('Failed to generate share link');
     } catch (err) {
-      console.error('Error sharing link:', err);
-      Alert.alert('分享失敗', getErrorMessage(err));
+      Alert.alert(t('shareModal.shareFailedTitle'), getErrorMessage(err));
       return;
     } finally {
       setIsSharing(false);
@@ -358,53 +337,55 @@ const CouponDetailPage: React.FC = () => {
 
   const handleBlockMerchant = () => {
     if (!coupon?.store_id || !coupon?.store_name) {
-      Alert.alert('錯誤', '無法封鎖此商家');
+      Alert.alert(t('easyuse.error'), t('easyuse.cannotBlockStore'));
       return;
     }
 
     const isBlocked = isStoreBlocked(coupon.store_id);
 
     if (isBlocked) {
-      // Unblock confirmation
-      Alert.alert('解除封鎖', `確定要解除封鎖「${coupon.store_name}」嗎？`, [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '確定',
-          onPress: async () => {
-            setIsBlockingStore(true);
-            try {
-              const success = await unblockStore(coupon.store_id);
-              if (success) {
-                Alert.alert('成功', '已解除封鎖');
-              } else {
-                Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
-              }
-            } catch {
-              Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
-            } finally {
-              setIsBlockingStore(false);
-            }
-          },
-        },
-      ]);
-    } else {
-      // Block confirmation
       Alert.alert(
-        '封鎖商家',
-        `確定要封鎖「${coupon.store_name}」嗎？\n\n封鎖後，此商家的優惠券將不會出現在您的動態中。`,
+        t('easyuse.unblockConfirmTitle'),
+        t('easyuse.unblockConfirmMessage', { storeName: coupon.store_name }),
         [
-          { text: '取消', style: 'cancel' },
+          { text: t('easyuse.cancel'), style: 'cancel' },
           {
-            text: '確定封鎖',
+            text: t('easyuse.unblockConfirmButton'),
+            onPress: async () => {
+              setIsBlockingStore(true);
+              try {
+                const success = await unblockStore(coupon.store_id);
+                if (success) {
+                  Alert.alert(t('easyuse.ok'), t('easyuse.unblockSuccess'));
+                } else {
+                  Alert.alert(t('easyuse.error'), t('easyuse.unblockFailed'));
+                }
+              } catch {
+                Alert.alert(t('easyuse.error'), t('easyuse.unblockFailed'));
+              } finally {
+                setIsBlockingStore(false);
+              }
+            },
+          },
+        ],
+      );
+    } else {
+      Alert.alert(
+        t('easyuse.blockConfirmTitle'),
+        t('easyuse.blockConfirmMessage', { storeName: coupon.store_name }),
+        [
+          { text: t('easyuse.cancel'), style: 'cancel' },
+          {
+            text: t('easyuse.blockConfirmButton'),
             style: 'destructive',
             onPress: async () => {
               setIsBlockingStore(true);
               try {
                 const success = await blockStore(coupon.store_id);
                 if (success) {
-                  Alert.alert('已封鎖', '該商家的優惠券將不會再出現在您的動態中', [
+                  Alert.alert(t('easyuse.blockSuccess'), t('easyuse.blockSuccessMessage'), [
                     {
-                      text: '確定',
+                      text: t('easyuse.ok'),
                       onPress: () => {
                         if (sourceParam === 'collection') {
                           router.push('/(tabs)/collection');
@@ -415,10 +396,10 @@ const CouponDetailPage: React.FC = () => {
                     },
                   ]);
                 } else {
-                  Alert.alert('錯誤', '封鎖失敗，請稍後再試');
+                  Alert.alert(t('easyuse.error'), t('easyuse.blockFailed'));
                 }
               } catch {
-                Alert.alert('錯誤', '封鎖失敗，請稍後再試');
+                Alert.alert(t('easyuse.error'), t('easyuse.blockFailed'));
               } finally {
                 setIsBlockingStore(false);
               }
@@ -452,12 +433,11 @@ const CouponDetailPage: React.FC = () => {
           }
         })
         .catch((err) => {
-          console.error('Error opening maps:', err);
           Sentry.captureException(err, { data: { context: 'easyuse.openMapsNavigation' } });
-          Alert.alert('錯誤', '無法開啟地圖應用程式');
+          Alert.alert(t('easyuse.error'), t('easyuse.openMapsFailed'));
         });
     } else {
-      Alert.alert('錯誤', '無法取得店家位置資訊');
+      Alert.alert(t('easyuse.error'), t('easyuse.noStoreLocation'));
     }
   };
 
@@ -466,7 +446,7 @@ const CouponDetailPage: React.FC = () => {
       <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }}>
         <Spinner size="large" color="#FFAD31" />
         <Text mt="$4" fontSize="$6" color="#333">
-          載入中...
+          {t('easyuse.loading')}
         </Text>
       </YStack>
     );
@@ -484,7 +464,7 @@ const CouponDetailPage: React.FC = () => {
           {error}
         </Text>
         <Button onPress={onGoBackContainerClick} bg="#d1d5db" color="#374151" fontWeight="600">
-          返回
+          {t('easyuse.back')}
         </Button>
       </YStack>
     );
@@ -494,14 +474,12 @@ const CouponDetailPage: React.FC = () => {
     return (
       <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }}>
         <Text fontSize="$6" color="#333">
-          找不到優惠券資料。
+          {t('easyuse.couponNotFound')}
         </Text>
       </YStack>
     );
   }
 
-  // Debug logging
-  console.log('Rendering coupon with data:', coupon);
   devLog('Current coupon state:', coupon);
 
   return (
@@ -562,7 +540,7 @@ const CouponDetailPage: React.FC = () => {
                 }}
               >
                 <Text color="#333" fontWeight="600" fontSize="$4">
-                  分享
+                  {t('shareModal.share')}
                 </Text>
               </Button>
             )}
@@ -738,7 +716,11 @@ const CouponDetailPage: React.FC = () => {
               disabled={isRedeeming || !coupon.can_use_today}
             >
               <Text color="#333" fontSize="$6" fontWeight="bold">
-                {isRedeeming ? '處理中...' : !coupon.can_use_today ? '今日已使用' : '使用'}
+                {isRedeeming
+                  ? t('easyuse.processing')
+                  : !coupon.can_use_today
+                    ? t('easyuse.useTodayUsed')
+                    : t('easyuse.use')}
               </Text>
             </Button>
           ) : (
@@ -760,7 +742,7 @@ const CouponDetailPage: React.FC = () => {
                 }}
               >
                 <Text color="#333" fontSize="$6" fontWeight="bold">
-                  使用
+                  {t('easyuse.use')}
                 </Text>
               </Button>
 
@@ -789,7 +771,7 @@ const CouponDetailPage: React.FC = () => {
       {coupon.is_redeemed && coupon.coupon_type === 'exclusive' && (
         <YStack style={{ position: 'absolute', bottom: 30, left: 20, right: 20 }}>
           <Text style={{ textAlign: 'center' }} fontSize="$5" color="#ef4444">
-            此優惠券已被兌換
+            {t('easyuse.redeemedExclusive')}
           </Text>
         </YStack>
       )}
@@ -804,7 +786,7 @@ const CouponDetailPage: React.FC = () => {
         discountValue={redemptionData?.discountValue}
         redeemedAt={redemptionData?.redeemedAt}
         redemptionId={redemptionData?.redemptionId}
-        titleType="使用成功"
+        titleType={t('successPopup.useSuccess')}
       />
 
       {/* Share Modal */}

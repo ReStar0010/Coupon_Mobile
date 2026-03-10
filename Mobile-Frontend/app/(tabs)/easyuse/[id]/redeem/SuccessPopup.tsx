@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Modal, Dimensions, Text, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 interface SuccessPopupProps {
   isOpen: boolean;
@@ -18,14 +19,18 @@ const { width } = Dimensions.get('window');
 const SuccessPopup: React.FC<SuccessPopupProps> = ({
   isOpen,
   onClose,
-  storeName = '店家名稱',
-  couponDetail = '優惠詳情',
-  titleType = '核銷成功',
+  storeName,
+  couponDetail,
+  titleType,
   couponName,
   discountValue,
   redeemedAt,
   redemptionId,
 }) => {
+  const { t } = useTranslation();
+  const displayTitle = titleType ?? t('successPopup.redeemSuccess');
+  const displayStoreName = storeName ?? '';
+  const displayCouponDetail = couponDetail ?? '';
   // Format timestamp as YYYY/MM/DD HH:MM
   const formatTimestamp = (isoString?: string) => {
     if (!isoString) {
@@ -97,7 +102,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
               marginBottom: 24,
             }}
           >
-            {titleType}
+            {displayTitle}
           </Text>
 
           {/* Coupon Name - Prominent */}
@@ -161,7 +166,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                   fontWeight: '500',
                 }}
               >
-                核銷時間
+                {t('successPopup.redeemTime')}
               </Text>
               <Text
                 style={{
@@ -190,7 +195,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                   fontWeight: '500',
                 }}
               >
-                商家名稱
+                {t('successPopup.storeName')}
               </Text>
               <Text
                 style={{
@@ -202,7 +207,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                 }}
                 numberOfLines={1}
               >
-                {storeName}
+                {displayStoreName}
               </Text>
             </View>
 
@@ -222,7 +227,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                     fontWeight: '400',
                   }}
                 >
-                  交易編號
+                  {t('successPopup.transactionId')}
                 </Text>
                 <Text
                   style={{
@@ -261,7 +266,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
                 color: '#333',
               }}
             >
-              完成
+              {t('successPopup.complete')}
             </Text>
           </TouchableOpacity>
         </View>

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Camera as CameraIcon } from 'lucide-react-native';
@@ -33,6 +34,7 @@ interface Coupon {
 
 export default function RedeemPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { getErrorMessage } = useApiError();
   const { id, unifiedCode, source } = useLocalSearchParams<{
     id: string;
@@ -99,15 +101,9 @@ export default function RedeemPage() {
       return granted;
     }
 
-    // Permission denied and can't ask again
-    Alert.alert('需要相機權限', '請到設定中開啟相機權限以使用掃描功能', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '前往設定',
-        onPress: () => {
-          // Could open settings here if needed
-        },
-      },
+    Alert.alert(t('redeem.cameraPermissionTitle'), t('redeem.cameraPermissionMessage'), [
+      { text: t('easyuse.cancel'), style: 'cancel' },
+      { text: t('redeem.goToSettings'), onPress: () => {} },
     ]);
     return false;
   };
@@ -157,8 +153,6 @@ export default function RedeemPage() {
         setShowSuccessConfirmation(true);
         setRedeemCode('');
       } catch (error) {
-        console.error('處理錯誤:', error);
-        // 401 由 AuthOrchestrator 靜默處理，不顯示 toast
         if (isAxiosError(error) && error.response?.status === 401) {
           setErrorToastMessage('');
           setShowErrorToast(false);
@@ -227,8 +221,8 @@ export default function RedeemPage() {
 
         setCoupon(response.data);
       } catch (error) {
-        console.error('Failed to fetch coupon:', error);
-        setMessage('無法載入優惠券資料');
+        if (isAxiosError(error) && error.response?.status === 401) return;
+        setMessage(getErrorMessage(error));
         setCoupon(null);
       }
     };
@@ -236,7 +230,7 @@ export default function RedeemPage() {
     if (id) {
       fetchCoupon();
     }
-  }, [id, router]);
+  }, [id, router, getErrorMessage]);
 
   // Auto-fill and auto-redeem unified redemption code if provided
   useEffect(() => {
@@ -305,7 +299,7 @@ export default function RedeemPage() {
         }}
       >
         <ActivityIndicator size="large" color="#FFAD31" />
-        <Text style={{ color: '#333', marginTop: 16 }}>載入中...</Text>
+        <Text style={{ color: '#333', marginTop: 16 }}>{t('easyuse.loading')}</Text>
       </SafeAreaView>
     );
   }
@@ -332,7 +326,7 @@ export default function RedeemPage() {
             paddingVertical: 8,
           }}
         >
-          <Text style={{ fontWeight: '600', color: '#374151' }}>返回</Text>
+          <Text style={{ fontWeight: '600', color: '#374151' }}>{t('easyuse.back')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -367,7 +361,7 @@ export default function RedeemPage() {
               <TextInput
                 value={redeemCode}
                 onChangeText={handleInputChange}
-                placeholder="輸入核銷碼"
+                placeholder={t('redeem.placeholder')}
                 maxLength={20}
                 autoCapitalize="characters"
                 autoCorrect={false}
@@ -400,7 +394,7 @@ export default function RedeemPage() {
                   fontWeight: '500',
                 }}
               >
-                或
+                {t('redeem.or')}
               </Text>
             </View>
 
@@ -540,7 +534,7 @@ export default function RedeemPage() {
                             borderRadius: 8,
                           }}
                         >
-                          {isScanning ? '對準核銷碼進行掃描' : '點擊重新掃描'}
+                          {isScanning ? t('redeem.scanning') : t('redeem.rescan')}
                         </Text>
                       </View>
 
@@ -619,7 +613,7 @@ export default function RedeemPage() {
                           textAlign: 'center',
                         }}
                       >
-                        啟動相機掃描
+                        {t('redeem.startCamera')}
                       </Text>
                       <Text
                         style={{
@@ -629,7 +623,7 @@ export default function RedeemPage() {
                           maxWidth: 200,
                         }}
                       >
-                        點擊啟動相機掃描核銷碼
+                        {t('redeem.startCameraHint')}
                       </Text>
                     </View>
 
@@ -655,7 +649,7 @@ export default function RedeemPage() {
                             textAlign: 'center',
                           }}
                         >
-                          需要相機權限才能使用掃描功能
+                          {t('redeem.cameraPermissionRequired')}
                         </Text>
                       </View>
                     )}
@@ -683,7 +677,9 @@ export default function RedeemPage() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <ActivityIndicator size="small" color="#FFAD31" style={{ marginRight: 8 }} />
-                  <Text style={{ color: '#333', fontSize: 16, fontWeight: '600' }}>處理中...</Text>
+                  <Text style={{ color: '#333', fontSize: 16, fontWeight: '600' }}>
+                    {t('redeem.processing')}
+                  </Text>
                 </View>
               </View>
             )}
@@ -701,7 +697,7 @@ export default function RedeemPage() {
         discountValue={redemptionData?.discountValue}
         redeemedAt={redemptionData?.redeemedAt}
         redemptionId={redemptionData?.redemptionId}
-        titleType="核銷成功"
+        titleType={t('successPopup.redeemSuccess')}
       />
 
       {/* Error Toast */}
