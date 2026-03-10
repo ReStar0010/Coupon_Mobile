@@ -17,6 +17,7 @@ import { isUserLoggedIn, fetchAPI } from '@/app/utils/authAPI';
 import { useApiError } from '@/app/hooks/useApiError';
 import { devLog } from '@/app/utils/devLogger';
 import StatCard from '../../statistics/components/StatCard';
+import { markCollectionDirty } from '@/app/utils/collectionRefresh';
 
 export type CouponDetailType = {
   id: number;
@@ -222,6 +223,8 @@ const CouponDetailPage: React.FC = () => {
           setCoupon({ ...coupon, is_redeemed: true });
           // Show success popup instead of alert
           setShowSuccessPopup(true);
+          // 兌換會改變 `/exclusive-coupons/` 回傳結果，需讓收藏頁在回到焦點時刷新。
+          markCollectionDirty();
         } catch (err) {
           if (isAxiosError(err) && err.response?.status === 401) return;
           Alert.alert(t('easyuse.redeemFailed'), getErrorMessage(err));

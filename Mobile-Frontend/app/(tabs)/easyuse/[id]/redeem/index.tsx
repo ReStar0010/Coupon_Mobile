@@ -21,6 +21,7 @@ import { devLog } from '@/app/utils/devLogger';
 import { isAxiosError } from 'axios';
 import { fetchAPI } from '@/app/utils/authAPI';
 import { useApiError } from '@/app/hooks/useApiError';
+import { markCollectionDirty } from '@/app/utils/collectionRefresh';
 
 // Define the coupon interface
 interface Coupon {
@@ -152,6 +153,8 @@ export default function RedeemPage() {
         setInputError(false);
         setShowSuccessConfirmation(true);
         setRedeemCode('');
+        // 兌換會改變 `/exclusive-coupons/` 回傳結果，需讓收藏頁在回到焦點時刷新。
+        markCollectionDirty();
       } catch (error) {
         if (isAxiosError(error) && error.response?.status === 401) {
           setErrorToastMessage('');

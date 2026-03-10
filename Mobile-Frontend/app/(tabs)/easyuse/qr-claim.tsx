@@ -15,6 +15,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { isAxiosError } from 'axios';
 import { qrClaimAPI } from '@/app/utils/authAPI';
+import { markCollectionDirty } from '@/app/utils/collectionRefresh';
 import { useApiError } from '@/app/hooks/useApiError';
 
 /** Parse claim token from claim URL (web or app scheme). Returns null if not a claim URL. */
@@ -73,6 +74,7 @@ function QRClaimScannerContent() {
     qrClaimAPI
       .claimCouponByToken(deepLinkToken)
       .then((result) => {
+        markCollectionDirty();
         Alert.alert(
           '獲得優惠券',
           `成功領取優惠券：${result.coupon_name}`,
@@ -161,6 +163,7 @@ function QRClaimScannerContent() {
         // T015: Call claim API with claim_token (URL string = payload key for re-scan prevention)
         const result = await qrClaimAPI.claimCouponByToken(claimToken);
         didSucceed = true;
+        markCollectionDirty();
 
         // After success: permanently ignore this QR payload to prevent repeated claims
         successfullyClaimedCodesRef.current.add(scannedCode);

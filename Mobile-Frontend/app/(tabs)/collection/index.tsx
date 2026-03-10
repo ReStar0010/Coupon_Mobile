@@ -13,6 +13,8 @@ import { COLORS } from '@/app/constants/theme';
 import { useDismissedStores } from '@/app/components/providers/DismissedStoresProvider';
 import { useBlockedMerchants } from '@/app/components/providers/BlockedMerchantsProvider';
 import MerchantDeletedModal from '@/app/components/MerchantDeletedModal';
+import { useFocusEffect } from '@react-navigation/native';
+import { consumeCollectionDirty } from '@/app/utils/collectionRefresh';
 
 import { useCoupons } from './hooks/useCoupons';
 import { useDailyDraw } from './hooks/useDailyDraw';
@@ -54,9 +56,9 @@ const CouponItem: React.FC<CouponItemProps> = React.memo(({ item, onMerchantDele
 CouponItem.displayName = 'CouponItem';
 
 const LoadingState: React.FC = React.memo(() => (
-  <YStack width="100%" alignItems="center" justifyContent="center" padding="$6">
+  <YStack width="100%" style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
     <Spinner size="large" color={COLORS.primary} />
-    <Text marginTop="$4" fontSize="$6" color={COLORS.text.secondary}>
+    <Text style={{ marginTop: 16 }} fontSize="$6" color={COLORS.text.secondary}>
       載入中...
     </Text>
   </YStack>
@@ -69,8 +71,8 @@ interface ErrorStateProps {
 }
 
 const ErrorState: React.FC<ErrorStateProps> = React.memo(({ error }) => (
-  <YStack width="100%" alignItems="center" justifyContent="center" padding="$6">
-    <Text textAlign="center" color={COLORS.text.error}>
+  <YStack width="100%" style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <Text style={{ textAlign: 'center' }} color={COLORS.text.error}>
       {error}
     </Text>
   </YStack>
@@ -79,8 +81,8 @@ const ErrorState: React.FC<ErrorStateProps> = React.memo(({ error }) => (
 ErrorState.displayName = 'ErrorState';
 
 const EmptyState: React.FC = React.memo(() => (
-  <YStack width="100%" alignItems="center" justifyContent="center" padding="$6">
-    <Text textAlign="center" color={COLORS.text.secondary}>
+  <YStack width="100%" style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <Text style={{ textAlign: 'center' }} color={COLORS.text.secondary}>
       目前沒有可用的專屬優惠券。
     </Text>
   </YStack>
@@ -120,8 +122,11 @@ const Collection: React.FC = () => {
     isLoading: sharesLoading,
     fetchPublicShares,
   } = useMyPublicShares(isAuthenticated, authLoading);
-  const { vouchers: platformVouchers, isLoading: vouchersLoading, fetchVouchers } =
-    usePlatformVouchers(isAuthenticated, authLoading);
+  const {
+    vouchers: platformVouchers,
+    isLoading: vouchersLoading,
+    fetchVouchers,
+  } = usePlatformVouchers(isAuthenticated, authLoading);
   const { tags } = useTags(isAuthenticated);
   const merchants = useMemo(() => {
     const merchantSet = new Set<string>();
@@ -178,6 +183,15 @@ const Collection: React.FC = () => {
     fetchPublicShares();
     fetchVouchers();
   }, [fetchCoupons, fetchPublicShares, fetchVouchers]);
+
+  // Tabs preserve state for performance; refresh only when explicitly invalidated.
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeCollectionDirty()) {
+        onRefresh();
+      }
+    }, [onRefresh]),
+  );
 
   const handleOpenDailyDraw = useCallback(() => {
     setShowDailyDraw(true);
@@ -259,9 +273,9 @@ const Collection: React.FC = () => {
   if (authLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-        <YStack flex={1} alignItems="center" justifyContent="center">
+        <YStack flex={1} style={{ alignItems: 'center', justifyContent: 'center' }}>
           <Spinner size="large" color={COLORS.primary} />
-          <Text marginTop="$4" fontSize="$6" color={COLORS.text.secondary}>
+          <Text style={{ marginTop: 16 }} fontSize="$6" color={COLORS.text.secondary}>
             驗證身份中...
           </Text>
         </YStack>
