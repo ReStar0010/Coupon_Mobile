@@ -27,4 +27,4 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - run: eas update --branch production --message "${{ github.event.head_commit.message }}"
+      - run: eas update --branch production --message "${{ github.event.head_commit.message }} --environment production"
