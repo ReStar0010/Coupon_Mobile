@@ -12,7 +12,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
 import axios, { AxiosRequestConfig, AxiosResponse, isAxiosError } from 'axios';
-import perf from '@react-native-firebase/perf';
+// import perf from '@react-native-firebase/perf';
 // import * as Sentry from '@sentry/react-native';
 import { API_URL } from '../config/api';
 import { authEvents, AUTH_EVENT_TYPES } from './authEvents';
@@ -479,9 +479,21 @@ export const fetchAPI = async (
       // If successful, return the response immediately
       return response;
     } catch (error) {
-      // Check if it's a public endpoint
+      // For all errors, attach error_code/context from response so useApiError can show the right message
+      if (isAxiosError(error)) {
+        const responseData = error.response?.data ?? {};
+        if (responseData.error_code) {
+          error.errorCode = responseData.error_code;
+          error.errorContext = responseData.context ?? {};
+        } else if (responseData.error) {
+          error.errorCode = LEGACY_ERROR_MAP[responseData.error] ?? undefined;
+          error.errorContext = {};
+        }
+      }
+
+      // Public endpoints: no token refresh, just re-throw (error_code already attached above)
       if (isPublicEndpoint(endpoint)) {
-        throw error; // Re-throw the error for public endpoints
+        throw error;
       }
 
       // Check if the error is due to authentication issues
