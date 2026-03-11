@@ -14,7 +14,7 @@ python manage.py collectstatic --no-input
 python manage.py migrate --no-input
 
 # Load test 種子資料（deploy 時寫入 DB；客戶端使用 repo 內共用 config）
-python manage.py seed_load_test --stage 4
+# python manage.py seed_load_test --stage 4
 
 # 如果需要創建 superuser，則執行此操作
 # if [[ $CREATE_SUPERUSER ]]; then
