@@ -50,12 +50,7 @@ const resolveBaseUrl = (): string => {
       return `http://localhost:${ENV.PORT}`;
 
     case 'local-network': {
-      if (!ENV.HOST) {
-        throw new Error('[API Config] Missing EXPO_PUBLIC_LOCAL_HOST for local-network mode.');
-      }
-      // 判斷是否為 Tunnel (包含 domain 特徵或已指定 protocol)
-      const isTunnel = /^(http|https):|\.(loca\.lt|ngrok)/.test(ENV.HOST);
-      return isTunnel ? normalizeUrl(ENV.HOST) : `http://${ENV.HOST}:${ENV.PORT}`;
+      return normalizeUrl(ENV.HOST);
     }
 
     case 'production':
@@ -121,7 +116,7 @@ let tokenStorage: {
 export const initStorage = async () => {
   try {
     // Try to use AsyncStorage if available
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
     const accessToken = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
     const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
     tokenStorage.access_token = accessToken;
@@ -130,7 +125,7 @@ export const initStorage = async () => {
       hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshToken,
     });
-  } catch (e) {
+  } catch {
     // Fallback to in-memory storage
     console.log('[Storage] AsyncStorage not available, using in-memory storage');
     console.log('[Storage] Current in-memory tokens:', {
@@ -150,11 +145,11 @@ export const saveTokens = async (accessToken: string, refreshToken: string) => {
   });
 
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
     await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     console.log('[Storage] Tokens saved to AsyncStorage');
-  } catch (e) {
+  } catch {
     // Fallback to in-memory storage
     console.log('[Storage] Failed to save to AsyncStorage, using in-memory storage');
   }
@@ -176,10 +171,10 @@ export const clearTokens = async () => {
   tokenStorage.refresh_token = null;
 
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
     await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
     await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
-  } catch (e) {
+  } catch {
     // Fallback to in-memory storage
   }
 };
@@ -222,7 +217,7 @@ export class MerchantAuthorizationError extends Error {
 
 // Token refresh state
 let isRefreshing = false;
-let refreshSubscribers: Array<(success: boolean) => void> = [];
+let refreshSubscribers: ((success: boolean) => void)[] = [];
 
 const subscribeToRefresh = (callback: (success: boolean) => void) => {
   refreshSubscribers.push(callback);
@@ -295,23 +290,18 @@ export interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
 }
 
-export const fetchAPI = async (
-  endpoint: string,
-  options: FetchOptions = {}
-): Promise<Response> => {
+export const fetchAPI = async (endpoint: string, options: FetchOptions = {}): Promise<Response> => {
   const { requireAuth = true, ...fetchOptions } = options;
 
   // Build headers
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...fetchOptions.headers,
-  };
+  const headers = new Headers(fetchOptions.headers);
+  headers.set('Content-Type', 'application/json');
 
   // Add auth token if required
   if (requireAuth && !isPublicEndpoint(endpoint)) {
     const accessToken = getAccessToken();
     if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+      headers.set('Authorization', `Bearer ${accessToken}`);
     }
   }
 
@@ -334,7 +324,7 @@ export const fetchAPI = async (
         // Retry request with new token
         const newAccessToken = getAccessToken();
         if (newAccessToken) {
-          headers['Authorization'] = `Bearer ${newAccessToken}`;
+          headers.set('Authorization', `Bearer ${newAccessToken}`);
           response = await fetch(url, {
             ...fetchOptions,
             headers,
@@ -344,7 +334,9 @@ export const fetchAPI = async (
           if (response.status === 401) {
             console.log('[API] Retry after refresh still returned 401, authentication failed');
             await clearTokens();
-            throw new AuthenticationError('Authentication failed after token refresh. Please log in again.');
+            throw new AuthenticationError(
+              'Authentication failed after token refresh. Please log in again.',
+            );
           }
         } else {
           console.log('[API] Token refresh succeeded but no access token available');
@@ -383,13 +375,49 @@ export const fetchAPI = async (
   }
 };
 
+/** Error with HTTP status for components to distinguish expected (4xx) vs unexpected errors */
+export type ApiError = Error & {
+  statusCode?: number;
+  errorCode?: string;
+  context?: Record<string, unknown>;
+};
+
+function createApiError(
+  message: string,
+  status: number,
+  errorCode?: string,
+  context?: Record<string, unknown>,
+): ApiError {
+  const err = new Error(message) as ApiError;
+  err.statusCode = status;
+  if (errorCode !== undefined) err.errorCode = errorCode;
+  if (context !== undefined) err.context = context;
+  return err;
+}
+
+/**
+ * Maps legacy backend error string values to standardised error_code constants.
+ * Used as a fallback while views are being migrated to raise CouProAPIException.
+ */
+const LEGACY_ERROR_MAP: Record<string, string> = {
+  email_not_verified: 'EMAIL_NOT_VERIFIED',
+  wrong_client_type: 'WRONG_CLIENT_TYPE_USER',
+  missing_token: 'MISSING_TOKEN',
+  already_verified: 'ALREADY_VERIFIED',
+  expired_token: 'EXPIRED_TOKEN',
+  invalid_token: 'INVALID_TOKEN',
+  missing_email: 'FIELD_REQUIRED',
+  email_send_failed: 'EMAIL_SEND_FAILED',
+  INVALID_PASSWORD: 'INVALID_PASSWORD',
+};
+
 // Helper function to parse JSON response
 export const parseResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
     let errorData: any;
     try {
       errorData = await response.json();
-    } catch (e) {
+    } catch {
       // If response is not JSON, try to get text
       const text = await response.text().catch(() => 'Unknown error');
       errorData = { error: text || `HTTP ${response.status}` };
@@ -401,14 +429,29 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
       errorData,
     });
 
+    const status = response.status;
+
     // Extract error message from various possible formats
     // Handle Django REST Framework error format
     if (typeof errorData === 'object' && errorData !== null) {
+      // ✅ New standardised format: {error_code, developer_message, context}
+      if (errorData.error_code) {
+        throw createApiError(
+          errorData.developer_message || errorData.error_code,
+          status,
+          errorData.error_code,
+          errorData.context ?? {},
+        );
+      }
+
       // Special handling for email_not_verified error - preserve original structure
       if (errorData.error === 'email_not_verified') {
         const unverifiedError: any = new Error(errorData.message || '請先驗證您的電子郵件');
         unverifiedError.error = 'email_not_verified';
         unverifiedError.email = errorData.email;
+        unverifiedError.statusCode = status;
+        unverifiedError.errorCode = 'EMAIL_NOT_VERIFIED';
+        unverifiedError.context = {};
         throw unverifiedError;
       }
 
@@ -416,21 +459,31 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
       if (response.status === 403 && errorData.error === 'wrong_client_type') {
         const wrongClientError: any = new Error(errorData.message || '請使用正確的 App 登入');
         wrongClientError.error = 'wrong_client_type';
+        wrongClientError.statusCode = status;
+        wrongClientError.errorCode = 'WRONG_CLIENT_TYPE_USER';
+        wrongClientError.context = {};
         throw wrongClientError;
       }
 
       // Special handling for 403 "User is not a merchant" error
       // This happens when a non-merchant user tries to access merchant endpoints
-      if (response.status === 403 && (
-        errorData.error === 'User is not a merchant.' ||
-        errorData.message === 'User is not a merchant.' ||
-        errorData.error?.includes('not a merchant') ||
-        errorData.message?.includes('not a merchant')
-      )) {
-        console.error('[API] User is not a merchant, clearing tokens and throwing MerchantAuthorizationError');
+      if (
+        response.status === 403 &&
+        (errorData.error === 'User is not a merchant.' ||
+          errorData.message === 'User is not a merchant.' ||
+          errorData.error?.includes('not a merchant') ||
+          errorData.message?.includes('not a merchant'))
+      ) {
+        console.error(
+          '[API] User is not a merchant, clearing tokens and throwing MerchantAuthorizationError',
+        );
         // Clear tokens since user is not authorized for merchant endpoints
         await clearTokens();
-        throw new MerchantAuthorizationError('您不是商家用戶，無法使用商家功能。');
+        const merchantErr = new MerchantAuthorizationError(
+          '您不是商家用戶，無法使用商家功能。',
+        ) as MerchantAuthorizationError & { statusCode?: number };
+        merchantErr.statusCode = status;
+        throw merchantErr;
       }
 
       // Check for field-specific errors (e.g., {phone: ['This field is required.']})
@@ -446,7 +499,7 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
       }
 
       if (fieldErrors.length > 0) {
-        throw new Error(fieldErrors.join('\n'));
+        throw createApiError(fieldErrors.join('\n'), status);
       }
 
       // Check for general error fields
@@ -457,15 +510,19 @@ export const parseResponse = async <T>(response: Response): Promise<T> => {
         errorData.non_field_errors?.[0] ||
         `HTTP ${response.status}: ${response.statusText}`;
 
-      throw new Error(errorMessage);
+      // Attempt to map legacy error string to a standardised error_code
+      const legacyCode =
+        typeof errorData.error === 'string' ? LEGACY_ERROR_MAP[errorData.error] : undefined;
+
+      throw createApiError(errorMessage, status, legacyCode, {});
     }
 
     // If errorData is a string
     if (typeof errorData === 'string') {
-      throw new Error(errorData);
+      throw createApiError(errorData, status);
     }
 
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    throw createApiError(`HTTP ${response.status}: ${response.statusText}`, status);
   }
   return response.json();
 };
@@ -545,6 +602,17 @@ export interface MerchantProfileResponse {
     image_url?: string;
     store_type?: string;
   };
+}
+
+/** Merchant statistics (009: includes today_cost 今日成本) */
+export interface MerchantStatisticsResponse {
+  active_coupons: number;
+  total_redemptions: number;
+  total_views: number;
+  total_templates?: number;
+  total_coupons_generated?: number;
+  today_cost: number;
+  today_cost_currency?: string | null;
 }
 
 // Auth API functions
@@ -670,13 +738,30 @@ export const merchantAPI = {
     return parseResponse(response);
   },
 
-  getStatistics: async () => {
+  getStatistics: async (): Promise<MerchantStatisticsResponse> => {
     const response = await fetchAPI('/merchant/statistics/');
     return parseResponse(response);
   },
 
-  getTemplateAnalytics: async (templateId: number, days: number = 30) => {
-    const response = await fetchAPI(`/merchant/coupon-templates/${templateId}/analytics/?days=${days}`);
+  /**
+   * Get template analytics. Use either date_from+date_to (calendar range) or days (3,7,30,90).
+   * When both date_from and date_to are provided, they take precedence over days.
+   */
+  getTemplateAnalytics: async (
+    templateId: number,
+    options?: { date_from?: string; date_to?: string; days?: number },
+  ) => {
+    const params = new URLSearchParams();
+    if (options?.date_from && options?.date_to) {
+      params.set('date_from', options.date_from);
+      params.set('date_to', options.date_to);
+    } else {
+      const days = options?.days ?? 30;
+      params.set('days', String(days));
+    }
+    const response = await fetchAPI(
+      `/merchant/coupon-templates/${templateId}/analytics/?${params.toString()}`,
+    );
     return parseResponse(response);
   },
 
@@ -712,20 +797,23 @@ export const merchantAPI = {
     return parseResponse(response);
   },
 
-  updateTemplate: async (id: number, data: Partial<{
-    coupon_name: string;
-    coupon_detail: string;
-    important_notes: string;
-    image_url: string;
-    estimated_savings: number;
-    template_redeem_code: string;
-    total_quantity: number;
-    start_date: string;
-    expiry_date: string;
-    draw_probability: number;
-    is_active: boolean;
-    tags: number[];
-  }>) => {
+  updateTemplate: async (
+    id: number,
+    data: Partial<{
+      coupon_name: string;
+      coupon_detail: string;
+      important_notes: string;
+      image_url: string;
+      estimated_savings: number;
+      template_redeem_code: string;
+      total_quantity: number;
+      start_date: string;
+      expiry_date: string;
+      draw_probability: number;
+      is_active: boolean;
+      tags: number[];
+    }>,
+  ) => {
     const response = await fetchAPI(`/merchant/coupon-templates/${id}/update/`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -797,7 +885,7 @@ export const merchantAPI = {
   // Tags
   getTags: async () => {
     const response = await fetchAPI('/tags/');
-    return parseResponse<Array<{ id: number, name: string, display_name: string }>>(response);
+    return parseResponse<{ id: number; name: string; display_name: string }[]>(response);
   },
 
   // QR Code Session
@@ -851,9 +939,9 @@ export const merchantAPI = {
     const accessToken = getAccessToken();
 
     // Build headers (don't set Content-Type, let FormData set it with boundary)
-    const headers: HeadersInit = {};
+    const headers = new Headers();
     if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+      headers.set('Authorization', `Bearer ${accessToken}`);
     }
 
     // Make request
@@ -867,7 +955,7 @@ export const merchantAPI = {
     });
 
     // Parse response
-    const result = await parseResponse(response);
+    const result = await parseResponse<{ image_url: string }>(response);
     const relativeUrl = result.image_url;
 
     // Convert relative URL to absolute URL for image display
@@ -952,4 +1040,3 @@ export const accountDeletionAPI = {
     return parseResponse(response);
   },
 };
-

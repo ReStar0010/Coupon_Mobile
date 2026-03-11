@@ -1,0 +1,15 @@
+{
+  "browse_store_coupons": 10,
+  "redeem_store_coupon": 2,
+  "claim_public_pool": 1,
+  "browse_exclusive_coupons": 5,
+  "coupon_detail": 3,
+  "share_private": 1,
+  "accept_private_share": 1,
+  "share_public": 1,
+  "my_public_shares": 1,
+  "daily_draw_templates": 2,
+  "daily_draw": 1,
+  "draw_history": 1,
+  "redeem_shared_exclusive_idempotency": 0
+}

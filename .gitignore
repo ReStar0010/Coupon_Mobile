@@ -68,7 +68,12 @@ web-build/
 .env
 .env.local
 .env.production
+Backend/.env
 
+# Local Postgres data (Docker volume)
+Backend/postgres_data/
+.env.example
+docker-compose.yml
 # Next.js
 .next/
 out/
@@ -76,6 +81,11 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# Load test artifacts and generated credentials
+load-test-results/
+load_tests/config/test_users.json
+load_tests/config/stores.json
 
 # images
 media/

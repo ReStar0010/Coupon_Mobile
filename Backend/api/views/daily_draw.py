@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
@@ -11,6 +13,8 @@ import string
 
 from api.models import CouponTemplate, Coupon, StudentProfile, Log
 from ..serializers import DrawCouponSerializer
+
+logger = logging.getLogger(__name__)
 
 def generate_random_code(length=6):
     """Generate a random alphanumeric code for coupon redemption"""
@@ -78,8 +82,10 @@ def draw_coupon(request):
             student_profile.last_draw_time = timezone.now()
             student_profile.save()
         except StudentProfile.DoesNotExist:
-            # This shouldn't happen with proper permission checks
-            pass
+            logger.warning(
+                "StudentProfile not found for authenticated user %s during daily draw",
+                request.user.id,
+            )
         
         # Determine if user successfully draws the coupon based on probability
         success = random.random() < template.draw_probability
@@ -94,12 +100,22 @@ def draw_coupon(request):
                     coupon.save()
                     
                     # Log the successful draw
-                    Log.objects.create(
-                        user=request.user,
-                        coupon=coupon,
-                        action='draw'
+                    logger.info(
+                        "Daily draw successful",
+                        extra={
+                            "user_id": request.user.id,
+                            "username": request.user.username,
+                            "email": request.user.email,
+                            "action": "daily_draw_success",
+                            "template_id": template.id,
+                            "template_name": template.coupon_name,
+                            "coupon_id": coupon.id,
+                            "coupon_name": coupon.coupon_name,
+                            "coupon_detail": coupon.coupon_detail,
+                            "coupon_type": coupon.coupon_type,
+                            "store_name": coupon.store.name,
+                        }
                     )
-                     
                     # Return coupon details
                     return Response({
                         'success': True,
@@ -124,9 +140,17 @@ def draw_coupon(request):
                     }, status=status.HTTP_400_BAD_REQUEST)
             else:
                 # Log the unsuccessful draw
-                Log.objects.create(
-                    user=request.user,
-                    action='draw'
+                logger.info(
+                    "Daily draw unsuccessful",
+                    extra={
+                        "user_id": request.user.id,
+                        "username": request.user.username,
+                        "email": request.user.email,
+                        "action": "daily_draw_unsuccessful",
+                        "template_id": template.id,
+                        "template_name": template.coupon_name,
+                        "draw_probability": template.draw_probability,
+                    }
                 )
                 
                 return Response({

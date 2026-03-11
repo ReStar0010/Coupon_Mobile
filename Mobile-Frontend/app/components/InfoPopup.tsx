@@ -25,7 +25,8 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ title, children }) => {
       <TouchableOpacity
         onPress={handleIconPress}
         className="ml-2 inline-block align-middle"
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+      >
         <Image
           className="relative h-5 w-5 object-cover"
           style={{ width: 20, height: 20 }}
@@ -38,11 +39,13 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ title, children }) => {
         visible={isVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={handleClose}>
+        onRequestClose={handleClose}
+      >
         <TouchableOpacity
           className="flex-1 items-center justify-center bg-black/50 px-4"
           activeOpacity={1}
-          onPress={handleClose}>
+          onPress={handleClose}
+        >
           <TouchableOpacity
             className="rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
             style={{ maxWidth: Math.min(width * 0.85, 300) }}

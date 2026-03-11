@@ -1,0 +1,29 @@
+name: Consumer tests
+
+on:
+  pull_request:
+    paths:
+      - Mobile-Frontend/**
+      - .github/workflows/consumer-tests.yml
+  push:
+    branches: [main]
+    paths: [Mobile-Frontend/**]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: Mobile-Frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: Mobile-Frontend
+
+      - name: Run tests
+        run: npm test
+        working-directory: Mobile-Frontend

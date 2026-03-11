@@ -1,5 +1,5 @@
 import React from 'react';
-import { YStack, XStack, Text } from 'tamagui';
+import { XStack, Text } from 'tamagui';
 import { colors } from '@/constants/colors';
 import { StyleSheet, TouchableOpacity, Modal, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -13,12 +13,7 @@ interface DeleteModalProps {
 
 export function DeleteModal({ isOpen, onClose, onConfirm }: DeleteModalProps) {
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           {/* Header */}
@@ -72,4 +67,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-

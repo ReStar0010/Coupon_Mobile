@@ -26,9 +26,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, valueSingleLine = fal
     >
       <YStack flex={1} style={{ justifyContent: 'space-between' }}>
         {/* Title */}
-        <Text 
-          fontSize={15} 
-          fontWeight="500" 
+        <Text
+          fontSize={15}
+          fontWeight="500"
           color="#666666"
           lineHeight={22}
           adjustsFontSizeToFit
@@ -40,9 +40,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, valueSingleLine = fal
 
         {/* Value */}
         <YStack style={{ justifyContent: 'center', alignItems: 'flex-start' }} flex={1}>
-          <Text 
-            fontSize={valueSingleLine ? 22 : 26} 
-            fontWeight="700" 
+          <Text
+            fontSize={valueSingleLine ? 22 : 26}
+            fontWeight="700"
             color="#1a1a1a"
             lineHeight={valueSingleLine ? 28 : 34}
             adjustsFontSizeToFit

@@ -8,11 +8,11 @@ import { View, Text } from 'tamagui';
 
 export const toastConfig = {
   successGreen: ({ text1 }: any) => (
-    <View 
-      position="absolute" 
-      px="$4" 
-      height={56} 
-      style={{ 
+    <View
+      position="absolute"
+      px="$4"
+      height={56}
+      style={{
         alignSelf: 'center',
         bottom: '20%',
         justifyContent: 'center',
@@ -22,18 +22,20 @@ export const toastConfig = {
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 6,
-        elevation: 6
+        elevation: 6,
       }}
     >
-      <Text color="white" fontWeight="bold" fontSize={16}>{text1}</Text>
+      <Text color="white" fontWeight="bold" fontSize={16}>
+        {text1}
+      </Text>
     </View>
   ),
   failRed: ({ text1 }: any) => (
-    <View 
-      position="absolute" 
-      px="$4" 
-      height={56} 
-      style={{ 
+    <View
+      position="absolute"
+      px="$4"
+      height={56}
+      style={{
         alignSelf: 'center',
         bottom: '20%',
         justifyContent: 'center',
@@ -43,11 +45,12 @@ export const toastConfig = {
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 6,
-        elevation: 6
+        elevation: 6,
       }}
     >
-      <Text color="white" fontWeight="bold" fontSize={16}>{text1}</Text>
+      <Text color="white" fontWeight="bold" fontSize={16}>
+        {text1}
+      </Text>
     </View>
-  )
+  ),
 };
-

@@ -15,22 +15,16 @@ interface QRCodeProps {
 export function QRCode({ value, size = 200 }: QRCodeProps) {
   // Ensure size is a valid number
   const qrSize: number = typeof size === 'number' && !isNaN(size) ? size : 200;
-  
+
   // Validate that value is not empty
   if (!value || (typeof value === 'string' && value.trim() === '')) {
     const errorContainerStyle = {
       width: Number(qrSize),
       height: Number(qrSize),
     };
-    
+
     return (
-      <View 
-        style={[
-          styles.container, 
-          styles.errorContainer, 
-          errorContainerStyle
-        ]}
-      >
+      <View style={[styles.container, styles.errorContainer, errorContainerStyle]}>
         <Text color={colors.textSecondary} style={styles.errorText}>
           無法生成 QR Code
         </Text>
@@ -55,11 +49,7 @@ export function QRCode({ value, size = 200 }: QRCodeProps) {
 
   return (
     <View style={[styles.container, containerDynamicStyle]}>
-      <ExpoImage
-        source={{ uri: qrCodeUrl }}
-        style={imageDynamicStyle}
-        contentFit="contain"
-      />
+      <ExpoImage source={{ uri: qrCodeUrl }} style={imageDynamicStyle} contentFit="contain" />
     </View>
   );
 }
@@ -81,4 +71,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

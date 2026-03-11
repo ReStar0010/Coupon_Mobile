@@ -1,0 +1,4 @@
+# Load test harness - Locust and HTTP client
+# No DB adapter: consistency check runs as Backend Django management command
+locust>=2.20.0
+requests>=2.28.0

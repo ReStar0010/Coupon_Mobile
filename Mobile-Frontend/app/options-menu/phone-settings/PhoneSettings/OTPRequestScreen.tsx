@@ -15,7 +15,7 @@ import {
 
 /**
  * OTPRequestScreen
- * 
+ *
  * First step of OTP verification flow:
  * - User enters phone number
  * - System sends OTP via SMS (or logs to console in dev mode)
@@ -69,7 +69,7 @@ export default function OTPRequestScreen() {
       // Safely extract error message from ErrorResponse or standard Error
       let errorMessage = '發送驗證碼失敗，請稍後再試';
       let retryAfterSeconds: number | undefined;
-      
+
       // Check if error is ErrorResponse type
       if (error && typeof error === 'object' && 'error' in error) {
         const err = error as ErrorResponse;
@@ -82,7 +82,7 @@ export default function OTPRequestScreen() {
         // Handle string errors
         errorMessage = error;
       }
-      
+
       // Add retry information if available
       if (retryAfterSeconds) {
         const minutes = Math.ceil(retryAfterSeconds / 60);
@@ -100,84 +100,78 @@ export default function OTPRequestScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <DismissKeyboardView>
         <YStack flex={1} px="$4" py="$6" gap="$4" style={{ paddingTop: insets.top + 10 }}>
-        <XStack gap="$3" alignItems="center">
-          <ChevronLeft size={24} onPress={() => router.back()} />
-          <H4 fontWeight="bold">驗證手機號碼</H4>
-        </XStack>
+          <XStack gap="$3" alignItems="center">
+            <ChevronLeft size={24} onPress={() => router.back()} />
+            <H4 fontWeight="bold">驗證手機號碼</H4>
+          </XStack>
 
-        <Card bordered p="$4">
-          <YStack gap="$4">
-            <Text color="$gray10" lineHeight={22}>
-              為了確保手機號碼屬於您本人，我們將發送一組 6 位數驗證碼至您的手機。
-            </Text>
-
-            <YStack gap="$2">
-              <Text fontWeight="600" color="$gray11">
-                手機號碼
+          <Card bordered p="$4">
+            <YStack gap="$4">
+              <Text color="$gray10" lineHeight={22}>
+                為了確保手機號碼屬於您本人，我們將發送一組 6 位數驗證碼至您的手機。
               </Text>
-              <FormInput
-                placeholder="0912345678"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                maxLength={10}
-                editable={!sending}
-              />
-              <Text color="$gray10" fontSize="$2">
-                請輸入台灣手機號碼（09開頭，共10碼）
-              </Text>
-            </YStack>
 
-            {params.currentPhone && (
-              <YStack
-                bg="$blue2"
-                p="$3"
-                borderRadius="$3"
-                borderWidth={1}
-                borderColor="$blue6"
-              >
-                <Text color="$blue11" fontSize="$3">
-                  💡 您正在更換手機號碼。驗證成功後，您原手機號碼的待領優惠券將自動轉移至您的帳號。
+              <YStack gap="$2">
+                <Text fontWeight="600" color="$gray11">
+                  手機號碼
+                </Text>
+                <FormInput
+                  placeholder="0912345678"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  editable={!sending}
+                />
+                <Text color="$gray10" fontSize="$2">
+                  請輸入台灣手機號碼（09開頭，共10碼）
                 </Text>
               </YStack>
-            )}
 
-            <Button
-              onPress={handleSendOTP}
-              disabled={sending || !phone}
-              bg={sending || !phone ? '$gray5' : '#FFAD31'}
-              pressStyle={{ bg: '#FF9500' }}
-              height={48}
-              borderRadius="$3"
-            >
-              <Text
-                fontSize={16}
-                fontWeight="600"
-                color={sending || !phone ? '$gray10' : '$gray11'}
+              {params.currentPhone && (
+                <YStack bg="$blue2" p="$3" borderRadius="$3" borderWidth={1} borderColor="$blue6">
+                  <Text color="$blue11" fontSize="$3">
+                    💡
+                    您正在更換手機號碼。驗證成功後，您原手機號碼的待領優惠券將自動轉移至您的帳號。
+                  </Text>
+                </YStack>
+              )}
+
+              <Button
+                onPress={handleSendOTP}
+                disabled={sending || !phone}
+                bg={sending || !phone ? '$gray5' : '#FFAD31'}
+                pressStyle={{ bg: '#FF9500' }}
+                height={48}
+                borderRadius="$3"
               >
-                {sending ? '發送中...' : '發送驗證碼'}
-              </Text>
-            </Button>
+                <Text
+                  fontSize={16}
+                  fontWeight="600"
+                  color={sending || !phone ? '$gray10' : '$gray11'}
+                >
+                  {sending ? '發送中...' : '發送驗證碼'}
+                </Text>
+              </Button>
 
-            <YStack gap="$2" p="$3" bg="$gray2" borderRadius="$3">
-              <Text fontSize="$2" color="$gray11" fontWeight="600">
-                注意事項：
-              </Text>
-              <Text fontSize="$2" color="$gray11">
-                • 驗證碼將在 10 分鐘後過期
-              </Text>
-              <Text fontSize="$2" color="$gray11">
-                • 每個號碼每小時最多發送 3 次驗證碼
-              </Text>
-              <Text fontSize="$2" color="$gray11">
-                • 兩次發送需間隔至少 60 秒
-              </Text>
+              <YStack gap="$2" p="$3" bg="$gray2" borderRadius="$3">
+                <Text fontSize="$2" color="$gray11" fontWeight="600">
+                  注意事項：
+                </Text>
+                <Text fontSize="$2" color="$gray11">
+                  • 驗證碼將在 10 分鐘後過期
+                </Text>
+                <Text fontSize="$2" color="$gray11">
+                  • 每個號碼每小時最多發送 3 次驗證碼
+                </Text>
+                <Text fontSize="$2" color="$gray11">
+                  • 兩次發送需間隔至少 60 秒
+                </Text>
+              </YStack>
             </YStack>
-          </YStack>
-        </Card>
+          </Card>
         </YStack>
       </DismissKeyboardView>
     </>
   );
 }
-

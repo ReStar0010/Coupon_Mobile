@@ -2,13 +2,13 @@ import React from 'react';
 import { Button as TamaguiButton, ButtonProps as TamaguiButtonProps } from 'tamagui';
 import { colors } from '@/constants/colors';
 
-export interface ButtonProps extends TamaguiButtonProps {
+export interface ButtonProps extends Omit<TamaguiButtonProps, 'variant'> {
   variant?: 'primary' | 'secondary' | 'outline';
   fullWidth?: boolean;
 }
 
 export const Button = React.forwardRef<any, ButtonProps>(
-  ({ variant = 'primary', fullWidth = false, children, ...props }, ref) => {
+  ({ variant = 'primary', fullWidth = false, children, style, ...props }, ref) => {
     const getVariantStyles = () => {
       switch (variant) {
         case 'primary':
@@ -46,15 +46,13 @@ export const Button = React.forwardRef<any, ButtonProps>(
         fontSize="$md"
         fontWeight="bold"
         fontFamily="$body"
-        width={fullWidth ? '100%' : undefined}
-        {...variantStyles}
+        style={[fullWidth ? { width: '100%' } : undefined, variantStyles, style]}
         {...props}
       >
         {children}
       </TamaguiButton>
     );
-  }
+  },
 );
 
 Button.displayName = 'Button';
-

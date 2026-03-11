@@ -11,7 +11,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse, isAxiosError } from 'axios';
+import perf from '@react-native-firebase/perf';
+// import * as Sentry from '@sentry/react-native';
 import { API_URL } from '../config/api';
 import { authEvents, AUTH_EVENT_TYPES } from './authEvents';
 import {
@@ -24,6 +26,152 @@ import {
 } from './tokenUtils';
 
 const API_BASE_URL = API_URL;
+
+// Extend axios config to carry the Firebase HTTP metric across interceptors
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    metadata?: {
+      httpMetric: Awaited<ReturnType<ReturnType<typeof perf>['newHttpMetric']>>;
+    };
+  }
+  interface AxiosError {
+    errorCode?: string;
+    errorContext?: Record<string, unknown>;
+  }
+}
+
+/** Legacy backend error string → standardised error_code (向後相容) */
+const LEGACY_ERROR_MAP: Record<string, string> = {
+  email_not_verified: 'EMAIL_NOT_VERIFIED',
+  wrong_client_type: 'WRONG_CLIENT_TYPE_USER',
+  missing_token: 'MISSING_TOKEN',
+  already_verified: 'ALREADY_VERIFIED',
+  expired_token: 'EXPIRED_TOKEN',
+  invalid_token: 'INVALID_TOKEN',
+  email_send_failed: 'EMAIL_SEND_FAILED',
+  INVALID_PASSWORD: 'INVALID_PASSWORD',
+};
+
+/** Expected error codes (not reported to Sentry). Same set as Merchant. */
+const EXPECTED_ERROR_CODES = new Set<string>([
+  'USER_NOT_FOUND',
+  'EMAIL_ALREADY_EXISTS',
+  'INVALID_CREDENTIALS',
+  'EMAIL_NOT_VERIFIED',
+  'WRONG_CLIENT_TYPE_MERCHANT',
+  'WRONG_CLIENT_TYPE_USER',
+  'NOT_AUTHENTICATED',
+  'AUTHENTICATION_FAILED',
+  'PERMISSION_DENIED',
+  'REFRESH_TOKEN_MISSING',
+  'REFRESH_TOKEN_INVALID',
+  'MISSING_TOKEN',
+  'INVALID_TOKEN',
+  'EXPIRED_TOKEN',
+  'ALREADY_VERIFIED',
+  'PASSWORD_TOO_SHORT',
+  'INVALID_RESET_LINK',
+  'EXPIRED_RESET_LINK',
+  'INVALID_PASSWORD',
+  'OTP_NOT_FOUND',
+  'OTP_EXPIRED',
+  'OTP_MAX_ATTEMPTS',
+  'OTP_INVALID',
+  'OTP_RATE_LIMITED',
+  'PHONE_ALREADY_REGISTERED',
+  'PHONE_NOT_REGISTERED',
+  'PHONE_ALREADY_USED_BY_OTHER',
+  'NOT_A_MERCHANT',
+  'MERCHANT_PROFILE_NOT_FOUND',
+  'NO_STORE_FOR_MERCHANT',
+  'EULA_NOT_ACCEPTED',
+  'EULA_ALREADY_ACCEPTED',
+  'EULA_VERSION_MISMATCH',
+  'COUPON_TEMPLATE_NOT_FOUND',
+  'COUPON_TEMPLATE_EXPIRED',
+  'COUPON_TEMPLATE_OUT_OF_STOCK',
+  'TEMPLATE_QUANTITY_DECREASE_NOT_ALLOWED',
+  'COUPON_ALREADY_REDEEMED',
+  'COUPON_NOT_HOLDER',
+  'REDEEM_CODE_INVALID',
+  'UNIFIED_CODE_INVALID',
+  'QR_SESSION_EXPIRED',
+  'QR_SESSION_NOT_FOUND',
+  'QR_SESSION_UNAUTHORIZED',
+  'IMAGE_TYPE_INVALID',
+  'IMAGE_TOO_LARGE',
+  'INVALID_DATE_FORMAT',
+  'INVALID_DATE_RANGE',
+  'DATE_RANGE_FUTURE',
+  'DATE_RANGE_TOO_LONG',
+  'INVALID_CONTENT_TYPE',
+  'CONTENT_NOT_FOUND',
+  'SELF_REPORT_NOT_ALLOWED',
+  'REPORT_DUPLICATE',
+  'ALREADY_BLOCKED',
+  'DELETE_ACKNOWLEDGMENT_REQUIRED',
+  'MERCHANT_ONLY_FEATURE',
+  'VALIDATION_ERROR',
+  'FIELD_BLANK',
+  'FIELD_REQUIRED',
+  'FIELD_TOO_LONG',
+  'FIELD_INVALID',
+  'FIELD_NOT_UNIQUE',
+  'PHONE_FORMAT_INVALID',
+  'OTP_CODE_FORMAT_INVALID',
+  'RATE_LIMITED',
+  'METHOD_NOT_ALLOWED',
+  'NOT_FOUND',
+  // Sharing
+  'SHARE_REQUEST_NOT_FOUND',
+  'SHARE_ALREADY_PUBLIC',
+  'SHARE_FAILED',
+  'SELF_CLAIM_NOT_ALLOWED',
+  'SHARE_REQUEST_ALREADY_PROCESSED',
+  'SHARE_ALREADY_CLAIMED',
+]);
+
+// // Firebase Performance Monitoring — request interceptor
+axios.interceptors.request.use(async (config) => {
+  try {
+    const httpMetric = perf().newHttpMetric(
+      config.url ?? '',
+      (config.method ?? 'GET').toUpperCase() as any,
+    );
+    config.metadata = { httpMetric };
+    await httpMetric.start();
+  } finally {
+    return config;
+  }
+});
+
+// // Firebase Performance Monitoring — response interceptors
+axios.interceptors.response.use(
+  async (response) => {
+    try {
+      const { httpMetric } = response.config.metadata ?? {};
+      if (httpMetric) {
+        httpMetric.setHttpResponseCode(response.status);
+        httpMetric.setResponseContentType(response.headers['content-type']);
+        await httpMetric.stop();
+      }
+    } finally {
+      return response;
+    }
+  },
+  async (error) => {
+    try {
+      const { httpMetric } = error.config?.metadata ?? {};
+      if (httpMetric) {
+        httpMetric.setHttpResponseCode(error.response?.status ?? 0);
+        httpMetric.setResponseContentType(error.response?.headers['content-type']);
+        await httpMetric.stop();
+      }
+    } finally {
+      return Promise.reject(error);
+    }
+  },
+);
 
 /**
  * Custom error class for authentication failures
@@ -38,7 +186,7 @@ export class AuthenticationError extends Error {
 
 // Token refresh state
 let isRefreshing = false;
-let refreshSubscribers: Array<(token: boolean) => void> = [];
+let refreshSubscribers: ((token: boolean) => void)[] = [];
 
 /**
  * Queued request type for handling concurrent 401 errors
@@ -78,13 +226,13 @@ const processQueue = async (success: boolean): Promise<void> => {
   if (success) {
     // Get the new access token
     const newAccessToken = getAccessToken();
-    
+
     // Retry all queued requests with the new token
     const queue = [...requestQueue];
     requestQueue = [];
-    
+
     devLog(`Processing ${queue.length} queued requests after successful token refresh`);
-    
+
     for (const queuedRequest of queue) {
       try {
         const retryOptions = {
@@ -94,12 +242,12 @@ const processQueue = async (success: boolean): Promise<void> => {
             Authorization: `Bearer ${newAccessToken}`,
           },
         };
-        
+
         const retryResponse = await axios(`${API_BASE_URL}${queuedRequest.endpoint}`, retryOptions);
         queuedRequest.resolve(retryResponse);
       } catch (retryError) {
         // If retry still fails with 401, it means refresh token is also invalid
-        if (axios.isAxiosError(retryError) && retryError.response?.status === 401) {
+        if (isAxiosError(retryError) && retryError.response?.status === 401) {
           devLog('Request still failed after token refresh - refresh token may be invalid');
           // Create a generic error without exposing authentication details
           const genericError = new Error('Request failed');
@@ -114,10 +262,10 @@ const processQueue = async (success: boolean): Promise<void> => {
     // Token refresh failed - reject all queued requests silently
     // Don't throw authentication errors to avoid showing them in UI
     devLog(`Rejecting ${requestQueue.length} queued requests due to token refresh failure`);
-    
+
     const queue = [...requestQueue];
     requestQueue = [];
-    
+
     for (const queuedRequest of queue) {
       // Create a generic error without authentication details
       const genericError = new Error('Request failed');
@@ -200,10 +348,10 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     if (!success) {
       devLog('Token refresh failed - clearing tokens');
       await clearTokens();
-      
+
       // Process queue before emitting auth failure (will reject all requests silently)
       await processQueue(false);
-      
+
       authEvents.emit({
         type: AUTH_EVENT_TYPES.AUTH_FAILURE,
         reason: 'refresh_failed',
@@ -220,10 +368,10 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     if (newAccessToken) {
       await storeTokens(newAccessToken, newRefreshToken);
       devLog('Token refresh successful');
-      
+
       // Process queue after storing new tokens (will retry all requests)
       await processQueue(true);
-      
+
       authEvents.emit({ type: AUTH_EVENT_TYPES.SESSION_REFRESHED });
       return true;
     }
@@ -235,12 +383,13 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     return false;
   } catch (error) {
     console.error('Token refresh error:', error);
+    // Sentry.captureException(error, { data: { context: 'authAPI.refreshAccessToken' } });
     isRefreshing = false;
     onRefreshComplete(false);
-    
+
     // Process queue before emitting auth failure
     await processQueue(false);
-    
+
     authEvents.emit({
       type: AUTH_EVENT_TYPES.AUTH_FAILURE,
       reason: 'refresh_error',
@@ -295,6 +444,7 @@ export const ensureValidAuth = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Error ensuring valid auth:', error);
+    // Sentry.captureException(error, { data: { context: 'authAPI.ensureValidAuth' } });
     return false;
   }
 };
@@ -307,7 +457,7 @@ export const ensureValidAuth = async (): Promise<boolean> => {
  */
 export const fetchAPI = async (
   endpoint: string,
-  options: AxiosRequestConfig = {}
+  options: AxiosRequestConfig = {},
 ): Promise<AxiosResponse> => {
   // Get access token from memory (synchronous after initStorage)
   const accessToken = getAccessToken();
@@ -335,7 +485,7 @@ export const fetchAPI = async (
       }
 
       // Check if the error is due to authentication issues
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
+      if (isAxiosError(error) && error.response?.status === 401) {
         devLog('Access token expired, queueing request for retry after token refresh...');
 
         // Queue the request instead of immediately handling it
@@ -360,18 +510,32 @@ export const fetchAPI = async (
         });
       }
 
-      // Handle other error responses
-      // Preserve the original error object to maintain response information for retry logic
-      if (axios.isAxiosError(error)) {
-        // For Axios errors, keep the original error to preserve response data
-        const errorData = error.response?.data || {};
-        const errorMessage = errorData.error || errorData.message || `API request failed: ${error.response?.status}`;
-        console.error('API request error:', new Error(errorMessage));
-        throw error; // Throw original Axios error to preserve response info
+      // Handle other error responses: parse error_code/context, Sentry only for 5xx or unknown codes
+      if (isAxiosError(error)) {
+        const responseData = error.response?.data ?? {};
+        const statusCode = error.response?.status ?? 0;
+
+        if (responseData.error_code) {
+          error.errorCode = responseData.error_code;
+          error.errorContext = responseData.context ?? {};
+        } else if (responseData.error) {
+          error.errorCode = LEGACY_ERROR_MAP[responseData.error] ?? undefined;
+          error.errorContext = {};
+        }
+
+        const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(error.errorCode ?? '');
+        if (isUnexpected) {
+          // Sentry.captureException(error, {
+          //   data: { context: 'authAPI.fetchAPI', endpoint, status: statusCode },
+          // });
+        }
+        throw error;
       } else {
-        // For non-Axios errors, wrap in a new Error
         const apiError = new Error('API request failed: Unknown error');
         console.error('API request error:', apiError);
+        // Sentry.captureException(error, {
+        //   data: { context: 'authAPI.fetchAPI', endpoint },
+        // });
         throw apiError;
       }
     }
@@ -472,6 +636,7 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
     authEvents.emit({ type: AUTH_EVENT_TYPES.SESSION_REFRESHED });
   } catch (error) {
     console.error('Error storing login data:', error);
+    // Sentry.captureException(error, { data: { context: 'authAPI.storeLoginData' } });
     throw error;
   }
 };
@@ -524,8 +689,9 @@ export const logout = async (): Promise<void> => {
   try {
     // Best effort - call logout API to invalidate token on server
     await fetchAPI('/logout/', { method: 'POST' });
-  } catch (error) {
+  } catch (_error) {
     devLog('Logout API call failed, proceeding with local logout');
+    // Sentry.captureException(_error, { data: { context: 'authAPI.logout' } });
   }
 
   // Clear all stored tokens
@@ -566,6 +732,46 @@ export const unifiedRedemptionAPI = {
   },
 };
 
+/** Platform voucher list item (GET /api/platform-vouchers/) */
+export interface PlatformVoucherListItem {
+  id: number;
+  face_value: string;
+  currency_code: string;
+  redeem_code: string;
+  expiry_date: string;
+  batch_name: string;
+}
+
+/** Platform voucher detail (GET /api/platform-vouchers/<id>/) */
+export interface PlatformVoucherDetail extends PlatformVoucherListItem {
+  start_date: string;
+  is_redeemed: boolean;
+  current_holder_id: number | null;
+}
+
+/**
+ * Platform voucher API (011-platform-cash-voucher)
+ */
+export const platformVoucherAPI = {
+  list: async (): Promise<PlatformVoucherListItem[]> => {
+    const response = await fetchAPI('/platform-vouchers/', { method: 'GET' });
+    return response.data;
+  },
+
+  detail: async (id: number): Promise<PlatformVoucherDetail> => {
+    const response = await fetchAPI(`/platform-vouchers/${id}/`, { method: 'GET' });
+    return response.data;
+  },
+
+  redeem: async (voucherId: number, storeCode: string): Promise<{ message: string }> => {
+    const response = await fetchAPI(`/platform-voucher/${voucherId}/redeem/`, {
+      method: 'POST',
+      data: { redeem_code: storeCode },
+    });
+    return response.data;
+  },
+};
+
 /**
  * Generate a unique idempotency key for QR claim operations.
  * One key per claim call so retries within the same call reuse it and avoid duplicate coupons.
@@ -584,7 +790,10 @@ export const qrClaimAPI = {
    * @param sessionToken Session token from QR code
    * @returns Claim response
    */
-  claimCouponViaQR: async (templateId: number, sessionToken: string): Promise<{
+  claimCouponViaQR: async (
+    templateId: number,
+    sessionToken: string,
+  ): Promise<{
     message: string;
     coupon_id: number;
     coupon_name: string;
@@ -612,8 +821,11 @@ export const qrClaimAPI = {
         lastError = error;
         const status = error?.response?.status;
         if (status >= 400 && status < 500) throw error;
-        if (attempt < maxRetries && (status >= 500 || status === 502 || status === 503 || status === 504 || !status)) {
-          await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+        if (
+          attempt < maxRetries &&
+          (status >= 500 || status === 502 || status === 503 || status === 504 || !status)
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
           continue;
         }
         throw error;
@@ -623,7 +835,9 @@ export const qrClaimAPI = {
   },
 
   /** Claim by single token (deep link). Backend resolves claim_token to session/template. */
-  claimCouponByToken: async (claimToken: string): Promise<{
+  claimCouponByToken: async (
+    claimToken: string,
+  ): Promise<{
     message: string;
     coupon_id: number;
     coupon_name: string;

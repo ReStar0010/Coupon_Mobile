@@ -4,7 +4,6 @@ import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
 const Terms: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -31,7 +30,8 @@ const Terms: React.FC = () => {
           bg="white"
           rounded={'$5'}
           p={'$5'}
-          style={{ borderWidth: 1, borderColor: '#e1e1e1' }}>
+          style={{ borderWidth: 1, borderColor: '#e1e1e1' }}
+        >
           <Text>
             {' '}
             歡迎使用 CouPro！為了保障所有使用者與合作商家的權益，請留意以下幾點使用規則：{' '}

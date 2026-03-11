@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+// import * as Sentry from '@sentry/react-native';
+import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -13,6 +15,7 @@ import { AddButton } from './components/AddButton';
 import { BarcodeVerificationButton } from './components/BarcodeVerificationButton';
 import { QRCodeModal } from './components/QRCodeModal';
 import { merchantAPI, AuthenticationError } from '@/utils/api';
+import { useApiError } from '@/hooks/useApiError';
 
 export interface Coupon {
   id: number;
@@ -54,44 +57,48 @@ const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
 
 export default function CouponsScreen() {
   const router = useRouter();
+  const { getErrorMessage } = useApiError();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<CouponStatus>('active');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
   const [qrCodeValue, setQrCodeValue] = useState('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
-  const loadCoupons = async () => {
+  const loadCoupons = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await merchantAPI.listTemplates();
-      setCoupons(data || []);
+      setLoadError(null);
+      const data = (await merchantAPI.listTemplates()) as Coupon[];
+      setCoupons(data ?? []);
     } catch (error) {
       console.error('Failed to load coupons:', error);
-      // Check if it's an authentication error
       if (error instanceof AuthenticationError) {
         console.log('[Coupons] Authentication error detected, redirecting to login');
         router.replace('/(auth)/login');
         return;
       }
+      // Sentry.captureException(error, { data: { context: 'merchant.couponList.loadCoupons' } });
+      setLoadError(getErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router, getErrorMessage]);
 
   // Load coupons on initial mount
   useEffect(() => {
     loadCoupons();
-  }, []);
+  }, [loadCoupons]);
 
   // Refresh coupons when screen comes into focus (e.g., returning from edit page)
   useFocusEffect(
     useCallback(() => {
       loadCoupons();
-    }, [])
+    }, [loadCoupons]),
   );
 
   // Get coupon status based on dates and is_active
@@ -219,7 +226,7 @@ export default function CouponsScreen() {
           style: 'cancel',
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -238,7 +245,7 @@ export default function CouponsScreen() {
           style: 'cancel',
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -261,148 +268,168 @@ export default function CouponsScreen() {
       const response = await merchantAPI.generateUnifiedRedemptionCode();
       setQrCodeValue(response.unified_redeem_code);
       setIsQRCodeModalOpen(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to generate unified redemption code:', error);
-      Alert.alert('錯誤', error?.message || '無法生成統一核銷碼，請稍後再試');
+      // Sentry.captureException(error, {
+      //   data: { context: 'merchant.couponList.generateUnifiedRedemptionCode' },
+      // });
+      Alert.alert('錯誤', getErrorMessage(error));
     } finally {
       setIsGeneratingCode(false);
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
-      <DismissKeyboardView>
-        <YStack flex={1} backgroundColor={colors.white}>
-          <Header 
-            onMenuPress={() => router.push('/(profile)/')}
-          />
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'coupon-list-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    // >
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
+        <DismissKeyboardView>
+          <YStack flex={1} backgroundColor={colors.white}>
+            <Header onMenuPress={() => router.push('/(profile)/')} />
 
-          {/* Fixed: Search, Type tabs, Filters (same level as Header) */}
-          <YStack paddingHorizontal="$4" paddingTop="$3">
-            <SearchBar
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="搜尋優惠券..."
-            />
+            {/* Fixed: Search, Type tabs, Filters (same level as Header) */}
+            <YStack paddingHorizontal="$4" paddingTop="$3">
+              <SearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="搜尋優惠券..."
+              />
 
-            {/* Type Tabs: 全部 | 隨取即用 | 專屬優惠 (pure RN so text renders) */}
-            <View style={styles.typeTabsRow}>
-              {TYPE_OPTIONS.map((option) => {
-                const isSelected = typeFilter === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => setTypeFilter(option.value)}
-                    activeOpacity={0.7}
-                    style={styles.typeTabTouchable}
-                  >
-                    <View
-                      style={[
-                        styles.typeTabInner,
-                        isSelected ? styles.typeTabInnerSelected : styles.typeTabInnerUnselected,
-                      ]}
+              {/* Type Tabs: 全部 | 隨取即用 | 專屬優惠 (pure RN so text renders) */}
+              <View style={styles.typeTabsRow}>
+                {TYPE_OPTIONS.map((option) => {
+                  const isSelected = typeFilter === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => setTypeFilter(option.value)}
+                      activeOpacity={0.7}
+                      style={styles.typeTabTouchable}
                     >
-                      <RNText
+                      <View
                         style={[
-                          styles.typeTabLabel,
-                          isSelected ? styles.typeTabLabelSelected : styles.typeTabLabelUnselected,
+                          styles.typeTabInner,
+                          isSelected ? styles.typeTabInnerSelected : styles.typeTabInnerUnselected,
                         ]}
                       >
-                        {option.label}
-                      </RNText>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Filter Section */}
-            <XStack gap="$2" marginTop="$3" marginBottom="$4" alignItems="center">
-              <FilterButton
-                label="狀態"
-                selectedValue={getStatusFilterLabel()}
-                onPress={handleStatusFilterPress}
-              />
-              <FilterButton
-                label="日期"
-                selectedValue={getDateFilterLabel()}
-                onPress={handleDateFilterPress}
-              />
-              <XStack flex={1} />
-              <AddButton
-                onPress={() => {
-                  router.push('/(coupons)/edit');
-                }}
-              />
-            </XStack>
-          </YStack>
-
-          {/* Scrollable: Coupon list only */}
-          <ScrollView
-            flex={1}
-            paddingHorizontal="$4"
-            showsVerticalScrollIndicator={false}
-            keyboardDismissMode="on-drag"
-            decelerationRate={0.999}
-            scrollEventThrottle={16}
-          >
-            <YStack gap="$3" style={{ paddingBottom: 80 }}>
-              {isLoading ? (
-                <Text textAlign="center" color={colors.textSecondary} padding="$4">
-                  載入中...
-                </Text>
-              ) : filteredCoupons.length === 0 ? (
-                <Text textAlign="center" color={colors.textSecondary} padding="$4">
-                  尚無優惠券
-                </Text>
-              ) : (
-                filteredCoupons.map((coupon) => {
-                  const isCollectionsType = (coupon.total_quantity ?? 0) > 0;
-                  return (
-                    <CouponCard
-                      key={coupon.id}
-                      coupon={{
-                        id: String(coupon.id),
-                        title: coupon.coupon_name,
-                        startDate: new Date(coupon.start_date).toLocaleDateString('zh-TW'),
-                        endDate: new Date(coupon.end_date).toLocaleDateString('zh-TW'),
-                        redemptionCount: coupon.redemption_count || 0,
-                        enableSoldOutUI: isCollectionsType,
-                        remainingQuantity: isCollectionsType ? coupon.remaining_quantity : undefined,
-                        isExclusiveCoupon: isCollectionsType,
-                      }}
-                      onEdit={() => {
-                        router.push(`/(coupons)/edit?id=${coupon.id}`);
-                      }}
-                    />
+                        <RNText
+                          style={[
+                            styles.typeTabLabel,
+                            isSelected
+                              ? styles.typeTabLabelSelected
+                              : styles.typeTabLabelUnselected,
+                          ]}
+                        >
+                          {option.label}
+                        </RNText>
+                      </View>
+                    </TouchableOpacity>
                   );
-                })
-              )}
-            </YStack>
-          </ScrollView>
+                })}
+              </View>
 
-          {/* Floating barcode verification button at bottom, above ScrollView */}
-          <View
-            style={[
-              styles.floatingButtonContainer,
-              { paddingHorizontal: 16, paddingBottom: 20 },
-            ]}
-          >
-            <BarcodeVerificationButton
-              onPress={handleBarcodeVerificationPress}
-              isLoading={isGeneratingCode}
-            />
-          </View>
-        </YStack>
-      </DismissKeyboardView>
-      
-      {/* QR Code Modal */}
-      <QRCodeModal
-        isOpen={isQRCodeModalOpen}
-        onClose={() => setIsQRCodeModalOpen(false)}
-        qrValue={qrCodeValue}
-      />
-    </SafeAreaView>
+              {/* Filter Section */}
+              <XStack gap="$2" marginTop="$3" marginBottom="$4" alignItems="center">
+                <FilterButton
+                  label="狀態"
+                  selectedValue={getStatusFilterLabel()}
+                  onPress={handleStatusFilterPress}
+                />
+                <FilterButton
+                  label="日期"
+                  selectedValue={getDateFilterLabel()}
+                  onPress={handleDateFilterPress}
+                />
+                <XStack flex={1} />
+                <AddButton
+                  onPress={() => {
+                    router.push('/(coupons)/edit');
+                  }}
+                />
+              </XStack>
+            </YStack>
+
+            {/* Scrollable: Coupon list only */}
+            <ScrollView
+              flex={1}
+              paddingHorizontal="$4"
+              showsVerticalScrollIndicator={false}
+              keyboardDismissMode="on-drag"
+              decelerationRate={0.999}
+              scrollEventThrottle={16}
+            >
+              <YStack gap="$3" style={{ paddingBottom: 80 }}>
+                {isLoading ? (
+                  <Text textAlign="center" color={colors.textSecondary} padding="$4">
+                    載入中...
+                  </Text>
+                ) : loadError ? (
+                  <Text textAlign="center" color={colors.error} padding="$4">
+                    {loadError}
+                  </Text>
+                ) : filteredCoupons.length === 0 ? (
+                  <Text textAlign="center" color={colors.textSecondary} padding="$4">
+                    尚無優惠券
+                  </Text>
+                ) : (
+                  filteredCoupons.map((coupon) => {
+                    const isCollectionsType = (coupon.total_quantity ?? 0) > 0;
+                    return (
+                      <CouponCard
+                        key={coupon.id}
+                        coupon={{
+                          id: String(coupon.id),
+                          title: coupon.coupon_name,
+                          startDate: new Date(coupon.start_date).toLocaleDateString('zh-TW'),
+                          endDate: new Date(coupon.end_date).toLocaleDateString('zh-TW'),
+                          redemptionCount: coupon.redemption_count || 0,
+                          enableSoldOutUI: isCollectionsType,
+                          remainingQuantity: isCollectionsType
+                            ? coupon.remaining_quantity
+                            : undefined,
+                          isExclusiveCoupon: isCollectionsType,
+                        }}
+                        onEdit={() => {
+                          router.push(`/(coupons)/edit?id=${coupon.id}`);
+                        }}
+                      />
+                    );
+                  })
+                )}
+              </YStack>
+            </ScrollView>
+
+            {/* Floating barcode verification button at bottom, above ScrollView */}
+            <View
+              style={[styles.floatingButtonContainer, { paddingHorizontal: 16, paddingBottom: 20 }]}
+            >
+              <BarcodeVerificationButton
+                onPress={handleBarcodeVerificationPress}
+                isLoading={isGeneratingCode}
+              />
+            </View>
+          </YStack>
+        </DismissKeyboardView>
+
+        {/* QR Code Modal */}
+        <QRCodeModal
+          isOpen={isQRCodeModalOpen}
+          onClose={() => setIsQRCodeModalOpen(false)}
+          qrValue={qrCodeValue}
+        />
+      </SafeAreaView>
+    // </Sentry.ErrorBoundary>
   );
 }
 
@@ -452,4 +479,3 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 });
-

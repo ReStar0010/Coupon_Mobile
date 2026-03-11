@@ -1,4 +1,9 @@
+aiohappyeyeballs==2.6.1
+aiohttp==3.13.3
+aiohttp-retry==2.9.1
+aiosignal==1.4.0
 asgiref==3.8.1
+attrs==25.4.0
 certifi==2025.4.26
 charset-normalizer==3.4.2
 click==8.2.0
@@ -10,11 +15,14 @@ djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
 dotenv==0.9.9
 drf-yasg==1.21.11
+frozenlist==1.8.0
 gunicorn==23.0.0
 h11==0.16.0
 idna==3.10
 inflection==0.5.1
+multidict==6.7.0
 packaging==25.0
+propcache==0.4.1
 psycopg2-binary==2.9.10
 PyJWT==2.9.0
 python-dotenv==1.1.0
@@ -23,11 +31,15 @@ pytz==2025.2
 PyYAML==6.0.3
 requests==2.32.3
 resend==2.10.0
+sentry-sdk==2.53.0
 sqlparse==0.5.3
+twilio==9.9.1
 typing_extensions==4.13.2
 tzdata==2025.2
 uritemplate==4.2.0
 urllib3==2.4.0
 uvicorn==0.34.2
 whitenoise==6.9.0
-twilio==9.9.1
+yarl==1.22.0
+# Load test harness (optional; for run_stage.py and locust)
+locust>=2.20.0

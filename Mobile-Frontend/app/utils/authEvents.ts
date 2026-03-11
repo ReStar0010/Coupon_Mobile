@@ -5,6 +5,8 @@
  * allowing any part of the app to signal auth failures without importing navigation.
  */
 
+// import * as Sentry from '@sentry/react-native';
+
 export type AuthEventType = 'AUTH_FAILURE' | 'LOGOUT_REQUESTED' | 'SESSION_REFRESHED';
 
 export interface AuthEvent {
@@ -66,6 +68,9 @@ class AuthEventEmitter {
           listener(event);
         } catch (error) {
           console.error(`Error in auth event listener for ${event.type}:`, error);
+          // Sentry.captureException(error, {
+          //   data: { context: 'authEvents.emit', eventType: event.type },
+          // });
         }
       });
     }

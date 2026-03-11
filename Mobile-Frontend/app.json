@@ -2,7 +2,7 @@
   "expo": {
     "name": "CouPro",
     "slug": "Mobile-Frontend",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "scheme": ["coupro"],
     "web": {
       "favicon": "./assets/icon.png",
@@ -13,6 +13,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
       [
         "expo-camera",
         {
@@ -38,7 +39,27 @@
           "locationAlwaysPermission": "CouPro 需要存取您的位置資訊，以便顯示附近的商家與優惠。",
           "locationWhenInUsePermission": "CouPro 需要存取您的位置資訊，以便顯示附近的商家與優惠。"
         }
-      ]
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "consumer-frontend",
+          "organization": "coupro"
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/perf",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": ["RNFBApp", "RNFBAnalytics", "RNFBPerf"]
+          }
+        }
+      ],
+      "@sentry/react-native"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -46,8 +67,9 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.cokayne.MobileFrontend",
-      "associatedDomains": ["applinks:coupro.pro"],
+      "associatedDomains": ["applinks:api.coupro.pro", "applinks:app.coupro.pro"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -57,10 +79,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ],
+      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
+      "blockedPermissions": ["com.google.android.gms.permission.AD_ID"],
+      "googleServicesFile": "./google-services.json",
       "package": "com.cokayne.MobileFrontend"
     },
     "extra": {
@@ -73,7 +94,10 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/ba247e6a-3cfa-4285-99f6-5867b5257c0e"
+      "url": "https://u.expo.dev/ba247e6a-3cfa-4285-99f6-5867b5257c0e",
+      "fallbackToCacheTimeout": 3000,
+      "checkAutomatically": "ON_LOAD",
+      "enabled": true
     }
   }
 }

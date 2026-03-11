@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, TouchableOpacity, StyleSheet, Dimensions, Animated } from 'react-native';
 import { YStack, Text, XStack } from 'tamagui';
 import { colors } from '@/constants/colors';
@@ -34,6 +34,30 @@ export const AlertModal: React.FC<AlertModalProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(50)).current;
 
+  const hideModal = useCallback(
+    (shouldCallOnConfirm = false) => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateYAnim, {
+          toValue: 50,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        onClose();
+        // Call onConfirm after modal closes if it was auto-hide
+        if (shouldCallOnConfirm && onConfirm) {
+          onConfirm();
+        }
+      });
+    },
+    [fadeAnim, onClose, onConfirm, translateYAnim],
+  );
+
   useEffect(() => {
     if (isOpen) {
       // Show animation
@@ -62,28 +86,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
     } else {
       hideModal();
     }
-  }, [isOpen, type, autoHideDurationMs]);
-
-  const hideModal = (shouldCallOnConfirm = false) => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateYAnim, {
-        toValue: 50,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose();
-      // Call onConfirm after modal closes if it was auto-hide
-      if (shouldCallOnConfirm && onConfirm) {
-        onConfirm();
-      }
-    });
-  };
+  }, [autoHideDurationMs, fadeAnim, hideModal, isOpen, translateYAnim, type]);
 
   const handleConfirm = () => {
     if (onConfirm) {
@@ -112,16 +115,11 @@ export const AlertModal: React.FC<AlertModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent={true} animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity
         style={[styles.overlay, { paddingBottom: SCREEN_HEIGHT * 0.2 }]}
         activeOpacity={1}
-        onPress={(type === 'success' || type === 'error') ? undefined : onClose}
+        onPress={type === 'success' || type === 'error' ? undefined : onClose}
       >
         <Animated.View
           style={[
@@ -136,48 +134,40 @@ export const AlertModal: React.FC<AlertModalProps> = ({
         >
           <TouchableOpacity
             activeOpacity={1}
-            onPress={(type === 'success' || type === 'error') ? undefined : (e) => e.stopPropagation()}
+            onPress={
+              type === 'success' || type === 'error' ? undefined : (e) => e.stopPropagation()
+            }
           >
-          {(type === 'success' || type === 'error') ? (
-            <YStack style={{ alignItems: 'center', justifyContent: 'center', minHeight: 56 }}>
-              <Text style={[getStatusTextStyle(), styles.statusMessageText]}>
-                {message}
-              </Text>
-            </YStack>
-          ) : (
-            <YStack gap={12} style={{ alignItems: 'center' }} width="100%">
-              {/* Title */}
-              <Text style={styles.title}>
-                {title}
-              </Text>
+            {type === 'success' || type === 'error' ? (
+              <YStack style={{ alignItems: 'center', justifyContent: 'center', minHeight: 56 }}>
+                <Text style={[getStatusTextStyle(), styles.statusMessageText]}>{message}</Text>
+              </YStack>
+            ) : (
+              <YStack gap={12} style={{ alignItems: 'center' }} width="100%">
+                {/* Title */}
+                <Text style={styles.title}>{title}</Text>
 
-              {/* Message */}
-              <Text style={styles.message}>
-                {message}
-              </Text>
+                {/* Message */}
+                <Text style={styles.message}>{message}</Text>
 
-              {/* Confirm Button */}
-              <XStack width="100%" style={{ marginTop: 8 }} gap={8}>
-                {!!cancelText && (
+                {/* Confirm Button */}
+                <XStack width="100%" style={{ marginTop: 8 }} gap={8}>
+                  {!!cancelText && (
+                    <Button variant="outline" flex={1} onPress={onCancel ?? onClose}>
+                      {cancelText}
+                    </Button>
+                  )}
                   <Button
-                    variant="outline"
-                    flex={1}
-                    onPress={onCancel ?? onClose}
+                    variant="primary"
+                    flex={cancelText ? 1 : undefined}
+                    fullWidth={!cancelText}
+                    onPress={handleConfirm}
                   >
-                    {cancelText}
+                    {confirmText}
                   </Button>
-                )}
-                <Button
-                  variant="primary"
-                  flex={cancelText ? 1 : undefined}
-                  fullWidth={!cancelText}
-                  onPress={handleConfirm}
-                >
-                  {confirmText}
-                </Button>
-              </XStack>
-            </YStack>
-          )}
+                </XStack>
+              </YStack>
+            )}
           </TouchableOpacity>
         </Animated.View>
       </TouchableOpacity>
@@ -245,4 +235,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

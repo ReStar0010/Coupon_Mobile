@@ -19,7 +19,7 @@ const colors = {
   border: tokens.color.border,
   textPrimary: tokens.color.textPrimary,
   textSecondary: tokens.color.textSecondary,
-}
+};
 
 interface PrivacyPolicyData {
   title: string;
@@ -41,11 +41,11 @@ export default function PrivacyPolicyScreen() {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Fetch privacy policy from API (no auth required)
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/privacy-policy/`);
       const data = await response.json();
-      
+
       setPolicyData(data);
     } catch (err: any) {
       console.error('Failed to load privacy policy:', err);
@@ -69,7 +69,7 @@ export default function PrivacyPolicyScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text fontSize="18" fontWeight="600" color="#fff" marginLeft="$2">
+        <Text fontSize={18} fontWeight="600" color="#fff" marginLeft="$2">
           隱私政策
         </Text>
       </XStack>
@@ -106,10 +106,11 @@ export default function PrivacyPolicyScreen() {
               borderColor={colors.border}
             >
               <Text fontSize={14} color={colors.textSecondary}>
-                最後更新：{new Date(policyData.last_updated).toLocaleDateString('zh-TW', {
+                最後更新：
+                {new Date(policyData.last_updated).toLocaleDateString('zh-TW', {
                   year: 'numeric',
                   month: 'long',
-                  day: 'numeric'
+                  day: 'numeric',
                 })}
               </Text>
             </YStack>
@@ -122,7 +123,7 @@ export default function PrivacyPolicyScreen() {
               borderWidth={1}
               borderColor={colors.border}
             >
-              <Text fontSize="18" fontWeight="600" color={colors.textPrimary} marginBottom="$3">
+              <Text fontSize={18} fontWeight="600" color={colors.textPrimary} marginBottom="$3">
                 {policyData.title}
               </Text>
               <Text fontSize={14} color={colors.textPrimary} lineHeight={24}>
@@ -170,4 +171,3 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 });
-

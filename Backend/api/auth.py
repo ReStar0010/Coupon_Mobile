@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -6,6 +8,8 @@ import secrets
 from django.utils import timezone
 from datetime import timedelta
 from .models import PasswordResetProfile
+
+logger = logging.getLogger(__name__)
 
 class CookieJWTAuthentication(JWTAuthentication):
     """
@@ -24,7 +28,7 @@ class CookieJWTAuthentication(JWTAuthentication):
             return (user, validated_token)
         except Exception as e:
             # 驗證失敗，視為未認證
-            print("Authentication failed:", e)
+            logger.warning("Cookie JWT authentication failed: %s", e)
             return None
 
 def generate_password_reset_token():

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "59129522032",
+    "project_id": "coupro-746ba",
+    "storage_bucket": "coupro-746ba.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:59129522032:android:8b88616b19a0e0bc81d1b5",
+        "android_client_info": {
+          "package_name": "com.cokayne.MobileFrontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7IQG24Xt000sJNMakAKEpq13vLso_KQs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

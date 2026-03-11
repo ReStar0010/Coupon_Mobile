@@ -1,5 +1,6 @@
-import React from 'react';
-import { ActivityIndicator, View as RNView, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Pressable, View as RNView, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Text, Input, Button, YStack } from 'tamagui';
 import { FormHeader } from '@/app/components/forms/FormHeader';
 import { AUTH_COLORS } from './LoginFormContainer';
@@ -24,7 +25,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 16,
   },
+  passwordWrapper: {
+    position: 'relative',
+    width: '100%',
+  },
 });
+
+const passwordToggleStyle = {
+  position: 'absolute' as const,
+  right: 12,
+  padding: 4,
+  justifyContent: 'center' as const,
+  alignItems: 'center' as const,
+};
 
 export const VerifyFormContainer: React.FC<VerifyFormContainerProps> = ({
   mode,
@@ -36,6 +49,8 @@ export const VerifyFormContainer: React.FC<VerifyFormContainerProps> = ({
   onVerify,
   isLoading,
 }) => {
+  const [showPassword, setShowPassword] = useState(false);
+
   const getTitle = () => {
     return mode === 'register' ? '驗證手機號碼' : '重設密碼';
   };
@@ -44,12 +59,7 @@ export const VerifyFormContainer: React.FC<VerifyFormContainerProps> = ({
     <RNView style={styles.container}>
       <FormHeader title={getTitle()} />
 
-      <Text
-        fontSize={14}
-        color={AUTH_COLORS.textSecondary}
-        style={{ textAlign: 'center' }}
-        mb="$2"
-      >
+      <Text fontSize={14} color={AUTH_COLORS.textSecondary} style={{ textAlign: 'center' }} mb="$2">
         驗證碼已發送至 {phoneNumber}
       </Text>
 
@@ -71,20 +81,36 @@ export const VerifyFormContainer: React.FC<VerifyFormContainerProps> = ({
         />
 
         {mode === 'forgotPassword' && setNewPassword && (
-          <Input
-            placeholder="輸入新密碼"
-            value={newPassword}
-            onChangeText={setNewPassword}
-            secureTextEntry
-            bg={AUTH_COLORS.inputBackground}
-            borderColor={AUTH_COLORS.border}
-            borderWidth={1}
-            height={41}
-            px="$3"
-            fontSize={16}
-            color={AUTH_COLORS.text}
-            style={{ borderRadius: 9 }}
-          />
+          <RNView style={styles.passwordWrapper}>
+            <Input
+              placeholder="輸入新密碼"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry={!showPassword}
+              bg={AUTH_COLORS.inputBackground}
+              borderColor={AUTH_COLORS.border}
+              borderWidth={1}
+              height={41}
+              px="$3"
+              pr={44}
+              fontSize={16}
+              color={AUTH_COLORS.text}
+              style={{ borderRadius: 9 }}
+            />
+            <Pressable
+              onPress={() => setShowPassword((prev) => !prev)}
+              style={passwordToggleStyle}
+              hitSlop={12}
+              accessibilityLabel={showPassword ? '隱藏密碼' : '顯示密碼'}
+              accessibilityRole="button"
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color={AUTH_COLORS.textSecondary}
+              />
+            </Pressable>
+          </RNView>
         )}
 
         <Button

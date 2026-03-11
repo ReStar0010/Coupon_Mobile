@@ -68,7 +68,7 @@ export function useSharedCoupon(fetchCouponsCallback: () => void) {
 
     // Clean up the URL by removing the token parameter
     if (shareToken) {
-      router.replace('/Collection');
+      router.replace('/(tabs)/collection');
     }
 
     // Refresh coupon list to show the newly acquired coupon

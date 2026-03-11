@@ -1,6 +1,6 @@
 import { Tabs, useSegments } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import { Home, StretchHorizontal, BarChart2 } from 'lucide-react-native';
+import { StretchHorizontal, BarChart2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TAB_BAR_PADDING_TOP = 8;
@@ -45,17 +45,19 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: '#ffad31',
         tabBarInactiveTintColor: '#a8a8a8',
-        tabBarStyle: hideTabBar ? { display: 'none' } : {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 0,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          paddingTop: TAB_BAR_PADDING_TOP,
-          paddingBottom: bottomPadding,
-        },
+        tabBarStyle: hideTabBar
+          ? { display: 'none' }
+          : {
+              backgroundColor: '#ffffff',
+              borderTopWidth: 0,
+              elevation: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              paddingTop: TAB_BAR_PADDING_TOP,
+              paddingBottom: bottomPadding,
+            },
         headerShown: false,
         lazy: true,
         freezeOnBlur: true,
@@ -66,6 +68,9 @@ export default function TabLayout() {
         options={{
           title: 'CouPro',
           tabBarIcon: ({ color, size }) => <LogoIcon color={color} size={size} />,
+          popToTopOnBlur: true,
+          // 讓 tab 按鈕永遠導向 EasyUse 根頁，避免回到上次停留的巢狀頁（例如 redeem）
+          href: '/(tabs)/easyuse',
         }}
       />
       <Tabs.Screen
@@ -73,6 +78,7 @@ export default function TabLayout() {
         options={{
           title: '專屬優惠',
           tabBarIcon: ({ color, size }) => <StretchHorizontal color={color} size={size} />,
+          href: '/(tabs)/collection',
         }}
       />
       <Tabs.Screen

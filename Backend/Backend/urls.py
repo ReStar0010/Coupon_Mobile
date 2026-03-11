@@ -7,6 +7,17 @@ from api.views.authentication import (
     verify_merchant_email, resend_merchant_verification, redirect_verify_email, redirect_reset_password
 )
 from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon, validate_unified_redemption_code
+from api.views.platform_voucher_views import (
+    redeem_platform_voucher,
+    platform_voucher_list,
+    platform_voucher_detail,
+    share_platform_voucher,
+    get_platform_voucher_share,
+    accept_platform_voucher_share,
+    share_platform_voucher_public,
+    my_public_voucher_shares,
+    merchant_redeem_voucher,
+)
 from api.views.sharing_views import (
     share_coupon,
     get_share_request,
@@ -52,16 +63,23 @@ from api.views.admin_moderation import (
     ModerationQueueView, ReportDetailView, ModerationActionView,
     EscalatedReportsView, MerchantViolationsView, ModerationStatsView
 )
+from api.views.load_test import load_test_verify_consistency, load_test_reset
+
+import logging
 
 from django.http import HttpResponse, JsonResponse
 from django.db import connection
 from django.urls import re_path
+
+logger = logging.getLogger(__name__)
 
 from rest_framework import permissions
 from django.urls import path, re_path
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
+def trigger_sentry_error(request):
+    raise Exception("This is a test error")
 
 def health_check(request):
     try:
@@ -69,6 +87,7 @@ def health_check(request):
             cursor.execute("SELECT 1")
         return JsonResponse({"status": "ok", "db": "ok"})
     except Exception as e:
+        logger.error("Health check database query failed: %s", e, exc_info=True)
         return JsonResponse({"status": "error", "db": str(e)}, status=503)
 
 
@@ -93,6 +112,9 @@ urlpatterns = [
     re_path(r'^swagger/$',schema_view.with_ui('swagger', cache_timeout=0),name='schema-swagger-ui'),
     re_path(r'^redoc/$',schema_view.with_ui('redoc', cache_timeout=0),name='schema-redoc'),
 
+    # test sentry error
+    path('api/test-sentry/', trigger_sentry_error, name='trigger_sentry_error'),
+
     # Coupon endpoints
     path('api/store-coupons/', get_store_coupons),  # Type A (store) coupons - 隨取及用
     path('api/exclusive-coupons/', get_exclusive_coupons),  # Type B (exclusive) coupons - 專屬優惠
@@ -101,6 +123,16 @@ urlpatterns = [
     
     # Unified redemption endpoints
     path('api/unified-redemption/<str:code>/', validate_unified_redemption_code, name='validate_unified_redemption_code'),
+    # Platform voucher (011)
+    path('api/platform-vouchers/', platform_voucher_list, name='platform_voucher_list'),
+    path('api/platform-vouchers/<int:pk>/', platform_voucher_detail, name='platform_voucher_detail'),
+    path('api/platform-voucher/<int:voucher_id>/redeem/', redeem_platform_voucher, name='redeem_platform_voucher'),
+    path('api/platform-voucher/<int:voucher_id>/share/', share_platform_voucher, name='share_platform_voucher'),
+    path('api/platform-voucher/<int:voucher_id>/share-public/', share_platform_voucher_public, name='share_platform_voucher_public'),
+    path('api/platform-voucher/share/<str:token>/', get_platform_voucher_share, name='get_platform_voucher_share'),
+    path('api/platform-voucher/share/<str:token>/accept/', accept_platform_voucher_share, name='accept_platform_voucher_share'),
+    path('api/my-public-voucher-shares/', my_public_voucher_shares, name='my_public_voucher_shares'),
+    path('api/merchant/redeem-voucher/', merchant_redeem_voucher, name='merchant_redeem_voucher'),
     
     # Event tracking endpoints
     path('api/events/template-view/', track_template_view, name='track_template_view'),
@@ -111,12 +143,11 @@ urlpatterns = [
     path('api/coupon/draw-history/', draw_history, name='draw_history'),
     path('api/last-draw/', get_last_draw_time, name='get_last_draw_time'),
 
-    # Universal Link fallback pages (https://app.coupro.pro/collection/<token> and /c/<token>)
+    # Universal Link fallback pages (https://api.coupro.pro/collection/<token>)
     path('collection/<str:token>/', collection_landing, name='collection_landing'),
-    path('c/<str:token>/', collection_landing, name='collection_landing_short'),
     path('claim/<str:token>/', claim_landing, name='claim_landing'),
     path('cl/<str:token>/', claim_landing, name='claim_landing_short'),
-    # iOS/Android verification (https://app.coupro.pro/.well-known/...)
+    # iOS/Android verification (https://api.coupro.pro/.well-known/...)
     path('.well-known/apple-app-site-association', apple_app_site_association, name='apple_app_site_association'),
     path('.well-known/assetlinks.json', assetlinks_json, name='assetlinks_json'),
 
@@ -218,6 +249,8 @@ urlpatterns = [
 
     # Health check endpoint for Render zero-downtime deploys
     path('api/health/', health_check, name='health_check'),
+    path('api/load-test/verify-consistency/', load_test_verify_consistency),
+    path('api/load-test/reset/', load_test_reset),
 
     # UGC Compliance: Content Reporting (User Story 1)
     path('api/content/<str:content_type>/<int:content_id>/report/', ReportContentView.as_view(), name='report_content'),

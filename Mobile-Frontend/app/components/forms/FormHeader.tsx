@@ -5,10 +5,10 @@ interface FormHeaderProps {
   title?: string;
 }
 
-export const FormHeader: React.FC<FormHeaderProps> = ({title}) => {
+export const FormHeader: React.FC<FormHeaderProps> = ({ title }) => {
   return (
     <YStack items="center">
-      <H1 
+      <H1
         fontSize={30}
         fontWeight="800"
         color="#374151"
@@ -22,4 +22,3 @@ export const FormHeader: React.FC<FormHeaderProps> = ({title}) => {
 };
 
 export default FormHeader;
-

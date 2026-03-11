@@ -13,7 +13,7 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
   }
 
   // Only show pending shares (ones still in the public pool)
-  const pendingShares = shares.filter(s => s.status === 'pending');
+  const pendingShares = shares.filter((s) => s.status === 'pending');
 
   if (pendingShares.length === 0) {
     return null;
@@ -43,7 +43,9 @@ const MySharedCoupons: React.FC<MySharedCouponsProps> = ({ shares, isLoading }) 
           <XStack gap={12} alignItems="center">
             <Image
               source={{
-                uri: share.image_url || 'https://api.iconify.design/mdi:gift-outline.svg?color=%23ffad31',
+                uri:
+                  share.image_url ||
+                  'https://api.iconify.design/mdi:gift-outline.svg?color=%23ffad31',
                 width: 48,
                 height: 48,
               }}

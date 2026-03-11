@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image } from 'react-native';
 import { StatisticsData } from '../hooks/useStatisticsData';
-import { YStack, XStack, Button, Text } from 'tamagui';
+import { YStack, Button, Text } from 'tamagui';
 
 interface Goal {
   id: string;
@@ -14,37 +14,37 @@ interface StatisticsContentProps {
   onSetGoal: () => void;
 }
 
-
-interface GoalCardProps {
-  goal: Goal | null;
-  onSetGoal: () => void;
-}
-
 const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
   if (stats.savingsGoalAmount === 0) {
     // Empty state - show placeholder with set goal button
     return (
-      <YStack rounded="$3" style={{ borderWidth: 1, borderColor: 'white' }} bg="#f5f5f5" p="$4" elevation="$1">
+      <YStack
+        rounded="$3"
+        style={{ borderWidth: 1, borderColor: 'white' }}
+        bg="#f5f5f5"
+        p="$4"
+        elevation="$1"
+      >
         {/* Progress Bar Background */}
         <YStack mb="$3" height={16} width="100%" rounded="$6" bg="#e0e0e0" />
 
         {/* Empty state content with image placeholder */}
         <YStack items="center">
-          <YStack 
-            mb="$4" 
-            height={100} 
-            width={100} 
-            items="center" 
-            rounded="$3" 
-            style={{ borderWidth: 1, borderColor: 'white', justifyContent: 'center' }} 
+          <YStack
+            mb="$4"
+            height={100}
+            width={100}
+            items="center"
+            rounded="$3"
+            style={{ borderWidth: 1, borderColor: 'white', justifyContent: 'center' }}
             bg="white"
           >
-            <YStack 
-              height={48} 
-              width={48} 
-              items="center" 
+            <YStack
+              height={48}
+              width={48}
+              items="center"
               style={{ justifyContent: 'center' }}
-              rounded="$2" 
+              rounded="$2"
               bg="#8F8F8F"
             >
               <Image
@@ -74,8 +74,7 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
   // Calculate progress percentage
   const progressPercentage = Math.min((stats.monthlySavings / stats.savingsGoalAmount) * 100, 100);
   const isCompleted = stats.monthlySavings >= stats.savingsGoalAmount;
-  const remaining = Math.max(stats.savingsGoalAmount- stats.monthlySavings, 0);
-
+  const remaining = Math.max(stats.savingsGoalAmount - stats.monthlySavings, 0);
 
   return (
     <YStack rounded="$3" style={{ borderWidth: 1, borderColor: '#e0e0e0' }} bg="#f5f5f5" p="$4">
@@ -100,7 +99,13 @@ const GoalCard: React.FC<StatisticsContentProps> = ({ stats, onSetGoal }) => {
       {/* Goal Info */}
       <YStack items="center">
         <YStack mb="$1">
-          <Text style={{ textAlign: 'center' }} fontSize={14} fontWeight="bold" lineHeight={17.5} color="#333333">
+          <Text
+            style={{ textAlign: 'center' }}
+            fontSize={14}
+            fontWeight="bold"
+            lineHeight={17.5}
+            color="#333333"
+          >
             {isCompleted ? '目標達成！' : `剩下 ${remaining} 塊，加油！`}
           </Text>
         </YStack>

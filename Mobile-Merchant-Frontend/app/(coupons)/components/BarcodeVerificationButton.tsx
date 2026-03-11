@@ -2,14 +2,16 @@ import React from 'react';
 import { XStack, Text } from 'tamagui';
 import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { colors } from '@/constants/colors';
 
 interface BarcodeVerificationButtonProps {
   onPress: () => void;
   isLoading?: boolean;
 }
 
-export function BarcodeVerificationButton({ onPress, isLoading = false }: BarcodeVerificationButtonProps) {
+export function BarcodeVerificationButton({
+  onPress,
+  isLoading = false,
+}: BarcodeVerificationButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}

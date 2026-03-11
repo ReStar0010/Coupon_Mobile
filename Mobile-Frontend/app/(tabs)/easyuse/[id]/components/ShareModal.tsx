@@ -1,14 +1,15 @@
 import React from 'react';
-import { Modal, TouchableWithoutFeedback, ActivityIndicator, Share, Alert, Platform } from 'react-native';
+import {
+  Modal,
+  TouchableWithoutFeedback,
+  ActivityIndicator,
+  Share,
+  Alert,
+  Platform,
+} from 'react-native';
 import { X, Share2 } from 'lucide-react-native';
-import { 
-  YStack, 
-  XStack, 
-  Text, 
-  Button,
-  View,
-  Card
-} from 'tamagui';
+import { useTranslation } from 'react-i18next';
+import { YStack, XStack, Text, Button, View, Card } from 'tamagui';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -25,11 +26,13 @@ const ShareModal = ({
   onLinkShare,
   isSharing = false,
 }: ShareModalProps) => {
+  const { t } = useTranslation();
+
   const handleNativeLinkShare = async () => {
     try {
       const shareLink = await onLinkShare();
       if (!shareLink) {
-        Alert.alert('分享失敗', '無法生成分享連結，請稍後再試');
+        Alert.alert(t('shareModal.shareFailedTitle'), t('shareModal.noLink'));
         return;
       }
 
@@ -42,37 +45,30 @@ const ShareModal = ({
       );
 
       onClose();
-    } catch (e) {
-      Alert.alert('分享失敗', '無法開啟系統分享面板，請稍後再試');
+    } catch {
+      Alert.alert(t('shareModal.shareFailedTitle'), t('shareModal.panelFailed'));
     }
   };
 
   const handleCouProSharePress = () => {
-    Alert.alert(
-      '確認分享到 CouPro',
-      '此優惠將從您的「專屬優惠」中移除並改為「隨取即用」，此操作無法復原。確定要分享嗎？',
-      [
-        { text: '取消', style: 'cancel' },
-        { text: '確定分享', style: 'destructive', onPress: onCouProShare },
-      ]
-    );
+    Alert.alert(t('shareModal.confirmTitle'), t('shareModal.confirmMessage'), [
+      { text: t('shareModal.confirmCancel'), style: 'cancel' },
+      { text: t('shareModal.confirmConfirm'), style: 'destructive', onPress: onCouProShare },
+    ]);
   };
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={isSharing ? undefined : onClose}>
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingHorizontal: 20
-        }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
           <TouchableWithoutFeedback>
             <Card
               bg="#fff"
@@ -85,18 +81,14 @@ const ShareModal = ({
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.25,
                 shadowRadius: 12,
-                elevation: 8
+                elevation: 8,
               }}
             >
               <YStack gap="$5">
                 {/* Header */}
                 <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text 
-                    fontSize="$9" 
-                    fontWeight="bold" 
-                    color="#333"
-                  >
-                    分享
+                  <Text fontSize="$9" fontWeight="bold" color="#333">
+                    {t('shareModal.share')}
                   </Text>
                   <Button
                     onPress={isSharing ? undefined : onClose}
@@ -119,12 +111,8 @@ const ShareModal = ({
 
                 {/* Warning Message */}
                 <YStack gap="$3">
-                  <Text 
-                    color="#ef4444" 
-                    fontSize="$4" 
-                    lineHeight="$5"
-                  >
-                    注意：一旦將此優惠分享至「隨取即用」，該優惠將自您的「專屬優惠」中移除，無法復原。
+                  <Text color="#ef4444" fontSize="$4" lineHeight="$5">
+                    {t('shareModal.warning')}
                   </Text>
                 </YStack>
 
@@ -144,10 +132,10 @@ const ShareModal = ({
                     }}
                     disabled={isSharing}
                   >
-                    <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}> 
+                    <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
                       {isSharing && <ActivityIndicator size="small" color="#333" />}
-                      <Text 
-                        color="#333" 
+                      <Text
+                        color="#333"
                         fontSize={14}
                         fontWeight="600"
                         numberOfLines={1}
@@ -155,7 +143,7 @@ const ShareModal = ({
                         minimumFontScale={0.8}
                         style={{ textAlign: 'center' }}
                       >
-                        {isSharing ? '分享中...' : '分享到 CouPro'}
+                        {isSharing ? t('shareModal.sharing') : t('shareModal.shareToCouPro')}
                       </Text>
                     </XStack>
                   </Button>
@@ -178,14 +166,14 @@ const ShareModal = ({
                   >
                     <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
                       {isSharing && <ActivityIndicator size="small" color="#333" />}
-                      <Text 
-                        color="#333" 
+                      <Text
+                        color="#333"
                         fontSize={14}
                         fontWeight="600"
                         numberOfLines={1}
                         style={{ textAlign: 'center' }}
                       >
-                        {isSharing ? '生成中...' : '分享連結'}
+                        {isSharing ? t('shareModal.generating') : t('shareModal.shareLink')}
                       </Text>
                       {!isSharing && <Share2 size={16} color="#333" />}
                     </XStack>

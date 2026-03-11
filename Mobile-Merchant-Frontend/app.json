@@ -2,10 +2,8 @@
   "expo": {
     "name": "CouPro 商家端",
     "slug": "Mobile-Merchant-Frontend",
-    "version": "1.0.0",
-    "scheme": [
-      "coupromerchant"
-    ],
+    "version": "1.0.2",
+    "scheme": ["coupromerchant"],
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
@@ -45,17 +43,36 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "merchant-frontend",
+          "organization": "coupro"
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/perf",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": ["RNFBApp", "RNFBAnalytics", "RNFBPerf"]
+          }
+        }
+      ],
+      "@sentry/react-native"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.cokayne.MobileMerchantFrontend",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -66,14 +83,16 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#333333"
       },
+      "blockedPermissions": ["com.google.android.gms.permission.AD_ID"],
       "edgeToEdgeEnabled": true,
+      "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": false,
       "package": "com.cokayne.MobileMerchantFrontend",
       "config": {
-      "googleMaps": {
-        "apiKey": "AIzaSyACVfhHwjl0L5QWVRUxWOyle4UOysZPSbA"
+        "googleMaps": {
+          "apiKey": "AIzaSyACVfhHwjl0L5QWVRUxWOyle4UOysZPSbA"
+        }
       }
-    }
     },
     "extra": {
       "router": {},
@@ -85,7 +104,10 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/f19a569d-52b8-4052-9d9b-d8f009d33af2"
+      "url": "https://u.expo.dev/f19a569d-52b8-4052-9d9b-d8f009d33af2",
+      "fallbackToCacheTimeout": 3000,
+      "checkAutomatically": "ON_LOAD",
+      "enabled": true
     }
   }
 }

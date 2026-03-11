@@ -89,4 +89,3 @@ export async function needsEULAAcceptance(): Promise<boolean> {
     return true;
   }
 }
-

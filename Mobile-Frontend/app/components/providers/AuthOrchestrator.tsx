@@ -98,12 +98,12 @@ const AuthOrchestrator: React.FC<AuthOrchestratorProps> = ({ children }) => {
     // Subscribe to auth events
     const unsubscribeAuthFailure = authEvents.subscribe(
       AUTH_EVENT_TYPES.AUTH_FAILURE,
-      handleAuthFailure
+      handleAuthFailure,
     );
 
     const unsubscribeLogout = authEvents.subscribe(
       AUTH_EVENT_TYPES.LOGOUT_REQUESTED,
-      handleLogoutRequested
+      handleLogoutRequested,
     );
 
     // Cleanup subscriptions on unmount

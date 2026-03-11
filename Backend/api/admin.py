@@ -2,7 +2,11 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.db.models import Count, Sum
 from django.utils import timezone
+from django.urls import path
+from django.shortcuts import render, redirect
+from django.contrib import messages
 from .models import *
+from .utils import generate_platform_voucher_redeem_code
 
 
 # =============================================================================
@@ -196,7 +200,7 @@ class StoreAdmin(admin.ModelAdmin):
             'fields': ('address', 'lat', 'lng', 'business_hours')
         }),
         ('營運設定', {
-            'fields': ('average_order_value', 'unified_redeem_code')
+            'fields': ('average_order_value', 'unified_redeem_code', 'accepts_platform_vouchers')
         }),
     )
     
@@ -457,6 +461,179 @@ class CouponShareRequestAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related('coupon', 'from_user', 'to_user')
+
+
+# =============================================================================
+# Platform Cash Voucher (011)
+# =============================================================================
+
+@admin.register(PlatformVoucher)
+class PlatformVoucherAdmin(admin.ModelAdmin):
+    change_list_template = 'admin/api/platformvoucher/change_list.html'
+    list_display = [
+        'id', 'redeem_code', 'face_value', 'currency_code',
+        'current_holder_email', 'batch_name', 'acquisition_method',
+        'start_date', 'expiry_date', 'created_at', 'is_redeemed_display'
+    ]
+    list_filter = ['acquisition_method', 'currency_code', 'created_at']
+    search_fields = ['redeem_code', 'batch_name', 'current_holder__email', 'original_owner__email']
+    readonly_fields = ['redeem_code', 'created_at']
+    date_hierarchy = 'created_at'
+    fieldsets = (
+        ('金額與效期', {
+            'fields': ('face_value', 'currency_code', 'start_date', 'expiry_date')
+        }),
+        ('持有與來源', {
+            'fields': ('current_holder', 'original_owner', 'last_holder', 'acquisition_method', 'batch_name')
+        }),
+        ('代碼', {
+            'fields': ('redeem_code', 'created_at')
+        }),
+    )
+
+    def current_holder_email(self, obj):
+        return obj.current_holder.email if obj.current_holder else '（公共池）'
+    current_holder_email.short_description = '當前持有者'
+    current_holder_email.admin_order_field = 'current_holder__email'
+
+    def is_redeemed_display(self, obj):
+        from api.models import PlatformVoucherRedemption
+        return '是' if PlatformVoucherRedemption.objects.filter(voucher=obj).exists() else '否'
+    is_redeemed_display.short_description = '已兌換'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path('batch-issue/', self.admin_site.admin_view(self.batch_issue_view), name='api_platformvoucher_batch_issue'),
+            path('participating-stores/', self.admin_site.admin_view(self.participating_stores_view), name='api_platformvoucher_participating_stores'),
+        ]
+        return extra + urls
+
+    def batch_issue_view(self, request):
+        """Custom view: form with batch_name, face_value, quantity, expiry_date; create that many vouchers."""
+        from django import forms
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        class BatchIssueForm(forms.Form):
+            batch_name = forms.CharField(max_length=255, required=True, label='Batch name')
+            face_value = forms.DecimalField(max_digits=10, decimal_places=2, min_value=0.01, label='Face value')
+            quantity = forms.IntegerField(min_value=1, max_value=1000, initial=10, label='Quantity')
+            expiry_date = forms.DateTimeField(label='Expiry date')
+            original_owner = forms.ModelChoiceField(queryset=User.objects.all(), required=False, label='Original owner (optional)')
+
+        if request.method == 'POST':
+            form = BatchIssueForm(request.POST)
+            if form.is_valid():
+                batch_name = form.cleaned_data['batch_name']
+                face_value = form.cleaned_data['face_value']
+                quantity = form.cleaned_data['quantity']
+                expiry_date = form.cleaned_data['expiry_date']
+                owner = form.cleaned_data.get('original_owner')
+                start_date = timezone.now()
+                created = 0
+                for _ in range(quantity):
+                    try:
+                        PlatformVoucher.objects.create(
+                            face_value=face_value,
+                            currency_code='TWD',
+                            start_date=start_date,
+                            expiry_date=expiry_date,
+                            current_holder=owner,
+                            original_owner=owner,
+                            redeem_code=generate_platform_voucher_redeem_code(),
+                            batch_name=batch_name,
+                            acquisition_method='platform_issue',
+                        )
+                        created += 1
+                    except Exception:
+                        break
+                messages.success(request, f'Created {created} platform voucher(s).')
+                return redirect('admin:api_platformvoucher_changelist')
+        else:
+            form = BatchIssueForm(initial={'expiry_date': timezone.now() + timezone.timedelta(days=365)})
+        return render(request, 'admin/api/platformvoucher/batch_issue.html', {'form': form, 'opts': self.model._meta})
+
+    def participating_stores_view(self, request):
+        """Custom view: select which stores can redeem platform vouchers (accepts_platform_vouchers)."""
+        from django import forms
+
+        class ParticipatingStoresForm(forms.Form):
+            stores = forms.ModelMultipleChoiceField(
+                queryset=Store.objects.none(),
+                widget=forms.CheckboxSelectMultiple,
+                required=False,
+            )
+
+        stores_qs = Store.objects.all().order_by('name').select_related('owner')
+        participating_ids = set(
+            Store.objects.filter(accepts_platform_vouchers=True).values_list('id', flat=True)
+        )
+
+        if request.method == 'POST':
+            form = ParticipatingStoresForm(request.POST)
+            form.fields['stores'].queryset = stores_qs
+            if form.is_valid():
+                selected = form.cleaned_data['stores']
+                selected_ids = [s.id for s in selected]
+                Store.objects.filter(id__in=selected_ids).update(accepts_platform_vouchers=True)
+                Store.objects.exclude(id__in=selected_ids).update(accepts_platform_vouchers=False)
+                messages.success(request, f'已更新：{len(selected_ids)} 家店家可核銷平台現金券。')
+                return redirect('admin:api_platformvoucher_changelist')
+        else:
+            form = ParticipatingStoresForm()
+            form.fields['stores'].queryset = stores_qs
+
+        return render(
+            request,
+            'admin/api/platformvoucher/participating_stores.html',
+            {
+                'form': form,
+                'stores': stores_qs,
+                'participating_ids': participating_ids,
+                'opts': self.model._meta,
+            },
+        )
+
+
+@admin.register(PlatformVoucherRedemption)
+class PlatformVoucherRedemptionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'voucher_id', 'user_email', 'store_name', 'amount_used', 'redeemed_at']
+    list_filter = ['redeemed_at']
+    search_fields = ['user__email', 'store__name', 'voucher__redeem_code']
+    readonly_fields = ['redeemed_at']
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = '兌換者'
+
+    def store_name(self, obj):
+        return obj.store.name
+    store_name.short_description = '店家'
+
+
+@admin.register(PlatformVoucherShareRequest)
+class PlatformVoucherShareRequestAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'voucher_id', 'from_user_email', 'to_user_email',
+        'share_type', 'status', 'created_at', 'responded_at'
+    ]
+    list_filter = ['status', 'is_public', 'created_at']
+    search_fields = ['from_user__email', 'to_user__email', 'token', 'voucher__redeem_code']
+    readonly_fields = ['token', 'created_at', 'responded_at']
+    date_hierarchy = 'created_at'
+
+    def from_user_email(self, obj):
+        return obj.from_user.email
+    from_user_email.short_description = '分享者'
+
+    def to_user_email(self, obj):
+        return obj.to_user.email if obj.to_user else '（待領取）'
+    to_user_email.short_description = '接收者'
+
+    def share_type(self, obj):
+        return '公共池' if obj.is_public else '私人'
+    share_type.short_description = '類型'
 
 
 # =============================================================================

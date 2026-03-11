@@ -20,16 +20,16 @@ QR codes encode a **claim URL** (web or app scheme) with a single **claim token*
 1. Activate venv: `cd Backend && source .venv/bin/activate` (Unix) or `.venv\Scripts\activate` (Windows).
 2. Apply migrations if any: `python manage.py migrate`.
 3. Run server: `python manage.py runserver`.
-4. Ensure `COUPRO_PUBLIC_BASE_URL`, `COUPRO_APP_STORE_ID`, `COUPRO_PLAY_STORE_ID` (and optional `COUPRO_IOS_TEAM_ID`, `COUPRO_ANDROID_SHA256` for Universal/App Links) are set for claim landing and AASA/assetlinks.
+4. Ensure `FRONTEND_URL`, `COUPRO_APP_STORE_ID`, `COUPRO_PLAY_STORE_ID` (and optional `COUPRO_IOS_TEAM_ID`, `COUPRO_ANDROID_SHA256` for Universal/App Links) are set for claim landing and AASA/assetlinks.
 
 ### Local dev with tunnel (lt / loca.lt) — testing “scan outside app”
 
 To test opening the claim URL in a browser (or scanning a QR that opens the link):
 
 1. **Start your tunnel** so the Backend is reachable at a public URL (e.g. `https://coupro-123.loca.lt`). Example with [local tunnel](https://localtunnel.github.io/www/): `lt --port 8000 --subdomain coupro-123` (Backend must be on port 8000), or use your usual tunnel command.
-2. **Backend**: In local dev, `Backend/Backend/settings.py` uses `API_BASE_URL` as the public base when `COUPRO_PUBLIC_BASE_URL` is unset and `DEBUG` is True. So ensure `API_BASE_URL` matches your tunnel URL (default in settings is `https://coupro-123.loca.lt`). Optionally create `Backend/.env` with:
+2. **Backend**: In local dev, `Backend/Backend/settings.py` uses `API_BASE_URL` as the public base when `FRONTEND_URL` is unset and `DEBUG` is True. So ensure `API_BASE_URL` matches your tunnel URL (default in settings is `https://coupro-123.loca.lt`). Optionally create `Backend/.env` with:
    - `API_BASE_URL=https://YOUR-SUBDOMAIN.loca.lt` (no trailing slash)
-   - Or `COUPRO_PUBLIC_BASE_URL=https://YOUR-SUBDOMAIN.loca.lt` to override.
+   - Or `FRONTEND_URL=https://YOUR-SUBDOMAIN.loca.lt` to override.
 3. **Mobile-Frontend**: Use `EXPO_PUBLIC_BACKEND_MODE=local-network` and `EXPO_PUBLIC_LOCAL_HOST=https://YOUR-SUBDOMAIN.loca.lt` in `Mobile-Frontend/.env` so the app talks to the same tunnel.
 4. **Mobile-Merchant-Frontend**: Point its API config to the same tunnel so the merchant app generates QR codes with `claim_link_web` like `https://YOUR-SUBDOMAIN.loca.lt/claim/<token>/`.
 5. **Test**: Generate a QR in the merchant app, then open `https://YOUR-SUBDOMAIN.loca.lt/claim/<token>/` in a browser (or scan the QR with the system camera). You should see the claim landing page; with the app installed, the same URL can open the app (if AASA/App Links are configured for that host).
@@ -46,13 +46,13 @@ To test opening the claim URL in a browser (or scanning a QR that opens the link
 
 ## Key endpoints and URLs
 
-| Purpose | Method/URL | Notes |
-|--------|------------|--------|
-| Generate QR session (with claim URLs) | `POST /api/merchant/qr-session/generate/` | Response includes `claim_link_web`, `claim_link`. |
-| Claim by token | `POST /api/qr-claim/claim/` | Body: `{ "claim_token": "<session_token>" }`. |
-| Claim landing (no app) | `GET /claim/<token>/` or `/cl/<token>/` | HTML; install + store links only. |
-| AASA (iOS) | `GET /.well-known/apple-app-site-association` | Add paths `/claim/*`, `/cl/*`. |
-| Asset links (Android) | `GET /.well-known/assetlinks.json` | Add `/claim` (and `/cl`) in intent filters. |
+| Purpose                               | Method/URL                                    | Notes                                             |
+| ------------------------------------- | --------------------------------------------- | ------------------------------------------------- |
+| Generate QR session (with claim URLs) | `POST /api/merchant/qr-session/generate/`     | Response includes `claim_link_web`, `claim_link`. |
+| Claim by token                        | `POST /api/qr-claim/claim/`                   | Body: `{ "claim_token": "<session_token>" }`.     |
+| Claim landing (no app)                | `GET /claim/<token>/` or `/cl/<token>/`       | HTML; install + store links only.                 |
+| AASA (iOS)                            | `GET /.well-known/apple-app-site-association` | Add paths `/claim/*`, `/cl/*`.                    |
+| Asset links (Android)                 | `GET /.well-known/assetlinks.json`            | Add `/claim` (and `/cl`) in intent filters.       |
 
 ## Deep link handling (Mobile-Frontend)
 

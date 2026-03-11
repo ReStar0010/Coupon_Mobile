@@ -1,20 +1,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
+// import * as Sentry from '@sentry/react-native';
 import { Alert, Linking, Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { isAxiosError } from 'axios';
 
 // 位置權限說明（此頁用於優惠券瀏覽分析，協助改善服務與推薦；未授權時不干擾用戶，僅不傳送位置）
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
-import { ArrowLeft, Share2, MapPin, ShieldBan, ShieldCheck } from 'lucide-react-native';
-import * as Sharing from 'expo-sharing';
-import * as Clipboard from 'expo-clipboard';
-import { YStack, XStack, ScrollView, Card, Text, Button, Spinner, View, H1, H2, H3, Paragraph } from 'tamagui';
+import { ArrowLeft, MapPin, ShieldBan, ShieldCheck } from 'lucide-react-native';
+import { YStack, XStack, ScrollView, Card, Text, Button, Spinner, View } from 'tamagui';
 import SuccessPopup from './redeem/SuccessPopup';
 import ShareModal from './components/ShareModal';
 import ReportButton from '../../../components/ReportButton';
 import { useBlockedMerchants } from '@/app/components/providers/BlockedMerchantsProvider';
 import { isUserLoggedIn, fetchAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import { devLog } from '@/app/utils/devLogger';
 import StatCard from '../../statistics/components/StatCard';
+import { markCollectionDirty } from '@/app/utils/collectionRefresh';
 
 export type CouponDetailType = {
   id: number;
@@ -38,13 +41,13 @@ export type CouponDetailType = {
   is_redeemed: boolean;
   can_use_today: boolean;
   tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
-  /** 取得方式：draw=抽優惠券, consolidate=電話歸戶, transfer=私人轉讓, public_pool=公共池領取, qr_claim=QR Code 領取；store 券通常為 null */
+  /** 取得方式：draw=CouPro, consolidate=電話歸戶, transfer=私人轉讓, public_pool=公共池領取, qr_claim=QR Code 領取；store 券通常為 null */
   acquisition_method?: string | null;
 };
 
 /** 後端 ACQUISITION_METHOD_CHOICES 對應顯示文字（與 Backend api/models Coupon 一致） */
 const ACQUISITION_LABELS: Record<string, string> = {
-  draw: '抽優惠券',
+  draw: 'CouPro',
   consolidate: '電話歸戶',
   transfer: '私人轉讓',
   public_pool: '公共池領取',
@@ -78,6 +81,8 @@ const CouponDetailPage: React.FC = () => {
   const { id } = useLocalSearchParams();
   const params = useLocalSearchParams();
   const sourceParam = params.source as string;
+  const { t } = useTranslation();
+  const { getErrorMessage } = useApiError();
 
   const [coupon, setCoupon] = useState<CouponDetailType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,7 +108,7 @@ const CouponDetailPage: React.FC = () => {
       // Get user location if available
       let lat: number | undefined;
       let lng: number | undefined;
-      
+
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
@@ -116,7 +121,7 @@ const CouponDetailPage: React.FC = () => {
         // Location permission denied or error, continue without location
         console.log('Location not available:', locationError);
       }
-      
+
       // Call template view tracking API
       await fetchAPI('/events/template-view/', {
         method: 'POST',
@@ -127,11 +132,12 @@ const CouponDetailPage: React.FC = () => {
           lng: lng,
         },
       });
-      
+
       devLog('Template view tracked:', { templateId, couponId, lat, lng });
     } catch (error) {
       // Silently fail - don't interrupt user experience
       console.error('Failed to track template view:', error);
+      // Sentry.captureException(error, { data: { context: 'easyuse.trackTemplateView' } });
     }
   };
 
@@ -147,45 +153,35 @@ const CouponDetailPage: React.FC = () => {
           });
 
           devLog('Fetched coupon details:', response.data);
-          console.log('Coupon API Response:', response.data); // Additional console log
           setCoupon(response.data);
-          
+
           // Track template view event if template_id exists
           if (response.data.template_id) {
             trackTemplateView(response.data.template_id, response.data.id);
           }
         } catch (err) {
-          console.error('Error fetching coupon details:', err);
           devLog('Error fetching coupon:', err);
-          let errorMessage = '無法載入優惠券詳情。';
-          if (err instanceof Error) {
-            // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
-            if (err.message.includes('401') || err.message.includes('Authentication')) {
-              // Don't set error message, let AuthOrchestrator handle silent redirect
-              errorMessage = '';
-            } else if (err.message.includes('404')) {
-              errorMessage = '找不到此優惠券。';
-            } else {
-              errorMessage = `載入錯誤: ${err.message}`;
-            }
+          if (isAxiosError(err) && err.response?.status === 401) {
+            // AuthOrchestrator handles 401 silently
+            return;
           }
-          // Only set error if it's not empty (i.e., not a 401 auth error)
-          if (errorMessage) {
-            setError(errorMessage);
-          }
+          setError(getErrorMessage(err));
         } finally {
           setIsLoading(false);
         }
       };
       fetchCouponDetail();
     } else {
-      setError('無效的優惠券 ID。');
+      setError(t('easyuse.invalidCouponId'));
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, getErrorMessage, t]);
 
   const onGoBackContainerClick = useCallback(() => {
     if (sourceParam === 'collection') {
+      // 先 replace 到 easyuse 首頁，清掉 easyuse stack 上的 [id]，再切到專屬優惠，
+      // 否則之後點 CouPro tab 會再次看到此優惠券。
+      router.replace('/(tabs)/easyuse');
       router.replace('/(tabs)/collection');
     } else {
       router.back();
@@ -227,13 +223,11 @@ const CouponDetailPage: React.FC = () => {
           setCoupon({ ...coupon, is_redeemed: true });
           // Show success popup instead of alert
           setShowSuccessPopup(true);
+          // 兌換會改變 `/exclusive-coupons/` 回傳結果，需讓收藏頁在回到焦點時刷新。
+          markCollectionDirty();
         } catch (err) {
-          console.error('Error redeeming coupon:', err);
-          let errorMessage = '兌換失敗，請稍後再試。';
-          if (err instanceof Error) {
-            errorMessage = err.message;
-          }
-          Alert.alert('兌換失敗', errorMessage);
+          if (isAxiosError(err) && err.response?.status === 401) return;
+          Alert.alert(t('easyuse.redeemFailed'), getErrorMessage(err));
           setIsRedeeming(false);
         }
       } else {
@@ -274,19 +268,19 @@ const CouponDetailPage: React.FC = () => {
 
   const handleShare = () => {
     setShowShareModal(true);
-    devLog("Share modal opened");
+    devLog('Share modal opened');
   };
 
   const handleCouProShare = async () => {
     if (!coupon?.id) {
-      Alert.alert('錯誤', '無法分享：優惠券ID不存在');
+      Alert.alert(t('easyuse.error'), t('easyuse.cannotShareNoId'));
       return;
     }
 
     setIsSharing(true);
 
     try {
-      devLog("Public pool share initiated for coupon:", coupon.id);
+      devLog('Public pool share initiated for coupon:', coupon.id);
 
       const response = await fetchAPI(`/coupon/${coupon.id}/share-public/`, {
         method: 'POST',
@@ -294,40 +288,14 @@ const CouponDetailPage: React.FC = () => {
 
       if (response.data.message) {
         setShowShareModal(false);
+        Alert.alert(t('easyuse.shareSuccess'), t('easyuse.shareSuccessMessage'), [
+          { text: t('easyuse.ok'), onPress: () => router.push('/(tabs)/collection') },
+        ]);
 
-        // Show success alert and navigate back to Collection
-        Alert.alert(
-          '分享成功',
-          '您的優惠券已分享至隨取即用公開交換池，其他用戶現在可以領取！',
-          [
-            {
-              text: '確定',
-              onPress: () => router.push('/(tabs)/collection'),
-            }
-          ]
-        );
-
-        devLog("Public share successful:", response.data);
+        devLog('Public share successful:', response.data);
       }
-    } catch (err: any) {
-      console.error('Error sharing to public pool:', err);
-
-      let errorMessage = '無法分享優惠券，請稍後再試';
-
-      if (err?.response?.data?.error) {
-        const backendError = err.response.data.error;
-        if (backendError === 'You do not own this coupon.') {
-          errorMessage = '您不是此優惠券的持有者';
-        } else if (backendError === 'This coupon has already been redeemed.') {
-          errorMessage = '此優惠券已被使用';
-        } else if (backendError === 'This coupon is already shared to the public pool.') {
-          errorMessage = '此優惠券已在公開交換池中';
-        } else {
-          errorMessage = backendError;
-        }
-      }
-
-      Alert.alert('分享失敗', errorMessage);
+    } catch (err) {
+      Alert.alert(t('shareModal.shareFailedTitle'), getErrorMessage(err));
     } finally {
       setIsSharing(false);
     }
@@ -335,15 +303,15 @@ const CouponDetailPage: React.FC = () => {
 
   const handleLinkShare = async (): Promise<string | undefined> => {
     if (!coupon?.id) {
-      Alert.alert('錯誤', '無法分享：優惠券ID不存在');
+      Alert.alert(t('easyuse.error'), t('easyuse.cannotShareNoId'));
       return;
     }
 
     setIsSharing(true);
 
     try {
-      devLog("Link share initiated for coupon:", coupon.id);
-      
+      devLog('Link share initiated for coupon:', coupon.id);
+
       // Call the share_coupon API
       const response = await fetchAPI(`/coupon/${coupon.id}/share/`, {
         method: 'POST',
@@ -354,29 +322,12 @@ const CouponDetailPage: React.FC = () => {
       const schemeLink = response.data.share_link as string | undefined;
       const link = webLink ?? schemeLink;
       if (link) {
-        devLog("Share link generated:", link);
+        devLog('Share link generated:', link);
         return link;
       }
       throw new Error('Failed to generate share link');
-    } catch (err: any) {
-      console.error('Error sharing link:', err);
-      
-      let errorMessage = '無法生成分享連結，請稍後再試';
-      
-      if (err?.response?.data?.error) {
-        const backendError = err.response.data.error;
-        if (backendError === 'You do not own this coupon.') {
-          errorMessage = '您不是此優惠券的持有者';
-        } else if (err?.response?.status === 404) {
-          errorMessage = '找不到此優惠券';
-        } else if (err?.response?.status === 403) {
-          errorMessage = '您沒有權限分享此優惠券';
-        } else {
-          errorMessage = backendError;
-        }
-      }
-      
-      Alert.alert('分享失敗', errorMessage);
+    } catch (err) {
+      Alert.alert(t('shareModal.shareFailedTitle'), getErrorMessage(err));
       return;
     } finally {
       setIsSharing(false);
@@ -389,32 +340,31 @@ const CouponDetailPage: React.FC = () => {
 
   const handleBlockMerchant = () => {
     if (!coupon?.store_id || !coupon?.store_name) {
-      Alert.alert('錯誤', '無法封鎖此商家');
+      Alert.alert(t('easyuse.error'), t('easyuse.cannotBlockStore'));
       return;
     }
 
     const isBlocked = isStoreBlocked(coupon.store_id);
 
     if (isBlocked) {
-      // Unblock confirmation
       Alert.alert(
-        '解除封鎖',
-        `確定要解除封鎖「${coupon.store_name}」嗎？`,
+        t('easyuse.unblockConfirmTitle'),
+        t('easyuse.unblockConfirmMessage', { storeName: coupon.store_name }),
         [
-          { text: '取消', style: 'cancel' },
+          { text: t('easyuse.cancel'), style: 'cancel' },
           {
-            text: '確定',
+            text: t('easyuse.unblockConfirmButton'),
             onPress: async () => {
               setIsBlockingStore(true);
               try {
                 const success = await unblockStore(coupon.store_id);
                 if (success) {
-                  Alert.alert('成功', '已解除封鎖');
+                  Alert.alert(t('easyuse.ok'), t('easyuse.unblockSuccess'));
                 } else {
-                  Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
+                  Alert.alert(t('easyuse.error'), t('easyuse.unblockFailed'));
                 }
-              } catch (error) {
-                Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
+              } catch {
+                Alert.alert(t('easyuse.error'), t('easyuse.unblockFailed'));
               } finally {
                 setIsBlockingStore(false);
               }
@@ -423,41 +373,36 @@ const CouponDetailPage: React.FC = () => {
         ],
       );
     } else {
-      // Block confirmation
       Alert.alert(
-        '封鎖商家',
-        `確定要封鎖「${coupon.store_name}」嗎？\n\n封鎖後，此商家的優惠券將不會出現在您的動態中。`,
+        t('easyuse.blockConfirmTitle'),
+        t('easyuse.blockConfirmMessage', { storeName: coupon.store_name }),
         [
-          { text: '取消', style: 'cancel' },
+          { text: t('easyuse.cancel'), style: 'cancel' },
           {
-            text: '確定封鎖',
+            text: t('easyuse.blockConfirmButton'),
             style: 'destructive',
             onPress: async () => {
               setIsBlockingStore(true);
               try {
                 const success = await blockStore(coupon.store_id);
                 if (success) {
-                  Alert.alert(
-                    '已封鎖',
-                    '該商家的優惠券將不會再出現在您的動態中',
-                    [
-                      {
-                        text: '確定',
-                        onPress: () => {
-                          if (sourceParam === 'collection') {
-                            router.push('/(tabs)/collection');
-                          } else {
-                            router.push('/(tabs)/easyuse');
-                          }
-                        },
+                  Alert.alert(t('easyuse.blockSuccess'), t('easyuse.blockSuccessMessage'), [
+                    {
+                      text: t('easyuse.ok'),
+                      onPress: () => {
+                        if (sourceParam === 'collection') {
+                          router.push('/(tabs)/collection');
+                        } else {
+                          router.push('/(tabs)/easyuse');
+                        }
                       },
-                    ],
-                  );
+                    },
+                  ]);
                 } else {
-                  Alert.alert('錯誤', '封鎖失敗，請稍後再試');
+                  Alert.alert(t('easyuse.error'), t('easyuse.blockFailed'));
                 }
-              } catch (error) {
-                Alert.alert('錯誤', '封鎖失敗，請稍後再試');
+              } catch {
+                Alert.alert(t('easyuse.error'), t('easyuse.blockFailed'));
               } finally {
                 setIsBlockingStore(false);
               }
@@ -472,12 +417,12 @@ const CouponDetailPage: React.FC = () => {
     if (coupon?.store_location?.lat && coupon?.store_location?.lng) {
       const { lat, lng } = coupon.store_location;
       const label = encodeURIComponent(coupon.store_name || 'Store Location');
-      
+
       // Create Google Maps URL
       const url = Platform.select({
         ios: `maps:0,0?q=${lat},${lng}(${label})`,
         android: `geo:0,0?q=${lat},${lng}(${label})`,
-        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
       });
 
       Linking.canOpenURL(url!)
@@ -491,11 +436,11 @@ const CouponDetailPage: React.FC = () => {
           }
         })
         .catch((err) => {
-          console.error('Error opening maps:', err);
-          Alert.alert('錯誤', '無法開啟地圖應用程式');
+          // Sentry.captureException(err, { data: { context: 'easyuse.openMapsNavigation' } });
+          Alert.alert(t('easyuse.error'), t('easyuse.openMapsFailed'));
         });
     } else {
-      Alert.alert('錯誤', '無法取得店家位置資訊');
+      Alert.alert(t('easyuse.error'), t('easyuse.noStoreLocation'));
     }
   };
 
@@ -503,22 +448,26 @@ const CouponDetailPage: React.FC = () => {
     return (
       <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }}>
         <Spinner size="large" color="#FFAD31" />
-        <Text mt="$4" fontSize="$6" color="#333">載入中...</Text>
+        <Text mt="$4" fontSize="$6" color="#333">
+          {t('easyuse.loading')}
+        </Text>
       </YStack>
     );
   }
 
   if (error) {
     return (
-      <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }} px="$4">
-        <Text mb="$4" style={{ textAlign: 'center' }} fontSize="$6" color="#ef4444">{error}</Text>
-        <Button
-          onPress={onGoBackContainerClick}
-          bg="#d1d5db"
-          color="#374151"
-          fontWeight="600"
-        >
-          返回
+      <YStack
+        flex={1}
+        bg="#f5f5f5"
+        style={{ alignItems: 'center', justifyContent: 'center' }}
+        px="$4"
+      >
+        <Text mb="$4" style={{ textAlign: 'center' }} fontSize="$6" color="#ef4444">
+          {error}
+        </Text>
+        <Button onPress={onGoBackContainerClick} bg="#d1d5db" color="#374151" fontWeight="600">
+          {t('easyuse.back')}
         </Button>
       </YStack>
     );
@@ -527,13 +476,13 @@ const CouponDetailPage: React.FC = () => {
   if (!coupon) {
     return (
       <YStack flex={1} bg="#f5f5f5" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <Text fontSize="$6" color="#333">找不到優惠券資料。</Text>
+        <Text fontSize="$6" color="#333">
+          {t('easyuse.couponNotFound')}
+        </Text>
       </YStack>
     );
   }
 
-  // Debug logging
-  console.log('Rendering coupon with data:', coupon);
   devLog('Current coupon state:', coupon);
 
   return (
@@ -546,17 +495,13 @@ const CouponDetailPage: React.FC = () => {
           pb="$4"
           style={{
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
           }}
         >
-          <Button
-            onPress={onGoBackContainerClick}
-            bg="transparent"
-            p="$0"
-          >
+          <Button onPress={onGoBackContainerClick} bg="transparent" p="$0">
             <ArrowLeft size={24} color="#333" />
           </Button>
-          
+
           <XStack gap="$3" style={{ alignItems: 'center' }}>
             {/* Report Button - visible for all users */}
             <ReportButton
@@ -578,12 +523,10 @@ const CouponDetailPage: React.FC = () => {
               >
                 {isBlockingStore ? (
                   <Spinner size="small" color="#666" />
+                ) : isStoreBlocked(coupon.store_id) ? (
+                  <ShieldCheck size={22} color="#666" />
                 ) : (
-                  isStoreBlocked(coupon.store_id) ? (
-                    <ShieldCheck size={22} color="#666" />
-                  ) : (
-                    <ShieldBan size={22} color="#666" />
-                  )
+                  <ShieldBan size={22} color="#666" />
                 )}
               </Button>
             )}
@@ -600,7 +543,7 @@ const CouponDetailPage: React.FC = () => {
                 }}
               >
                 <Text color="#333" fontWeight="600" fontSize="$4">
-                  分享
+                  {t('shareModal.share')}
                 </Text>
               </Button>
             )}
@@ -610,7 +553,7 @@ const CouponDetailPage: React.FC = () => {
         {/* Main Content */}
         <YStack px="$5" gap="$5" pb={130}>
           {/* Store Info Card - Main coupon display */}
-          <Card 
+          <Card
             p="$6"
             backgroundColor="white"
             borderRadius="$6"
@@ -642,9 +585,12 @@ const CouponDetailPage: React.FC = () => {
               >
                 {coupon?.coupon_name || '來店消費滿120送 滷蛋一顆'}
               </Text>
-              
+
               {coupon?.tags && coupon.tags.length > 0 && (
-                <XStack gap={6} style={{ flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
+                <XStack
+                  gap={6}
+                  style={{ flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}
+                >
                   {coupon.tags.map((tag, index) => (
                     <View
                       key={index}
@@ -675,14 +621,11 @@ const CouponDetailPage: React.FC = () => {
             />
 
             {/* Source Card: 依取得方式顯示來源（store=店家名；exclusive=acquisition_method 對應中文或 last_holder） */}
-            <StatCard
-              title="來自"
-              value={getSourceDisplayText(coupon)}
-            />
+            <StatCard title="來自" value={getSourceDisplayText(coupon)} />
           </XStack>
 
           {/* Detail Card */}
-          <Card 
+          <Card
             p="$5"
             backgroundColor="white"
             borderRadius="$6"
@@ -696,15 +639,14 @@ const CouponDetailPage: React.FC = () => {
           >
             <YStack gap="$4" style={{ alignItems: 'flex-start' }}>
               <Text color="#333" fontSize="$5" fontWeight="600" lineHeight={26}>
-                {coupon?.coupon_detail ? 
-                  coupon.coupon_detail.split('\n').map((line, index) => (
-                    <Text key={index}>
-                      {line}
-                      {index < coupon.coupon_detail.split('\n').length - 1 && '\n'}
-                    </Text>
-                  )) : 
-                  '活動期間至「魚樂鮮魷魚羹」，\n來店消費滿120元即送滷蛋一顆。'
-                }
+                {coupon?.coupon_detail
+                  ? coupon.coupon_detail.split('\n').map((line, index) => (
+                      <Text key={index}>
+                        {line}
+                        {index < coupon.coupon_detail.split('\n').length - 1 && '\n'}
+                      </Text>
+                    ))
+                  : '活動期間至「魚樂鮮魷魚羹」，\n來店消費滿120元即送滷蛋一顆。'}
               </Text>
 
               {(coupon?.important_notes || !coupon) && (
@@ -713,38 +655,41 @@ const CouponDetailPage: React.FC = () => {
                     注意事項：
                   </Text>
                   <YStack gap="$1.5">
-                    {coupon?.important_notes ? 
-                      coupon.important_notes.split(/\r?\n/).map((rawLine, index) => {
-                        const line = rawLine.trim();
-                        const match = line.match(/^(\d+)\.\s*(.*)$/);
+                    {coupon?.important_notes
+                      ? coupon.important_notes.split(/\r?\n/).map((rawLine, index) => {
+                          const line = rawLine.trim();
+                          const match = line.match(/^(\d+)\.\s*(.*)$/);
 
-                        if (!match) {
+                          if (!match) {
+                            return (
+                              <Text key={index} color="#666" fontSize="$3" lineHeight={20}>
+                                {line}
+                              </Text>
+                            );
+                          }
+
+                          const [, number, text] = match;
                           return (
-                            <Text key={index} color="#666" fontSize="$3" lineHeight={20}>
-                              {line}
-                            </Text>
+                            <XStack key={index} gap="$2">
+                              <Text color="#666" fontSize="$3" fontWeight="500" lineHeight={20}>
+                                {number}.
+                              </Text>
+                              <Text color="#666" fontSize="$3" flex={1} lineHeight={20}>
+                                {text || ''}
+                              </Text>
+                            </XStack>
                           );
-                        }
-
-                        const [, number, text] = match;
-                        return (
-                          <XStack key={index} gap="$2">
+                        })
+                      : [
+                          <XStack key="1" gap="$2">
                             <Text color="#666" fontSize="$3" fontWeight="500" lineHeight={20}>
-                              {number}.
+                              1.
                             </Text>
                             <Text color="#666" fontSize="$3" flex={1} lineHeight={20}>
-                              {text || ''}
+                              測試用
                             </Text>
-                          </XStack>
-                        );
-                      }) :
-                      [
-                        <XStack key="1" gap="$2">
-                          <Text color="#666" fontSize="$3" fontWeight="500" lineHeight={20}>1.</Text>
-                          <Text color="#666" fontSize="$3" flex={1} lineHeight={20}>測試用</Text>
-                        </XStack>
-                      ]
-                    }
+                          </XStack>,
+                        ]}
                   </YStack>
                 </YStack>
               )}
@@ -769,20 +714,16 @@ const CouponDetailPage: React.FC = () => {
                 shadowOpacity: 0.15,
                 shadowRadius: 8,
                 elevation: 5,
-                opacity: isRedeeming || !coupon.can_use_today ? 0.5 : 1
+                opacity: isRedeeming || !coupon.can_use_today ? 0.5 : 1,
               }}
               disabled={isRedeeming || !coupon.can_use_today}
             >
-              <Text 
-                color="#333" 
-                fontSize="$6" 
-                fontWeight="bold"
-              >
+              <Text color="#333" fontSize="$6" fontWeight="bold">
                 {isRedeeming
-                  ? '處理中...'
+                  ? t('easyuse.processing')
                   : !coupon.can_use_today
-                    ? '今日已使用'
-                    : '使用'}
+                    ? t('easyuse.useTodayUsed')
+                    : t('easyuse.use')}
               </Text>
             </Button>
           ) : (
@@ -803,15 +744,11 @@ const CouponDetailPage: React.FC = () => {
                   elevation: 5,
                 }}
               >
-                <Text 
-                  color="#333" 
-                  fontSize="$6" 
-                  fontWeight="bold"
-                >
-                  使用
+                <Text color="#333" fontSize="$6" fontWeight="bold">
+                  {t('easyuse.use')}
                 </Text>
               </Button>
-              
+
               {/* Right: Square map icon button */}
               <Button
                 onPress={openGoogleMaps}
@@ -837,7 +774,7 @@ const CouponDetailPage: React.FC = () => {
       {coupon.is_redeemed && coupon.coupon_type === 'exclusive' && (
         <YStack style={{ position: 'absolute', bottom: 30, left: 20, right: 20 }}>
           <Text style={{ textAlign: 'center' }} fontSize="$5" color="#ef4444">
-            此優惠券已被兌換
+            {t('easyuse.redeemedExclusive')}
           </Text>
         </YStack>
       )}
@@ -852,7 +789,7 @@ const CouponDetailPage: React.FC = () => {
         discountValue={redemptionData?.discountValue}
         redeemedAt={redemptionData?.redeemedAt}
         redemptionId={redemptionData?.redemptionId}
-        titleType="使用成功"
+        titleType={t('successPopup.useSuccess')}
       />
 
       {/* Share Modal */}

@@ -4,14 +4,15 @@ import {
   Text,
   SafeAreaView,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   ActivityIndicator,
   Image,
   StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { unifiedRedemptionAPI, fetchAPI } from '@/app/utils/authAPI';
+import { unifiedRedemptionAPI, platformVoucherAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import Toast from '../[id]/redeem/Toast';
 import SuccessPopup from '../[id]/redeem/SuccessPopup';
 
@@ -27,16 +28,19 @@ interface AvailableCoupon {
   is_redeemed: boolean;
 }
 
+/** Platform voucher from unified redemption response (available_platform_vouchers) */
+interface AvailablePlatformVoucher {
+  id: number;
+  face_value: string;
+  redeem_code: string;
+  expiry_date: string;
+  batch_name: string;
+}
+
 interface StoreInfo {
   id: number;
   name: string;
   address?: string;
-}
-
-interface SuccessData {
-  couponName: string;
-  storeName: string;
-  savingsAmount?: number;
 }
 
 const DEFAULT_IMAGE_URL =
@@ -45,8 +49,12 @@ const DEFAULT_IMAGE_URL =
 export default function UnifiedRedeemScreen() {
   const router = useRouter();
   const { code } = useLocalSearchParams<{ code: string }>();
+  const { getErrorMessage } = useApiError();
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
+  const [availablePlatformVouchers, setAvailablePlatformVouchers] = useState<AvailablePlatformVoucher[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showErrorToast, setShowErrorToast] = useState(false);
@@ -54,9 +62,10 @@ export default function UnifiedRedeemScreen() {
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [redeemedCoupon, setRedeemedCoupon] = useState<AvailableCoupon | null>(null);
+  const [redeemedVoucher, setRedeemedVoucher] = useState<AvailablePlatformVoucher | null>(null);
   const [redemptionData, setRedemptionData] = useState<{
     couponName?: string;
-    discountValue?: number;
+    discountValue?: number | string;
     redeemedAt?: string;
     redemptionId?: number;
   } | null>(null);
@@ -73,12 +82,13 @@ export default function UnifiedRedeemScreen() {
         setIsLoading(true);
         setError(null);
         const response = await unifiedRedemptionAPI.validateUnifiedRedemptionCode(code);
-        
+
         setStore(response.store);
         setAvailableCoupons(response.available_coupons || []);
-      } catch (err: any) {
+        setAvailablePlatformVouchers(response.available_platform_vouchers || []);
+      } catch (err: unknown) {
         console.error('Failed to validate unified redemption code:', err);
-        const errorMessage = err?.response?.data?.error || '無效的統一核銷碼';
+        const errorMessage = getErrorMessage(err);
         setError(errorMessage);
         setErrorToastMessage(errorMessage);
         setShowErrorToast(true);
@@ -105,10 +115,10 @@ export default function UnifiedRedeemScreen() {
       try {
         // Auto-redeem immediately using unified redemption API
         const response = await unifiedRedemptionAPI.redeemCouponWithUnifiedCode(coupon.id, code);
-        
+
         // Store redeemed coupon info for success popup
         setRedeemedCoupon(coupon);
-        
+
         // Store redemption data from API response
         setRedemptionData({
           couponName: response.coupon_name,
@@ -116,10 +126,39 @@ export default function UnifiedRedeemScreen() {
           redeemedAt: response.redeemed_at,
           redemptionId: response.redemption_id,
         });
-        
+
+        setShowSuccessPopup(true);
+      } catch (err) {
+        console.error('Failed to redeem coupon:', err);
+        const errorMessage = getErrorMessage(err);
+        setError(errorMessage);
+        setErrorToastMessage(errorMessage);
+        setShowErrorToast(true);
+      } finally {
+        setIsRedeeming(false);
+      }
+    },
+    [code, isRedeeming, getErrorMessage],
+  );
+
+  const handleVoucherPress = useCallback(
+    async (voucher: AvailablePlatformVoucher) => {
+      if (!code || isRedeeming) return;
+
+      setIsRedeeming(true);
+      setError(null);
+      setShowErrorToast(false);
+
+      try {
+        await platformVoucherAPI.redeem(voucher.id, code);
+        setRedeemedVoucher(voucher);
+        setRedemptionData({
+          couponName: '平台現金券',
+          discountValue: voucher.face_value,
+        });
         setShowSuccessPopup(true);
       } catch (err: any) {
-        console.error('Failed to redeem coupon:', err);
+        console.error('Failed to redeem platform voucher:', err);
         const errorMessage = err?.response?.data?.error || '兌換失敗，請稍後再試';
         setError(errorMessage);
         setErrorToastMessage(errorMessage);
@@ -128,14 +167,14 @@ export default function UnifiedRedeemScreen() {
         setIsRedeeming(false);
       }
     },
-    [code, isRedeeming]
+    [code, isRedeeming],
   );
 
   const handleCloseSuccessPopup = useCallback(() => {
     setShowSuccessPopup(false);
     setRedeemedCoupon(null);
+    setRedeemedVoucher(null);
     setRedemptionData(null);
-    // Navigate back to Collection after successful redemption
     router.push('/(tabs)/collection');
   }, [router]);
 
@@ -164,7 +203,8 @@ export default function UnifiedRedeemScreen() {
         style={[styles.couponCard, isRedeeming && styles.couponCardDisabled]}
         onPress={() => handleCouponPress(item)}
         activeOpacity={0.7}
-        disabled={isRedeeming}>
+        disabled={isRedeeming}
+      >
         <View style={styles.couponContent}>
           <Image
             source={{ uri: DEFAULT_IMAGE_URL }}
@@ -185,13 +225,9 @@ export default function UnifiedRedeemScreen() {
                 </Text>
               ) : null}
               <View style={styles.couponMeta}>
-                <Text style={styles.expiryDate}>
-                  有效期限: {formatDate(item.expiry_date)}
-                </Text>
+                <Text style={styles.expiryDate}>有效期限: {formatDate(item.expiry_date)}</Text>
                 {item.estimated_savings ? (
-                  <Text style={styles.savings}>
-                    預估節省: ${item.estimated_savings.toFixed(0)}
-                  </Text>
+                  <Text style={styles.savings}>預估節省: ${item.estimated_savings.toFixed(0)}</Text>
                 ) : null}
               </View>
               {isRedeeming && (
@@ -205,10 +241,58 @@ export default function UnifiedRedeemScreen() {
         </View>
       </TouchableOpacity>
     ),
-    [handleCouponPress]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isRedeeming intentionally omitted
+    [handleCouponPress],
   );
 
-  const keyExtractor = useCallback((item: AvailableCoupon) => item.id.toString(), []);
+  const renderVoucherItem = useCallback(
+    ({ item }: { item: AvailablePlatformVoucher }) => {
+      const faceVal = String(item.face_value ?? '');
+      const dotIdx = faceVal.indexOf('.');
+      const valueInt = dotIdx >= 0 ? faceVal.slice(0, dotIdx) : faceVal;
+      const valueDec = dotIdx >= 0 ? faceVal.slice(dotIdx) : '';
+      return (
+        <TouchableOpacity
+          style={[styles.voucherCard, isRedeeming && styles.couponCardDisabled]}
+          onPress={() => handleVoucherPress(item)}
+          activeOpacity={0.75}
+          disabled={isRedeeming}
+        >
+          <View style={styles.voucherLeftAccent} />
+          <View style={styles.voucherAmountBlock}>
+            <Text style={styles.voucherCurrencySymbol}>NT$</Text>
+            <View style={styles.voucherAmountRow}>
+              <Text style={styles.voucherAmountInt}>{valueInt}</Text>
+              {valueDec ? <Text style={styles.voucherAmountDec}>{valueDec}</Text> : null}
+            </View>
+          </View>
+          <View style={styles.voucherInfo}>
+            <Text style={styles.voucherLabel}>平台現金券</Text>
+            {item.batch_name ? (
+              <Text style={styles.couponName} numberOfLines={1}>
+                {item.batch_name}
+              </Text>
+            ) : null}
+            <View style={styles.couponMeta}>
+              <Text style={styles.expiryDate}>有效期限: {formatDate(item.expiry_date)}</Text>
+            </View>
+            {isRedeeming && (
+              <View style={styles.redeemingIndicator}>
+                <ActivityIndicator size="small" color="#FFAD31" />
+                <Text style={styles.redeemingText}>處理中...</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [handleVoucherPress, isRedeeming],
+  );
+
+  const voucherKeyExtractor = useCallback((item: AvailablePlatformVoucher) => `voucher-${item.id}`, []);
+
+  const hasAnyItems =
+    availableCoupons.length > 0 || availablePlatformVouchers.length > 0;
 
   if (isLoading) {
     return (
@@ -225,10 +309,7 @@ export default function UnifiedRedeemScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={handleGoBack}
-            style={styles.backButton}
-            activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton} activeOpacity={0.7}>
             <ArrowLeft size={24} color="#333" />
           </TouchableOpacity>
           <View style={styles.headerContent}>
@@ -237,10 +318,7 @@ export default function UnifiedRedeemScreen() {
         </View>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={handleGoBack}
-            activeOpacity={0.7}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleGoBack} activeOpacity={0.7}>
             <Text style={styles.retryButtonText}>返回</Text>
           </TouchableOpacity>
         </View>
@@ -259,10 +337,7 @@ export default function UnifiedRedeemScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={handleGoBack}
-          style={styles.backButton}
-          activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton} activeOpacity={0.7}>
           <ArrowLeft size={24} color="#333" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -275,28 +350,43 @@ export default function UnifiedRedeemScreen() {
       {store && code && (
         <View style={styles.storeBanner}>
           <Text style={styles.storeBannerTitle}>統一核銷碼: {code}</Text>
-          {store.address && (
-            <Text style={styles.storeBannerAddress}>{store.address}</Text>
-          )}
+          {store.address && <Text style={styles.storeBannerAddress}>{store.address}</Text>}
         </View>
       )}
 
-      {/* Coupon List */}
-      {availableCoupons.length === 0 ? (
+      {/* Coupon and voucher lists */}
+      {!hasAnyItems ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>沒有可用的優惠券</Text>
+          <Text style={styles.emptyText}>沒有可用的優惠券與現金券</Text>
           <Text style={styles.emptySubtext}>
-            您目前沒有可兌換的優惠券
+            您目前沒有可在此店家兌換的優惠券或平台現金券
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={availableCoupons}
-          renderItem={renderCouponItem}
-          keyExtractor={keyExtractor}
+        <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-        />
+        >
+          {availableCoupons.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>可核銷的優惠券</Text>
+              {availableCoupons.map((item) => (
+                <View key={item.id}>{renderCouponItem({ item })}</View>
+              ))}
+            </>
+          )}
+          {availablePlatformVouchers.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, availableCoupons.length > 0 && styles.sectionTitleSpaced]}>
+                可核銷的現金券
+              </Text>
+              {availablePlatformVouchers.map((item) => (
+                <View key={voucherKeyExtractor(item)}>{renderVoucherItem({ item })}</View>
+              ))}
+            </>
+          )}
+        </ScrollView>
       )}
 
       <Toast
@@ -311,10 +401,18 @@ export default function UnifiedRedeemScreen() {
       <SuccessPopup
         isOpen={showSuccessPopup}
         onClose={handleCloseSuccessPopup}
-        storeName={redeemedCoupon?.store_name}
+        storeName={
+          redeemedCoupon?.store_name ?? (redeemedVoucher && store ? store.name : undefined)
+        }
         couponDetail={redeemedCoupon?.coupon_detail}
-        couponName={redemptionData?.couponName || redeemedCoupon?.coupon_name}
-        discountValue={redemptionData?.discountValue || redeemedCoupon?.estimated_savings}
+        couponName={
+          redemptionData?.couponName ||
+          redeemedCoupon?.coupon_name ||
+          (redeemedVoucher ? '平台現金券' : undefined)
+        }
+        discountValue={
+          redemptionData?.discountValue ?? redeemedCoupon?.estimated_savings
+        }
         redeemedAt={redemptionData?.redeemedAt}
         redemptionId={redemptionData?.redemptionId}
         titleType="核銷成功"
@@ -377,10 +475,80 @@ const styles = StyleSheet.create({
     color: '#333',
     opacity: 0.9,
   },
+  scrollView: {
+    flex: 1,
+  },
   listContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 12,
+  },
+  sectionTitleSpaced: {
+    marginTop: 24,
+  },
+  voucherCard: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  voucherLeftAccent: {
+    width: 4,
+    backgroundColor: '#FFAD31',
+  },
+  voucherAmountBlock: {
+    width: 88,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ecfdf5',
+    paddingVertical: 12,
+  },
+  voucherCurrencySymbol: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFAD31',
+    marginBottom: 2,
+  },
+  voucherAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  voucherAmountInt: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#065f46',
+    letterSpacing: -0.5,
+  },
+  voucherAmountDec: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#047857',
+    marginLeft: 1,
+  },
+  voucherInfo: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  voucherLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFAD31',
+    marginBottom: 4,
   },
   couponCard: {
     backgroundColor: '#fff',

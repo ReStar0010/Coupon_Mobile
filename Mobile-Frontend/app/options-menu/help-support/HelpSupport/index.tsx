@@ -19,7 +19,7 @@ const colors = {
   border: tokens.color.border,
   textPrimary: tokens.color.textPrimary,
   textSecondary: tokens.color.textSecondary,
-}
+};
 
 export default function HelpSupportScreen() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function HelpSupportScreen() {
   const handleEmailPress = async () => {
     const email = 'coupro707@gmail.com';
     const url = `mailto:${email}`;
-    
+
     const canOpen = await Linking.canOpenURL(url);
     if (canOpen) {
       await Linking.openURL(url);
@@ -38,7 +38,7 @@ export default function HelpSupportScreen() {
 
   const handleWebsitePress = async () => {
     const url = 'https://coupro-terms.vercel.app/support.html';
-    
+
     const canOpen = await Linking.canOpenURL(url);
     if (canOpen) {
       await Linking.openURL(url);
@@ -61,7 +61,7 @@ export default function HelpSupportScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text fontSize="18" fontWeight="600" color="#fff" marginLeft="$2">
+        <Text fontSize={18} fontWeight="600" color="#fff" marginLeft="$2">
           幫助與支援
         </Text>
       </XStack>
@@ -219,4 +219,3 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
-

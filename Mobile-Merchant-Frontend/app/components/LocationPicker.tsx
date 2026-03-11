@@ -1,5 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, Platform, Linking } from 'react-native';
+import * as React from 'react';
+import { useState, useEffect, useRef } from 'react';
+// import * as Sentry from '@sentry/react-native';
+import WidgetErrorFallback from './WidgetErrorFallback';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, Linking } from 'react-native';
 import { colors } from '@/constants/colors';
 
 // Conditionally import react-native-maps only for native platforms
@@ -8,8 +11,8 @@ let Marker: any;
 let Location: any;
 
 if (Platform.OS !== 'web') {
-  MapView = require('react-native-maps').default;
-  Marker = require('react-native-maps').Marker;
+  MapView = (require('react-native-maps') as typeof import('react-native-maps')).default;
+  Marker = (require('react-native-maps') as typeof import('react-native-maps')).Marker;
   Location = require('expo-location');
 }
 
@@ -20,8 +23,6 @@ const defaultRegion = {
   latitudeDelta: 0.02,
   longitudeDelta: 0.02,
 };
-
-const { width } = Dimensions.get('window');
 
 type LocationPickerProps = {
   initialLatitude?: number;
@@ -36,27 +37,13 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   onLocationSelect,
   height = 300,
 }) => {
-  // Return a placeholder for web platform
-  if (Platform.OS === 'web') {
-    return (
-      <View style={[styles.webPlaceholder, { height }]}>
-        <Text style={styles.webPlaceholderText}>
-          地圖功能僅適用於移動設備
-        </Text>
-        <Text style={styles.webPlaceholderSubtext}>
-          請使用手機應用程式選擇位置
-        </Text>
-      </View>
-    );
-  }
-
   const [selectedLocation, setSelectedLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(
     initialLatitude && initialLongitude
       ? { latitude: initialLatitude, longitude: initialLongitude }
-      : null
+      : null,
   );
   const [mapRegion, setMapRegion] = useState(() => {
     if (initialLatitude && initialLongitude) {
@@ -84,16 +71,28 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
         latitudeDelta: 0.02,
         longitudeDelta: 0.02,
       });
-      // Animate map to the location
       if (mapRef.current) {
-        mapRef.current.animateToRegion({
-          ...newLocation,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        }, 500);
+        mapRef.current.animateToRegion(
+          {
+            ...newLocation,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          },
+          500,
+        );
       }
     }
   }, [initialLatitude, initialLongitude]);
+
+  // Return a placeholder for web platform
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.webPlaceholder, { height }]}>
+        <Text style={styles.webPlaceholderText}>地圖功能僅適用於移動設備</Text>
+        <Text style={styles.webPlaceholderSubtext}>請使用手機應用程式選擇位置</Text>
+      </View>
+    );
+  }
 
   // Handle map press to select location
   const handleMapPress = (event: any) => {
@@ -117,27 +116,24 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         const appName = 'CouPro 商家端';
-        const locationPermissionMessage = Platform.OS === 'ios'
-          ? `CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。\n\n請前往「設定」>「${appName}」>「位置」，選擇「使用 App 期間」或「永遠」來開啟位置服務。`
-          : `CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。\n\n請前往「設定」>「應用程式」>「${appName}」>「權限」>「位置」，選擇「允許」來開啟位置服務。`;
-        
-        Alert.alert(
-          '需要位置權限',
-          locationPermissionMessage,
-          [
-            { text: '取消', style: 'cancel' },
-            { 
-              text: '前往設定', 
-              onPress: async () => {
-                try {
-                  await Linking.openSettings();
-                } catch (error) {
-                  console.error('Failed to open settings:', error);
-                }
+        const locationPermissionMessage =
+          Platform.OS === 'ios'
+            ? `CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。\n\n請前往「設定」>「${appName}」>「位置」，選擇「使用 App 期間」或「永遠」來開啟位置服務。`
+            : `CouPro 需要存取您的位置資訊，以便自動填入您的店家位置，讓顧客能夠找到您的商店。\n\n請前往「設定」>「應用程式」>「${appName}」>「權限」>「位置」，選擇「允許」來開啟位置服務。`;
+
+        Alert.alert('需要位置權限', locationPermissionMessage, [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '前往設定',
+            onPress: async () => {
+              try {
+                await Linking.openSettings();
+              } catch (error) {
+                console.error('Failed to open settings:', error);
               }
-            }
-          ]
-        );
+            },
+          },
+        ]);
         return;
       }
 
@@ -157,7 +153,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
             latitudeDelta: 0.02,
             longitudeDelta: 0.02,
           },
-          1000
+          1000,
         );
       }
     } catch (error) {
@@ -165,59 +161,67 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       Alert.alert(
         '無法獲取位置',
         '無法獲取您目前的位置。請確認您已開啟位置服務，或您也可以直接在地圖上點擊或拖動標記來選擇店家位置。',
-        [{ text: '確定', style: 'default' }]
+        [{ text: '確定', style: 'default' }],
       );
     }
   };
 
   return (
-    <View style={[styles.container, { height }]}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={mapRegion}
-        region={mapRegion}
-        onRegionChangeComplete={setMapRegion}
-        onPress={handleMapPress}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        showsScale={false}
-        mapType="standard"
-      >
-        {selectedLocation && (
-          <Marker
-            coordinate={selectedLocation}
-            draggable
-            onDragEnd={handleMarkerDragEnd}
-            pinColor="#FFAD31"
-          />
-        )}
-      </MapView>
-
-      {/* Location info display */}
-      {selectedLocation && (
-        <View style={styles.locationInfo}>
-          <Text style={styles.locationInfoText}>
-            經度: {selectedLocation.longitude.toFixed(6)}
-          </Text>
-          <Text style={styles.locationInfoText}>
-            緯度: {selectedLocation.latitude.toFixed(6)}
-          </Text>
-        </View>
-      )}
-
-      {/* Get current location button */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.locationButton}
-          onPress={getCurrentLocation}
-          activeOpacity={0.8}
+    // <Sentry.ErrorBoundary
+    //   fallback={<WidgetErrorFallback message="位置選擇器暫時無法使用" />}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'location-picker-widget');
+    //     scope.setTag('boundary_type', 'widget');
+    //   }}
+    // >
+      <View style={[styles.container, { height }]}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={mapRegion}
+          region={mapRegion}
+          onRegionChangeComplete={setMapRegion}
+          onPress={handleMapPress}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          showsCompass={false}
+          showsScale={false}
+          mapType="standard"
         >
-          <Text style={styles.locationButtonText}>📍</Text>
-        </TouchableOpacity>
+          {selectedLocation && (
+            <Marker
+              coordinate={selectedLocation}
+              draggable
+              onDragEnd={handleMarkerDragEnd}
+              pinColor="#FFAD31"
+            />
+          )}
+        </MapView>
+
+        {/* Location info display */}
+        {selectedLocation && (
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationInfoText}>
+              經度: {selectedLocation.longitude.toFixed(6)}
+            </Text>
+            <Text style={styles.locationInfoText}>
+              緯度: {selectedLocation.latitude.toFixed(6)}
+            </Text>
+          </View>
+        )}
+
+        {/* Get current location button */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={getCurrentLocation}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.locationButtonText}>📍</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    // </Sentry.ErrorBoundary>
   );
 };
 
@@ -294,4 +298,3 @@ const styles = StyleSheet.create({
 });
 
 export default LocationPicker;
-

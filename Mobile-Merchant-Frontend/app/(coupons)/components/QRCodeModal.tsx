@@ -13,12 +13,7 @@ interface QRCodeModalProps {
 
 export function QRCodeModal({ isOpen, onClose, qrValue }: QRCodeModalProps) {
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           {/* Header */}

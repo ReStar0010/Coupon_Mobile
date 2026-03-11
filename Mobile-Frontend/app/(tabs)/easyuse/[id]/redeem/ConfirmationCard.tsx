@@ -33,7 +33,8 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
       <TouchableOpacity
         onPress={onConfirm}
         className="bg-act-yellow h-[37px] w-[231px] items-center justify-center rounded-3xl text-base font-bold leading-6 tracking-normal text-white"
-        activeOpacity={0.8}>
+        activeOpacity={0.8}
+      >
         <Text className="text-base font-bold leading-6 tracking-normal text-white">OK</Text>
       </TouchableOpacity>
     </View>

@@ -1,14 +1,22 @@
-// Learn more https://docs.expo.io/guides/customizing-metro
-const { getDefaultConfig } = require('expo/metro-config');
-
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname, {
-    isCSSEnabled: true,
+const path = require('path');
+const { pathToFileURL } = require('url');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
+const { withTamagui } = require('@tamagui/metro-plugin');
+
+// On Windows, ESM loader requires file:// URLs; raw paths (e.g. C:\...) trigger "Received protocol 'c:'"
+const projectRoot = __dirname;
+const config = getSentryExpoConfig(projectRoot, {
+  isCSSEnabled: true,
 });
 
-const { withTamagui } = require('@tamagui/metro-plugin')
+// Tamagui may dynamically import the config; use file URL on Windows to avoid ESM loader error
+const tamaguiConfigPath = path.resolve(projectRoot, 'tamagui.config.ts');
+const tamaguiConfigResolved =
+  process.platform === 'win32' ? pathToFileURL(tamaguiConfigPath).href : tamaguiConfigPath;
+
 module.exports = withTamagui(config, {
   components: ['tamagui'],
-  config: './tamagui.config.ts',
+  config: tamaguiConfigResolved,
   outputCSS: './tamagui-web.css',
-})
+});

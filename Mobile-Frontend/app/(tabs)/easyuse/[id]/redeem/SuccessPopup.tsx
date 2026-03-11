@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Modal, Dimensions, Text, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 interface SuccessPopupProps {
   isOpen: boolean;
@@ -18,14 +19,18 @@ const { width } = Dimensions.get('window');
 const SuccessPopup: React.FC<SuccessPopupProps> = ({
   isOpen,
   onClose,
-  storeName = '店家名稱',
-  couponDetail = '優惠詳情',
-  titleType = '核銷成功',
+  storeName,
+  couponDetail,
+  titleType,
   couponName,
   discountValue,
   redeemedAt,
   redemptionId,
 }) => {
+  const { t } = useTranslation();
+  const displayTitle = titleType ?? t('successPopup.redeemSuccess');
+  const displayStoreName = storeName ?? '';
+  const displayCouponDetail = couponDetail ?? '';
   // Format timestamp as YYYY/MM/DD HH:MM
   const formatTimestamp = (isoString?: string) => {
     if (!isoString) {
@@ -51,8 +56,8 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
     }
   };
 
-  // Format discount value
-  const formatDiscountValue = (value?: number | string) => {
+  // Format discount value (kept for potential future use in UI)
+  const _formatDiscountValue = (value?: number | string) => {
     if (value === undefined || value === null) return '—';
     if (typeof value === 'number') {
       if (value === 0) return '免費';
@@ -64,45 +69,54 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
   return (
     <Modal visible={isOpen} transparent={true} animationType="fade" onRequestClose={onClose}>
       {/* Modal 遮罩層 */}
-      <View style={{
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 20
-      }}>
-        <View style={{
-          backgroundColor: '#fff',
-          borderRadius: 20,
-          padding: 32,
-          width: '100%',
-          maxWidth: Math.min(width * 0.85, 350),
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.25,
-          shadowRadius: 12,
-          elevation: 8
-        }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 20,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: 20,
+            padding: 32,
+            width: '100%',
+            maxWidth: Math.min(width * 0.85, 350),
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 12,
+            elevation: 8,
+          }}
+        >
           {/* Title */}
-          <Text style={{
-            fontSize: 24,
-            fontWeight: 'bold',
-            color: '#333',
-            textAlign: 'center',
-            marginBottom: 24
-          }}>
-            {titleType}
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: 'bold',
+              color: '#333',
+              textAlign: 'center',
+              marginBottom: 24,
+            }}
+          >
+            {displayTitle}
           </Text>
 
           {/* Coupon Name - Prominent */}
           {couponName && (
-            <Text style={{
-              fontSize: 20,
-              fontWeight: 'bold',
-              color: '#333',
-              textAlign: 'center',
-              marginBottom: 24
-            }} numberOfLines={2}>
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: '#333',
+                textAlign: 'center',
+                marginBottom: 24,
+              }}
+              numberOfLines={2}
+            >
               {couponName}
             </Text>
           )}
@@ -137,72 +151,91 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
             )} */}
 
             {/* Redemption Timestamp Row */}
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 20
-            }}>
-              <Text style={{
-                fontSize: 16,
-                color: '#999',
-                fontWeight: '500'
-              }}>
-                核銷時間
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: '#999',
+                  fontWeight: '500',
+                }}
+              >
+                {t('successPopup.redeemTime')}
               </Text>
-              <Text style={{
-                fontSize: 16,
-                color: '#333',
-                fontWeight: '600'
-              }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: '#333',
+                  fontWeight: '600',
+                }}
+              >
                 {formatTimestamp(redeemedAt)}
               </Text>
             </View>
 
             {/* Store Name Row */}
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: redemptionId ? 20 : 0
-            }}>
-              <Text style={{
-                fontSize: 16,
-                color: '#999',
-                fontWeight: '500'
-              }}>
-                商家名稱
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: redemptionId ? 20 : 0,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: '#999',
+                  fontWeight: '500',
+                }}
+              >
+                {t('successPopup.storeName')}
               </Text>
-              <Text style={{
-                fontSize: 16,
-                color: '#333',
-                fontWeight: '600',
-                maxWidth: 180,
-                textAlign: 'right'
-              }} numberOfLines={1}>
-                {storeName}
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: '#333',
+                  fontWeight: '600',
+                  maxWidth: 180,
+                  textAlign: 'right',
+                }}
+                numberOfLines={1}
+              >
+                {displayStoreName}
               </Text>
             </View>
 
             {/* Transaction ID Row - Small font */}
             {redemptionId && (
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <Text style={{
-                  fontSize: 12,
-                  color: '#999',
-                  fontWeight: '400'
-                }}>
-                  交易編號
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: '#999',
+                    fontWeight: '400',
+                  }}
+                >
+                  {t('successPopup.transactionId')}
                 </Text>
-                <Text style={{
-                  fontSize: 12,
-                  color: '#999',
-                  fontWeight: '400'
-                }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: '#999',
+                    fontWeight: '400',
+                  }}
+                >
                   #{redemptionId}
                 </Text>
               </View>
@@ -222,15 +255,18 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.1,
               shadowRadius: 4,
-              elevation: 3
+              elevation: 3,
             }}
-            activeOpacity={0.8}>
-            <Text style={{
-              fontSize: 18,
-              fontWeight: 'bold',
-              color: '#333'
-            }}>
-              完成
+            activeOpacity={0.8}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: '#333',
+              }}
+            >
+              {t('successPopup.complete')}
             </Text>
           </TouchableOpacity>
         </View>

@@ -29,7 +29,9 @@ const DeleteAccount: React.FC = () => {
 
   const [step, setStep] = useState<DeletionStep>('loading');
   const [warnings, setWarnings] = useState<DeletionWarning[]>([]);
-  const [dataSummary, setDataSummary] = useState<PreDeleteCheckResponse['data_summary'] | null>(null);
+  const [dataSummary, setDataSummary] = useState<PreDeleteCheckResponse['data_summary'] | null>(
+    null,
+  );
   const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -55,7 +57,7 @@ const DeleteAccount: React.FC = () => {
   };
 
   const toggleAcknowledgment = useCallback((code: string) => {
-    setAcknowledgedWarnings(prev => {
+    setAcknowledgedWarnings((prev) => {
       const next = new Set(prev);
       if (next.has(code)) {
         next.delete(code);
@@ -67,8 +69,8 @@ const DeleteAccount: React.FC = () => {
   }, []);
 
   const handleContinueFromWarnings = () => {
-    const required = warnings.filter(w => w.severity === 'critical' || w.severity === 'warning');
-    const allAcknowledged = required.every(w => acknowledgedWarnings.has(w.code));
+    const required = warnings.filter((w) => w.severity === 'critical' || w.severity === 'warning');
+    const allAcknowledged = required.every((w) => acknowledgedWarnings.has(w.code));
 
     if (!allAcknowledged) {
       setError('請確認您已閱讀並理解所有警告');
@@ -136,7 +138,9 @@ const DeleteAccount: React.FC = () => {
         <Stack.Screen options={{ headerShown: false }} />
         <YStack flex={1} items="center" justify="center" style={{ paddingTop: insets.top }}>
           <ActivityIndicator size="large" color="#FFAD31" />
-          <Text mt="$4" color="gray">載入中...</Text>
+          <Text mt="$4" color="gray">
+            載入中...
+          </Text>
         </YStack>
       </>
     );
@@ -149,9 +153,15 @@ const DeleteAccount: React.FC = () => {
         <Stack.Screen options={{ headerShown: false }} />
         <YStack flex={1} items="center" justify="center" px="$4" style={{ paddingTop: insets.top }}>
           <Trash2 size={64} color="#4ADE80" />
-          <H4 fontWeight="bold" mt="$4">帳號已成功刪除</H4>
-          <Text color="gray" mt="$2">感謝您使用 CouPro</Text>
-          <Text color="gray" mt="$4" fontSize={14}>正在登出...</Text>
+          <H4 fontWeight="bold" mt="$4">
+            帳號已成功刪除
+          </H4>
+          <Text color="gray" mt="$2">
+            感謝您使用 CouPro
+          </Text>
+          <Text color="gray" mt="$4" fontSize={14}>
+            正在登出...
+          </Text>
         </YStack>
       </>
     );
@@ -172,19 +182,31 @@ const DeleteAccount: React.FC = () => {
           {/* --- Warnings Step --- */}
           {step === 'warnings' && (
             <YStack gap="$3">
-              <Text fontSize={14} color="gray">刪除前請先了解以下資訊</Text>
+              <Text fontSize={14} color="gray">
+                刪除前請先了解以下資訊
+              </Text>
 
               {/* Data summary */}
               {dataSummary && (
                 <Card bordered p="$4" bg="white">
-                  <Text fontWeight="600" fontSize={16} mb="$2">您的資料摘要</Text>
+                  <Text fontWeight="600" fontSize={16} mb="$2">
+                    您的資料摘要
+                  </Text>
                   <XStack justify="space-between" mt="$2">
-                    <Text color="gray" fontSize={14}>持有優惠券</Text>
-                    <Text fontWeight="600" fontSize={14}>{dataSummary.held_coupons_count}</Text>
+                    <Text color="gray" fontSize={14}>
+                      持有優惠券
+                    </Text>
+                    <Text fontWeight="600" fontSize={14}>
+                      {dataSummary.held_coupons_count}
+                    </Text>
                   </XStack>
                   <XStack justify="space-between" mt="$2">
-                    <Text color="gray" fontSize={14}>累計兌換次數</Text>
-                    <Text fontWeight="600" fontSize={14}>{dataSummary.total_redemptions}</Text>
+                    <Text color="gray" fontSize={14}>
+                      累計兌換次數
+                    </Text>
+                    <Text fontWeight="600" fontSize={14}>
+                      {dataSummary.total_redemptions}
+                    </Text>
                   </XStack>
                 </Card>
               )}
@@ -225,14 +247,20 @@ const DeleteAccount: React.FC = () => {
                 );
               })}
 
-              {error ? <Text color="#EF4444" fontSize={14}>{error}</Text> : null}
+              {error ? (
+                <Text color="#EF4444" fontSize={14}>
+                  {error}
+                </Text>
+              ) : null}
 
               <TouchableOpacity
                 onPress={handleContinueFromWarnings}
                 style={styles.dangerButton}
                 activeOpacity={0.8}
               >
-                <Text color="white" fontWeight="600" fontSize={16}>繼續刪除</Text>
+                <Text color="white" fontWeight="600" fontSize={16}>
+                  繼續刪除
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -240,7 +268,9 @@ const DeleteAccount: React.FC = () => {
                 style={styles.cancelButton}
                 activeOpacity={0.8}
               >
-                <Text fontWeight="600" fontSize={16}>取消</Text>
+                <Text fontWeight="600" fontSize={16}>
+                  取消
+                </Text>
               </TouchableOpacity>
             </YStack>
           )}
@@ -248,10 +278,14 @@ const DeleteAccount: React.FC = () => {
           {/* --- Password Step --- */}
           {step === 'password' && (
             <YStack gap="$3">
-              <Text fontSize={14} color="gray">為了安全起見，請輸入您的帳號密碼</Text>
+              <Text fontSize={14} color="gray">
+                為了安全起見，請輸入您的帳號密碼
+              </Text>
 
               <YStack gap="$2" mt="$2">
-                <Text fontWeight="500" fontSize={14}>密碼</Text>
+                <Text fontWeight="500" fontSize={14}>
+                  密碼
+                </Text>
                 <TextInput
                   style={styles.passwordInput}
                   value={password}
@@ -263,22 +297,33 @@ const DeleteAccount: React.FC = () => {
                 />
               </YStack>
 
-              {error ? <Text color="#EF4444" fontSize={14}>{error}</Text> : null}
+              {error ? (
+                <Text color="#EF4444" fontSize={14}>
+                  {error}
+                </Text>
+              ) : null}
 
               <TouchableOpacity
                 onPress={handleContinueFromPassword}
                 style={styles.dangerButton}
                 activeOpacity={0.8}
               >
-                <Text color="white" fontWeight="600" fontSize={16}>確認</Text>
+                <Text color="white" fontWeight="600" fontSize={16}>
+                  確認
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => { setStep('warnings'); setError(''); }}
+                onPress={() => {
+                  setStep('warnings');
+                  setError('');
+                }}
                 style={styles.cancelButton}
                 activeOpacity={0.8}
               >
-                <Text fontWeight="600" fontSize={16}>返回</Text>
+                <Text fontWeight="600" fontSize={16}>
+                  返回
+                </Text>
               </TouchableOpacity>
             </YStack>
           )}
@@ -286,7 +331,9 @@ const DeleteAccount: React.FC = () => {
           {/* --- Confirm Step --- */}
           {step === 'confirm' && (
             <YStack gap="$3">
-              <Text fontSize={14} color="gray">此操作無法復原，請確認您要刪除帳號</Text>
+              <Text fontSize={14} color="gray">
+                此操作無法復原，請確認您要刪除帳號
+              </Text>
 
               <Card bordered p="$5" bg="#FEF2F2" borderColor="#FEE2E2" mt="$2">
                 <YStack items="center">
@@ -309,7 +356,11 @@ const DeleteAccount: React.FC = () => {
                 </Text>
               </Card>
 
-              {error ? <Text color="#EF4444" fontSize={14}>{error}</Text> : null}
+              {error ? (
+                <Text color="#EF4444" fontSize={14}>
+                  {error}
+                </Text>
+              ) : null}
 
               <TouchableOpacity
                 onPress={handleConfirmDeletion}
@@ -323,12 +374,17 @@ const DeleteAccount: React.FC = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => { setStep('password'); setError(''); }}
+                onPress={() => {
+                  setStep('password');
+                  setError('');
+                }}
                 style={styles.cancelButton}
                 activeOpacity={0.8}
                 disabled={isProcessing}
               >
-                <Text fontWeight="600" fontSize={16}>取消</Text>
+                <Text fontWeight="600" fontSize={16}>
+                  取消
+                </Text>
               </TouchableOpacity>
             </YStack>
           )}
@@ -337,7 +393,9 @@ const DeleteAccount: React.FC = () => {
           {step === 'processing' && (
             <YStack items="center" justify="center" py="$8">
               <ActivityIndicator size="large" color="#FFAD31" />
-              <Text color="gray" mt="$4">刪除中...</Text>
+              <Text color="gray" mt="$4">
+                刪除中...
+              </Text>
             </YStack>
           )}
         </ScrollView>

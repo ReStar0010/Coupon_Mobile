@@ -73,7 +73,7 @@ const Coupon: React.FC<CouponProps> = ({
       width: 64,
       height: 64,
     }),
-    [imageUrl]
+    [imageUrl],
   );
 
   return (
@@ -96,12 +96,7 @@ const Coupon: React.FC<CouponProps> = ({
         <Image source={imageSource} style={{ borderRadius: BORDER_RADIUS.sm }} />
 
         <YStack gap={SPACING.sm} flex={1}>
-          <Text
-            fontSize={24}
-            fontWeight="700"
-            color={COLORS.text.primary}
-            numberOfLines={1}
-          >
+          <Text fontSize={24} fontWeight="700" color={COLORS.text.primary} numberOfLines={1}>
             {storeName}
           </Text>
 

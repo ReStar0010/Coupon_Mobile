@@ -5,10 +5,10 @@ import {
   SafeAreaView,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   Image,
   StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 
@@ -46,8 +46,9 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
   unifiedCode,
   onCouponSelect,
 }) => {
+  const { t } = useTranslation();
   const router = useRouter();
-  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(null);
+  const [selectedCouponId] = useState<number | null>(null);
 
   const handleGoBack = useCallback(() => {
     router.back();
@@ -65,7 +66,7 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
         });
       }
     },
-    [unifiedCode, router, onCouponSelect]
+    [unifiedCode, router, onCouponSelect],
   );
 
   const formatDate = (dateString: string) => {
@@ -87,7 +88,8 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
         style={styles.couponCard}
         onPress={() => handleCouponPress(item)}
         activeOpacity={0.7}
-        disabled={selectedCouponId !== null && selectedCouponId !== item.id}>
+        disabled={selectedCouponId !== null && selectedCouponId !== item.id}
+      >
         <View style={styles.couponContent}>
           {/* Coupon Image */}
           <Image
@@ -109,11 +111,11 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
             </Text>
             <View style={styles.couponMeta}>
               <Text style={styles.expiryDate}>
-                有效期限: {formatDate(item.expiry_date)}
+                {t('couponSelection.expiryLabel')}: {formatDate(item.expiry_date)}
               </Text>
               {item.estimated_savings && (
                 <Text style={styles.savings}>
-                  預估節省: ${item.estimated_savings.toFixed(0)}
+                  {t('couponSelection.savingsLabel')}: ${item.estimated_savings.toFixed(0)}
                 </Text>
               )}
             </View>
@@ -121,7 +123,7 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
         </View>
       </TouchableOpacity>
     ),
-    [handleCouponPress, selectedCouponId]
+    [handleCouponPress, selectedCouponId],
   );
 
   const keyExtractor = useCallback((item: AvailableCoupon) => item.id.toString(), []);
@@ -130,33 +132,28 @@ const CouponSelectionScreen: React.FC<CouponSelectionScreenProps> = ({
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={handleGoBack}
-          style={styles.backButton}
-          activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton} activeOpacity={0.7}>
           <ArrowLeft size={24} color="#333" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>選擇優惠券</Text>
+          <Text style={styles.headerTitle}>{t('couponSelection.title')}</Text>
           <Text style={styles.headerSubtitle}>{store.name}</Text>
         </View>
       </View>
 
       {/* Store Info Banner */}
       <View style={styles.storeBanner}>
-        <Text style={styles.storeBannerTitle}>統一核銷碼: {unifiedCode}</Text>
-        {store.address && (
-          <Text style={styles.storeBannerAddress}>{store.address}</Text>
-        )}
+        <Text style={styles.storeBannerTitle}>
+          {t('couponSelection.unifiedCode')}: {unifiedCode}
+        </Text>
+        {store.address && <Text style={styles.storeBannerAddress}>{store.address}</Text>}
       </View>
 
       {/* Coupon List */}
       {availableCoupons.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>沒有可用的優惠券</Text>
-          <Text style={styles.emptySubtext}>
-            您目前沒有可兌換的優惠券
-          </Text>
+          <Text style={styles.emptyText}>{t('couponSelection.emptyTitle')}</Text>
+          <Text style={styles.emptySubtext}>{t('couponSelection.emptySubtext')}</Text>
         </View>
       ) : (
         <FlatList

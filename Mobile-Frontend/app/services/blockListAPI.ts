@@ -84,9 +84,7 @@ export interface BlockStatusResponse {
  * @returns Promise with the created block entry
  * @throws Error if store not found, already blocked, or trying to block own store
  */
-export async function blockMerchant(
-  storeId: number
-): Promise<BlockMerchantResponse> {
+export async function blockMerchant(storeId: number): Promise<BlockMerchantResponse> {
   return authAPI.post<BlockMerchantResponse>('/user/blocked-merchants/add/', {
     store_id: storeId,
   });
@@ -99,12 +97,8 @@ export async function blockMerchant(
  * @returns Promise with success message
  * @throws Error if block record not found
  */
-export async function unblockMerchant(
-  storeId: number
-): Promise<UnblockMerchantResponse> {
-  return authAPI.delete<UnblockMerchantResponse>(
-    `/user/blocked-merchants/${storeId}/`
-  );
+export async function unblockMerchant(storeId: number): Promise<UnblockMerchantResponse> {
+  return authAPI.delete<UnblockMerchantResponse>(`/user/blocked-merchants/${storeId}/`);
 }
 
 /**
@@ -140,7 +134,9 @@ function normalizeBlockedMerchant(raw: Record<string, unknown>): BlockedMerchant
  * @returns Promise with list of blocked merchants (store always nested)
  */
 export async function getBlockedMerchants(): Promise<BlockedMerchantsListResponse> {
-  const res = await authAPI.get<{ results?: unknown[]; total?: number }>('/user/blocked-merchants/');
+  const res = await authAPI.get<{ results?: unknown[]; total?: number }>(
+    '/user/blocked-merchants/',
+  );
   const rawResults = res?.results ?? [];
   const results = rawResults
     .map((item) => normalizeBlockedMerchant(item as Record<string, unknown>))
@@ -157,9 +153,7 @@ export async function getBlockedMerchants(): Promise<BlockedMerchantsListRespons
  * @param storeId - ID of the store to check
  * @returns Promise with block status
  */
-export async function checkBlockStatus(
-  storeId: number
-): Promise<BlockStatusResponse> {
+export async function checkBlockStatus(storeId: number): Promise<BlockStatusResponse> {
   return authAPI.get<BlockStatusResponse>(`/store/${storeId}/block-status/`);
 }
 

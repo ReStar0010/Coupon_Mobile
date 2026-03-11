@@ -31,7 +31,8 @@ const Navbar: React.FC<NavbarType> = ({
 
   return (
     <View
-      className={`relative h-[54px] self-stretch rounded-xl shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)] ${className}`}>
+      className={`relative h-[54px] self-stretch rounded-xl shadow-[0px_1px_10px_rgba(0,_0,_0,_0.25)] ${className}`}
+    >
       <View className="bg-bg-white absolute bottom-0 left-0 right-0 top-0 h-full w-full rounded-xl">
         {/* EasyUse Button */}
         <View
@@ -40,11 +41,13 @@ const Navbar: React.FC<NavbarType> = ({
           } z-[1]`}
           style={{
             transform: [{ translateY: -18 }], // 50% of 54px height = 27px, 66% of 54px = 36px, so -18px
-          }}>
+          }}
+        >
           <TouchableOpacity
             className="absolute inset-0 m-auto h-[25px] w-[25px] items-center justify-center"
             onPress={onEasyUseClick}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <Image
               className="h-[25px] w-[25px] object-cover"
               style={{ width: 25, height: 25 }}
@@ -60,11 +63,13 @@ const Navbar: React.FC<NavbarType> = ({
           } z-[1]`}
           style={{
             transform: [{ translateX: -50 }, { translateY: -18 }], // 50% of width and height
-          }}>
+          }}
+        >
           <TouchableOpacity
             className="absolute inset-0 m-auto h-[25px] w-[25px] items-center justify-center"
             onPress={onCollectionClick}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <Image
               className="h-[25px] w-[25px] object-cover"
               style={{ width: 25, height: 25 }}
@@ -80,11 +85,13 @@ const Navbar: React.FC<NavbarType> = ({
           } z-[1]`}
           style={{
             transform: [{ translateY: -18 }],
-          }}>
+          }}
+        >
           <TouchableOpacity
             className="absolute inset-0 m-auto h-[25px] w-[25px] items-center justify-center"
             onPress={onStatisticsClick}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <Image
               className="h-[25px] w-[25px] object-cover"
               style={{ width: 25, height: 25 }}

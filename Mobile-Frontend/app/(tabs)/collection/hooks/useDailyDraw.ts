@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
+// import * as Sentry from '@sentry/react-native';
+import { isAxiosError } from 'axios';
 import { DailyDrawResult, DrawTemplate } from '@/app/(tabs)/collection/utils/types';
 import { checkLastDrawDate } from '@/app/(tabs)/collection/utils/couponUtils';
 import { devDebug } from '@/app/utils/devLogger';
 import { fetchAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 
 interface UseDailyDrawReturn {
   showDailyDraw: boolean;
@@ -20,8 +22,9 @@ interface UseDailyDrawReturn {
 export function useDailyDraw(
   isAuthenticated: boolean,
   authLoading: boolean,
-  onDrawSuccess: () => void
+  onDrawSuccess: () => void,
 ): UseDailyDrawReturn {
+  const { getErrorMessage } = useApiError();
   const [showDailyDraw, setShowDailyDraw] = useState(false);
   const [dailyDrawResult, setDailyDrawResult] = useState<DailyDrawResult | null>(null);
   const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
@@ -46,6 +49,7 @@ export function useDailyDraw(
       }
     } catch (error) {
       console.error('Error checking draw status:', error);
+      // Sentry.captureException(error, { data: { context: 'useDailyDraw.checkLastDrawDate' } });
     }
   }, [isAuthenticated, authLoading]);
 
@@ -77,36 +81,10 @@ export function useDailyDraw(
     }
   }, [showDailyDraw, isAuthenticated, fetchAvailableTemplates]);
 
-  const selectRandomTemplate = useCallback(
-    (templates: DrawTemplate[]): DrawTemplate | null => {
-      if (!templates || templates.length === 0) return null;
-      const randomIndex = Math.floor(Math.random() * templates.length);
-      return templates[randomIndex];
-    },
-    []
-  );
-
-  const getErrorMessage = useCallback((err: unknown): string => {
-    if (axios.isAxiosError(err)) {
-      // Filter out 401 authentication errors - they are handled silently by AuthOrchestrator
-      if (err.response?.status === 401) {
-        return ''; // Return empty string to prevent UI from displaying auth errors
-      }
-      if (err.response?.status === 400) {
-        return err.response.data.message || '抽獎失敗，請稍後再試。';
-      }
-      if (err.response?.data?.error) {
-        return err.response.data.error;
-      }
-    }
-    if (err instanceof Error) {
-      // Also check error message for authentication-related errors
-      if (err.message.includes('Authentication') || err.message.includes('401')) {
-        return ''; // Filter authentication errors
-      }
-      return err.message;
-    }
-    return '抽獎失敗，請稍後再試。';
+  const selectRandomTemplate = useCallback((templates: DrawTemplate[]): DrawTemplate | null => {
+    if (!templates || templates.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * templates.length);
+    return templates[randomIndex];
   }, []);
 
   const handleDailyDraw = useCallback(async () => {
@@ -145,22 +123,17 @@ export function useDailyDraw(
     } catch (err) {
       console.error('Error during daily draw:', err);
 
-      if (axios.isAxiosError(err) && err.response?.status === 400) {
+      if (isAxiosError(err) && err.response?.status === 400) {
         if (isMountedRef.current) {
           setHasDailyDrawn(true);
         }
       }
 
       if (isMountedRef.current) {
-        const errorMessage = getErrorMessage(err);
-        // Only set error message if it's not empty (i.e., not a 401 auth error)
-        if (errorMessage) {
-          setDailyDrawResult({
-            success: false,
-            message: errorMessage,
-          });
-        }
-        // For 401 errors, silently let AuthOrchestrator handle the redirect
+        setDailyDrawResult({
+          success: false,
+          message: getErrorMessage(err),
+        });
       }
     } finally {
       if (isMountedRef.current) {

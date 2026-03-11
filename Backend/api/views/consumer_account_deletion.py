@@ -1,6 +1,8 @@
 """
 Views for consumer (student) account deletion (App Store Guideline 5.1.1 compliance).
 """
+import logging
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -8,6 +10,8 @@ from rest_framework import status
 from django.contrib.auth.hashers import check_password
 from django.utils import timezone
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 from api.models import (
     StudentProfile, Coupon, CouponRedemption,
@@ -136,7 +140,7 @@ def consumer_delete_account(request):
             }, status=status.HTTP_200_OK)
 
     except Exception as e:
-        print(f"Consumer account deletion error: {str(e)}")
+        logger.error("Consumer account deletion error: %s", e, exc_info=True)
 
         try:
             AccountDeletionLog.objects.create(
@@ -149,8 +153,8 @@ def consumer_delete_account(request):
                 status='failed',
                 retry_count=0
             )
-        except:
-            pass
+        except Exception as log_exc:
+            logger.warning("Failed to create deletion audit log: %s", log_exc)
 
         return Response(
             {'error': '刪除帳號時發生錯誤，請稍後再試'},

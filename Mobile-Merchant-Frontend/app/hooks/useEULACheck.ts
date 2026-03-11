@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback } from 'react';
+// import * as Sentry from '@sentry/react-native';
 import { getEULAStatus } from '../../services/eulaAPI';
 
 interface UseEULACheckResult {
@@ -24,7 +25,7 @@ interface UseEULACheckResult {
 export function useEULACheck(): UseEULACheckResult {
   const [eulaModalVisible, setEulaModalVisible] = useState(false);
   const [eulaCheckResolve, setEulaCheckResolve] = useState<((accepted: boolean) => void) | null>(
-    null
+    null,
   );
 
   /**
@@ -48,6 +49,7 @@ export function useEULACheck(): UseEULACheckResult {
       });
     } catch (error) {
       console.error('Failed to check EULA status:', error);
+      // Sentry.captureException(error, { data: { context: 'merchant.eulaCheck.checkEULAStatus' } });
       // On error, show modal to be safe (assume EULA needed)
       return new Promise<boolean>((resolve) => {
         setEulaCheckResolve(() => resolve);
@@ -86,4 +88,3 @@ export function useEULACheck(): UseEULACheckResult {
     onEULAAccepted,
   };
 }
-

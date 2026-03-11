@@ -45,7 +45,7 @@ pip freeze > requirements.txt
 SMS_DEV_MODE = True  # Logs OTP to console instead of sending SMS
 ```
 
-**Production** - Add to `Backend/Backend/deployment_settings.py`:
+**Production** - Add to `Backend/Backend/production_settings.py`:
 
 ```python
 # SMS Configuration
@@ -56,11 +56,13 @@ TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
 ```
 
 Then set these in Render environment variables:
+
 - `TWILIO_ACCOUNT_SID=ACxxxxx`
 - `TWILIO_AUTH_TOKEN=xxxxxxx`
 - `TWILIO_PHONE_NUMBER=+886xxxxxxxxxx`
 
 **Development Mode (`SMS_DEV_MODE=True`):**
+
 - OTP codes are logged to console instead of being sent via SMS
 - No Twilio credentials required
 - Perfect for local development and testing
@@ -73,6 +75,7 @@ python manage.py migrate
 ```
 
 Expected migration:
+
 - `0032_phonootprecord` - Creates PhoneOTPRecord model
 
 ### 1.5 Start Development Server
@@ -101,7 +104,7 @@ Edit `app/config/api.ts` if needed:
 ```typescript
 // For local development with physical device
 const API_CONFIG = {
-  mode: 'local-network',  // or 'local' for emulator
+  mode: "local-network", // or 'local' for emulator
   // ...
 };
 ```
@@ -127,6 +130,7 @@ With `SMS_DEV_MODE=True`, OTPs are logged to the Django console:
 ```
 
 **Test Flow:**
+
 1. Open app → Settings → Phone Settings
 2. Enter phone number: `0912345678`
 3. Tap "Send OTP"
@@ -137,6 +141,7 @@ With `SMS_DEV_MODE=True`, OTPs are logged to the Django console:
 ### 3.2 API Testing with curl
 
 **Send OTP:**
+
 ```bash
 curl -X POST http://127.0.0.1:8000/api/phone-otp/send/ \
   -H "Content-Type: application/json" \
@@ -145,6 +150,7 @@ curl -X POST http://127.0.0.1:8000/api/phone-otp/send/ \
 ```
 
 **Verify OTP:**
+
 ```bash
 curl -X POST http://127.0.0.1:8000/api/phone-otp/verify/ \
   -H "Content-Type: application/json" \
@@ -153,6 +159,7 @@ curl -X POST http://127.0.0.1:8000/api/phone-otp/verify/ \
 ```
 
 **Get Phone (after verification):**
+
 ```bash
 curl -X GET http://127.0.0.1:8000/api/user/phone/ \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
@@ -213,19 +220,19 @@ coverage report
 
 ### 4.2 Test Cases to Verify
 
-| Test Case | Expected Result |
-|-----------|-----------------|
-| Send OTP with valid phone | 200 OK, OTP logged |
-| Send OTP with invalid format | 400 Bad Request |
-| Send OTP for phone registered to another user | 400 Bad Request |
-| Send OTP within 60-second cooldown | 429 Too Many Requests |
-| Send OTP after 3 requests in 1 hour | 429 Too Many Requests |
-| Verify with correct OTP | 200 OK, phone updated |
-| Verify with wrong OTP | 400 Bad Request, attempts decremented |
-| Verify with expired OTP | 400 Bad Request |
-| Verify after 5 wrong attempts | 400 Bad Request, locked |
-| PUT /api/user/phone/ (direct update) | 405 Method Not Allowed |
-| DELETE /api/user/phone/ | 405 Method Not Allowed |
+| Test Case                                     | Expected Result                       |
+| --------------------------------------------- | ------------------------------------- |
+| Send OTP with valid phone                     | 200 OK, OTP logged                    |
+| Send OTP with invalid format                  | 400 Bad Request                       |
+| Send OTP for phone registered to another user | 400 Bad Request                       |
+| Send OTP within 60-second cooldown            | 429 Too Many Requests                 |
+| Send OTP after 3 requests in 1 hour           | 429 Too Many Requests                 |
+| Verify with correct OTP                       | 200 OK, phone updated                 |
+| Verify with wrong OTP                         | 400 Bad Request, attempts decremented |
+| Verify with expired OTP                       | 400 Bad Request                       |
+| Verify after 5 wrong attempts                 | 400 Bad Request, locked               |
+| PUT /api/user/phone/ (direct update)          | 405 Method Not Allowed                |
+| DELETE /api/user/phone/                       | 405 Method Not Allowed                |
 
 ---
 
@@ -234,6 +241,7 @@ coverage report
 ### Issue: "ModuleNotFoundError: No module named 'twilio'"
 
 **Solution:** Activate virtual environment and install twilio:
+
 ```bash
 .venv\Scripts\activate
 pip install twilio
@@ -246,6 +254,7 @@ pip install twilio
 ### Issue: "Authentication credentials were not provided"
 
 **Solution:** Get a valid JWT token:
+
 ```bash
 curl -X POST http://127.0.0.1:8000/api/login/ \
   -H "Content-Type: application/json" \
@@ -257,12 +266,14 @@ Use the `access` token in the Authorization header.
 ### Issue: Phone number validation failing
 
 **Solution:** Ensure phone matches Taiwan format:
+
 - Valid: `0912345678`, `0912-345-678`
 - Invalid: `912345678` (missing leading 0), `09123456789` (too long)
 
 ### Issue: Rate limit hit during testing
 
 **Solution:** Clear OTP records for the test phone:
+
 ```python
 # In Django shell: python manage.py shell
 from api.models import PhoneOTPRecord

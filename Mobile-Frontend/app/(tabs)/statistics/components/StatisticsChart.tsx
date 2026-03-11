@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image } from 'react-native';
-import { YStack, XStack, Button, Text } from 'tamagui';
+import { YStack, Button, Text } from 'tamagui';
 import CircularProgress from './CircularProgress';
 
 interface StatisticsChartProps {
@@ -16,7 +16,7 @@ const StatisticsChart: React.FC<StatisticsChartProps> = ({
   targetAmount,
   goalName,
   goalImage,
-  onSetGoal
+  onSetGoal,
 }) => {
   const progress = targetAmount > 0 ? Math.min((currentAmount / targetAmount) * 100, 100) : 0;
   const hasGoal = targetAmount > 0;
@@ -34,7 +34,9 @@ const StatisticsChart: React.FC<StatisticsChartProps> = ({
             items="center"
             style={{ justifyContent: 'center' }}
           >
-            <Text fontSize={30} color="#999">📊</Text>
+            <Text fontSize={30} color="#999">
+              📊
+            </Text>
           </YStack>
         </YStack>
       );
@@ -58,7 +60,9 @@ const StatisticsChart: React.FC<StatisticsChartProps> = ({
             items="center"
             style={{ justifyContent: 'center' }}
           >
-            <Text fontSize={18} color="white">🎯</Text>
+            <Text fontSize={18} color="white">
+              🎯
+            </Text>
           </YStack>
         )}
         <Text fontSize={10} color="#666" style={{ textAlign: 'center', maxWidth: 80 }}>
@@ -95,10 +99,10 @@ const StatisticsChart: React.FC<StatisticsChartProps> = ({
         px="$6"
         py="$2.5"
         rounded="$6"
-        pressStyle={{ bg: "#FF9500" }}
+        pressStyle={{ bg: '#FF9500' }}
         onPress={onSetGoal}
       >
-        {hasGoal ? "更改目標" : "設定目標"}
+        {hasGoal ? '更改目標' : '設定目標'}
       </Button>
 
       {/* Progress Text */}

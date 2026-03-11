@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input as TamaguiInput, InputProps as TamaguiInputProps, YStack } from 'tamagui';
+import { Input as TamaguiInput, InputProps as TamaguiInputProps, Text, YStack } from 'tamagui';
 import { colors } from '@/constants/colors';
 
 export interface InputProps extends Omit<TamaguiInputProps, 'size'> {
@@ -12,9 +12,9 @@ export const Input = React.forwardRef<any, InputProps>(
     return (
       <YStack gap="$1" width="100%">
         {label && (
-          <TamaguiInput.Label fontSize="$sm" color={colors.textPrimary}>
+          <Text fontSize="$sm" color={colors.textPrimary}>
             {label}
-          </TamaguiInput.Label>
+          </Text>
         )}
         <TamaguiInput
           ref={ref}
@@ -32,14 +32,13 @@ export const Input = React.forwardRef<any, InputProps>(
           {...props}
         />
         {error && (
-          <TamaguiInput.Label fontSize="$xs" color={colors.error} marginTop="$1">
+          <Text fontSize="$xs" color={colors.error} marginTop="$1">
             {error}
-          </TamaguiInput.Label>
+          </Text>
         )}
       </YStack>
     );
-  }
+  },
 );
 
 Input.displayName = 'Input';
-

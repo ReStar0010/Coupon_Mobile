@@ -22,11 +22,7 @@ const DailyDrawBanner: React.FC<DailyDrawBannerProps> = ({ onClick }) => {
                 <Text fontSize={18} fontWeight="700" color={COLORS.white}>
                   每日抽獎
                 </Text>
-                <Text
-                  fontSize={13}
-                  color="rgba(255,255,255,0.9)"
-                  numberOfLines={1}
-                >
+                <Text fontSize={13} color="rgba(255,255,255,0.9)" numberOfLines={1}>
                   點擊抽取今日專屬優惠
                 </Text>
               </View>

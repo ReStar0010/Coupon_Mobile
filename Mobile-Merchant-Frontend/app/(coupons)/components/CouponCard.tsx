@@ -1,9 +1,9 @@
-import React from "react";
-import { YStack, XStack, Text } from "tamagui";
-import { colors } from "@/constants/colors";
-import { TouchableOpacity, StyleSheet, View } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useRouter } from "expo-router";
+import React from 'react';
+import { YStack, XStack, Text } from 'tamagui';
+import { colors } from '@/constants/colors';
+import { TouchableOpacity, StyleSheet, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useRouter } from 'expo-router';
 
 interface CouponCardProps {
   coupon: {
@@ -23,11 +23,10 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
   const router = useRouter();
   const isSoldOut =
     coupon.enableSoldOutUI === true &&
-    typeof coupon.remainingQuantity === "number" &&
+    typeof coupon.remainingQuantity === 'number' &&
     coupon.remainingQuantity <= 0;
 
-  const canOpenRedemptionPage =
-    !isSoldOut && coupon.isExclusiveCoupon !== false;
+  const canOpenRedemptionPage = !isSoldOut && coupon.isExclusiveCoupon !== false;
 
   return (
     <TouchableOpacity
@@ -49,14 +48,10 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
         style={[styles.cardShadow, isSoldOut ? styles.soldOutCard : undefined]}
       >
         {/* Title, Edit Icon, and Statistics Icon */}
-        <XStack
-          alignItems="center"
-          justifyContent="space-between"
-          marginBottom="$2"
-        >
+        <XStack alignItems="center" justifyContent="space-between" marginBottom="$2">
           <XStack flex={1} alignItems="center" gap="$2" minWidth={0}>
             <Text
-              fontSize="20"
+              fontSize={18}
               fontWeight="700"
               color={colors.textPrimary}
               flex={1}
@@ -76,11 +71,7 @@ export function CouponCard({ coupon, onEdit }: CouponCardProps) {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <View style={styles.iconButtonInner}>
-                <MaterialIcons
-                  name="bar-chart"
-                  size={ICON_SIZE}
-                  color={colors.primary}
-                />
+                <MaterialIcons name="bar-chart" size={ICON_SIZE} color={colors.primary} />
               </View>
             </TouchableOpacity>
             <TouchableOpacity
@@ -134,7 +125,7 @@ const ICON_SIZE = 22;
 
 const styles = StyleSheet.create({
   cardShadow: {
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 1,
@@ -145,20 +136,20 @@ const styles = StyleSheet.create({
   },
   soldOutCard: {
     // Subtle tint (not disabled/greyed out), keeps text fully legible.
-    backgroundColor: "rgba(255, 173, 49, 0.06)",
+    backgroundColor: 'rgba(255, 173, 49, 0.06)',
   },
   iconButton: {
     width: ICON_BUTTON_SIZE,
     height: ICON_BUTTON_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconButtonInner: {
     width: ICON_BUTTON_SIZE,
     height: ICON_BUTTON_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: ICON_BUTTON_SIZE / 2,
-    backgroundColor: "rgba(255, 173, 49, 0.14)",
+    backgroundColor: 'rgba(255, 173, 49, 0.14)',
   },
 });

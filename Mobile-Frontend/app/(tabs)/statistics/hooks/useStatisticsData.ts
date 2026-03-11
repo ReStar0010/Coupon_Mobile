@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
+import { isAxiosError, isCancel } from 'axios';
 import { useRouter } from 'expo-router';
 import { useToast } from '@/app/components/providers/ToastProvider';
 import { devDebug } from '@/app/utils/devLogger';
@@ -80,7 +80,10 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
       }
     } catch (err) {
       // Check if it's an authentication error
-      if (err instanceof AuthenticationError || (axios.isAxiosError(err) && err.response?.status === 401)) {
+      if (
+        err instanceof AuthenticationError ||
+        (isAxiosError(err) && err.response?.status === 401)
+      ) {
         devDebug('Authentication error in fetchCompletedGoals, redirecting to login');
         if (isMountedRef.current) {
           router.replace('/(auth)/login');
@@ -126,13 +129,16 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
 
       await fetchCompletedGoals();
     } catch (err) {
-      if (axios.isCancel(err)) {
+      if (isCancel(err)) {
         devDebug('Request cancelled');
         return;
       }
-      
+
       // Check if it's an authentication error
-      if (err instanceof AuthenticationError || (axios.isAxiosError(err) && err.response?.status === 401)) {
+      if (
+        err instanceof AuthenticationError ||
+        (isAxiosError(err) && err.response?.status === 401)
+      ) {
         devDebug('Authentication error detected, redirecting to login');
         if (isMountedRef.current) {
           // Redirect to login immediately
@@ -140,7 +146,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
         }
         return;
       }
-      
+
       console.error('Error fetching user statistics:', err);
       if (isMountedRef.current) {
         setError('Failed to load your statistics. Please try again later.');
@@ -150,7 +156,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
         setIsLoading(false);
       }
     }
-  }, [isAuthenticated, fetchCompletedGoals]);
+  }, [isAuthenticated, fetchCompletedGoals, router]);
 
   const setSavingsGoal = useCallback(
     async (goalName: string, goalAmount: number, goalImage: string) => {
@@ -190,7 +196,7 @@ export const useStatisticsData = (isAuthenticated: boolean): UseStatisticsDataRe
 
       await fetchUserStats();
     },
-    [showToast, fetchCompletedGoals, fetchUserStats]
+    [showToast, fetchCompletedGoals, fetchUserStats],
   );
 
   const resetGoal = useCallback(async () => {

@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>選擇可核銷現金券的店家</h1>
+<p>勾選允許核銷平台現金券的店家，儲存後僅這些店家的 6 碼核銷碼可接受現金券兌換。</p>
+
+<form method="post" id="participating-stores-form">
+  {% csrf_token %}
+  <p class="deletelink-box">
+    <a href="#" id="select-all">全選</a> | <a href="#" id="deselect-all">全不選</a>
+  </p>
+  <table style="width:100%; border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th style="width:2em;">可核銷</th>
+        <th>店家名稱</th>
+        <th>統一核銷碼</th>
+        <th>店主</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for store in stores %}
+      <tr>
+        <td>
+          <input type="checkbox" name="stores" value="{{ store.id }}" class="store-cb"
+                 {% if store.id in participating_ids %}checked{% endif %}>
+        </td>
+        <td>{{ store.name }}</td>
+        <td>{{ store.unified_redeem_code|default:"—" }}</td>
+        <td>{{ store.owner.email|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">尚無店家資料。</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="margin-top: 1em;">
+    <input type="submit" value="儲存">
+    <a href="{% url 'admin:api_platformvoucher_changelist' %}" style="margin-left: 1em;">取消</a>
+  </p>
+</form>
+
+<script>
+(function() {
+  var selectAll = document.getElementById('select-all');
+  var deselectAll = document.getElementById('deselect-all');
+  var checkboxes = document.querySelectorAll('.store-cb');
+  if (selectAll) selectAll.addEventListener('click', function(e) { e.preventDefault(); checkboxes.forEach(function(cb) { cb.checked = true; }); });
+  if (deselectAll) deselectAll.addEventListener('click', function(e) { e.preventDefault(); checkboxes.forEach(function(cb) { cb.checked = false; }); });
+})();
+</script>
+{% endblock %}

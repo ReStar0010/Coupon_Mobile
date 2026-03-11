@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useRef } from 'react';
-import { View, Text, Animated, Dimensions, Platform } from 'react-native';
+import { View, Text, Animated, Platform } from 'react-native';
 
 // Define the context type
 interface ToastContextType {
@@ -18,8 +18,6 @@ export const useToast = () => useContext(ToastContext);
 
 // The duration of the toast in milliseconds
 const TOAST_DURATION = 3000;
-
-const { width: screenWidth } = Dimensions.get('window');
 
 // Toast provider component
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -121,7 +119,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             zIndex: 1000,
             transform: [{ translateY }],
             opacity,
-          }}>
+          }}
+        >
           <View className="flex-row items-center">
             <Text className="mr-2 text-base font-bold text-white">{toastStyle.icon}</Text>
             <Text className="flex-1 text-base text-white" numberOfLines={2}>

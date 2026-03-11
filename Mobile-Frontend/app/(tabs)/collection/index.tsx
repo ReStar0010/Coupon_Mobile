@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, FlatList, Alert } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
-import { YStack, Text, Spinner, View, XStack } from 'tamagui';
+import { RefreshControl, FlatList } from 'react-native';
+import { Stack } from 'expo-router';
+import { YStack, Text, Spinner, View } from 'tamagui';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import ErrorBoundary from '@/app/components/ErrorBoundary';
+// import * as Sentry from '@sentry/react-native';
+import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import AppHeader from '@/app/components/shared/AppHeader';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import Gift from './Gift';
@@ -12,22 +13,25 @@ import { COLORS } from '@/app/constants/theme';
 import { useDismissedStores } from '@/app/components/providers/DismissedStoresProvider';
 import { useBlockedMerchants } from '@/app/components/providers/BlockedMerchantsProvider';
 import MerchantDeletedModal from '@/app/components/MerchantDeletedModal';
+import { useFocusEffect } from '@react-navigation/native';
+import { consumeCollectionDirty } from '@/app/utils/collectionRefresh';
 
 import { useCoupons } from './hooks/useCoupons';
 import { useDailyDraw } from './hooks/useDailyDraw';
 import { useSharedCoupon } from './hooks/useSharedCoupon';
 import { useSearch } from './hooks/useSearch';
 import { useMyPublicShares } from './hooks/useMyPublicShares';
+import { usePlatformVouchers } from './hooks/usePlatformVouchers';
 import { useTags } from './hooks/useTags';
 
 import Coupon from './components/Coupon';
 import DailyDrawBanner from './components/DailyDrawBanner';
 import DailyDrawModal from './components/DailyDrawModal';
 import MySharedCoupons from './components/MySharedCoupons';
-import { FilterButton } from './components/FilterButton';
-import { MerchantFilterSheet } from './components/MerchantFilterSheet';
-import { TagFilterSheet } from './components/TagFilterSheet';
-import type { CouponType, ExpiryFilter } from './utils/types';
+import MyPlatformVouchers from './components/MyPlatformVouchers';
+import { FilterBar } from './components/FilterBar';
+import type { CouponType } from './utils/types';
+import { useCollectionFilters } from './hooks/useCollectionFilters';
 
 interface CouponItemProps {
   item: CouponType;
@@ -52,9 +56,9 @@ const CouponItem: React.FC<CouponItemProps> = React.memo(({ item, onMerchantDele
 CouponItem.displayName = 'CouponItem';
 
 const LoadingState: React.FC = React.memo(() => (
-  <YStack width="100%" alignItems="center" justifyContent="center" padding="$6">
+  <YStack width="100%" style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
     <Spinner size="large" color={COLORS.primary} />
-    <Text marginTop="$4" fontSize="$6" color={COLORS.text.secondary}>
+    <Text style={{ marginTop: 16 }} fontSize="$6" color={COLORS.text.secondary}>
       載入中...
     </Text>
   </YStack>
@@ -67,8 +71,8 @@ interface ErrorStateProps {
 }
 
 const ErrorState: React.FC<ErrorStateProps> = React.memo(({ error }) => (
-  <YStack width="100%" alignItems="center" justifyContent="center" padding="$6">
-    <Text textAlign="center" color={COLORS.text.error}>
+  <YStack width="100%" style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <Text style={{ textAlign: 'center' }} color={COLORS.text.error}>
       {error}
     </Text>
   </YStack>
@@ -77,8 +81,8 @@ const ErrorState: React.FC<ErrorStateProps> = React.memo(({ error }) => (
 ErrorState.displayName = 'ErrorState';
 
 const EmptyState: React.FC = React.memo(() => (
-  <YStack width="100%" alignItems="center" justifyContent="center" padding="$6">
-    <Text textAlign="center" color={COLORS.text.secondary}>
+  <YStack width="100%" style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <Text style={{ textAlign: 'center' }} color={COLORS.text.secondary}>
       目前沒有可用的專屬優惠券。
     </Text>
   </YStack>
@@ -86,25 +90,14 @@ const EmptyState: React.FC = React.memo(() => (
 
 EmptyState.displayName = 'EmptyState';
 
-const EXPIRY_FILTER_OPTIONS: { value: ExpiryFilter; label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: 'expiringSoon', label: '即將到期（7天內）' },
-  { value: 'thisWeek', label: '本週到期' },
-  { value: 'thisMonth', label: '本月到期' },
-];
-
 const Collection: React.FC = () => {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { dismissStore, isStoreDismissed } = useDismissedStores();
   const { isStoreBlocked } = useBlockedMerchants();
 
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
   const { searchQuery, handleSearchChange, clearSearch } = useSearch();
-  const { coupons, isLoading, error, fetchCoupons } = useCoupons(
-    isAuthenticated,
-    authLoading
-  );
+  const { coupons, isLoading, error, fetchCoupons } = useCoupons(isAuthenticated, authLoading);
 
   // Merchant deleted modal state
   const [merchantDeletedModal, setMerchantDeletedModal] = useState<{
@@ -124,120 +117,85 @@ const Collection: React.FC = () => {
   } = useDailyDraw(isAuthenticated, authLoading, fetchCoupons);
   const { shareToken, sharedCoupon, showSharedGift, handleGiftAccepted } =
     useSharedCoupon(fetchCoupons);
-  const { publicShares, isLoading: sharesLoading, fetchPublicShares } =
-    useMyPublicShares(isAuthenticated, authLoading);
+  const {
+    publicShares,
+    isLoading: sharesLoading,
+    fetchPublicShares,
+  } = useMyPublicShares(isAuthenticated, authLoading);
+  const {
+    vouchers: platformVouchers,
+    isLoading: vouchersLoading,
+    fetchVouchers,
+  } = usePlatformVouchers(isAuthenticated, authLoading);
   const { tags } = useTags(isAuthenticated);
-
-  // Filter states
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [expiryFilter, setExpiryFilter] = useState<ExpiryFilter>('all');
-  const [selectedMerchant, setSelectedMerchant] = useState<string | null>(null);
-  const [isMerchantSheetOpen, setIsMerchantSheetOpen] = useState(false);
-  const [isTagSheetOpen, setIsTagSheetOpen] = useState(false);
-
-  // Extract unique merchants from coupons
   const merchants = useMemo(() => {
     const merchantSet = new Set<string>();
     coupons.forEach((coupon) => {
-      if (coupon.storeName) {
-        merchantSet.add(coupon.storeName);
-      }
+      if (coupon.storeName) merchantSet.add(coupon.storeName);
     });
     return Array.from(merchantSet).sort();
   }, [coupons]);
+  const filters = useCollectionFilters({ tags, merchants });
 
-  // Create tag mapping: name -> display_name
-  const tagMap = useMemo(() => {
-    const map = new Map<string, string>();
-    tags.forEach((tag) => {
-      map.set(tag.name, tag.display_name);
-    });
-    return map;
-  }, [tags]);
+  const {
+    expiryFilter,
+    selectedMerchant,
+    selectedTagDisplayNames,
+    tagFilterLabel,
+    expiryFilterLabel,
+    merchantFilterLabel,
+    openTagPicker,
+    openExpiryPicker,
+    openMerchantPicker,
+  } = filters;
 
-  // Convert selected tag names to display names for filtering
-  const selectedTagDisplayNames = useMemo(() => {
-    return selectedTags.map((tagName) => tagMap.get(tagName) || tagName);
-  }, [selectedTags, tagMap]);
-
-  // Coupon IDs that have been shared to CouPro (public pool) — hide them from 專屬優惠 list
   const publicShareCouponIds = useMemo(
     () => new Set(publicShares.map((s) => s.coupon_id)),
-    [publicShares]
+    [publicShares],
   );
 
   const filteredCoupons = useMemo(() => {
-    // First filter out dismissed and blocked stores, then apply search filter
     const activeCoupons = coupons.filter(
-      (coupon) => !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId))
+      (coupon) =>
+        !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId)),
     );
-    return filterCoupons(activeCoupons, searchQuery);
-  }, [coupons, searchQuery, isStoreDismissed, isStoreBlocked]);
+    const excludedFromPool = activeCoupons.filter((c) => !c.id || !publicShareCouponIds.has(c.id));
+    return filterCoupons(
+      excludedFromPool,
+      searchQuery,
+      selectedTagDisplayNames,
+      expiryFilter,
+      selectedMerchant,
+    );
+  }, [
+    coupons,
+    searchQuery,
+    isStoreDismissed,
+    isStoreBlocked,
+    publicShareCouponIds,
+    selectedTagDisplayNames,
+    expiryFilter,
+    selectedMerchant,
+  ]);
 
   const onRefresh = useCallback(() => {
     fetchCoupons();
     fetchPublicShares();
-  }, [fetchCoupons, fetchPublicShares]);
+    fetchVouchers();
+  }, [fetchCoupons, fetchPublicShares, fetchVouchers]);
+
+  // Tabs preserve state for performance; refresh only when explicitly invalidated.
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeCollectionDirty()) {
+        onRefresh();
+      }
+    }, [onRefresh]),
+  );
 
   const handleOpenDailyDraw = useCallback(() => {
     setShowDailyDraw(true);
   }, [setShowDailyDraw]);
-
-  // Tag filter handlers
-  const handleTagFilterPress = useCallback(() => {
-    setIsTagSheetOpen(true);
-  }, []);
-
-  // Expiry filter handlers
-  const handleExpiryFilterPress = useCallback(() => {
-    const expiryOptions = EXPIRY_FILTER_OPTIONS.map((option) => ({
-      text: option.label,
-      onPress: () => setExpiryFilter(option.value),
-    }));
-
-    Alert.alert(
-      '選擇有效期',
-      '請選擇要篩選的有效期範圍',
-      [
-        ...expiryOptions,
-        {
-          text: '取消',
-          style: 'cancel' as const,
-        },
-      ],
-      { cancelable: true }
-    );
-  }, []);
-
-  // Merchant filter handlers
-  const handleMerchantFilterPress = useCallback(() => {
-    setIsMerchantSheetOpen(true);
-  }, []);
-
-  // Get filter button display text
-  const getTagFilterLabel = useCallback((): string | null => {
-    if (selectedTags.length === 0) return null;
-    if (selectedTags.length === 1) {
-      const tag = tags.find((t) => t.name === selectedTags[0]);
-      return tag ? tag.display_name : selectedTags[0];
-    }
-    return `已選 ${selectedTags.length} 項`;
-  }, [selectedTags, tags]);
-
-  const getExpiryFilterLabel = useCallback((): string | null => {
-    const option = EXPIRY_FILTER_OPTIONS.find(
-      (opt) => opt.value === expiryFilter
-    );
-    return option && option.value !== 'all' ? option.label : null;
-  }, [expiryFilter]);
-
-  const getMerchantFilterLabel = useCallback((): string | null => {
-    if (!selectedMerchant) return null;
-    // Truncate long merchant names
-    return selectedMerchant.length > 10
-      ? `${selectedMerchant.substring(0, 10)}...`
-      : selectedMerchant;
-  }, [selectedMerchant]);
 
   const handleCloseDailyDraw = useCallback(() => {
     setShowDailyDraw(false);
@@ -259,12 +217,12 @@ const Collection: React.FC = () => {
     ({ item }: { item: CouponType }) => (
       <CouponItem item={item} onMerchantDeleted={handleMerchantDeleted} />
     ),
-    [handleMerchantDeleted]
+    [handleMerchantDeleted],
   );
 
   const keyExtractor = useCallback(
     (item: CouponType) => item.id?.toString() || `item-${Math.random()}`,
-    []
+    [],
   );
 
   const ListHeaderComponent = useMemo(
@@ -273,9 +231,10 @@ const Collection: React.FC = () => {
         {/* My Shared Coupons Section */}
         <MySharedCoupons shares={publicShares} isLoading={sharesLoading} />
 
-        {!hasDailyDrawn && !showSharedGift && (
-          <DailyDrawBanner onClick={handleOpenDailyDraw} />
-        )}
+        {/* My Platform Vouchers Section */}
+        <MyPlatformVouchers vouchers={platformVouchers} isLoading={vouchersLoading} />
+
+        {!hasDailyDrawn && !showSharedGift && <DailyDrawBanner onClick={handleOpenDailyDraw} />}
 
         {showSharedGift && sharedCoupon && (
           <Gift
@@ -294,13 +253,15 @@ const Collection: React.FC = () => {
     [
       publicShares,
       sharesLoading,
+      platformVouchers,
+      vouchersLoading,
       hasDailyDrawn,
       showSharedGift,
       sharedCoupon,
       shareToken,
       handleGiftAccepted,
       handleOpenDailyDraw,
-    ]
+    ],
   );
 
   const ListEmptyComponent = useMemo(() => {
@@ -312,9 +273,9 @@ const Collection: React.FC = () => {
   if (authLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-        <YStack flex={1} alignItems="center" justifyContent="center">
+        <YStack flex={1} style={{ alignItems: 'center', justifyContent: 'center' }}>
           <Spinner size="large" color={COLORS.primary} />
-          <Text marginTop="$4" fontSize="$6" color={COLORS.text.secondary}>
+          <Text style={{ marginTop: 16 }} fontSize="$6" color={COLORS.text.secondary}>
             驗證身份中...
           </Text>
         </YStack>
@@ -323,7 +284,19 @@ const Collection: React.FC = () => {
   }
 
   return (
-    <ErrorBoundary>
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'collection-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    <>
       <Stack.Screen options={{ headerShown: false }} />
 
       <YStack flex={1}>
@@ -337,31 +310,14 @@ const Collection: React.FC = () => {
           topInset={insets.top}
         />
 
-        {/* Filter Section */}
-        <XStack
-          gap={8}
-          paddingHorizontal={13}
-          paddingTop={12}
-          paddingBottom={8}
-          backgroundColor={COLORS.white}
-          alignItems="center"
-        >
-          <FilterButton
-            label="分類"
-            selectedValue={getTagFilterLabel()}
-            onPress={handleTagFilterPress}
-          />
-          <FilterButton
-            label="有效期"
-            selectedValue={getExpiryFilterLabel()}
-            onPress={handleExpiryFilterPress}
-          />
-          <FilterButton
-            label="商家"
-            selectedValue={getMerchantFilterLabel()}
-            onPress={handleMerchantFilterPress}
-          />
-        </XStack>
+        <FilterBar
+          tagFilterLabel={tagFilterLabel}
+          expiryFilterLabel={expiryFilterLabel}
+          merchantFilterLabel={merchantFilterLabel}
+          onTagPress={openTagPicker}
+          onExpiryPress={openExpiryPicker}
+          onMerchantPress={openMerchantPicker}
+        />
 
         <View flex={1} style={{ backgroundColor: COLORS.backgroundLight }}>
           <FlatList
@@ -401,22 +357,6 @@ const Collection: React.FC = () => {
           templatesAvailable={availableTemplates.length}
         />
 
-        <MerchantFilterSheet
-          isOpen={isMerchantSheetOpen}
-          onClose={() => setIsMerchantSheetOpen(false)}
-          merchants={merchants}
-          selectedMerchant={selectedMerchant}
-          onSelectMerchant={setSelectedMerchant}
-        />
-
-        <TagFilterSheet
-          isOpen={isTagSheetOpen}
-          onClose={() => setIsTagSheetOpen(false)}
-          tags={tags}
-          selectedTags={selectedTags}
-          onSelectTags={setSelectedTags}
-        />
-
         {/* Merchant Deleted Modal */}
         <MerchantDeletedModal
           isOpen={merchantDeletedModal.isOpen}
@@ -424,7 +364,8 @@ const Collection: React.FC = () => {
           storeName={merchantDeletedModal.storeName}
         />
       </YStack>
-    </ErrorBoundary>
+    </>
+    // </Sentry.ErrorBoundary>
   );
 };
 

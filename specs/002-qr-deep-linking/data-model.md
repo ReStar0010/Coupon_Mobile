@@ -51,7 +51,7 @@ No new persistent entities are introduced. The feature reuses existing models an
 ### Landing page (claim)
 
 - **What it is**: The web page served at `/claim/<token>/` when the user does not have the app. Renders install guidance and store links only; no claim-related actions on web.
-- **Data**: Token from path; lookup QRCodeSession for optional display (e.g. “CouPro 優惠券”); same settings as collection landing (COUPRO_PUBLIC_BASE_URL, store links).
+- **Data**: Token from path; lookup QRCodeSession for optional display (e.g. “CouPro 優惠券”); same settings as collection landing (FRONTEND_URL, store links).
 
 ### Re-scan prevention state (in-app)
 

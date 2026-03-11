@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text } from 'tamagui';
 import Toast from 'react-native-toast-message';
 import { fetchAPI, storeLoginData } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import { devLog, devError } from '@/app/utils/devLogger';
 import { BackendIndicator } from '@/app/components/BackendIndicator';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
@@ -33,6 +34,7 @@ const styles = StyleSheet.create({
 });
 
 export default function LoginPage() {
+  const { getErrorMessage } = useApiError();
   const params = useLocalSearchParams<{
     phone_number?: string;
     email?: string;
@@ -86,23 +88,9 @@ export default function LoginPage() {
       router.replace('/(tabs)/easyuse');
     } catch (err: unknown) {
       devError('Login error:', err);
-      const axiosErr = err as {
-        response?: {
-          status?: number;
-          data?: { error?: string; message?: string };
-        };
-      };
-      const data = axiosErr?.response?.data;
-      const serverMessage =
-        typeof data?.message === 'string'
-          ? data.message
-          : typeof data?.error === 'string'
-            ? data.error
-            : null;
-
       Toast.show({
         type: 'failRed',
-        text1: serverMessage ?? '登入失敗，請檢查您的帳號或密碼',
+        text1: getErrorMessage(err),
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true,
@@ -135,10 +123,9 @@ export default function LoginPage() {
       });
     } catch (err: unknown) {
       devError('Registration error:', err);
-      const errorObj = err as { error?: string };
       Toast.show({
         type: 'failRed',
-        text1: errorObj?.error || '註冊失敗，請重新註冊',
+        text1: getErrorMessage(err),
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true,
@@ -170,10 +157,9 @@ export default function LoginPage() {
       });
     } catch (err: unknown) {
       devError('Password reset error:', err);
-      const errorObj = err as { error?: string };
       Toast.show({
         type: 'failRed',
-        text1: errorObj?.error || '重設失敗，請重新輸入您的手機號碼',
+        text1: getErrorMessage(err),
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true,

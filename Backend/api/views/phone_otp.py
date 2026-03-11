@@ -2,6 +2,10 @@
 Phone OTP verification views.
 Handles OTP send and verify endpoints for phone number verification.
 Includes unauthenticated endpoints for registration and password reset.
+
+Errors use api.exceptions (CouProAPIException) so responses follow:
+  {"error_code": str, "developer_message": str, "context": dict}
+Frontend maps error_code to zh-TW via useApiError / errors.* in translation.json.
 """
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -11,11 +15,25 @@ from django.db import transaction
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from api.exceptions import (
+    PhoneAlreadyUsedByOther,
+    PhoneAlreadyRegistered,
+    PhoneNotRegistered,
+    OTPNotFound,
+    OTPExpired,
+    OTPMaxAttempts,
+    OTPInvalid,
+    OTPRateLimited,
+    SmsSendFailed,
+)
 from api.models import PhoneOTPRecord, StudentProfile, Coupon
 from api.serializers import (
-    SendOTPSerializer, VerifyOTPSerializer,
-    RegistrationOTPSendSerializer, RegistrationOTPVerifySerializer,
-    PhoneForgotPasswordSerializer, PhoneResetPasswordSerializer
+    SendOTPSerializer,
+    VerifyOTPSerializer,
+    RegistrationOTPSendSerializer,
+    RegistrationOTPVerifySerializer,
+    PhoneForgotPasswordSerializer,
+    PhoneResetPasswordSerializer,
 )
 from api.services.sms_service import SMSService
 from api.utils import mask_phone_number
@@ -34,34 +52,24 @@ def send_otp(request):
     Returns 200 on success, 400 for validation errors, 429 for rate limits.
     """
     serializer = SendOTPSerializer(data=request.data)
-    if not serializer.is_valid():
-        errors = serializer.errors
-        # Get the first validation error message
-        error_message = next(iter(errors.values()))[0]
-        return Response(
-            {'error': str(error_message)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    serializer.is_valid(raise_exception=True)
     phone_number = serializer.validated_data['phone_number']
 
     # Check if phone is registered to another user
     existing_profile = StudentProfile.objects.filter(
         phone_number=phone_number
     ).exclude(user=request.user).first()
-
     if existing_profile:
-        return Response(
-            {'error': '此電話號碼已被其他帳號使用'},
-            status=status.HTTP_400_BAD_REQUEST
+        raise PhoneAlreadyUsedByOther(
+            developer_message="Phone number already linked to another account."
         )
 
     # Check rate limits
-    can_send, error_message, retry_after = PhoneOTPRecord.can_send_otp(phone_number)
+    can_send, _error_message, retry_after = PhoneOTPRecord.can_send_otp(phone_number)
     if not can_send:
-        return Response(
-            {'error': error_message, 'retry_after_seconds': retry_after},
-            status=status.HTTP_429_TOO_MANY_REQUESTS
+        raise OTPRateLimited(
+            developer_message="OTP send rate limit exceeded.",
+            context={"retry_after_seconds": retry_after or 60},
         )
 
     # Create OTP record
@@ -70,13 +78,10 @@ def send_otp(request):
     # Send SMS
     sms_service = SMSService()
     result = sms_service.send_otp(phone_number, otp_record.otp_code)
-
     if not result['success']:
-        # Delete the OTP record if SMS failed
         otp_record.delete()
-        return Response(
-            {'error': result.get('error', 'SMS發送失敗，請稍後再試')},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise SmsSendFailed(
+            developer_message=result.get('error', "SMS delivery failed.")
         )
 
     masked_phone = mask_phone_number(phone_number)
@@ -108,14 +113,7 @@ def verify_otp(request):
     Returns 200 on success, 400 for invalid OTP.
     """
     serializer = VerifyOTPSerializer(data=request.data)
-    if not serializer.is_valid():
-        errors = serializer.errors
-        error_message = next(iter(errors.values()))[0]
-        return Response(
-            {'error': str(error_message)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    serializer.is_valid(raise_exception=True)
     phone_number = serializer.validated_data['phone_number']
     otp_code = serializer.validated_data['otp_code']
 
@@ -123,39 +121,23 @@ def verify_otp(request):
     otp_record = PhoneOTPRecord.objects.filter(
         user=request.user,
         phone_number=phone_number,
-        is_verified=False
+        is_verified=False,
     ).order_by('-created_at').first()
-
     if not otp_record:
-        return Response(
-            {'error': '找不到待驗證的OTP，請重新發送驗證碼'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        raise OTPNotFound(developer_message="No pending OTP found for this user/phone.")
 
-    # Check expiration
     if otp_record.is_expired():
-        return Response(
-            {'error': '驗證碼已過期，請重新獲取'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        raise OTPExpired(developer_message="OTP has expired.")
 
-    # Check max attempts
     if not otp_record.can_attempt():
-        return Response(
-            {'error': '驗證碼輸入錯誤次數過多，請重新獲取驗證碼'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        raise OTPMaxAttempts(developer_message="Max OTP verification attempts exceeded.")
 
-    # Verify OTP code
     if otp_record.otp_code != otp_code:
         otp_record.increment_attempt()
         attempts_remaining = 5 - otp_record.attempt_count
-        return Response(
-            {
-                'error': '驗證碼錯誤，請重新輸入',
-                'attempts_remaining': attempts_remaining
-            },
-            status=status.HTTP_400_BAD_REQUEST
+        raise OTPInvalid(
+            developer_message="OTP code mismatch.",
+            context={"attempts_remaining": attempts_remaining},
         )
 
     # OTP is valid - perform phone update and coupon transfers
@@ -226,51 +208,36 @@ def send_registration_otp(request):
     Returns 200 on success, 400 for validation errors, 409 if phone exists, 429 for rate limits.
     """
     serializer = RegistrationOTPSendSerializer(data=request.data)
-    if not serializer.is_valid():
-        errors = serializer.errors
-        error_message = next(iter(errors.values()))[0]
-        return Response(
-            {'error': str(error_message)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    serializer.is_valid(raise_exception=True)
     phone_number = serializer.validated_data['phone_number']
 
-    # Check if phone is already registered
     existing_profile = StudentProfile.objects.filter(phone_number=phone_number).first()
     if existing_profile:
-        return Response(
-            {'error': '此電話號碼已註冊，請直接登入或使用其他號碼'},
-            status=status.HTTP_409_CONFLICT
+        raise PhoneAlreadyRegistered(
+            developer_message="Phone number already registered."
         )
 
-    # Check rate limits for registration purpose
-    can_send, error_message, retry_after = PhoneOTPRecord.can_send_otp(
-        phone_number, 
-        purpose='registration'
+    can_send, _error_message, retry_after = PhoneOTPRecord.can_send_otp(
+        phone_number,
+        purpose='registration',
     )
     if not can_send:
-        return Response(
-            {'error': error_message, 'retry_after_seconds': retry_after},
-            status=status.HTTP_429_TOO_MANY_REQUESTS
+        raise OTPRateLimited(
+            developer_message="Registration OTP rate limit exceeded.",
+            context={"retry_after_seconds": retry_after or 60},
         )
 
-    # Create OTP record with purpose='registration', user=None
     otp_record = PhoneOTPRecord.create_otp(
         user=None,
         phone_number=phone_number,
-        purpose='registration'
+        purpose='registration',
     )
-
-    # Send SMS
     sms_service = SMSService()
     result = sms_service.send_otp(phone_number, otp_record.otp_code)
-
     if not result['success']:
         otp_record.delete()
-        return Response(
-            {'error': result.get('error', 'SMS發送失敗，請稍後再試')},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise SmsSendFailed(
+            developer_message=result.get('error', "SMS delivery failed.")
         )
 
     masked_phone = mask_phone_number(phone_number)
@@ -303,64 +270,38 @@ def verify_registration_otp(request):
     Returns 201 on success, 400 for invalid OTP, 404 if no OTP found, 410 if expired.
     """
     serializer = RegistrationOTPVerifySerializer(data=request.data)
-    if not serializer.is_valid():
-        errors = serializer.errors
-        error_message = next(iter(errors.values()))[0]
-        return Response(
-            {'error': str(error_message)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    serializer.is_valid(raise_exception=True)
     phone_number = serializer.validated_data['phone_number']
     otp_code = serializer.validated_data['otp_code']
     password = serializer.validated_data['password']
 
-    # Find the most recent pending registration OTP for this phone
     otp_record = PhoneOTPRecord.objects.filter(
         phone_number=phone_number,
         purpose='registration',
-        is_verified=False
+        is_verified=False,
     ).order_by('-created_at').first()
-
     if not otp_record:
-        return Response(
-            {'error': '找不到待驗證的OTP，請重新發送驗證碼'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        raise OTPNotFound(developer_message="No pending registration OTP for this phone.")
 
-    # Check expiration
     if otp_record.is_expired():
-        return Response(
-            {'error': '驗證碼已過期，請重新獲取'},
-            status=status.HTTP_410_GONE
-        )
+        raise OTPExpired(developer_message="Registration OTP has expired.")
 
-    # Check max attempts
     if not otp_record.can_attempt():
-        return Response(
-            {'error': '驗證碼輸入錯誤次數過多，請重新獲取驗證碼'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        raise OTPMaxAttempts(developer_message="Max OTP verification attempts exceeded.")
 
-    # Verify OTP code
     if otp_record.otp_code != otp_code:
         otp_record.increment_attempt()
         attempts_remaining = 5 - otp_record.attempt_count
-        return Response(
-            {
-                'error': '驗證碼錯誤，請重新輸入',
-                'attempts_remaining': attempts_remaining
-            },
-            status=status.HTTP_400_BAD_REQUEST
+        raise OTPInvalid(
+            developer_message="OTP code mismatch.",
+            context={"attempts_remaining": attempts_remaining},
         )
 
     # OTP is valid - create user account
     with transaction.atomic():
-        # Check again if phone was registered during verification (race condition)
         if StudentProfile.objects.filter(phone_number=phone_number).exists():
-            return Response(
-                {'error': '此電話號碼已註冊'},
-                status=status.HTTP_409_CONFLICT
+            raise PhoneAlreadyRegistered(
+                developer_message="Phone was registered during verification (race)."
             )
 
         # Create User with username=phone_number
@@ -435,51 +376,36 @@ def send_password_reset_otp(request):
     Returns 200 on success, 400 for validation errors, 404 if phone not found, 429 for rate limits.
     """
     serializer = PhoneForgotPasswordSerializer(data=request.data)
-    if not serializer.is_valid():
-        errors = serializer.errors
-        error_message = next(iter(errors.values()))[0]
-        return Response(
-            {'error': str(error_message)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    serializer.is_valid(raise_exception=True)
     phone_number = serializer.validated_data['phone_number']
 
-    # Check if phone is registered
     profile = StudentProfile.objects.filter(phone_number=phone_number).first()
     if not profile:
-        return Response(
-            {'error': '此電話號碼尚未註冊'},
-            status=status.HTTP_404_NOT_FOUND
+        raise PhoneNotRegistered(
+            developer_message="Phone number not registered."
         )
 
-    # Check rate limits for password_reset purpose
-    can_send, error_message, retry_after = PhoneOTPRecord.can_send_otp(
+    can_send, _error_message, retry_after = PhoneOTPRecord.can_send_otp(
         phone_number,
-        purpose='password_reset'
+        purpose='password_reset',
     )
     if not can_send:
-        return Response(
-            {'error': error_message, 'retry_after_seconds': retry_after},
-            status=status.HTTP_429_TOO_MANY_REQUESTS
+        raise OTPRateLimited(
+            developer_message="Password reset OTP rate limit exceeded.",
+            context={"retry_after_seconds": retry_after or 60},
         )
 
-    # Create OTP record with purpose='password_reset', user=profile.user
     otp_record = PhoneOTPRecord.create_otp(
         user=profile.user,
         phone_number=phone_number,
-        purpose='password_reset'
+        purpose='password_reset',
     )
-
-    # Send SMS
     sms_service = SMSService()
     result = sms_service.send_otp(phone_number, otp_record.otp_code)
-
     if not result['success']:
         otp_record.delete()
-        return Response(
-            {'error': result.get('error', 'SMS發送失敗，請稍後再試')},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise SmsSendFailed(
+            developer_message=result.get('error', "SMS delivery failed.")
         )
 
     masked_phone = mask_phone_number(phone_number)
@@ -511,63 +437,39 @@ def verify_password_reset_otp(request):
     Returns 200 on success, 400 for invalid OTP, 404 if no OTP found, 410 if expired.
     """
     serializer = PhoneResetPasswordSerializer(data=request.data)
-    if not serializer.is_valid():
-        errors = serializer.errors
-        error_message = next(iter(errors.values()))[0]
-        return Response(
-            {'error': str(error_message)},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    serializer.is_valid(raise_exception=True)
     phone_number = serializer.validated_data['phone_number']
     otp_code = serializer.validated_data['otp_code']
     new_password = serializer.validated_data['new_password']
 
-    # Check if phone is registered
     profile = StudentProfile.objects.filter(phone_number=phone_number).first()
     if not profile:
-        return Response(
-            {'error': '此電話號碼尚未註冊'},
-            status=status.HTTP_404_NOT_FOUND
+        raise PhoneNotRegistered(
+            developer_message="Phone number not registered."
         )
 
-    # Find the most recent pending password_reset OTP for this phone
     otp_record = PhoneOTPRecord.objects.filter(
         phone_number=phone_number,
         purpose='password_reset',
-        is_verified=False
+        is_verified=False,
     ).order_by('-created_at').first()
-
     if not otp_record:
-        return Response(
-            {'error': '找不到待驗證的OTP，請重新發送驗證碼'},
-            status=status.HTTP_404_NOT_FOUND
+        raise OTPNotFound(
+            developer_message="No pending password-reset OTP for this phone."
         )
 
-    # Check expiration
     if otp_record.is_expired():
-        return Response(
-            {'error': '驗證碼已過期，請重新獲取'},
-            status=status.HTTP_410_GONE
-        )
+        raise OTPExpired(developer_message="Password reset OTP has expired.")
 
-    # Check max attempts
     if not otp_record.can_attempt():
-        return Response(
-            {'error': '驗證碼輸入錯誤次數過多，請重新獲取驗證碼'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        raise OTPMaxAttempts(developer_message="Max OTP verification attempts exceeded.")
 
-    # Verify OTP code
     if otp_record.otp_code != otp_code:
         otp_record.increment_attempt()
         attempts_remaining = 5 - otp_record.attempt_count
-        return Response(
-            {
-                'error': '驗證碼錯誤，請重新輸入',
-                'attempts_remaining': attempts_remaining
-            },
-            status=status.HTTP_400_BAD_REQUEST
+        raise OTPInvalid(
+            developer_message="OTP code mismatch.",
+            context={"attempts_remaining": attempts_remaining},
         )
 
     # OTP is valid - reset password

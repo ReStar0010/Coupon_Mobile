@@ -1,8 +1,10 @@
-# CouPro Development Guidelines
+﻿# CouPro Development Guidelines
 
 Auto-generated from feature plans. Last updated: 2026-02-05
 
 ## Active Technologies
+- TypeScript (strict mode), React Native via Expo ~54.0.32 + `@sentry/react-native` v7.2.0 — already installed in both frontends; re-exports `Sentry.ErrorBoundary` (from `@sentry/react`), `captureException`, `withScope` (001-sentry-error-handling)
+- N/A — frontend-only observability changes (001-sentry-error-handling)
 
 - TypeScript (Mobile Frontend - Expo/React Native), Python 3.10+ (Backend - Django) (001-appstore-comliance-fixes)
 - Backend uses Django ORM with SQLite (dev) / PostgreSQL (prod) for merchant account data (001-appstore-comliance-fixes)
@@ -102,18 +104,10 @@ npm run typecheck                   # TypeScript check
 - Chinese UI text for user-facing messages
 
 ## Recent Changes
+- 001-sentry-error-handling: Added TypeScript (strict mode), React Native via Expo ~54.0.32 + `@sentry/react-native` v7.2.0 — already installed in both frontends; re-exports `Sentry.ErrorBoundary` (from `@sentry/react`), `captureException`, `withScope`
 
 - 009-phone-registration: **COMPLETE** - Phone-based registration and login flow with OTP verification (2026-02-05)
 - ✅ Phase 1: Model changes (phone_verified, purpose field, migrations)
-- ✅ Phase 2: Serializers, URLs, frontend API types
-- ✅ US1: Registration with phone + OTP (backend + frontend)
-- ✅ US2: Phone-based login with email toggle (backend + frontend)
-- ✅ US3: Optional email settings screen
-- ✅ US4: Password reset via phone OTP (backend + frontend)
-- ✅ US5: Email/phone login mode toggle
-- ✅ Phase 8: All tests passing (50 backend tests), Chinese UI, validation
-- 008-navigation-refactor: Added TypeScript (strict mode), React 19.1.0, React Native 0.81.5 + Expo ~54.0.32, expo-router ~6.0.22, Tamagui ^1.136.6, react-native-reanimated ~4.1.1
-- 007-ugc-compliance: Added Python 3.10+ (Backend), TypeScript strict mode (Mobile Frontend) + Django REST Framework 3.x, Expo/React Native, Tamagui UI, Resend API (email), rest_framework_simplejwt (auth)
 
 **002-phone-otp-verification (2026-01-07):**
 

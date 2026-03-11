@@ -35,7 +35,7 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(
       (value: string) => {
         onSearchChange?.(value);
       },
-      [onSearchChange]
+      [onSearchChange],
     );
 
     const handleClearSearch = useCallback(() => {
@@ -100,7 +100,7 @@ const AppHeader: React.FC<AppHeaderProps> = React.memo(
         )}
       </YStack>
     );
-  }
+  },
 );
 
 AppHeader.displayName = 'AppHeader';

@@ -21,6 +21,7 @@ import {
   ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  StyleSheet,
 } from 'react-native';
 import { acceptEULA, getEULAContent, EULAContent } from '../../services/eulaAPI';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,14 +43,7 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
   const [isAgreed, setIsAgreed] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Load EULA content when modal opens
-  React.useEffect(() => {
-    if (visible && !eulaContent) {
-      loadEULAContent();
-    }
-  }, [visible]);
-
-  const loadEULAContent = async () => {
+  const loadEULAContent = useCallback(async () => {
     setLoadingContent(true);
     setError(null);
     try {
@@ -62,7 +56,14 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
     } finally {
       setLoadingContent(false);
     }
-  };
+  }, []);
+
+  // Load EULA content when modal opens
+  React.useEffect(() => {
+    if (visible && !eulaContent) {
+      loadEULAContent();
+    }
+  }, [visible, eulaContent, loadEULAContent]);
 
   // Detect scroll to bottom
   const handleScroll = useCallback(
@@ -76,7 +77,7 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
         setHasScrolledToBottom(true);
       }
     },
-    [hasScrolledToBottom]
+    [hasScrolledToBottom],
   );
 
   const handleAccept = async () => {
@@ -100,8 +101,7 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
       // Don't call onClose() as it would resolve the promise as false
       onSuccess();
     } catch (err: any) {
-      const errorMessage =
-        err?.response?.data?.error || err?.message || '接受條款失敗，請稍後再試';
+      const errorMessage = err?.response?.data?.error || err?.message || '接受條款失敗，請稍後再試';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -120,12 +120,7 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
   };
 
   return (
-    <Modal 
-      visible={visible} 
-      transparent={true} 
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           {/* Header */}
@@ -255,7 +250,7 @@ const EULAModal: React.FC<EULAModalProps> = ({ visible, onClose, onSuccess }) =>
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -437,7 +432,6 @@ const styles = {
     fontSize: 14,
     fontWeight: '600',
   },
-};
+});
 
 export default EULAModal;
-

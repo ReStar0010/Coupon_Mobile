@@ -1,9 +1,12 @@
 import * as React from 'react';
+// import * as Sentry from '@sentry/react-native';
+import ScreenErrorFallback from '../../components/ScreenErrorFallback';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { Image, Text, View, Input, XStack, H4, YStack, Card, Spinner } from 'tamagui';
 import { fetchAPI, isUserLoggedIn } from '@/app/utils/authAPI';
-import { TouchableOpacity, Alert, Dimensions, Platform, Linking, StyleSheet } from 'react-native';
+import { useApiError } from '@/app/hooks/useApiError';
+import { TouchableOpacity, Alert, Platform, Linking, StyleSheet } from 'react-native';
 import { AlignJustify, Search, X } from 'lucide-react-native';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,22 +31,17 @@ import Animated, {
   interpolate,
   Extrapolation,
   withSpring,
-  runOnJS,
 } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 // 位置權限說明：讓用戶了解為何需要位置
 const LOCATION_USAGE_TITLE = '需要位置權限';
 const LOCATION_USAGE_MESSAGE =
   'CouPro 需要存取您的位置，以在地圖上顯示您的位置、計算與店家的距離與步行時間，讓您更快找到附近的優惠券。';
-const LOCATION_DENIED_IOS =
-  `${LOCATION_USAGE_MESSAGE}\n\n請前往「設定」>「CouPro」>「位置」，選擇「使用 App 期間」或「永遠」來開啟位置服務。`;
-const LOCATION_DENIED_ANDROID =
-  `${LOCATION_USAGE_MESSAGE}\n\n請前往「設定」>「應用程式」>「CouPro」>「權限」>「位置」，選擇「允許」來開啟位置服務。`;
+const LOCATION_DENIED_IOS = `${LOCATION_USAGE_MESSAGE}\n\n請前往「設定」>「CouPro」>「位置」，選擇「使用 App 期間」或「永遠」來開啟位置服務。`;
+const LOCATION_DENIED_ANDROID = `${LOCATION_USAGE_MESSAGE}\n\n請前往「設定」>「應用程式」>「CouPro」>「權限」>「位置」，選擇「允許」來開啟位置服務。`;
 function showLocationDeniedAlert(): void {
   const message = Platform.OS === 'ios' ? LOCATION_DENIED_IOS : LOCATION_DENIED_ANDROID;
   Alert.alert(LOCATION_USAGE_TITLE, message, [
@@ -111,7 +109,13 @@ interface CouponCardProps {
   onPress: () => void;
 }
 
-const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUrl, tags, onPress }) => (
+const CouponCard: React.FC<CouponCardProps> = ({
+  storeName,
+  description,
+  imageUrl,
+  tags,
+  onPress,
+}) => (
   <Card
     borderRadius="$6"
     padding="$5"
@@ -130,7 +134,9 @@ const CouponCard: React.FC<CouponCardProps> = ({ storeName, description, imageUr
     <XStack gap={15} style={{ alignItems: 'center' }}>
       <Image
         source={{
-          uri: imageUrl || 'https://api.iconify.design/material-symbols:storefront-rounded.svg?color=%23ffad31',
+          uri:
+            imageUrl ||
+            'https://api.iconify.design/material-symbols:storefront-rounded.svg?color=%23ffad31',
           width: 64,
           height: 64,
         }}
@@ -188,7 +194,7 @@ const GiftCard: React.FC<GiftCardProps> = ({
   tags,
   sharedBy,
   onClaim,
-  isClaiming = false
+  isClaiming = false,
 }) => (
   <Card
     borderRadius="$6"
@@ -219,7 +225,13 @@ const GiftCard: React.FC<GiftCardProps> = ({
               公開交換池禮物
             </Text>
           </XStack>
-          <Text fontSize={24} fontWeight="700" color="#000000" numberOfLines={1} ellipsizeMode="tail">
+          <Text
+            fontSize={24}
+            fontWeight="700"
+            color="#000000"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {storeName}
           </Text>
           <Text color="#6b7280" numberOfLines={2} ellipsizeMode="tail">
@@ -286,12 +298,7 @@ const GiftCard: React.FC<GiftCardProps> = ({
 const CustomBackdrop = ({ animatedIndex, style, ...props }: BottomSheetBackdropProps) => {
   // Animate backdrop opacity: show when index > 1 (approaching full state)
   const animatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      animatedIndex.value,
-      [1, 2],
-      [0, 0.6],
-      Extrapolation.CLAMP
-    );
+    const opacity = interpolate(animatedIndex.value, [1, 2], [0, 0.6], Extrapolation.CLAMP);
     return { opacity };
   });
 
@@ -313,6 +320,7 @@ const CouPro = () => {
   const insets = useSafeAreaInsets();
   const { dismissStore, isStoreDismissed } = useDismissedStores();
   const { isStoreBlocked } = useBlockedMerchants();
+  const { getErrorMessage } = useApiError();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [coupons, setCoupons] = useState<CouponType[]>([]);
@@ -322,7 +330,9 @@ const CouPro = () => {
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [claimingToken, setClaimingToken] = useState<string | null>(null);
   const mapRef = useRef<any>(null);
-  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(
+    null,
+  );
 
   // Bottom sheet ref
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -331,21 +341,24 @@ const CouPro = () => {
   const snapPoints = useMemo(() => ['15%', '50%', '95%'], []);
 
   // Animated position value for coordinating animations
-  const animatedPosition = useSharedValue(0);
+  const _animatedPosition = useSharedValue(0);
   const animatedIndex = useSharedValue(0);
 
   // Track current sheet state for UI logic
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
 
   // Spring configuration for natural, tactile feel
-  const animationConfigs = useMemo(() => ({
-    damping: 15,
-    stiffness: 150,
-    mass: 1,
-    overshootClamping: false,
-    restDisplacementThreshold: 0.01,
-    restSpeedThreshold: 0.01,
-  }), []);
+  const animationConfigs = useMemo(
+    () => ({
+      damping: 15,
+      stiffness: 150,
+      mass: 1,
+      overshootClamping: false,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    }),
+    [],
+  );
 
   // Merchant deleted modal state
   const [merchantDeletedModal, setMerchantDeletedModal] = useState<{
@@ -361,12 +374,7 @@ const CouPro = () => {
   // Bottom Sheet Handle/Container Border Radius Animation
   const sheetContainerAnimatedStyle = useAnimatedStyle(() => {
     // Border radius goes from 20 to 0 as index moves from 1 to 2
-    const borderRadius = interpolate(
-      animatedIndex.value,
-      [1, 2],
-      [20, 0],
-      Extrapolation.CLAMP
-    );
+    const borderRadius = interpolate(animatedIndex.value, [1, 2], [20, 0], Extrapolation.CLAMP);
     return {
       borderTopLeftRadius: borderRadius,
       borderTopRightRadius: borderRadius,
@@ -376,23 +384,13 @@ const CouPro = () => {
   // Search Bar & Locate Button Fade Out Animation
   const searchBarAnimatedStyle = useAnimatedStyle(() => {
     // Stay visible (opacity: 1) from index 0 to 1, fade out from 1 to 2
-    const opacity = interpolate(
-      animatedIndex.value,
-      [0, 1, 2],
-      [1, 1, 0],
-      Extrapolation.CLAMP
-    );
+    const opacity = interpolate(animatedIndex.value, [0, 1, 2], [1, 1, 0], Extrapolation.CLAMP);
     return { opacity };
   });
 
   const locateButtonAnimatedStyle = useAnimatedStyle(() => {
     // Stay visible (opacity: 1) from index 0 to 1, fade out from 1 to 2
-    const opacity = interpolate(
-      animatedIndex.value,
-      [0, 1, 2],
-      [1, 1, 0],
-      Extrapolation.CLAMP
-    );
+    const opacity = interpolate(animatedIndex.value, [0, 1, 2], [1, 1, 0], Extrapolation.CLAMP);
     return { opacity };
   });
 
@@ -400,22 +398,28 @@ const CouPro = () => {
   // BOTTOM SHEET HANDLERS
   // ============================================
 
-  const handleSheetChanges = useCallback((index: number) => {
-    setCurrentSnapIndex(index);
-    animatedIndex.value = withSpring(index, animationConfigs);
-  }, [animatedIndex, animationConfigs]);
+  const handleSheetChanges = useCallback(
+    (index: number) => {
+      setCurrentSnapIndex(index);
+      animatedIndex.value = withSpring(index, animationConfigs);
+    },
+    [animatedIndex, animationConfigs],
+  );
 
-  const handleAnimate = useCallback((fromIndex: number, toIndex: number) => {
-    'worklet';
-    // Update animatedIndex for smooth interpolation
-    animatedIndex.value = withSpring(toIndex, {
-      damping: 15,
-      stiffness: 150,
-    });
-  }, [animatedIndex]);
+  const handleAnimate = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      'worklet';
+      // Update animatedIndex for smooth interpolation
+      animatedIndex.value = withSpring(toIndex, {
+        damping: 15,
+        stiffness: 150,
+      });
+    },
+    [animatedIndex],
+  );
 
-  // Collapse to peek state
-  const collapseBottomSheet = useCallback(() => {
+  // Collapse to peek state (reserved for future use)
+  const _collapseBottomSheet = useCallback(() => {
     bottomSheetRef.current?.snapToIndex(0);
   }, []);
 
@@ -447,7 +451,7 @@ const CouPro = () => {
 
   const haversineMeters = (
     a: { latitude: number; longitude: number },
-    b: { latitude: number; longitude: number }
+    b: { latitude: number; longitude: number },
   ) => {
     const R = 6371000;
     const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -470,31 +474,37 @@ const CouPro = () => {
     return null;
   };
 
-  const getStoreDistanceMeters = useCallback((store: Store) => {
-    if (!userCoords) return null;
-    const lat = toFiniteNumber(store?.location?.lat);
-    const lng = toFiniteNumber(store?.location?.lng);
-    if (lat == null || lng == null) return null;
-    return haversineMeters(userCoords, { latitude: lat, longitude: lng });
-  }, [userCoords]);
+  const getStoreDistanceMeters = useCallback(
+    (store: Store) => {
+      if (!userCoords) return null;
+      const lat = toFiniteNumber(store?.location?.lat);
+      const lng = toFiniteNumber(store?.location?.lng);
+      if (lat == null || lng == null) return null;
+      return haversineMeters(userCoords, { latitude: lat, longitude: lng });
+    },
+    [userCoords],
+  );
 
-  const getStoreExpiryInfo = useCallback((storeId?: number) => {
-    if (!storeId) return { expiringSoonCount: 0, soonestExpiry: null as Date | null };
-    const now = Date.now();
-    const in24h = now + 24 * 60 * 60 * 1000;
-    const storeCoupons = coupons.filter(c => c.storeId === storeId && c.couponType !== 'gift');
-    let expiringSoonCount = 0;
-    let soonestExpiry: Date | null = null;
-    for (const c of storeCoupons) {
-      const t = c.expiryDate?.getTime?.() ? c.expiryDate.getTime() : null;
-      if (!t) continue;
-      if (t >= now && t <= in24h) expiringSoonCount += 1;
-      if (t >= now && (!soonestExpiry || t < soonestExpiry.getTime())) {
-        soonestExpiry = new Date(t);
+  const getStoreExpiryInfo = useCallback(
+    (storeId?: number) => {
+      if (!storeId) return { expiringSoonCount: 0, soonestExpiry: null as Date | null };
+      const now = Date.now();
+      const in24h = now + 24 * 60 * 60 * 1000;
+      const storeCoupons = coupons.filter((c) => c.storeId === storeId && c.couponType !== 'gift');
+      let expiringSoonCount = 0;
+      let soonestExpiry: Date | null = null;
+      for (const c of storeCoupons) {
+        const t = c.expiryDate?.getTime?.() ? c.expiryDate.getTime() : null;
+        if (!t) continue;
+        if (t >= now && t <= in24h) expiringSoonCount += 1;
+        if (t >= now && (!soonestExpiry || t < soonestExpiry.getTime())) {
+          soonestExpiry = new Date(t);
+        }
       }
-    }
-    return { expiringSoonCount, soonestExpiry };
-  }, [coupons]);
+      return { expiringSoonCount, soonestExpiry };
+    },
+    [coupons],
+  );
 
   // ============================================
   // DATA FETCHING
@@ -542,9 +552,9 @@ const CouPro = () => {
     } catch (err: any) {
       console.error('Error fetching coupons:', err);
       const isAuthError =
-        (err?.response?.status === 401) ||
-        (err?.message?.includes('Authentication')) ||
-        (err?.message?.includes('401'));
+        err?.response?.status === 401 ||
+        err?.message?.includes('Authentication') ||
+        err?.message?.includes('401');
       if (!isAuthError) {
         setError(err?.message || '載入失敗');
         setCoupons([]);
@@ -580,66 +590,54 @@ const CouPro = () => {
         // Ignore
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Handle claiming a gift
-  const handleClaimGift = useCallback(async (shareToken: string) => {
-    if (!isUserLoggedIn()) {
-      router.push(`/(auth)/login?returnUrl=${encodeURIComponent('/(tabs)/easyuse')}`);
-      return;
-    }
+  const handleClaimGift = useCallback(
+    async (shareToken: string) => {
+      if (!isUserLoggedIn()) {
+        router.push(`/(auth)/login?returnUrl=${encodeURIComponent('/(tabs)/easyuse')}`);
+        return;
+      }
 
-    setClaimingToken(shareToken);
+      setClaimingToken(shareToken);
 
-    try {
-      const response = await fetchAPI(`/coupon/share/${shareToken}/accept/`, {
-        method: 'POST',
-      });
+      try {
+        const response = await fetchAPI(`/coupon/share/${shareToken}/accept/`, {
+          method: 'POST',
+        });
 
-      Alert.alert(
-        '領取成功！',
-        `您已獲得: ${response.data.coupon_name}`,
-        [
+        Alert.alert('領取成功！', `您已獲得: ${response.data.coupon_name}`, [
           {
             text: '查看收藏',
-            onPress: () => router.push('/(tabs)/collection')
+            onPress: () => router.push('/(tabs)/collection'),
           },
           {
             text: '繼續瀏覽',
             onPress: () => {
               fetchCoupons();
-            }
-          }
-        ]
-      );
-    } catch (err: any) {
-      console.error('Error claiming gift:', err);
-      let errorMessage = '無法領取優惠券';
+            },
+          },
+        ]);
+      } catch (err) {
+        console.error('Error claiming gift:', err);
+        const errorMessage = getErrorMessage(err);
 
-      if (err?.response?.data?.error) {
-        const backendError = err.response.data.error;
-        if (backendError === 'You cannot claim your own shared coupon.') {
-          errorMessage = '您不能領取自己分享的優惠券';
-        } else if (backendError === 'This request has already been processed.') {
-          errorMessage = '此優惠券已被其他人領取';
-        } else if (backendError === 'This coupon has already been claimed.') {
-          errorMessage = '此優惠券已被領取';
-        } else {
-          errorMessage = backendError;
-        }
+        Alert.alert('領取失敗', errorMessage);
+      } finally {
+        setClaimingToken(null);
       }
-
-      Alert.alert('領取失敗', errorMessage);
-    } finally {
-      setClaimingToken(null);
-    }
-  }, [router, fetchCoupons]);
+    },
+    [router, fetchCoupons],
+  );
 
   useEffect(() => {
     if (coupons) {
       const uniqueStores = new Map<number, Store>();
-      coupons.forEach(coupon => {
+      coupons.forEach((coupon) => {
         if (coupon.storeId && coupon.storeLocation) {
           if (isStoreBlocked(coupon.storeId) || isStoreDismissed(coupon.storeId)) return;
           if (!uniqueStores.has(coupon.storeId)) {
@@ -676,9 +674,7 @@ const CouPro = () => {
     if (coupon.storeName?.toLowerCase().includes(query)) return true;
     if (coupon.description?.toLowerCase().includes(query)) return true;
     if (coupon.tags && coupon.tags.length > 0) {
-      const tagMatch = coupon.tags.some(tag =>
-        tag.toLowerCase().includes(query)
-      );
+      const tagMatch = coupon.tags.some((tag) => tag.toLowerCase().includes(query));
       if (tagMatch) return true;
     }
 
@@ -747,12 +743,15 @@ const CouPro = () => {
     }
   };
 
-  const handleStorePress = useCallback((store: Store | null) => {
-    setSelectedStore(store);
-    if (store) {
-      expandBottomSheetHalf();
-    }
-  }, [expandBottomSheetHalf]);
+  const handleStorePress = useCallback(
+    (store: Store | null) => {
+      setSelectedStore(store);
+      if (store) {
+        expandBottomSheetHalf();
+      }
+    },
+    [expandBottomSheetHalf],
+  );
 
   const handleNavigateToStore = useCallback(async (store: Store) => {
     const lat = store?.location?.lat;
@@ -767,293 +766,316 @@ const CouPro = () => {
     try {
       const canOpenGoogle = await Linking.canOpenURL(googleUrl);
       await Linking.openURL(canOpenGoogle ? googleUrl : webUrl);
-    } catch (e) {
+    } catch {
       await Linking.openURL(webUrl);
     }
   }, []);
 
   // Render backdrop callback
   const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <CustomBackdrop {...props} />
-    ),
-    []
+    (props: BottomSheetBackdropProps) => <CustomBackdrop {...props} />,
+    [],
   );
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <Stack.Screen options={{ headerShown: false }} />
-      {__DEV__ && <BackendIndicator />}
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'easyuse-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    // >
+      <GestureHandlerRootView style={styles.container}>
+        <Stack.Screen options={{ headerShown: false }} />
+        {__DEV__ && <BackendIndicator />}
 
-      <DismissKeyboardView>
-        <View style={styles.container}>
-        {/* Full Screen Map */}
-        <View style={styles.mapContainer}>
-          <MapComponent
-            stores={stores}
-            searchQuery={searchQuery}
-            setStoreSearch={setSearchQuery}
-            onStorePress={handleStorePress}
-            mapRef={mapRef}
-          />
-        </View>
-
-        {/* Search Bar */}
-        <Animated.View
-          style={[
-            styles.searchBarContainer,
-            { top: insets.top + 10 },
-            searchBarAnimatedStyle,
-          ]}
-          pointerEvents={currentSnapIndex >= 2 ? 'none' : 'box-none'}
-        >
-          <YStack
-            gap={10}
-            style={styles.searchBarContent}
-          >
-            <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <XStack gap={13} style={{ alignItems: 'center' }}>
-                <LogoIcon />
-                <H4 color="#000000" fontSize={24} fontWeight={'bold'}>
-                  CouPro
-                </H4>
-              </XStack>
-
-              <TouchableOpacity onPress={onMenuIconClick} activeOpacity={0.7}>
-                <AlignJustify color="black" />
-              </TouchableOpacity>
-            </XStack>
-
-            {/* Search Input */}
-            <XStack
-              gap={12}
-              style={styles.searchInputContainer}
-            >
-              <Search color="#a8a8a8" size={20} />
-              <Input
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="搜尋店家或優惠券..."
-                style={{ flex: 1, fontSize: 16 }}
-                unstyled
+        <DismissKeyboardView>
+          <View style={styles.container}>
+            {/* Full Screen Map */}
+            <View style={styles.mapContainer}>
+              <MapComponent
+                stores={stores}
+                searchQuery={searchQuery}
+                setStoreSearch={setSearchQuery}
+                onStorePress={handleStorePress}
+                mapRef={mapRef}
               />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
-                  <X color="#a8a8a8" size={20} />
-                </TouchableOpacity>
-              )}
-            </XStack>
-          </YStack>
-        </Animated.View>
+            </View>
 
-        {/* Locate User Button */}
-        {Platform.OS !== 'web' && (
-          <Animated.View
-            style={[
-              styles.locateButton,
-              { top: insets.top + 150 },
-              locateButtonAnimatedStyle,
-            ]}
-            pointerEvents={currentSnapIndex >= 2 ? 'none' : 'box-none'}
-          >
-            <TouchableOpacity
-              onPress={handleLocateUser}
-              style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
-              activeOpacity={0.8}
+            {/* Search Bar */}
+            <Animated.View
+              style={[styles.searchBarContainer, { top: insets.top + 10 }, searchBarAnimatedStyle]}
+              pointerEvents={currentSnapIndex >= 2 ? 'none' : 'box-none'}
             >
-              <Text style={{ fontSize: 24 }}>📍</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+              <YStack gap={10} style={styles.searchBarContent}>
+                <XStack style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                  <XStack gap={13} style={{ alignItems: 'center' }}>
+                    <LogoIcon />
+                    <H4 color="#000000" fontSize={24} fontWeight={'bold'}>
+                      CouPro
+                    </H4>
+                  </XStack>
 
-        {/* Bottom Sheet */}
-        <BottomSheet
-          ref={bottomSheetRef}
-          index={0}
-          snapPoints={snapPoints}
-          onChange={handleSheetChanges}
-          onAnimate={handleAnimate}
-          enablePanDownToClose={false}
-          enableDynamicSizing={false}
-          animateOnMount={true}
-          backdropComponent={renderBackdrop}
-          handleIndicatorStyle={styles.handleIndicator}
-          backgroundStyle={styles.sheetBackground}
-          style={styles.bottomSheet}
-          animationConfigs={animationConfigs}
-          enableContentPanningGesture={true}
-          enableHandlePanningGesture={true}
-        >
-          {/* Animated container for border radius */}
-          <Animated.View style={[styles.sheetContentContainer, sheetContainerAnimatedStyle]}>
-            <BottomSheetScrollView
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <YStack gap={13} style={{ paddingHorizontal: 15, paddingTop: 10 }}>
-                {/* Selected store info */}
-                {selectedStore && (
-                  (() => {
-                    const meters = getStoreDistanceMeters(selectedStore);
-                    const distanceText = meters != null ? formatDistance(meters) : null;
-                    const walkMin = meters != null ? estimateWalkMinutes(meters) : null;
-                    const { expiringSoonCount, soonestExpiry } = getStoreExpiryInfo(selectedStore.id);
-                    const soonestExpiryText = soonestExpiry
-                      ? `${soonestExpiry.getMonth() + 1}/${soonestExpiry.getDate()}`
-                      : null;
+                  <TouchableOpacity onPress={onMenuIconClick} activeOpacity={0.7}>
+                    <AlignJustify color="black" />
+                  </TouchableOpacity>
+                </XStack>
 
-                    return (
-                      <Card
-                        borderRadius="$6"
-                        padding="$4"
-                        borderColor="#e5e5e5"
-                        borderWidth={1}
-                        backgroundColor="white"
-                        shadowColor="black"
-                        shadowRadius={8}
-                        shadowOffset={{ width: 0, height: 2 }}
-                        shadowOpacity={0.06}
-                        elevation={2}
-                      >
-                        <YStack gap="$3">
-                          <XStack style={{ alignItems: 'center', justifyContent: 'space-between' }} gap="$3">
-                            <YStack flex={1} gap="$1">
-                              <Text fontSize={18} fontWeight="700" color="#000000" numberOfLines={1}>
-                                {selectedStore.name}
-                              </Text>
-                              {!!selectedStore.address && (
-                                <Text fontSize={12} color="#6b7280" numberOfLines={2}>
-                                  {selectedStore.address}
-                                </Text>
-                              )}
+                {/* Search Input */}
+                <XStack gap={12} style={styles.searchInputContainer}>
+                  <Search color="#a8a8a8" size={20} />
+                  <Input
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="搜尋店家或優惠券..."
+                    style={{ flex: 1, fontSize: 16 }}
+                    unstyled
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                      <X color="#a8a8a8" size={20} />
+                    </TouchableOpacity>
+                  )}
+                </XStack>
+              </YStack>
+            </Animated.View>
 
-                              <XStack gap={10} style={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                                <Text fontSize={12} color="#111827" fontWeight="800">
-                                  可用 {selectedStore.active_coupon_count ?? 0} 張
-                                </Text>
-                                {(distanceText != null && walkMin != null) ? (
-                                  <Text fontSize={12} color="#6b7280">
-                                    {distanceText}・步行 {walkMin} 分
-                                  </Text>
-                                ) : Platform.OS !== 'web' ? (
-                                  <Text fontSize={12} color="#9ca3af">
-                                    開啟位置後可顯示與店家的距離與步行時間，點右上角 📍 取得位置
-                                  </Text>
-                                ) : null}
-                              </XStack>
-
-                              {expiringSoonCount > 0 && (
-                                <Text fontSize={12} color="#ef4444" fontWeight="800">
-                                  有 {expiringSoonCount} 張 24 小時內到期{soonestExpiryText ? `（最早 ${soonestExpiryText}）` : ''}
-                                </Text>
-                              )}
-                            </YStack>
-
-                            <TouchableOpacity
-                              onPress={() => {
-                                setSelectedStore(null);
-                                setSearchQuery('');
-                              }}
-                              activeOpacity={0.7}
-                              style={styles.clearButton}
-                            >
-                              <Text style={{ color: '#111827', fontWeight: '700' }}>清除</Text>
-                            </TouchableOpacity>
-                          </XStack>
-
-                          <XStack gap={10}>
-                            <TouchableOpacity
-                              onPress={() => expandBottomSheetFull()}
-                              activeOpacity={0.8}
-                              style={styles.viewCouponsButton}
-                            >
-                              <Text style={{ color: 'white', fontWeight: '800' }}>查看優惠</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleNavigateToStore(selectedStore)}
-                              activeOpacity={0.8}
-                              style={styles.navigateButton}
-                            >
-                              <Text style={{ color: '#000', fontWeight: '800' }}>導航前往</Text>
-                            </TouchableOpacity>
-                          </XStack>
-                        </YStack>
-                      </Card>
-                    );
-                  })()
-                )}
-
-                {/* Scan QR Button */}
+            {/* Locate User Button */}
+            {Platform.OS !== 'web' && (
+              <Animated.View
+                style={[styles.locateButton, { top: insets.top + 150 }, locateButtonAnimatedStyle]}
+                pointerEvents={currentSnapIndex >= 2 ? 'none' : 'box-none'}
+              >
                 <TouchableOpacity
-                  onPress={() => router.push('/(tabs)/easyuse/qr-claim')}
-                  style={styles.scanQRButton}
+                  onPress={handleLocateUser}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ color: '#000', fontSize: 16, fontWeight: '700' }}>
-                    掃描 QR Code 領取優惠券
-                  </Text>
+                  <Text style={{ fontSize: 24 }}>📍</Text>
                 </TouchableOpacity>
+              </Animated.View>
+            )}
 
-                {/* Coupon Cards */}
-                {isLoading ? (
-                  <View style={styles.centerContent}>
-                    <Spinner size="large" color="#FFAD31" />
-                    <Text color="#6b7280" style={{ marginTop: 16 }}>載入中…</Text>
-                  </View>
-                ) : error ? (
-                  <View style={styles.centerContent}>
-                    <Text color="#ef4444" fontSize={16}>{error}</Text>
-                  </View>
-                ) : filteredCoupons.length === 0 ? (
-                  <View style={styles.centerContent}>
-                    <Text color="#6b7280" fontSize={16}>目前沒有可用的優惠券。</Text>
-                  </View>
-                ) : (
-                  filteredCoupons.map((coupon) => (
-                    coupon.couponType === 'gift' && coupon.shareToken ? (
-                      <GiftCard
-                        key={`gift-${coupon.id}`}
-                        storeName={coupon.storeName}
-                        couponName={coupon.couponName}
-                        description={coupon.description}
-                        imageUrl={coupon.imageUrl}
-                        tags={coupon.tags}
-                        shareToken={coupon.shareToken}
-                        sharedBy={coupon.sharedBy || '未知用戶'}
-                        onClaim={() => handleClaimGift(coupon.shareToken!)}
-                        isClaiming={claimingToken === coupon.shareToken}
-                      />
+            {/* Bottom Sheet */}
+            <BottomSheet
+              ref={bottomSheetRef}
+              index={0}
+              snapPoints={snapPoints}
+              onChange={handleSheetChanges}
+              onAnimate={handleAnimate}
+              enablePanDownToClose={false}
+              enableDynamicSizing={false}
+              animateOnMount={true}
+              backdropComponent={renderBackdrop}
+              handleIndicatorStyle={styles.handleIndicator}
+              backgroundStyle={styles.sheetBackground}
+              style={styles.bottomSheet}
+              animationConfigs={animationConfigs}
+              enableContentPanningGesture={true}
+              enableHandlePanningGesture={true}
+            >
+              {/* Animated container for border radius */}
+              <Animated.View style={[styles.sheetContentContainer, sheetContainerAnimatedStyle]}>
+                <BottomSheetScrollView
+                  contentContainerStyle={styles.scrollContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <YStack gap={13} style={{ paddingHorizontal: 15, paddingTop: 10 }}>
+                    {/* Selected store info */}
+                    {selectedStore &&
+                      (() => {
+                        const meters = getStoreDistanceMeters(selectedStore);
+                        const distanceText = meters != null ? formatDistance(meters) : null;
+                        const walkMin = meters != null ? estimateWalkMinutes(meters) : null;
+                        const { expiringSoonCount, soonestExpiry } = getStoreExpiryInfo(
+                          selectedStore.id,
+                        );
+                        const soonestExpiryText = soonestExpiry
+                          ? `${soonestExpiry.getMonth() + 1}/${soonestExpiry.getDate()}`
+                          : null;
+
+                        return (
+                          <Card
+                            borderRadius="$6"
+                            padding="$4"
+                            borderColor="#e5e5e5"
+                            borderWidth={1}
+                            backgroundColor="white"
+                            shadowColor="black"
+                            shadowRadius={8}
+                            shadowOffset={{ width: 0, height: 2 }}
+                            shadowOpacity={0.06}
+                            elevation={2}
+                          >
+                            <YStack gap="$3">
+                              <XStack
+                                style={{ alignItems: 'center', justifyContent: 'space-between' }}
+                                gap="$3"
+                              >
+                                <YStack flex={1} gap="$1">
+                                  <Text
+                                    fontSize={18}
+                                    fontWeight="700"
+                                    color="#000000"
+                                    numberOfLines={1}
+                                  >
+                                    {selectedStore.name}
+                                  </Text>
+                                  {!!selectedStore.address && (
+                                    <Text fontSize={12} color="#6b7280" numberOfLines={2}>
+                                      {selectedStore.address}
+                                    </Text>
+                                  )}
+
+                                  <XStack
+                                    gap={10}
+                                    style={{ alignItems: 'center', flexWrap: 'wrap' }}
+                                  >
+                                    <Text fontSize={12} color="#111827" fontWeight="800">
+                                      可用 {selectedStore.active_coupon_count ?? 0} 張
+                                    </Text>
+                                    {distanceText != null && walkMin != null ? (
+                                      <Text fontSize={12} color="#6b7280">
+                                        {distanceText}・步行 {walkMin} 分
+                                      </Text>
+                                    ) : Platform.OS !== 'web' ? (
+                                      <Text fontSize={12} color="#9ca3af">
+                                        開啟位置後可顯示與店家的距離與步行時間，點右上角 📍 取得位置
+                                      </Text>
+                                    ) : null}
+                                  </XStack>
+
+                                  {expiringSoonCount > 0 && (
+                                    <Text fontSize={12} color="#ef4444" fontWeight="800">
+                                      有 {expiringSoonCount} 張 24 小時內到期
+                                      {soonestExpiryText ? `（最早 ${soonestExpiryText}）` : ''}
+                                    </Text>
+                                  )}
+                                </YStack>
+
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    setSelectedStore(null);
+                                    setSearchQuery('');
+                                  }}
+                                  activeOpacity={0.7}
+                                  style={styles.clearButton}
+                                >
+                                  <Text style={{ color: '#111827', fontWeight: '700' }}>清除</Text>
+                                </TouchableOpacity>
+                              </XStack>
+
+                              <XStack gap={10}>
+                                <TouchableOpacity
+                                  onPress={() => expandBottomSheetFull()}
+                                  activeOpacity={0.8}
+                                  style={styles.viewCouponsButton}
+                                >
+                                  <Text style={{ color: 'white', fontWeight: '800' }}>
+                                    查看優惠
+                                  </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={() => handleNavigateToStore(selectedStore)}
+                                  activeOpacity={0.8}
+                                  style={styles.navigateButton}
+                                >
+                                  <Text style={{ color: '#000', fontWeight: '800' }}>導航前往</Text>
+                                </TouchableOpacity>
+                              </XStack>
+                            </YStack>
+                          </Card>
+                        );
+                      })()}
+
+                    {/* Scan QR Button */}
+                    <TouchableOpacity
+                      onPress={() => router.push('/(tabs)/easyuse/qr-claim')}
+                      style={styles.scanQRButton}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ color: '#000', fontSize: 16, fontWeight: '700' }}>
+                        掃描 QR Code 領取優惠券
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Coupon Cards */}
+                    {isLoading ? (
+                      <View style={styles.centerContent}>
+                        <Spinner size="large" color="#FFAD31" />
+                        <Text color="#6b7280" style={{ marginTop: 16 }}>
+                          載入中…
+                        </Text>
+                      </View>
+                    ) : error ? (
+                      <View style={styles.centerContent}>
+                        <Text color="#ef4444" fontSize={16}>
+                          {error}
+                        </Text>
+                      </View>
+                    ) : filteredCoupons.length === 0 ? (
+                      <View style={styles.centerContent}>
+                        <Text color="#6b7280" fontSize={16}>
+                          目前沒有可用的優惠券。
+                        </Text>
+                      </View>
                     ) : (
-                      <CouponCard
-                        key={coupon.id}
-                        storeName={coupon.storeName}
-                        description={coupon.description}
-                        imageUrl={coupon.imageUrl}
-                        tags={coupon.tags}
-                        id={coupon.id}
-                        onPress={() => onCouponPress(coupon)}
-                      />
-                    )
-                  ))
-                )}
+                      filteredCoupons.map((coupon) =>
+                        coupon.couponType === 'gift' && coupon.shareToken ? (
+                          <GiftCard
+                            key={`gift-${coupon.id}`}
+                            storeName={coupon.storeName}
+                            couponName={coupon.couponName}
+                            description={coupon.description}
+                            imageUrl={coupon.imageUrl}
+                            tags={coupon.tags}
+                            shareToken={coupon.shareToken}
+                            sharedBy={coupon.sharedBy || '未知用戶'}
+                            onClaim={() => handleClaimGift(coupon.shareToken!)}
+                            isClaiming={claimingToken === coupon.shareToken}
+                          />
+                        ) : (
+                          <CouponCard
+                            key={coupon.id}
+                            storeName={coupon.storeName}
+                            description={coupon.description}
+                            imageUrl={coupon.imageUrl}
+                            tags={coupon.tags}
+                            id={coupon.id}
+                            onPress={() => onCouponPress(coupon)}
+                          />
+                        ),
+                      )
+                    )}
 
-                {/* Bottom padding for scroll */}
-                <View style={{ height: 20 }} />
-              </YStack>
-            </BottomSheetScrollView>
-          </Animated.View>
-        </BottomSheet>
+                    {/* Bottom padding for scroll */}
+                    <View style={{ height: 20 }} />
+                  </YStack>
+                </BottomSheetScrollView>
+              </Animated.View>
+            </BottomSheet>
+          </View>
+        </DismissKeyboardView>
 
-        </View>
-      </DismissKeyboardView>
-
-      {/* Merchant Deleted Modal */}
-      <MerchantDeletedModal
-        isOpen={merchantDeletedModal.isOpen}
-        onClose={handleMerchantDeletedModalClose}
-        storeName={merchantDeletedModal.storeName}
-      />
-    </GestureHandlerRootView>
+        {/* Merchant Deleted Modal */}
+        <MerchantDeletedModal
+          isOpen={merchantDeletedModal.isOpen}
+          onClose={handleMerchantDeletedModalClose}
+          storeName={merchantDeletedModal.storeName}
+        />
+      </GestureHandlerRootView>
+    // </Sentry.ErrorBoundary>
   );
 };
 

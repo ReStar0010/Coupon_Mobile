@@ -8,6 +8,13 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from ..models import MerchantProfile, Store, CouponTemplate, Coupon, CouponRedemption, Log
 from ..serializers import MerchantProfileSerializer, StoreSerializer
+from ..utils import get_store_today, get_store_currency_code
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
+from django.db.models import Value
+from django.db.models import DecimalField
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 
 def get_merchant_store(user):
@@ -226,11 +233,37 @@ def get_merchant_statistics(request):
         template__isnull=False
     ).count()
     
-    return Response({
+    # 009 US3: 今日成本 — total discount given today (store timezone), single aggregate query
+    store_today = get_store_today(store)
+    tz_name = getattr(store, 'timezone', None) or 'Asia/Taipei'
+    try:
+        store_zone = ZoneInfo(tz_name)
+    except Exception:
+        store_zone = ZoneInfo('Asia/Taipei')
+    day_start = timezone.make_aware(
+        datetime.combine(store_today, datetime.min.time()), store_zone
+    )
+    day_end = day_start + timedelta(days=1)
+    today_cost_result = CouponRedemption.objects.filter(
+        coupon__store=store,
+        redeemed_at__gte=day_start,
+        redeemed_at__lt=day_end,
+    ).aggregate(
+        total=Sum(Coalesce('savings_amount', Value(0, output_field=DecimalField(max_digits=14, decimal_places=2))))
+    )
+    today_cost = float(today_cost_result['total'] or 0)
+    today_cost_currency = get_store_currency_code(store)
+    
+    response_data = {
         'active_coupons': active_templates_count,
         'total_redemptions': total_redemptions,
         'total_views': total_views,
         'total_templates': total_templates,
         'total_coupons_generated': total_coupons_generated,
-    }, status=status.HTTP_200_OK)
+        'today_cost': today_cost,
+    }
+    if today_cost_currency:
+        response_data['today_cost_currency'] = today_cost_currency
+    
+    return Response(response_data, status=status.HTTP_200_OK)
 

@@ -27,7 +27,7 @@ description: "Task list for QR Code Deep Linking feature implementation"
 
 **Purpose**: Verify project structure and environment for claim URLs and deep linking
 
-- [x] T001 Verify Backend env vars (COUPRO_PUBLIC_BASE_URL, COUPRO_APP_STORE_ID, COUPRO_PLAY_STORE_ID) for claim landing and AASA in Backend/Backend/settings.py or .env
+- [x] T001 Verify Backend env vars (FRONTEND_URL, COUPRO_APP_STORE_ID, COUPRO_PLAY_STORE_ID) for claim landing and AASA in Backend/Backend/settings.py or .env
 - [x] T002 [P] Verify Mobile-Frontend app.json has scheme and associatedDomains for deep links in Mobile-Frontend/app.json
 - [x] T003 [P] Verify expo-linking and expo-router are available in Mobile-Frontend/package.json
 
@@ -41,10 +41,10 @@ description: "Task list for QR Code Deep Linking feature implementation"
 
 - [x] T004 Add ClaimByTokenRequest serializer (claim_token, optional idempotency_key) in Backend/api/serializers.py
 - [x] T005 Extend claim endpoint to accept claim_token in Backend/api/views/qr_claim.py: resolve claim_token to QRCodeSession by session_token, use qr_session.template for all claim logic (do not trust client template_id)
-- [x] T006 Extend GenerateQRSessionResponse: add claim_link_web and claim_link to generate_qr_session response in Backend/api/views/qr_claim.py using COUPRO_PUBLIC_BASE_URL and app scheme
+- [x] T006 Extend GenerateQRSessionResponse: add claim_link_web and claim_link to generate_qr_session response in Backend/api/views/qr_claim.py using FRONTEND_URL and app scheme
 - [x] T007 Add claim_landing view in Backend/api/views/sharing_views.py (same pattern as collection_landing) and create Backend/api/templates/claim_landing.html with install guidance and store links only (no claim actions on web)
 - [x] T008 Add routes path('claim/<str:token>/', ...) and path('cl/<str:token>/', ...) in Backend/Backend/urls.py and wire claim_landing view
-- [x] T009 Add /claim/* and /cl/* to AASA paths in Backend/api/views/sharing_views.py (apple_app_site_association); for Android, ensure app intent filters include /claim (assetlinks.json does not use path prefixes—document if needed)
+- [x] T009 Add /claim/_ and /cl/_ to AASA paths in Backend/api/views/sharing_views.py (apple_app_site_association); for Android, ensure app intent filters include /claim (assetlinks.json does not use path prefixes—document if needed)
 
 **Checkpoint**: Foundation ready — user story implementation can begin
 
@@ -56,8 +56,8 @@ description: "Task list for QR Code Deep Linking feature implementation"
 
 **Independent Test**: Scan a QR that encodes the claim URL with system camera or external QR reader; confirm app opens and shows claim flow with correct coupon context.
 
-- [x] T010 [US1] Handle initial URL in Mobile-Frontend app/_layout.tsx using Linking.getInitialURL(): parse claim URL (web or app scheme), extract token, navigate to claim flow with token
-- [x] T011 [US1] Subscribe to URL events in Mobile-Frontend app/_layout.tsx using Linking.addEventListener('url', ...): same parse and navigate when app already open
+- [x] T010 [US1] Handle initial URL in Mobile-Frontend app/\_layout.tsx using Linking.getInitialURL(): parse claim URL (web or app scheme), extract token, navigate to claim flow with token
+- [x] T011 [US1] Subscribe to URL events in Mobile-Frontend app/\_layout.tsx using Linking.addEventListener('url', ...): same parse and navigate when app already open
 - [x] T012 [US1] Implement or wire claim flow entry (claim/ route or qr-claim screen with token param) so deep link navigates to claim flow with token in Mobile-Frontend/app/; ensure invalid/expired token shows clear error (e.g. 無效的連結, 連結已過期)
 - [x] T013 [US1] Ensure app.json associatedDomains and backend AASA include /claim path; document or add if missing in Mobile-Frontend/app.json
 
@@ -194,7 +194,7 @@ T016: Preserve re-scan prevention (same URL = payload key)
 ### Parallel Team Strategy
 
 - Complete Phase 1 + 2 together
-- After Phase 2: Developer A — US1 (Mobile-Frontend _layout + claim entry); Developer B — US2 (qr-claim.tsx); Developer C — US3 verification + US4 (merchant QR)
+- After Phase 2: Developer A — US1 (Mobile-Frontend \_layout + claim entry); Developer B — US2 (qr-claim.tsx); Developer C — US3 verification + US4 (merchant QR)
 
 ---
 

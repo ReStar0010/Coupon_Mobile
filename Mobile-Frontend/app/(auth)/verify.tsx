@@ -4,13 +4,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { devDebug, devLog, devError } from '@/app/utils/devLogger';
 import { fetchAPI, storeLoginData } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import { verifyRegistrationOtp, verifyPasswordResetOtp } from '@/app/services/phoneOtpAPI';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
-import {
-  VerifyFormContainer,
-  EmailVerifyContainer,
-  AUTH_COLORS,
-} from './_components';
+import { VerifyFormContainer, EmailVerifyContainer, AUTH_COLORS } from './_components';
 
 type VerifyMode = 'register' | 'forgotPassword' | 'emailVerify';
 
@@ -30,6 +27,7 @@ const styles = StyleSheet.create({
 export default function VerifyPage() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { getErrorMessage } = useApiError();
 
   const phoneNumber = params.phone_number as string;
   const password = params.password as string;
@@ -61,7 +59,7 @@ export default function VerifyPage() {
                 ? data.message
                     .replace('Email verified successfully', '驗證成功！即將返回登入頁面。')
                     .replace('Email already verified', '此信箱已驗證過，請直接登入。')
-                : '驗證成功！'
+                : '驗證成功！',
             );
             setError(null);
 
@@ -84,17 +82,17 @@ export default function VerifyPage() {
                 ? data.error
                     .replace('Invalid or expired token', '驗證碼無效或已過期，請重新註冊。')
                     .replace('Missing token', '驗證連結錯誤，缺少驗證碼。')
-                : '驗證失敗，請確認連結是否正確。'
+                : '驗證失敗，請確認連結是否正確。',
             );
             setMessage('');
           }
         })
-        .catch(() => {
-          setError('伺服器連線失敗，請稍後再試。');
+        .catch((err: unknown) => {
+          setError(getErrorMessage(err));
           setMessage('');
         });
     }
-  }, [mode, token, params.email, params.password, router]);
+  }, [mode, token, params.email, params.password, router, getErrorMessage]);
 
   // Handle OTP verification for registration
   const handleVerifyRegistrationOTP = async () => {
@@ -128,11 +126,9 @@ export default function VerifyPage() {
       router.replace('/(tabs)/easyuse');
     } catch (err: unknown) {
       devError('Registration OTP verification error:', err);
-      const errorObj = err as { error?: string };
-      const errorMessage = errorObj?.error || '驗證失敗，請重試';
       Toast.show({
         type: 'failRed',
-        text1: errorMessage,
+        text1: getErrorMessage(err),
         position: 'bottom',
         visibilityTime: 2000,
       });
@@ -181,11 +177,9 @@ export default function VerifyPage() {
       });
     } catch (err: unknown) {
       devError('Password reset OTP verification error:', err);
-      const errorObj = err as { error?: string };
-      const errorMessage = errorObj?.error || '驗證失敗，請重試';
       Toast.show({
         type: 'failRed',
-        text1: errorMessage,
+        text1: getErrorMessage(err),
         position: 'bottom',
         visibilityTime: 2000,
       });
@@ -204,7 +198,8 @@ export default function VerifyPage() {
   }
 
   // Render OTP verification UI
-  const handleVerify = mode === 'register' ? handleVerifyRegistrationOTP : handleVerifyPasswordResetOTP;
+  const handleVerify =
+    mode === 'register' ? handleVerifyRegistrationOTP : handleVerifyPasswordResetOTP;
 
   return (
     <SafeAreaView style={styles.safeArea}>

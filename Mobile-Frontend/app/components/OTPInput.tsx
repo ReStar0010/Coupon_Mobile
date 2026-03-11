@@ -19,7 +19,7 @@ interface OTPInputProps {
 
 /**
  * OTPInput Component
- * 
+ *
  * A mobile-friendly OTP input with 6 individual boxes for touch-friendly input.
  * Features:
  * - Auto-advance focus on digit entry
@@ -73,10 +73,10 @@ export const OTPInput: React.FC<OTPInputProps> = ({
       const digits = text.split('');
       setOtp(digits);
       onChange?.(text);
-      
+
       // Focus last input
       inputs.current[length - 1]?.focus();
-      
+
       // Auto-submit if enabled
       if (autoSubmit) {
         onComplete(text);
@@ -213,4 +213,3 @@ const styles = StyleSheet.create({
 });
 
 export default OTPInput;
-
