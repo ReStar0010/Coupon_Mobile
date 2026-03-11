@@ -41,6 +41,16 @@ export const transformApiCoupon = (coupon: ApiCoupon): CouponType => {
 };
 
 /**
+ * Withdraw a coupon from the public pool (cancel public share).
+ */
+export const withdrawPublicShare = async (shareId: number): Promise<void> => {
+  await fetchAPI(`/coupon/share-public/${shareId}/withdraw/`, {
+    method: 'POST',
+    withCredentials: true,
+  });
+};
+
+/**
  * Generate shareable link for a coupon
  */
 export const generateShareLink = async (couponId: number): Promise<string | null> => {

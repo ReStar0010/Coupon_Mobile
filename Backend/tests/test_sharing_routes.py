@@ -98,6 +98,34 @@ class SharingRoutesTest(TestCase):
         response = self.client.get('/api/my-public-shares/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_withdraw_public_share_unauth_401(self):
+        """POST api/coupon/share-public/<id>/withdraw/ without auth returns 401."""
+        response = self.client.post('/api/coupon/share-public/1/withdraw/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_withdraw_public_share_success(self):
+        """Withdraw pending public share restores coupon to user."""
+        self.coupon.current_holder = self.user
+        self.coupon.save()
+        self.client.force_authenticate(user=self.user)
+        share_resp = self.client.post(
+            f'/api/coupon/{self.coupon.id}/share-public/', {}, format='json'
+        )
+        self.assertEqual(share_resp.status_code, status.HTTP_200_OK)
+        share_id = share_resp.data.get('share_id')
+        self.assertIsNotNone(share_id)
+        self.coupon.refresh_from_db()
+        self.assertIsNone(self.coupon.current_holder)
+
+        withdraw_resp = self.client.post(
+            f'/api/coupon/share-public/{share_id}/withdraw/', {}, format='json'
+        )
+        self.assertEqual(withdraw_resp.status_code, status.HTTP_200_OK)
+        self.coupon.refresh_from_db()
+        self.assertEqual(self.coupon.current_holder, self.user)
+        share = CouponShareRequest.objects.get(id=share_id)
+        self.assertEqual(share.status, 'cancelled')
+
     def test_collection_landing(self):
         """GET collection/<token>/ returns 200 or 404."""
         response = self.client.get('/collection/some-token/')

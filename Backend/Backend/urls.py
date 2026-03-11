@@ -25,6 +25,7 @@ from api.views.sharing_views import (
     accept_share_request,
     share_coupon_public,
     get_my_public_shares,
+    withdraw_public_share,
     collection_landing,
     claim_landing,
     apple_app_site_association,
@@ -158,6 +159,7 @@ urlpatterns = [
     path('api/coupon/share/<str:token>/', get_share_request, name='get_share_request'),
     path('api/coupon/share/<str:token>/accept/', accept_share_request, name='accept_share_request'),
     path('api/my-public-shares/', get_my_public_shares, name='get_my_public_shares'),
+    path('api/coupon/share-public/<int:share_id>/withdraw/', withdraw_public_share, name='withdraw_public_share'),
 
     # Authentication endpoints    
     path('api/register/', register),

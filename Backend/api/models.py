@@ -464,7 +464,16 @@ class CouponShareRequest(models.Model):
 
     # Token for the share request, used for verification
     token = models.CharField(max_length=64, unique=True)
-    status = models.CharField(max_length=16, choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('declined', 'Declined')], default='pending')
+    status = models.CharField(
+        max_length=16,
+        choices=[
+            ('pending', 'Pending'),
+            ('accepted', 'Accepted'),
+            ('declined', 'Declined'),
+            ('cancelled', 'Cancelled'),
+        ],
+        default='pending',
+    )
     created_at = models.DateTimeField(default=timezone.now)
     responded_at = models.DateTimeField(null=True, blank=True)
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { Image } from 'react-native';
+import { Image, Pressable } from 'react-native';
 import { YStack, XStack, Text, Card, View } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { COLORS, BORDER_RADIUS, SPACING } from '@/app/constants/theme';
@@ -9,6 +9,11 @@ import { getAcquisitionMethodLabel } from '../utils/couponUtils';
 interface CouponProps extends Partial<CouponType> {
   className?: string;
   onMerchantDeleted?: (storeName: string, storeId: number) => void;
+  /** When set, this coupon is in the public pool; show withdraw UI */
+  shareIdInPool?: number;
+  onWithdrawFromPool?: (shareId: number) => void;
+  /** Label when coupon is in pool (e.g. "交換池中") */
+  inPoolLabel?: string;
 }
 
 const DEFAULT_IMAGE_URL =
@@ -46,11 +51,15 @@ const Coupon: React.FC<CouponProps> = ({
   storeId,
   merchantDeleted,
   onMerchantDeleted,
+  shareIdInPool,
+  onWithdrawFromPool,
+  inPoolLabel = '交換池中',
 }) => {
   const router = useRouter();
+  const isInPool = shareIdInPool != null;
 
   const handleCouponPress = useCallback(() => {
-    // If merchant has deleted their account, show the notice modal
+    if (isInPool) return; // In-pool cards only act via withdraw button
     if (merchantDeleted && storeId && storeName && onMerchantDeleted) {
       onMerchantDeleted(storeName, storeId);
       return;
@@ -61,7 +70,13 @@ const Coupon: React.FC<CouponProps> = ({
       pathname: '/(tabs)/easyuse/[id]',
       params: { id: String(id), source: 'collection' },
     });
-  }, [router, id, merchantDeleted, storeId, storeName, onMerchantDeleted]);
+  }, [isInPool, router, id, merchantDeleted, storeId, storeName, onMerchantDeleted]);
+
+  const handleWithdrawPress = useCallback(() => {
+    if (shareIdInPool != null && onWithdrawFromPool) {
+      onWithdrawFromPool(shareIdInPool);
+    }
+  }, [shareIdInPool, onWithdrawFromPool]);
 
   const formattedDate = useMemo(() => {
     return expiryDate ? expiryDate.toLocaleDateString() : '';
@@ -105,10 +120,30 @@ const Coupon: React.FC<CouponProps> = ({
           </Text>
 
           <Text fontSize="$3" color={COLORS.text.secondary} numberOfLines={1}>
-            有效期限 : {formattedDate}
+            {isInPool ? `狀態 : ${inPoolLabel}` : `有效期限 : ${formattedDate}`}
           </Text>
 
-          {acquisitionMethod && (
+          {isInPool && shareIdInPool != null && onWithdrawFromPool && (
+            <View style={{ marginTop: 4 }}>
+              <Pressable
+                onPress={handleWithdrawPress}
+                style={({ pressed }) => ({
+                  alignSelf: 'flex-start',
+                  backgroundColor: COLORS.primary,
+                  borderRadius: BORDER_RADIUS.md,
+                  paddingHorizontal: SPACING.md,
+                  paddingVertical: SPACING.sm,
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                <Text fontSize={14} color="white" fontWeight="600">
+                  收回
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {!isInPool && acquisitionMethod && (
             <Text fontSize="$3" color={COLORS.text.secondary} numberOfLines={1}>
               取得方式 : {getAcquisitionMethodLabel(acquisitionMethod)}
             </Text>
@@ -136,6 +171,7 @@ export default React.memo(Coupon, (prevProps, nextProps) => {
     prevProps.imageUrl === nextProps.imageUrl &&
     JSON.stringify(prevProps.tags) === JSON.stringify(nextProps.tags) &&
     prevProps.storeId === nextProps.storeId &&
-    prevProps.merchantDeleted === nextProps.merchantDeleted
+    prevProps.merchantDeleted === nextProps.merchantDeleted &&
+    prevProps.shareIdInPool === nextProps.shareIdInPool
   );
 });

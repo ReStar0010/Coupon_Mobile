@@ -7,6 +7,7 @@ from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -407,3 +408,42 @@ def get_my_public_shares(request):
         })
 
     return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def withdraw_public_share(request, share_id):
+    """
+    Withdraw a coupon from the public pool. Only the user who shared it (from_user)
+    can withdraw. Valid only for pending public shares. Restores coupon to the user.
+    """
+    share_request = get_object_or_404(
+        CouponShareRequest,
+        id=share_id,
+        from_user=request.user,
+        is_public=True,
+    )
+    if share_request.status != 'pending':
+        return Response(
+            {'error': 'Only pending public shares can be withdrawn.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    with transaction.atomic():
+        share_request.status = 'cancelled'
+        share_request.responded_at = timezone.now()
+        share_request.save()
+
+        coupon = share_request.coupon
+        coupon.current_holder = request.user
+        coupon.save(update_fields=['current_holder'])
+
+    logger.info(
+        "Public share withdrawn",
+        extra={
+            "user_id": request.user.id,
+            "share_id": share_id,
+            "coupon_id": coupon.id,
+        },
+    )
+    return Response({'message': 'Coupon withdrawn from public pool.'}, status=status.HTTP_200_OK)

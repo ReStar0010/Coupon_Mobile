@@ -8,7 +8,7 @@ import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import AppHeader from '@/app/components/shared/AppHeader';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import Gift from './Gift';
-import { filterCoupons } from './utils/couponUtils';
+import { filterCoupons, withdrawPublicShare } from './utils/couponUtils';
 import { COLORS } from '@/app/constants/theme';
 import { useDismissedStores } from '@/app/components/providers/DismissedStoresProvider';
 import { useBlockedMerchants } from '@/app/components/providers/BlockedMerchantsProvider';
@@ -27,31 +27,39 @@ import { useTags } from './hooks/useTags';
 import Coupon from './components/Coupon';
 import DailyDrawBanner from './components/DailyDrawBanner';
 import DailyDrawModal from './components/DailyDrawModal';
-import MySharedCoupons from './components/MySharedCoupons';
 import MyPlatformVouchers from './components/MyPlatformVouchers';
 import { FilterBar } from './components/FilterBar';
 import type { CouponType } from './utils/types';
 import { useCollectionFilters } from './hooks/useCollectionFilters';
 
+/** List item: normal coupon or in-pool share (has shareIdInPool) */
+type CollectionListItem = CouponType & { shareIdInPool?: number };
+
 interface CouponItemProps {
-  item: CouponType;
+  item: CollectionListItem;
   onMerchantDeleted?: (storeName: string, storeId: number) => void;
+  onWithdrawFromPool?: (shareId: number) => void;
 }
 
-const CouponItem: React.FC<CouponItemProps> = React.memo(({ item, onMerchantDeleted }) => (
-  <Coupon
-    key={item.id}
-    couponName={item.couponName}
-    storeName={item.storeName}
-    expiryDate={item.expiryDate}
-    id={item.id}
-    imageUrl={item.imageUrl}
-    tags={item.tags}
-    storeId={item.storeId}
-    merchantDeleted={item.merchantDeleted}
-    onMerchantDeleted={onMerchantDeleted}
-  />
-));
+const CouponItem: React.FC<CouponItemProps> = React.memo(
+  ({ item, onMerchantDeleted, onWithdrawFromPool }) => (
+    <Coupon
+      key={item.id ?? item.shareIdInPool}
+      couponName={item.couponName}
+      storeName={item.storeName}
+      expiryDate={item.expiryDate}
+      id={item.id}
+      imageUrl={item.imageUrl}
+      tags={item.tags}
+      storeId={item.storeId}
+      merchantDeleted={item.merchantDeleted}
+      onMerchantDeleted={onMerchantDeleted}
+      shareIdInPool={item.shareIdInPool}
+      onWithdrawFromPool={onWithdrawFromPool}
+      inPoolLabel="交換池中"
+    />
+  ),
+);
 
 CouponItem.displayName = 'CouponItem';
 
@@ -149,34 +157,60 @@ const Collection: React.FC = () => {
     openMerchantPicker,
   } = filters;
 
-  const publicShareCouponIds = useMemo(
-    () => new Set(publicShares.map((s) => s.coupon_id)),
-    [publicShares],
+  const activeCoupons = useMemo(
+    () =>
+      coupons.filter(
+        (coupon) =>
+          !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId)),
+      ),
+    [coupons, isStoreDismissed, isStoreBlocked],
   );
 
-  const filteredCoupons = useMemo(() => {
-    const activeCoupons = coupons.filter(
-      (coupon) =>
-        !coupon.storeId || (!isStoreDismissed(coupon.storeId) && !isStoreBlocked(coupon.storeId)),
-    );
-    const excludedFromPool = activeCoupons.filter((c) => !c.id || !publicShareCouponIds.has(c.id));
-    return filterCoupons(
-      excludedFromPool,
-      searchQuery,
-      selectedTagDisplayNames,
-      expiryFilter,
-      selectedMerchant,
-    );
-  }, [
-    coupons,
-    searchQuery,
-    isStoreDismissed,
-    isStoreBlocked,
-    publicShareCouponIds,
-    selectedTagDisplayNames,
-    expiryFilter,
-    selectedMerchant,
-  ]);
+  const baseFiltered = useMemo(
+    () =>
+      filterCoupons(
+        activeCoupons,
+        searchQuery,
+        selectedTagDisplayNames,
+        expiryFilter,
+        selectedMerchant,
+      ),
+    [activeCoupons, searchQuery, selectedTagDisplayNames, expiryFilter, selectedMerchant],
+  );
+
+  const pendingPoolItems = useMemo((): CollectionListItem[] => {
+    const pending = publicShares.filter((s) => s.status === 'pending');
+    const placeholderDate = new Date(0);
+    return pending.map((s) => ({
+      id: s.coupon_id,
+      couponName: s.coupon_name,
+      storeName: s.store_name ?? '',
+      description: '',
+      startDate: placeholderDate,
+      expiryDate: placeholderDate,
+      couponType: 'exclusive' as const,
+      imageUrl: s.image_url ?? undefined,
+      shareIdInPool: s.share_id,
+    }));
+  }, [publicShares]);
+
+  const filteredCoupons = useMemo(
+    () => [...baseFiltered, ...pendingPoolItems],
+    [baseFiltered, pendingPoolItems],
+  );
+
+  const handleWithdrawFromPool = useCallback(
+    async (shareId: number) => {
+      try {
+        await withdrawPublicShare(shareId);
+        fetchCoupons();
+        fetchPublicShares();
+      } catch (err) {
+        console.error('Withdraw from pool failed:', err);
+      }
+    },
+    [fetchCoupons, fetchPublicShares],
+  );
 
   const onRefresh = useCallback(() => {
     fetchCoupons();
@@ -214,24 +248,27 @@ const Collection: React.FC = () => {
   }, [merchantDeletedModal.storeId, dismissStore]);
 
   const renderCouponItem = useCallback(
-    ({ item }: { item: CouponType }) => (
-      <CouponItem item={item} onMerchantDeleted={handleMerchantDeleted} />
+    ({ item }: { item: CollectionListItem }) => (
+      <CouponItem
+        item={item}
+        onMerchantDeleted={handleMerchantDeleted}
+        onWithdrawFromPool={handleWithdrawFromPool}
+      />
     ),
-    [handleMerchantDeleted],
+    [handleMerchantDeleted, handleWithdrawFromPool],
   );
 
   const keyExtractor = useCallback(
-    (item: CouponType) => item.id?.toString() || `item-${Math.random()}`,
+    (item: CollectionListItem) =>
+      item.shareIdInPool != null
+        ? `pool-${item.shareIdInPool}`
+        : (item.id?.toString() ?? `item-${Math.random()}`),
     [],
   );
 
   const ListHeaderComponent = useMemo(
     () => (
       <YStack gap={25}>
-        {/* My Shared Coupons Section */}
-        <MySharedCoupons shares={publicShares} isLoading={sharesLoading} />
-
-        {/* My Platform Vouchers Section */}
         <MyPlatformVouchers vouchers={platformVouchers} isLoading={vouchersLoading} />
 
         {!hasDailyDrawn && !showSharedGift && <DailyDrawBanner onClick={handleOpenDailyDraw} />}
@@ -251,8 +288,6 @@ const Collection: React.FC = () => {
       </YStack>
     ),
     [
-      publicShares,
-      sharesLoading,
       platformVouchers,
       vouchersLoading,
       hasDailyDrawn,
