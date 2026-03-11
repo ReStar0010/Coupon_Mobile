@@ -114,7 +114,6 @@ if (__DEV__) {
   console.log('\n' + '='.repeat(50));
   console.log('📱 應用啟動 - 後端配置');
   console.log('='.repeat(50));
-  console.log(`模式: ${apiConfig.mode}`);
   console.log(`Base URL: ${apiConfig.baseUrl}`);
   console.log(`API URL: ${apiConfig.apiUrl}`);
   console.log('='.repeat(50) + '\n');

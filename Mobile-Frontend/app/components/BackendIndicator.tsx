@@ -7,44 +7,24 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { getApiConfig } from '../config/api';
 
-export const BackendIndicator = () => {
-  // 只在開發模式下顯示
-  if (process.env.NODE_ENV === 'production') {
-    return null;
-  }
+const PRODUCTION_URL = 'https://coupon-mobile.onrender.com';
+const STAGING_URL = 'https://coupon-mobile-dev.onrender.com';
 
+export const BackendIndicator = () => {
   const config = getApiConfig();
 
-  // 根據模式設置顏色
-  const getModeColor = () => {
-    switch (config.mode) {
-      case 'production':
-        return '#10b981'; // 綠色
-      case 'local':
-        return '#3b82f6'; // 藍色
-      case 'local-network':
-        return '#f59e0b'; // 橙色
-      default:
-        return '#6b7280'; // 灰色
-    }
-  };
+  // 只在開發時顯示（永遠顯示，讓設計可見，只依 baseUrl 決定顏色）
+  let bgColor = '#10b981'; // 預設綠色（生產）
+  let label = '🔧 生產環境';
 
-  const getModeLabel = () => {
-    switch (config.mode) {
-      case 'production':
-        return '生產環境';
-      case 'local':
-        return '本地 (localhost)';
-      case 'local-network':
-        return '本地網絡';
-      default:
-        return '未知';
-    }
-  };
+  if (config.baseUrl === STAGING_URL) {
+    bgColor = '#f59e42'; // 黃色
+    label = '🟡 測試環境 (Staging)';
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: getModeColor() }]}>
-      <Text style={styles.text}>🔧 {getModeLabel()}</Text>
+    <View style={[styles.container, { backgroundColor: bgColor }]}>
+      <Text style={styles.text}>{label}</Text>
       <Text style={styles.url} numberOfLines={1}>
         {config.baseUrl}
       </Text>
