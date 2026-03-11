@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import { isAxiosError } from 'axios';
 import { DailyDrawResult, DrawTemplate } from '@/app/(tabs)/collection/utils/types';
 import { checkLastDrawDate } from '@/app/(tabs)/collection/utils/couponUtils';
@@ -49,7 +49,7 @@ export function useDailyDraw(
       }
     } catch (error) {
       console.error('Error checking draw status:', error);
-      Sentry.captureException(error, { data: { context: 'useDailyDraw.checkLastDrawDate' } });
+      // Sentry.captureException(error, { data: { context: 'useDailyDraw.checkLastDrawDate' } });
     }
   }, [isAuthenticated, authLoading]);
 

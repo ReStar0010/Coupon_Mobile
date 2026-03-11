@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import { Alert, Linking, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { isAxiosError } from 'axios';
@@ -137,7 +137,7 @@ const CouponDetailPage: React.FC = () => {
     } catch (error) {
       // Silently fail - don't interrupt user experience
       console.error('Failed to track template view:', error);
-      Sentry.captureException(error, { data: { context: 'easyuse.trackTemplateView' } });
+      // Sentry.captureException(error, { data: { context: 'easyuse.trackTemplateView' } });
     }
   };
 
@@ -436,7 +436,7 @@ const CouponDetailPage: React.FC = () => {
           }
         })
         .catch((err) => {
-          Sentry.captureException(err, { data: { context: 'easyuse.openMapsNavigation' } });
+          // Sentry.captureException(err, { data: { context: 'easyuse.openMapsNavigation' } });
           Alert.alert(t('easyuse.error'), t('easyuse.openMapsFailed'));
         });
     } else {

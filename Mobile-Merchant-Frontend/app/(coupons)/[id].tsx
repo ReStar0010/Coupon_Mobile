@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -121,19 +121,19 @@ export default function CouponRedemptionScreen() {
   const isPhoneValid = TW_PHONE_REGEX.test(phoneNumber.trim());
 
   return (
-    <Sentry.ErrorBoundary
-      fallback={({ error, componentStack, resetError }) => (
-        <ScreenErrorFallback
-          error={error as Error}
-          componentStack={componentStack}
-          resetError={resetError}
-        />
-      )}
-      beforeCapture={(scope) => {
-        scope.setTag('boundary', 'coupon-detail-screen');
-        scope.setTag('boundary_type', 'screen');
-      }}
-    >
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'coupon-detail-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    // >
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
         <DismissKeyboardView>
           <View style={styles.mainContainer}>
@@ -174,7 +174,7 @@ export default function CouponRedemptionScreen() {
           </View>
         </DismissKeyboardView>
       </SafeAreaView>
-    </Sentry.ErrorBoundary>
+    // </Sentry.ErrorBoundary>
   );
 }
 

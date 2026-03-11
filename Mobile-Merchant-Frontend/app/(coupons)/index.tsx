@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -82,7 +82,7 @@ export default function CouponsScreen() {
         router.replace('/(auth)/login');
         return;
       }
-      Sentry.captureException(error, { data: { context: 'merchant.couponList.loadCoupons' } });
+      // Sentry.captureException(error, { data: { context: 'merchant.couponList.loadCoupons' } });
       setLoadError(getErrorMessage(error));
     } finally {
       setIsLoading(false);
@@ -270,9 +270,9 @@ export default function CouponsScreen() {
       setIsQRCodeModalOpen(true);
     } catch (error: unknown) {
       console.error('Failed to generate unified redemption code:', error);
-      Sentry.captureException(error, {
-        data: { context: 'merchant.couponList.generateUnifiedRedemptionCode' },
-      });
+      // Sentry.captureException(error, {
+      //   data: { context: 'merchant.couponList.generateUnifiedRedemptionCode' },
+      // });
       Alert.alert('錯誤', getErrorMessage(error));
     } finally {
       setIsGeneratingCode(false);
@@ -280,19 +280,19 @@ export default function CouponsScreen() {
   };
 
   return (
-    <Sentry.ErrorBoundary
-      fallback={({ error, componentStack, resetError }) => (
-        <ScreenErrorFallback
-          error={error as Error}
-          componentStack={componentStack}
-          resetError={resetError}
-        />
-      )}
-      beforeCapture={(scope) => {
-        scope.setTag('boundary', 'coupon-list-screen');
-        scope.setTag('boundary_type', 'screen');
-      }}
-    >
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'coupon-list-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    // >
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'bottom']}>
         <DismissKeyboardView>
           <YStack flex={1} backgroundColor={colors.white}>
@@ -429,7 +429,7 @@ export default function CouponsScreen() {
           qrValue={qrCodeValue}
         />
       </SafeAreaView>
-    </Sentry.ErrorBoundary>
+    // </Sentry.ErrorBoundary>
   );
 }
 

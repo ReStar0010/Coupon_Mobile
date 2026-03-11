@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -91,7 +91,7 @@ export default function MerchantProfileScreen() {
         ]);
         return;
       }
-      Sentry.captureException(error, { data: { context: 'merchant.profile.loadData' } });
+      // Sentry.captureException(error, { data: { context: 'merchant.profile.loadData' } });
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +128,7 @@ export default function MerchantProfileScreen() {
             router.replace('/(auth)/login');
           } catch (error) {
             console.error('Logout error:', error);
-            Sentry.captureException(error, { data: { context: 'merchant.profile.logout' } });
+            // Sentry.captureException(error, { data: { context: 'merchant.profile.logout' } });
             Alert.alert('錯誤', '登出失敗，請稍後再試');
           }
         },
@@ -137,19 +137,19 @@ export default function MerchantProfileScreen() {
   };
 
   return (
-    <Sentry.ErrorBoundary
-      fallback={({ error, componentStack, resetError }) => (
-        <ScreenErrorFallback
-          error={error as Error}
-          componentStack={componentStack}
-          resetError={resetError}
-        />
-      )}
-      beforeCapture={(scope) => {
-        scope.setTag('boundary', 'profile-screen');
-        scope.setTag('boundary_type', 'screen');
-      }}
-    >
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'profile-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    // >
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
         <YStack flex={1} backgroundColor={colors.white}>
           <Header onLogoPress={() => router.push('/(coupons)/')} showMenu={false} />
@@ -323,7 +323,7 @@ export default function MerchantProfileScreen() {
           </ScrollView>
         </YStack>
       </SafeAreaView>
-    </Sentry.ErrorBoundary>
+    // </Sentry.ErrorBoundary>
   );
 }
 

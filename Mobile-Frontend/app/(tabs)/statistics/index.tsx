@@ -11,7 +11,7 @@ import StatisticsChart from './components/StatisticsChart';
 import StatCard from './components/StatCard';
 import GoalModal from './components/GoalModal';
 import StatisticsToast from './components/StatisticsToast';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '../../components/ScreenErrorFallback';
 import {
   XStack,
@@ -112,26 +112,27 @@ const Statistics: React.FC = () => {
       await Promise.all([fetchUserStats?.(), refetchHistory?.()]);
     } catch (error) {
       console.error('Error refreshing data:', error);
-      Sentry.captureException(error, { data: { context: 'statistics.refreshData' } });
+      // Sentry.captureException(error, { data: { context: 'statistics.refreshData' } });
     } finally {
       setRefreshing(false);
     }
   }, [fetchUserStats, refetchHistory]);
 
   return (
-    <Sentry.ErrorBoundary
-      fallback={({ error, componentStack, resetError }) => (
-        <ScreenErrorFallback
-          error={error as Error}
-          componentStack={componentStack}
-          resetError={resetError}
-        />
-      )}
-      beforeCapture={(scope) => {
-        scope.setTag('boundary', 'statistics-screen');
-        scope.setTag('boundary_type', 'screen');
-      }}
-    >
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'statistics-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    // >
+    <>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Show loading indicator only while authentication is loading */}
@@ -352,7 +353,8 @@ const Statistics: React.FC = () => {
           />
         </View>
       )}
-    </Sentry.ErrorBoundary>
+    // </Sentry.ErrorBoundary>
+    </>
   );
 };
 

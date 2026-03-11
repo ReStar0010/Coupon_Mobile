@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Modal, TouchableOpacity, View } from 'react-native';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import { YStack, Text, XStack, ScrollView } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -135,7 +135,7 @@ export default function RegisterScreen() {
         setShowErrorModal(true);
       } else {
         // 非預期錯誤：網路、伺服器錯誤等，回報 Sentry 並顯示通用訊息
-        Sentry.captureException(error);
+        // Sentry.captureException(error);
         setErrorMessage('註冊失敗，請稍後再試');
         setShowErrorModal(true);
       }

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import { ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -40,7 +40,7 @@ const HistoryPage: React.FC = () => {
         router.push(`/statistics/history/${couponId}`);
       } catch (error) {
         console.error('Error storing coupon history:', error);
-        Sentry.captureException(error, { data: { context: 'history.saveCouponHistory' } });
+        // Sentry.captureException(error, { data: { context: 'history.saveCouponHistory' } });
       }
     },
     [router],

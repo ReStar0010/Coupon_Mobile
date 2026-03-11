@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import WidgetErrorFallback from './WidgetErrorFallback';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, Linking } from 'react-native';
 import { colors } from '@/constants/colors';
@@ -167,13 +167,13 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   };
 
   return (
-    <Sentry.ErrorBoundary
-      fallback={<WidgetErrorFallback message="位置選擇器暫時無法使用" />}
-      beforeCapture={(scope) => {
-        scope.setTag('boundary', 'location-picker-widget');
-        scope.setTag('boundary_type', 'widget');
-      }}
-    >
+    // <Sentry.ErrorBoundary
+    //   fallback={<WidgetErrorFallback message="位置選擇器暫時無法使用" />}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'location-picker-widget');
+    //     scope.setTag('boundary_type', 'widget');
+    //   }}
+    // >
       <View style={[styles.container, { height }]}>
         <MapView
           ref={mapRef}
@@ -221,7 +221,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
           </TouchableOpacity>
         </View>
       </View>
-    </Sentry.ErrorBoundary>
+    // </Sentry.ErrorBoundary>
   );
 };
 

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '../../components/ScreenErrorFallback';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -778,19 +778,19 @@ const CouPro = () => {
   );
 
   return (
-    <Sentry.ErrorBoundary
-      fallback={({ error, componentStack, resetError }) => (
-        <ScreenErrorFallback
-          error={error as Error}
-          componentStack={componentStack}
-          resetError={resetError}
-        />
-      )}
-      beforeCapture={(scope) => {
-        scope.setTag('boundary', 'easyuse-screen');
-        scope.setTag('boundary_type', 'screen');
-      }}
-    >
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'easyuse-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    // >
       <GestureHandlerRootView style={styles.container}>
         <Stack.Screen options={{ headerShown: false }} />
         {__DEV__ && <BackendIndicator />}
@@ -1075,7 +1075,7 @@ const CouPro = () => {
           storeName={merchantDeletedModal.storeName}
         />
       </GestureHandlerRootView>
-    </Sentry.ErrorBoundary>
+    // </Sentry.ErrorBoundary>
   );
 };
 

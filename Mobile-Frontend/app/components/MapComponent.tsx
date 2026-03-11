@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import WidgetErrorFallback from './WidgetErrorFallback';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -203,13 +203,13 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
   return (
     <View style={[styles.container, { borderRadius: 12, overflow: 'hidden' }]}>
-      <Sentry.ErrorBoundary
-        fallback={<WidgetErrorFallback message="地圖暫時無法顯示" minHeight={200} />}
+      {/* <Sentry.ErrorBoundary */}
+        {/* fallback={<WidgetErrorFallback message="地圖暫時無法顯示" minHeight={200} />}
         beforeCapture={(scope) => {
           scope.setTag('boundary', 'map-widget');
           scope.setTag('boundary_type', 'widget');
         }}
-      >
+      > */}
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -250,7 +250,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
             </Marker>
           ))}
         </MapView>
-      </Sentry.ErrorBoundary>
+      {/* </Sentry.ErrorBoundary> */}
 
       {/* Custom locate user button - removed, will be added in parent component */}
 

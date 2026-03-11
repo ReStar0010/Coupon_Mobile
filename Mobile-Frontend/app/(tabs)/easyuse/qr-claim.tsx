@@ -348,21 +348,21 @@ function QRClaimScannerContent() {
 
 export default function QRClaimScanner() {
   return (
-    <Sentry.ErrorBoundary
-      fallback={({ error, componentStack, resetError }) => (
-        <ScreenErrorFallback
-          error={error as Error}
-          componentStack={componentStack}
-          resetError={resetError}
-        />
-      )}
-      beforeCapture={(scope) => {
-        scope.setTag('boundary', 'qr-claim-screen');
-        scope.setTag('boundary_type', 'screen');
-      }}
-    >
+    // <Sentry.ErrorBoundary
+    //   fallback={({ error, componentStack, resetError }) => (
+    //     <ScreenErrorFallback
+    //       error={error as Error}
+    //       componentStack={componentStack}
+    //       resetError={resetError}
+    //     />
+    //   )}
+    //   beforeCapture={(scope) => {
+    //     scope.setTag('boundary', 'qr-claim-screen');
+    //     scope.setTag('boundary_type', 'screen');
+    //   }}
+    // >
       <QRClaimScannerContent />
-    </Sentry.ErrorBoundary>
+    // </Sentry.ErrorBoundary>
   );
 }
 

@@ -1,6 +1,6 @@
 // Utility functions for Collection page
 
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 import { fetchAPI } from '@/app/utils/authAPI';
 import { ApiCoupon, CouponType, ExpiryFilter } from './types';
 
@@ -67,7 +67,7 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
     return true;
   } catch (err) {
     console.error('Failed to copy to clipboard:', err);
-    Sentry.captureException(err, { data: { context: 'couponUtils.copyToClipboard' } });
+    // Sentry.captureException(err, { data: { context: 'couponUtils.copyToClipboard' } });
     return false;
   }
 };
