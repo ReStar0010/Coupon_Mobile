@@ -51,7 +51,7 @@ export default function OTPRequestScreen() {
           onPress: () => {
             // Navigate to verify screen with phone number and timing info
             router.push({
-              pathname: '/OptionsMenu/PhoneSettings/OTPVerifyScreen',
+              pathname: '/options-menu/phone-settings/PhoneSettings/OTPVerifyScreen',
               params: {
                 phone: normalized,
                 cooldownSeconds: response.cooldown_seconds.toString(),

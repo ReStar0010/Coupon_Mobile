@@ -117,7 +117,7 @@ export default function OTPVerifyScreen() {
           text: '確定',
           onPress: () => {
             // Navigate back to phone settings or main screen
-            router.replace('/OptionsMenu/PhoneSettings');
+            router.replace('/options-menu/phone-settings/PhoneSettings');
           },
         },
       ]);

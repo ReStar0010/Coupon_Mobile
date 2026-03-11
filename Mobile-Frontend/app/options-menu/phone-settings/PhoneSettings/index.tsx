@@ -55,7 +55,7 @@ export default function PhoneSettings() {
   const handleAddOrChangePhone = () => {
     // Navigate to OTP request screen
     router.push({
-      pathname: '/OptionsMenu/PhoneSettings/OTPRequestScreen',
+      pathname: '/options-menu/phone-settings/PhoneSettings/OTPRequestScreen',
       params: {
         currentPhone: phone || undefined,
       },
