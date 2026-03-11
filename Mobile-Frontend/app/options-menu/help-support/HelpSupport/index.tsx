@@ -148,62 +148,6 @@ export default function HelpSupportScreen() {
             </YStack>
           </TouchableOpacity>
 
-          {/* Common Questions */}
-          <YStack
-            backgroundColor="#fff"
-            padding="$4"
-            borderRadius="$4"
-            borderWidth={1}
-            borderColor={colors.border}
-            gap="$3"
-          >
-            <Text fontSize="$md" fontWeight="600" color={colors.textPrimary}>
-              常見問題
-            </Text>
-
-            <YStack gap="$2">
-              <Text fontSize={14} fontWeight="600" color={colors.textPrimary}>
-                如何使用優惠券？
-              </Text>
-              <Text fontSize={14} color={colors.textSecondary} lineHeight={20}>
-                在首頁瀏覽優惠券，點擊「領取」按鈕後，前往商店出示兌換碼或 QR Code 即可使用。
-              </Text>
-            </YStack>
-
-            <YStack gap="$2">
-              <Text fontSize={14} fontWeight="600" color={colors.textPrimary}>
-                如何舉報不當內容？
-              </Text>
-              <Text fontSize={14} color={colors.textSecondary} lineHeight={20}>
-                在優惠券或商店頁面點擊「舉報」按鈕，選擇舉報原因並提交即可。
-              </Text>
-            </YStack>
-
-            <YStack gap="$2">
-              <Text fontSize={14} fontWeight="600" color={colors.textPrimary}>
-                如何封鎖商家？
-              </Text>
-              <Text fontSize={14} color={colors.textSecondary} lineHeight={20}>
-                在商店頁面點擊「封鎖商家」，確認後該商家的內容將不再顯示於您的動態中。
-              </Text>
-            </YStack>
-          </YStack>
-
-          {/* Support Hours */}
-          <YStack
-            backgroundColor="#f8f9fa"
-            padding="$3"
-            borderRadius="$3"
-            borderWidth={1}
-            borderColor={colors.border}
-          >
-            <Text fontSize={14} color={colors.textSecondary} textAlign="center" lineHeight={20}>
-              客服回覆時間：週一至週五 09:00-18:00
-            </Text>
-            <Text fontSize={14} color={colors.textSecondary} textAlign="center" lineHeight={20}>
-              （國定假日除外）
-            </Text>
-          </YStack>
         </YStack>
       </ScrollView>
     </SafeAreaView>
