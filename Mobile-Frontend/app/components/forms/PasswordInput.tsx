@@ -13,11 +13,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = (props) => {
 
   return (
     <View style={styles.container}>
-      <FormInput
-        {...props}
-        secureTextEntry={!showPassword}
-        style={[styles.input, props.style]}
-      />
+      <FormInput {...props} secureTextEntry={!showPassword} style={[styles.input, props.style]} />
       <Pressable
         onPress={() => setShowPassword((prev) => !prev)}
         style={styles.iconButton}
@@ -35,23 +31,27 @@ export const PasswordInput: React.FC<PasswordInputProps> = (props) => {
   );
 };
 
+const INPUT_HEIGHT = 41;
+
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
     width: '100%',
+    minHeight: INPUT_HEIGHT,
   },
   input: {
     paddingRight: 44,
-    flex: 1,
     fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif',
     borderRadius: 9,
   },
   iconButton: {
     position: 'absolute',
     right: 12,
-    padding: 4,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    minWidth: 44,
   },
 });
 
