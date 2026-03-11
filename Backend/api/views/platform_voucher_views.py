@@ -87,8 +87,7 @@ def redeem_platform_voucher(request, voucher_id):
         return Response({"error": "Voucher has already been redeemed."}, status=status.HTTP_404_NOT_FOUND)
 
     ser = PlatformVoucherRedeemRequestSerializer(data=request.data)
-    if not ser.is_valid():
-        return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+    ser.is_valid(raise_exception=True)
     code = ser.validated_data["redeem_code"]
     if not code or len(code) != 6 or not code.isdigit():
         return Response({"error": "Invalid redeem code format."}, status=status.HTTP_400_BAD_REQUEST)

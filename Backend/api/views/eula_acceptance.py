@@ -84,9 +84,7 @@ class EULAAcceptView(APIView):
             )
 
         serializer = EULAAcceptSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        serializer.is_valid(raise_exception=True)
         version = serializer.validated_data['version']
         agreed = serializer.validated_data['agreed']
 

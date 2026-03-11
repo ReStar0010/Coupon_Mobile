@@ -68,9 +68,7 @@ def generate_qr_session(request):
     to encode in QR code. QR code is only valid while merchant keeps display open.
     """
     serializer = GenerateQRSessionSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+    serializer.is_valid(raise_exception=True)
     template_id = serializer.validated_data['template_id']  # type: ignore
     
     # T016: Verify merchant owns this template's store
@@ -192,8 +190,7 @@ def claim_coupon_via_qr(request):
     # Claim-by-token flow (002-qr-deep-linking): single token; backend resolves to template
     if 'claim_token' in request.data and request.data.get('claim_token'):
         token_serializer = ClaimByTokenRequestSerializer(data=request.data)
-        if not token_serializer.is_valid():
-            return Response(token_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        token_serializer.is_valid(raise_exception=True)
         claim_token = token_serializer.validated_data['claim_token']  # type: ignore
         idempotency_key = token_serializer.validated_data.get('idempotency_key', '').strip()  # type: ignore
         try:
@@ -209,8 +206,7 @@ def claim_coupon_via_qr(request):
         # Do not trust client template_id; use qr_session.template only
     else:
         serializer = ClaimCouponRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
         template_id = serializer.validated_data['template_id']  # type: ignore
         session_token = serializer.validated_data['session_token']  # type: ignore
         idempotency_key = serializer.validated_data.get('idempotency_key', '').strip()  # type: ignore

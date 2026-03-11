@@ -138,9 +138,7 @@ def delete_account(request):
     
     # Validate request data
     serializer = AccountDeletionSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+    serializer.is_valid(raise_exception=True)
     password = serializer.validated_data['password']
     acknowledgments = serializer.validated_data['acknowledgments']
     

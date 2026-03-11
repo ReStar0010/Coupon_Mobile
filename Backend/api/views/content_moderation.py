@@ -48,8 +48,7 @@ class ReportContentView(APIView):
 
         # Validate request data
         serializer = ContentReportCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
 
         # Get the content object
         try:
@@ -221,9 +220,7 @@ class BlockMerchantView(APIView):
 
     def post(self, request):
         serializer = BlockedMerchantCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        serializer.is_valid(raise_exception=True)
         store_id = serializer.validated_data['store_id']
 
         # Check if store exists

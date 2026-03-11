@@ -61,9 +61,7 @@ def merchant_consolidate_coupon(request):
     from ..utils import validate_phone_number, mask_phone_number
     
     serializer = ConsolidateCouponSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+    serializer.is_valid(raise_exception=True)
     template_id = serializer.validated_data['template_id'] # type: ignore
     phone_number_raw = serializer.validated_data['phone_number'] # type: ignore
     
@@ -185,26 +183,24 @@ def refresh_redeem_code(request):
     Merchants should use the unified redemption button on the coupon list page instead.
     """
     serializer = RefreshRedeemCodeSerializer(data=request.data)
-    if serializer.is_valid():
-        template_id = serializer.validated_data['template_id']
-        new_redeem_code = serializer.validated_data['new_redeem_code']
+    serializer.is_valid(raise_exception=True)
+    template_id = serializer.validated_data['template_id']
+    new_redeem_code = serializer.validated_data['new_redeem_code']
 
-        try:
-            coupon_template = CouponTemplate.objects.get(id=template_id)
-            coupon_template.template_redeem_code = new_redeem_code
-            coupon_template.save()
+    try:
+        coupon_template = CouponTemplate.objects.get(id=template_id)
+        coupon_template.template_redeem_code = new_redeem_code
+        coupon_template.save()
 
-            return Response({
-                'message': 'Redeem code refreshed successfully',
-                'new_redeem_code': new_redeem_code
-            }, status=status.HTTP_200_OK)
+        return Response({
+            'message': 'Redeem code refreshed successfully',
+            'new_redeem_code': new_redeem_code
+        }, status=status.HTTP_200_OK)
 
-        except CouponTemplate.DoesNotExist:
-            return Response({
-                'error': 'Coupon template does not exist.'
-            }, status=status.HTTP_404_NOT_FOUND)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except CouponTemplate.DoesNotExist:
+        return Response({
+            'error': 'Coupon template does not exist.'
+        }, status=status.HTTP_404_NOT_FOUND)
 
 
 # Helper function to check if user owns the store
@@ -361,11 +357,11 @@ def create_coupon_template(request):
         raise NoStoreForMerchant(developer_message="No store found for this merchant. Please create a store first.")
     
     serializer = CouponTemplateSerializer(data=request.data)
-    if serializer.is_valid():
-        validated_data = serializer.validated_data
-        
-        # Create the template
-        template = CouponTemplate.objects.create(
+    serializer.is_valid(raise_exception=True)
+    validated_data = serializer.validated_data
+
+    # Create the template
+    template = CouponTemplate.objects.create(
             store=store,
             coupon_name=validated_data['coupon_name'],
             coupon_detail=validated_data['coupon_detail'],
@@ -411,9 +407,7 @@ def create_coupon_template(request):
             'message': 'Coupon template created successfully'
         }
         
-        return Response(template_data, status=status.HTTP_201_CREATED)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response(template_data, status=status.HTTP_201_CREATED)
 
 
 @swagger_auto_schema(
@@ -437,107 +431,105 @@ def update_coupon_template(request, id):
         raise CouponTemplateNotFound(developer_message="Coupon template not found or you do not have permission to access it.")
     
     serializer = CouponTemplateSerializer(data=request.data, partial=True)
-    if serializer.is_valid():
-        validated_data = serializer.validated_data
-        
-        # Update fields
-        if 'coupon_name' in validated_data:
-            template.coupon_name = validated_data['coupon_name']
-        if 'coupon_detail' in validated_data:
-            template.coupon_detail = validated_data['coupon_detail']
-        if 'important_notes' in validated_data:
-            template.important_notes = validated_data['important_notes']
-        if 'image_url' in validated_data:
-            template.image_url = validated_data['image_url']
-        if 'estimated_savings' in validated_data:
-            template.estimated_savings = validated_data['estimated_savings']
-        if 'template_redeem_code' in validated_data:
-            template.template_redeem_code = validated_data['template_redeem_code']
-        if 'start_date' in validated_data:
-            template.start_date = validated_data['start_date']
-        if 'expiry_date' in validated_data:
-            template.expiry_date = validated_data['expiry_date']
-        if 'draw_probability' in validated_data:
-            template.draw_probability = validated_data['draw_probability']
-        if 'is_active' in validated_data:
-            template.is_active = validated_data['is_active']
-        
-        # Handle quantity update (adjust remaining_quantity accordingly)
-        old_total_quantity = template.total_quantity
-        if 'total_quantity' in validated_data:
-            new_total = validated_data['total_quantity']
-            # Calculate redeemed quantity (cannot be reduced)
-            redeemed_quantity = template.total_quantity - template.remaining_quantity
-            
-            # Validate: new total quantity cannot be less than redeemed quantity
-            if new_total < template.total_quantity:
-                raise TemplateQuantityDecreaseNotAllowed(
-                    developer_message="Total quantity cannot be reduced below the current total. Only increases are allowed.",
-                    context={"current": template.total_quantity},
-                )
-            
-            difference = new_total - template.total_quantity
-            template.total_quantity = new_total
-            template.remaining_quantity = max(0, template.remaining_quantity + difference)
-        
-        template.save()
-        
-        # Update tags if provided
-        if 'tags' in validated_data:
-            tag_ids = validated_data['tags']
-            tags = Tag.objects.filter(id__in=tag_ids)
-            template.tags.set(tags)
-        
-        # Handle Coupon object synchronization for "一般" type (total_quantity = 0)
-        # Find existing store-type coupon linked to this template
-        existing_coupon = Coupon.objects.filter(template=template, coupon_type='store').first()
-        
-        # Check if this is a "一般" type coupon (total_quantity = 0)
-        # After save, template.total_quantity is the current value
-        if template.total_quantity == 0:
-            # This is a "一般" type coupon - should have a corresponding store-type Coupon
-            if existing_coupon:
-                # Update existing coupon with all template fields
-                existing_coupon.coupon_name = template.coupon_name
-                existing_coupon.coupon_detail = template.coupon_detail
-                existing_coupon.important_notes = template.important_notes
-                existing_coupon.image_url = template.image_url
-                existing_coupon.estimated_savings = template.estimated_savings
-                existing_coupon.start_date = template.start_date
-                existing_coupon.expiry_date = template.expiry_date
-                existing_coupon.save()
-                # Update tags
-                existing_coupon.tags.set(template.tags.all())
-            else:
-                # Create new coupon if it doesn't exist (e.g., changed from "共享" to "一般")
-                coupon = Coupon.objects.create(
-                    store=store,
-                    template=template,
-                    coupon_name=template.coupon_name,
-                    coupon_detail=template.coupon_detail,
-                    important_notes=template.important_notes,
-                    start_date=template.start_date,
-                    expiry_date=template.expiry_date,
-                    image_url=template.image_url,
-                    coupon_type='store',
-                    estimated_savings=template.estimated_savings,
-                )
-                coupon.tags.set(template.tags.all())
+    serializer.is_valid(raise_exception=True)
+    validated_data = serializer.validated_data
+
+    # Update fields
+    if 'coupon_name' in validated_data:
+        template.coupon_name = validated_data['coupon_name']
+    if 'coupon_detail' in validated_data:
+        template.coupon_detail = validated_data['coupon_detail']
+    if 'important_notes' in validated_data:
+        template.important_notes = validated_data['important_notes']
+    if 'image_url' in validated_data:
+        template.image_url = validated_data['image_url']
+    if 'estimated_savings' in validated_data:
+        template.estimated_savings = validated_data['estimated_savings']
+    if 'template_redeem_code' in validated_data:
+        template.template_redeem_code = validated_data['template_redeem_code']
+    if 'start_date' in validated_data:
+        template.start_date = validated_data['start_date']
+    if 'expiry_date' in validated_data:
+        template.expiry_date = validated_data['expiry_date']
+    if 'draw_probability' in validated_data:
+        template.draw_probability = validated_data['draw_probability']
+    if 'is_active' in validated_data:
+        template.is_active = validated_data['is_active']
+
+    # Handle quantity update (adjust remaining_quantity accordingly)
+    old_total_quantity = template.total_quantity
+    if 'total_quantity' in validated_data:
+        new_total = validated_data['total_quantity']
+        # Calculate redeemed quantity (cannot be reduced)
+        redeemed_quantity = template.total_quantity - template.remaining_quantity
+
+        # Validate: new total quantity cannot be less than redeemed quantity
+        if new_total < template.total_quantity:
+            raise TemplateQuantityDecreaseNotAllowed(
+                developer_message="Total quantity cannot be reduced below the current total. Only increases are allowed.",
+                context={"current": template.total_quantity},
+            )
+
+        difference = new_total - template.total_quantity
+        template.total_quantity = new_total
+        template.remaining_quantity = max(0, template.remaining_quantity + difference)
+
+    template.save()
+
+    # Update tags if provided
+    if 'tags' in validated_data:
+        tag_ids = validated_data['tags']
+        tags = Tag.objects.filter(id__in=tag_ids)
+        template.tags.set(tags)
+
+    # Handle Coupon object synchronization for "一般" type (total_quantity = 0)
+    # Find existing store-type coupon linked to this template
+    existing_coupon = Coupon.objects.filter(template=template, coupon_type='store').first()
+
+    # Check if this is a "一般" type coupon (total_quantity = 0)
+    # After save, template.total_quantity is the current value
+    if template.total_quantity == 0:
+        # This is a "一般" type coupon - should have a corresponding store-type Coupon
+        if existing_coupon:
+            # Update existing coupon with all template fields
+            existing_coupon.coupon_name = template.coupon_name
+            existing_coupon.coupon_detail = template.coupon_detail
+            existing_coupon.important_notes = template.important_notes
+            existing_coupon.image_url = template.image_url
+            existing_coupon.estimated_savings = template.estimated_savings
+            existing_coupon.start_date = template.start_date
+            existing_coupon.expiry_date = template.expiry_date
+            existing_coupon.save()
+            # Update tags
+            existing_coupon.tags.set(template.tags.all())
         else:
-            # This is a "共享" type coupon - should not have a store-type Coupon
-            # Delete existing store-type coupon if it exists (e.g., changed from "一般" to "共享")
-            if existing_coupon:
-                existing_coupon.delete()
-        
-        template_data = {
-            'id': template.id,
-            'coupon_name': template.coupon_name,
-            'message': 'Coupon template updated successfully'
-        }
-        
-        return Response(template_data, status=status.HTTP_200_OK)
+            # Create new coupon if it doesn't exist (e.g., changed from "共享" to "一般")
+            coupon = Coupon.objects.create(
+                store=store,
+                template=template,
+                coupon_name=template.coupon_name,
+                coupon_detail=template.coupon_detail,
+                important_notes=template.important_notes,
+                start_date=template.start_date,
+                expiry_date=template.expiry_date,
+                image_url=template.image_url,
+                coupon_type='store',
+                estimated_savings=template.estimated_savings,
+            )
+            coupon.tags.set(template.tags.all())
     else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # This is a "共享" type coupon - should not have a store-type Coupon
+        # Delete existing store-type coupon if it exists (e.g., changed from "一般" to "共享")
+        if existing_coupon:
+            existing_coupon.delete()
+
+    template_data = {
+        'id': template.id,
+        'coupon_name': template.coupon_name,
+        'message': 'Coupon template updated successfully'
+    }
+
+    return Response(template_data, status=status.HTTP_200_OK)
 
 
 @swagger_auto_schema(
@@ -642,96 +634,94 @@ def merchant_redeem(request):
     This is used for the QR code redemption page.
     """
     serializer = MerchantRedeemSerializer(data=request.data)
-    if serializer.is_valid():
-        template_id = serializer.validated_data['template_id']
-        phone_number = serializer.validated_data['phone_number']
-        
-        store = get_merchant_store(request.user)
-        if not store:
-            raise NoStoreForMerchant(developer_message="No store found for this merchant.")
-        
-        try:
-            # Check if the phone_number can find the user
-            user_profile = StudentProfile.objects.get(phone_number=phone_number)
-            user = user_profile.user
-            
-            # Check if the template exists and belongs to the merchant's store
-            template = CouponTemplate.objects.get(
-                id=template_id,
-                store=store,
-                is_active=True,
-                remaining_quantity__gt=0
-            )
-            
-            # Find an existing coupon from this template for this user
-            coupon = Coupon.objects.filter(
-                template=template,
-                current_holder=user,
-                coupon_type='exclusive'
-            ).first()
-            
-            if not coupon:
-                raise CouponTemplateNotFound(
-                    developer_message="No coupon found for this user from this template."
-                )
-            
-            # Check if already redeemed
-            from ..models import CouponRedemption
-            if CouponRedemption.objects.filter(coupon=coupon, user=user).exists():
-                raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed.")
-            
-            # Savings amount for achievement list (use template amount; fallback to 0)
-            savings_amount = template.estimated_savings or 0
+    serializer.is_valid(raise_exception=True)
+    template_id = serializer.validated_data['template_id']
+    phone_number = serializer.validated_data['phone_number']
 
-            # Create redemption
-            CouponRedemption.objects.create(
-                coupon=coupon,
-                user=user,
-                savings_amount=template.estimated_savings
-            )
-            
-            # Update user statistics (成就列表: total_savings, monthly_savings, coupons_used_count)
-            try:
-                user_profile.update_monthly_savings()
-                user_profile.coupons_used_count += 1
-                user_profile.total_savings += savings_amount
-                user_profile.monthly_savings += savings_amount
-                user_profile.save()
-            except AttributeError:
-                pass
+    store = get_merchant_store(request.user)
+    if not store:
+        raise NoStoreForMerchant(developer_message="No store found for this merchant.")
 
-            # Log the redemption
-            logger.info(
-                "Coupon redeemed",
-                extra={
-                    "user_id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "action": "redeem_coupon",
-                    "coupon_id": coupon.id,
-                    "coupon_name": coupon.coupon_name,
-                    "coupon_detail": coupon.coupon_detail,
-                    "coupon_type": coupon.coupon_type,
-                    "store_name": coupon.store.name,
-                    "savings_amount": savings_amount,
-                    "redeemed_at": timezone.now().isoformat()
-                }
-            )
-            
-            return Response({
-                'message': 'Coupon redeemed successfully',
-                'coupon_name': coupon.coupon_name,
-                'redeemed_at': timezone.now().isoformat()
-            }, status=status.HTTP_200_OK)
-            
-        except StudentProfile.DoesNotExist:
-            raise PhoneNotRegistered(developer_message="User with this phone number does not exist.")
-        except CouponTemplate.DoesNotExist:
+    try:
+        # Check if the phone_number can find the user
+        user_profile = StudentProfile.objects.get(phone_number=phone_number)
+        user = user_profile.user
+
+        # Check if the template exists and belongs to the merchant's store
+        template = CouponTemplate.objects.get(
+            id=template_id,
+            store=store,
+            is_active=True,
+            remaining_quantity__gt=0
+        )
+
+        # Find an existing coupon from this template for this user
+        coupon = Coupon.objects.filter(
+            template=template,
+            current_holder=user,
+            coupon_type='exclusive'
+        ).first()
+
+        if not coupon:
             raise CouponTemplateNotFound(
-                developer_message="Coupon template does not exist, is not active, or is out of stock."
+                developer_message="No coupon found for this user from this template."
             )
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if already redeemed
+        from ..models import CouponRedemption
+        if CouponRedemption.objects.filter(coupon=coupon, user=user).exists():
+            raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed.")
+
+        # Savings amount for achievement list (use template amount; fallback to 0)
+        savings_amount = template.estimated_savings or 0
+
+        # Create redemption
+        CouponRedemption.objects.create(
+            coupon=coupon,
+            user=user,
+            savings_amount=template.estimated_savings
+        )
+
+        # Update user statistics (成就列表: total_savings, monthly_savings, coupons_used_count)
+        try:
+            user_profile.update_monthly_savings()
+            user_profile.coupons_used_count += 1
+            user_profile.total_savings += savings_amount
+            user_profile.monthly_savings += savings_amount
+            user_profile.save()
+        except AttributeError:
+            pass
+
+        # Log the redemption
+        logger.info(
+            "Coupon redeemed",
+            extra={
+                "user_id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "action": "redeem_coupon",
+                "coupon_id": coupon.id,
+                "coupon_name": coupon.coupon_name,
+                "coupon_detail": coupon.coupon_detail,
+                "coupon_type": coupon.coupon_type,
+                "store_name": coupon.store.name,
+                "savings_amount": savings_amount,
+                "redeemed_at": timezone.now().isoformat()
+            }
+        )
+
+        return Response({
+            'message': 'Coupon redeemed successfully',
+            'coupon_name': coupon.coupon_name,
+            'redeemed_at': timezone.now().isoformat()
+        }, status=status.HTTP_200_OK)
+
+    except StudentProfile.DoesNotExist:
+        raise PhoneNotRegistered(developer_message="User with this phone number does not exist.")
+    except CouponTemplate.DoesNotExist:
+        raise CouponTemplateNotFound(
+            developer_message="Coupon template does not exist, is not active, or is out of stock."
+        )
 
 
 @swagger_auto_schema(

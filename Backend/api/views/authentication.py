@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework import status
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
@@ -783,14 +784,12 @@ def register(request):
     if user_type == 'merchant':
         # Validate merchant-specific fields BEFORE creating user
         serializer = MerchantRegisterSerializer(data=data)
-        if not serializer.is_valid():
+        try:
+            serializer.is_valid(raise_exception=True)
+        except DRFValidationError:
             user.delete()  # Clean up user if validation fails
             logger.warning("Merchant registration validation errors: %s", serializer.errors)
-            return Response({
-                'error': 'Validation failed',
-                'details': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
+            raise  # Re-raise so couPro_exception_handler returns { error_code, developer_message, context }
         validated_data = serializer.validated_data
         
         # Add user to Merchant group
@@ -1000,10 +999,10 @@ def resend_merchant_verification(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    # Use PhoneLoginSerializer to support both phone and email login
+    # Use PhoneLoginSerializer to support both phone and email login.
+    # raise_exception=True → ValidationError → couPro_exception_handler returns { error_code, developer_message, context }
     serializer = PhoneLoginSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.is_valid(raise_exception=True)
     validated = serializer.validated_data
     
     phone_number = validated.get('phone_number')
