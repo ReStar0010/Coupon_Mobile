@@ -377,35 +377,35 @@ def create_coupon_template(request):
             is_active=validated_data.get('is_active', True),
         )
         
-        # Set tags if provided
-        if 'tags' in validated_data:
-            tag_ids = validated_data['tags']
-            tags = Tag.objects.filter(id__in=tag_ids)
-            template.tags.set(tags)
-        
-        # If total_quantity is 0, this is a "一般" type coupon (EasyUse/store type)
-        # Create a corresponding Coupon object for EasyUse page
-        if validated_data['total_quantity'] == 0:
-            coupon = Coupon.objects.create(
-                store=store,
-                template=template,
-                coupon_name=template.coupon_name,
-                coupon_detail=template.coupon_detail,
-                important_notes=template.important_notes,
-                start_date=template.start_date,
-                expiry_date=template.expiry_date,
-                image_url=template.image_url,
-                coupon_type='store',  # EasyUse coupons are store type
-                estimated_savings=template.estimated_savings,
-            )
-            # Set tags for the coupon
-            coupon.tags.set(template.tags.all())
-        
-        template_data = {
-            'id': template.id,
-            'coupon_name': template.coupon_name,
-            'message': 'Coupon template created successfully'
-        }
+    # Set tags if provided
+    if 'tags' in validated_data:
+        tag_ids = validated_data['tags']
+        tags = Tag.objects.filter(id__in=tag_ids)
+        template.tags.set(tags)
+    
+    # If total_quantity is 0, this is a "一般" type coupon (EasyUse/store type)
+    # Create a corresponding Coupon object for EasyUse page
+    if validated_data['total_quantity'] == 0:
+        coupon = Coupon.objects.create(
+            store=store,
+            template=template,
+            coupon_name=template.coupon_name,
+            coupon_detail=template.coupon_detail,
+            important_notes=template.important_notes,
+            start_date=template.start_date,
+            expiry_date=template.expiry_date,
+            image_url=template.image_url,
+            coupon_type='store',  # EasyUse coupons are store type
+            estimated_savings=template.estimated_savings,
+        )
+        # Set tags for the coupon
+        coupon.tags.set(template.tags.all())
+    
+    template_data = {
+        'id': template.id,
+        'coupon_name': template.coupon_name,
+        'message': 'Coupon template created successfully'
+    }
         
     return Response(template_data, status=status.HTTP_201_CREATED)
 
