@@ -1,10 +1,7 @@
-const PRODUCTION_URL = process.env.EXPO_PUBLIC_API_URL;
-const STAGING_URL = process.env.EXPO_STAGING_API_URL;
+let API_BASE_URL = "https://coupon-mobile.onrender.com";
 
-// Default production; staging only when EXPO_PUBLIC_USE_STAGING_API exists and is exactly "true"
-const useStaging = process.env.EXPO_PUBLIC_USE_STAGING_API === 'true';
+// API_BASE_URL = "https://coupon-mobile-dev.onrender.com";
 
-const API_BASE_URL = useStaging ? STAGING_URL : PRODUCTION_URL;
 export const API_URL = `${API_BASE_URL}/api`;
 
 export const getApiConfig = () => ({ baseUrl: API_BASE_URL, apiUrl: API_URL });

@@ -20,51 +20,13 @@
  * - 'local-network': 使用本地網絡 IP (適用於 Expo Go 在真實設備上)
  */
 
-type BackendMode = 'production' | 'local' | 'local-network';
+let BASE_URL: string = "https://coupon-mobile.onrender.com";
+// BASE_URL = "https://coupon-mobile-dev.onrender.com";
 
-const PROD_FALLBACK_URL = 'https://coupon-mobile.onrender.com';
-
-// 1. 集中讀取與處理環境變數
-const ENV = {
-  MODE: (process.env.EXPO_PUBLIC_BACKEND_MODE ?? 'production') as BackendMode,
-  PORT: Number(process.env.EXPO_PUBLIC_LOCAL_PORT ?? 8000),
-  HOST: (process.env.EXPO_PUBLIC_LOCAL_HOST ?? '').trim(),
-  PROD_URL: (process.env.EXPO_PUBLIC_API_URL ?? '').trim(),
-};
-
-// 2. 工具函數：標準化 URL (移除結尾斜線，確保有 protocol)
-const normalizeUrl = (url: string): string => {
-  if (!url) return '';
-  const hasProtocol = url.startsWith('http://') || url.startsWith('https://');
-  return (hasProtocol ? url : `https://${url}`).replace(/\/+$/, '');
-};
-
-// ============================================
-// 自動配置（不需要修改）
-// ============================================
-
-// 3. 核心邏輯：解析 Base URL
-const resolveBaseUrl = (): string => {
-  switch (ENV.MODE) {
-    case 'local':
-      return `http://localhost:${ENV.PORT}`;
-
-    case 'local-network': {
-      return normalizeUrl(ENV.HOST);
-    }
-
-    case 'production':
-    default:
-      return normalizeUrl(ENV.PROD_URL || PROD_FALLBACK_URL);
-  }
-};
-
-const BASE_URL: string = resolveBaseUrl();
 const API_BASE_URL: string = `${BASE_URL}/api`;
 
 // 導出用於調試
 export const getApiConfig = () => ({
-  mode: ENV.MODE,
   baseUrl: BASE_URL,
   apiUrl: API_BASE_URL,
 });
@@ -93,7 +55,6 @@ if (process.env.NODE_ENV !== 'production') {
   console.log('\n' + '='.repeat(50));
   console.log('🔧 當前後端配置 (Merchant Frontend)');
   console.log('='.repeat(50));
-  console.log(`模式: ${config.mode}`);
   console.log(`Base URL: ${config.baseUrl}`);
   console.log(`API URL: ${config.apiUrl}`);
   console.log('='.repeat(50) + '\n');

@@ -12,6 +12,7 @@ import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { tokens } from '@/app/constants/token';
 import { Ionicons } from '@expo/vector-icons';
+import { API_URL } from '@/app/config/api';
 
 const colors = {
   primary: tokens.color.primary,
@@ -43,7 +44,7 @@ export default function PrivacyPolicyScreen() {
       setError(null);
 
       // Fetch privacy policy from API (no auth required)
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/privacy-policy/`);
+      const response = await fetch(`${API_URL}/privacy-policy/`);
       const data = await response.json();
 
       setPolicyData(data);

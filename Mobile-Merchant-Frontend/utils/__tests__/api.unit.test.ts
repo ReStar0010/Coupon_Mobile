@@ -35,7 +35,6 @@ describe('api (unit)', () => {
   describe('getApiConfig', () => {
     it('returns mode, baseUrl, apiUrl from env', () => {
       const config = getApiConfig();
-      expect(config).toHaveProperty('mode');
       expect(config).toHaveProperty('baseUrl');
       expect(config).toHaveProperty('apiUrl');
       expect(config.apiUrl).toBe(`${config.baseUrl}/api`);
