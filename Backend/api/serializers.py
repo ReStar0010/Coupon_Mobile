@@ -26,6 +26,14 @@ class LoginSerializer(serializers.Serializer):
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(help_text="Email to send the reset link")
 
+
+class RequestEmailVerificationSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/email-settings/send-verification/
+    Logged-in user adds or changes email; backend sends verification email.
+    """
+    email = serializers.EmailField(help_text="Email address to add or update and verify")
+
 class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(help_text="Email to send the reset link")
     token = serializers.CharField(help_text="Password reset token")

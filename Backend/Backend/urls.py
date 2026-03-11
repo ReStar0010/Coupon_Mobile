@@ -3,7 +3,8 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views.authentication import (
-    register, login, logout, user_info, verify_email, forgot_password, reset_password, refresh_token,
+    register, login, logout, user_info, verify_email, request_email_verification,
+    forgot_password, reset_password, refresh_token,
     verify_merchant_email, resend_merchant_verification, redirect_verify_email, redirect_reset_password
 )
 from api.views.coupon_views import get_store_coupons, get_exclusive_coupons, get_coupon_detail, redeem_coupon, validate_unified_redemption_code
@@ -164,7 +165,8 @@ urlpatterns = [
     path('api/logout/', logout),
     path('api/token/refresh/', refresh_token, name='token_refresh'),  # Token refresh API
     path('api/verify-email/', verify_email),
-    
+    path('api/email-settings/send-verification/', request_email_verification, name='request_email_verification'),
+
     # Merchant verification endpoints
     path('api/merchant/verify-email/', verify_merchant_email, name='verify_merchant_email'),
     path('api/merchant/resend-verification/', resend_merchant_verification, name='resend_merchant_verification'),

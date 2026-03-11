@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework import status
-from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError, PermissionDenied
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
@@ -23,7 +23,14 @@ from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
-from ..serializers import LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, MerchantRegisterSerializer, PhoneLoginSerializer
+from ..serializers import (
+    LoginSerializer,
+    ForgotPasswordSerializer,
+    ResetPasswordSerializer,
+    MerchantRegisterSerializer,
+    PhoneLoginSerializer,
+    RequestEmailVerificationSerializer,
+)
 from ..models import StudentProfile, PasswordResetProfile, MerchantProfile, Store
 from ..auth import generate_password_reset_token, is_token_valid
 from ..exceptions import (
@@ -856,6 +863,45 @@ def register(request):
         send_verification_email(email, token)
 
         return Response({'message': 'User registered successfully. Please check your email to verify.'}, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_email_verification(request):
+    """
+    Logged-in user adds or changes email; send verification email.
+    Used by optional email settings (009-phone-registration User Story 3).
+    """
+    serializer = RequestEmailVerificationSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    email = serializer.validated_data['email'].strip().lower()
+
+    # Email already used by another user (User.email is unique)
+    if User.objects.filter(email=email).exclude(pk=request.user.pk).exists():
+        raise EmailAlreadyExists(developer_message="此信箱已被其他帳號使用")
+
+    try:
+        profile = request.user.student_profile
+    except StudentProfile.DoesNotExist:
+        raise PermissionDenied("僅限一般使用者可設定 Email")
+
+    token = secrets.token_urlsafe(32)
+    request.user.email = email
+    request.user.save(update_fields=['email'])
+    profile.email_verification_token = token
+    profile.verified = False
+    profile.save(update_fields=['email_verification_token', 'verified'])
+
+    try:
+        send_verification_email(email, token)
+    except Exception as e:
+        logger.exception("Failed to send verification email to %s: %s", email, e)
+        raise EmailSendFailed(developer_message="驗證信件發送失敗，請稍後再試")
+
+    return Response(
+        {'message': '驗證信件已發送，請至信箱點擊連結完成驗證'},
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(['GET'])

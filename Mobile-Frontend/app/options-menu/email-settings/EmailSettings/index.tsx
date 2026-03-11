@@ -62,10 +62,10 @@ export default function EmailSettings() {
 
     setIsSubmitting(true);
     try {
-      // Call backend to send verification email
-      await fetchAPI('/verify-email/', {
+      // Call backend to send verification email (authenticated)
+      await fetchAPI('/email-settings/send-verification/', {
         method: 'POST',
-        data: { email: newEmail },
+        data: { email: newEmail.trim().toLowerCase() },
       });
 
       Toast.show({
