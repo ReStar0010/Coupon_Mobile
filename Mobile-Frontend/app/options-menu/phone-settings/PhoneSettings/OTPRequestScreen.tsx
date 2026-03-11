@@ -4,14 +4,11 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { YStack, XStack, H4, Text, Card, Button } from 'tamagui';
 import { ChevronLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { FormInput } from '@/app/components/forms/FormInput';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
-import {
-  sendOtp,
-  isValidPhoneNumber,
-  normalizePhoneNumber,
-  ErrorResponse,
-} from '@/app/services/phoneOtpAPI';
+import { useApiError } from '@/app/hooks/useApiError';
+import { sendOtp, isValidPhoneNumber, normalizePhoneNumber } from '@/app/services/phoneOtpAPI';
 
 /**
  * OTPRequestScreen
@@ -25,15 +22,16 @@ export default function OTPRequestScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ currentPhone?: string }>();
+  const { t } = useTranslation();
+  const { getErrorMessage } = useApiError();
 
   const [phone, setPhone] = useState(params.currentPhone || '');
   const [sending, setSending] = useState(false);
 
   const handleSendOTP = async () => {
-    // Validate phone format
     const normalized = normalizePhoneNumber(phone);
     if (!isValidPhoneNumber(normalized)) {
-      Alert.alert('格式錯誤', '請輸入有效的台灣手機號碼（09開頭，共10碼）');
+      Alert.alert('格式錯誤', t('errors.PHONE_FORMAT_INVALID'));
       return;
     }
 
@@ -65,31 +63,8 @@ export default function OTPRequestScreen() {
           },
         },
       ]);
-    } catch (error: any) {
-      // Safely extract error message from ErrorResponse or standard Error
-      let errorMessage = '發送驗證碼失敗，請稍後再試';
-      let retryAfterSeconds: number | undefined;
-
-      // Check if error is ErrorResponse type
-      if (error && typeof error === 'object' && 'error' in error) {
-        const err = error as ErrorResponse;
-        errorMessage = err.error || errorMessage;
-        retryAfterSeconds = err.retry_after_seconds;
-      } else if (error instanceof Error) {
-        // Handle standard Error objects
-        errorMessage = error.message || errorMessage;
-      } else if (typeof error === 'string') {
-        // Handle string errors
-        errorMessage = error;
-      }
-
-      // Add retry information if available
-      if (retryAfterSeconds) {
-        const minutes = Math.ceil(retryAfterSeconds / 60);
-        errorMessage += `\n\n請在 ${minutes} 分鐘後再試`;
-      }
-
-      Alert.alert('錯誤', errorMessage);
+    } catch (error) {
+      Alert.alert('錯誤', getErrorMessage(error));
     } finally {
       setSending(false);
     }

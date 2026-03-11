@@ -6,6 +6,7 @@ import { YStack, XStack, H4, Button, Text, Card } from 'tamagui';
 import { ChevronLeft, Shield } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 import Toast from 'react-native-toast-message';
 
 /**
@@ -17,6 +18,7 @@ import Toast from 'react-native-toast-message';
 export default function EmailSettings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { getErrorMessage } = useApiError();
   const [email, setEmail] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [verified, setVerified] = useState(false);
@@ -61,7 +63,7 @@ export default function EmailSettings() {
     setIsSubmitting(true);
     try {
       // Call backend to send verification email
-      await fetchAPI('/update-email/', {
+      await fetchAPI('/verify-email/', {
         method: 'POST',
         data: { email: newEmail },
       });
@@ -77,12 +79,11 @@ export default function EmailSettings() {
       setNewEmail('');
       // Reload email info
       await loadEmail();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to send verification email:', error);
-      const errorMessage = error?.response?.data?.error || '發送驗證信件失敗，請重試';
       Toast.show({
         type: 'failRed',
-        text1: errorMessage,
+        text1: getErrorMessage(error),
         position: 'bottom',
         visibilityTime: 2000,
       });

@@ -4,7 +4,9 @@ import { useRouter, Stack } from 'expo-router';
 import { YStack, XStack, Text, H4, ScrollView, Card } from 'tamagui';
 import { ChevronLeft, AlertTriangle, Trash2, CheckSquare, Square } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isAxiosError } from 'axios';
 import { fetchAPI, logout } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 
 interface DeletionWarning {
   code: string;
@@ -26,6 +28,7 @@ type DeletionStep = 'loading' | 'warnings' | 'password' | 'confirm' | 'processin
 const DeleteAccount: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { getErrorMessage } = useApiError();
 
   const [step, setStep] = useState<DeletionStep>('loading');
   const [warnings, setWarnings] = useState<DeletionWarning[]>([]);
@@ -49,9 +52,9 @@ const DeleteAccount: React.FC = () => {
       setWarnings(data.warnings);
       setDataSummary(data.data_summary);
       setStep('warnings');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to load pre-delete check:', err);
-      Alert.alert('錯誤', '載入失敗，請稍後再試');
+      Alert.alert('錯誤', getErrorMessage(err));
       router.back();
     }
   };
@@ -112,17 +115,16 @@ const DeleteAccount: React.FC = () => {
           // User already deleted, ignore
         }
       }, 2000);
-    } catch (err: any) {
+    } catch (err) {
       setIsProcessing(false);
       console.error('Account deletion failed:', err);
 
-      const errMsg = err?.response?.data?.error || err?.message || '';
-      if (errMsg.includes('密碼錯誤') || err?.response?.data?.code === 'INVALID_PASSWORD') {
-        setError('密碼錯誤，請重新輸入');
+      const errorCode = isAxiosError(err) ? err.errorCode : undefined;
+      const isInvalidPassword = errorCode === 'INVALID_PASSWORD';
+      setError(getErrorMessage(err));
+      if (isInvalidPassword) {
         setStep('password');
         setPassword('');
-      } else {
-        setError(errMsg || '刪除失敗，請稍後再試');
       }
     }
   };

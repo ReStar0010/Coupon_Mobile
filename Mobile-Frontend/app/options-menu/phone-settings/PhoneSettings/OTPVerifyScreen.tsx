@@ -4,9 +4,11 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { YStack, XStack, H4, Text, Card, Button } from 'tamagui';
 import { ChevronLeft, Clock, RefreshCw, AlertCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isAxiosError } from 'axios';
 import OTPInput from '@/app/components/OTPInput';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
-import { verifyOtp, sendOtp, maskPhoneNumber, ErrorResponse } from '@/app/services/phoneOtpAPI';
+import { useApiError } from '@/app/hooks/useApiError';
+import { verifyOtp, sendOtp, maskPhoneNumber } from '@/app/services/phoneOtpAPI';
 
 interface RouteParams {
   phone: string;
@@ -30,6 +32,7 @@ export default function OTPVerifyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<RouteParams>();
+  const { getErrorMessage } = useApiError();
 
   const [_otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
@@ -118,26 +121,18 @@ export default function OTPVerifyScreen() {
           },
         },
       ]);
-    } catch (err: any) {
-      const error = err as ErrorResponse;
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setError(message);
 
-      setError(error.error || '驗證失敗，請重試');
-
-      // Display remaining attempts if provided
-      if (error.attempts_remaining !== undefined) {
-        setAttemptsRemaining(error.attempts_remaining);
-
-        if (error.attempts_remaining === 0) {
-          Alert.alert('驗證失敗', '驗證碼輸入錯誤次數過多，請重新發送驗證碼', [
-            {
-              text: '確定',
-              onPress: () => router.back(),
-            },
-          ]);
+      const attempts = isAxiosError(err) ? err.errorContext?.attempts_remaining : undefined;
+      if (attempts !== undefined) {
+        setAttemptsRemaining(typeof attempts === 'number' ? attempts : 0);
+        if (attempts === 0) {
+          Alert.alert('驗證失敗', message, [{ text: '確定', onPress: () => router.back() }]);
         }
       }
 
-      // Clear the OTP input for retry
       setOtpCode('');
     } finally {
       setVerifying(false);
@@ -168,16 +163,8 @@ export default function OTPVerifyScreen() {
       }
 
       Alert.alert('成功', message);
-    } catch (err: any) {
-      const error = err as ErrorResponse;
-      let errorMessage = error.error || '發送失敗，請稍後再試';
-
-      if (error.retry_after_seconds) {
-        const minutes = Math.ceil(error.retry_after_seconds / 60);
-        errorMessage += `\n\n請在 ${minutes} 分鐘後再試`;
-      }
-
-      Alert.alert('錯誤', errorMessage);
+    } catch (err) {
+      Alert.alert('錯誤', getErrorMessage(err));
     } finally {
       setResending(false);
     }

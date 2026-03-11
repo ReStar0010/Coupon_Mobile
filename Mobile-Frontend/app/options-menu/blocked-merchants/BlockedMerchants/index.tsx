@@ -33,18 +33,13 @@ export default function BlockedMerchantsScreen() {
         text: '確定',
         onPress: async () => {
           setUnblocking(storeId);
-          try {
-            const success = await unblockStore(storeId);
-            if (success) {
-              Alert.alert('成功', '已解除封鎖');
-            } else {
-              Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
-            }
-          } catch {
-            Alert.alert('錯誤', '解除封鎖失敗，請稍後再試');
-          } finally {
-            setUnblocking(null);
+          const result = await unblockStore(storeId);
+          if (result.success) {
+            Alert.alert('成功', '已解除封鎖');
+          } else {
+            Alert.alert('錯誤', result.message);
           }
+          setUnblocking(null);
         },
       },
     ]);

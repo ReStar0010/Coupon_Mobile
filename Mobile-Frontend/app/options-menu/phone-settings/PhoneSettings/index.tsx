@@ -5,6 +5,8 @@ import { YStack, XStack, H4, Button, Text, Card } from 'tamagui';
 import { ChevronLeft, Shield, Edit2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchAPI } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
+import Toast from 'react-native-toast-message';
 
 /**
  * PhoneSettings - Main phone settings screen
@@ -15,6 +17,7 @@ import { fetchAPI } from '@/app/utils/authAPI';
 export default function PhoneSettings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { getErrorMessage } = useApiError();
   const [phone, setPhone] = useState('');
   const [maskedPhone, setMaskedPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,6 +41,12 @@ export default function PhoneSettings() {
       setMaskedPhone(data.masked_phone || data.phone_number_masked);
     } catch (error) {
       console.error('Failed to load phone:', error);
+      Toast.show({
+        type: 'failRed',
+        text1: getErrorMessage(error),
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
     } finally {
       setLoading(false);
     }

@@ -356,18 +356,13 @@ const CouponDetailPage: React.FC = () => {
             text: t('easyuse.unblockConfirmButton'),
             onPress: async () => {
               setIsBlockingStore(true);
-              try {
-                const success = await unblockStore(coupon.store_id);
-                if (success) {
-                  Alert.alert(t('easyuse.ok'), t('easyuse.unblockSuccess'));
-                } else {
-                  Alert.alert(t('easyuse.error'), t('easyuse.unblockFailed'));
-                }
-              } catch {
-                Alert.alert(t('easyuse.error'), t('easyuse.unblockFailed'));
-              } finally {
-                setIsBlockingStore(false);
+              const result = await unblockStore(coupon.store_id);
+              if (result.success) {
+                Alert.alert(t('easyuse.ok'), t('easyuse.unblockSuccess'));
+              } else {
+                Alert.alert(t('easyuse.error'), result.message);
               }
+              setIsBlockingStore(false);
             },
           },
         ],
@@ -383,29 +378,24 @@ const CouponDetailPage: React.FC = () => {
             style: 'destructive',
             onPress: async () => {
               setIsBlockingStore(true);
-              try {
-                const success = await blockStore(coupon.store_id);
-                if (success) {
-                  Alert.alert(t('easyuse.blockSuccess'), t('easyuse.blockSuccessMessage'), [
-                    {
-                      text: t('easyuse.ok'),
-                      onPress: () => {
-                        if (sourceParam === 'collection') {
-                          router.push('/(tabs)/collection');
-                        } else {
-                          router.push('/(tabs)/easyuse');
-                        }
-                      },
+              const result = await blockStore(coupon.store_id);
+              if (result.success) {
+                Alert.alert(t('easyuse.blockSuccess'), t('easyuse.blockSuccessMessage'), [
+                  {
+                    text: t('easyuse.ok'),
+                    onPress: () => {
+                      if (sourceParam === 'collection') {
+                        router.push('/(tabs)/collection');
+                      } else {
+                        router.push('/(tabs)/easyuse');
+                      }
                     },
-                  ]);
-                } else {
-                  Alert.alert(t('easyuse.error'), t('easyuse.blockFailed'));
-                }
-              } catch {
-                Alert.alert(t('easyuse.error'), t('easyuse.blockFailed'));
-              } finally {
-                setIsBlockingStore(false);
+                  },
+                ]);
+              } else {
+                Alert.alert(t('easyuse.error'), result.message);
               }
+              setIsBlockingStore(false);
             },
           },
         ],

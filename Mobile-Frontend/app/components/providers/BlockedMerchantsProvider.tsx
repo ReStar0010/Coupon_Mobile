@@ -16,12 +16,17 @@ import React, {
   useCallback,
   ReactNode,
 } from 'react';
+import { isAxiosError } from 'axios';
 import { blockListAPI, BlockedMerchant } from '@/app/services/blockListAPI';
 import { isUserLoggedIn } from '@/app/utils/authAPI';
+import { useApiError } from '@/app/hooks/useApiError';
 
 // =============================================================================
 // Context Types
 // =============================================================================
+
+export type BlockStoreResult = { success: true } | { success: false; message: string };
+export type UnblockStoreResult = { success: true } | { success: false; message: string };
 
 interface BlockedMerchantsContextType {
   /** List of blocked merchants with full details */
@@ -35,9 +40,9 @@ interface BlockedMerchantsContextType {
   /** Check if a store is blocked */
   isStoreBlocked: (storeId: number) => boolean;
   /** Block a merchant */
-  blockStore: (storeId: number) => Promise<boolean>;
+  blockStore: (storeId: number) => Promise<BlockStoreResult>;
   /** Unblock a merchant */
-  unblockStore: (storeId: number) => Promise<boolean>;
+  unblockStore: (storeId: number) => Promise<UnblockStoreResult>;
   /** Refresh the blocked merchants list */
   refresh: () => Promise<void>;
 }
@@ -53,6 +58,7 @@ interface BlockedMerchantsProviderProps {
 }
 
 export function BlockedMerchantsProvider({ children }: BlockedMerchantsProviderProps) {
+  const { getErrorMessage } = useApiError();
   const [blockedMerchants, setBlockedMerchants] = useState<BlockedMerchant[]>([]);
   const [blockedStoreIds, setBlockedStoreIds] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -86,18 +92,17 @@ export function BlockedMerchantsProvider({ children }: BlockedMerchantsProviderP
       const validResults = (response.results ?? []).filter(hasValidStore);
       setBlockedMerchants(validResults);
       setBlockedStoreIds(new Set(validResults.map((b) => b.store.id)));
-    } catch (err: any) {
-      // Silently handle 401 errors (user not logged in)
-      if (err?.response?.status === 401) {
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.status === 401) {
         setBlockedMerchants([]);
         setBlockedStoreIds(new Set());
       } else {
-        setError(err?.message || '無法載入封鎖列表');
+        setError(getErrorMessage(err));
       }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [getErrorMessage]);
 
   /**
    * Check if a store is blocked
@@ -113,46 +118,48 @@ export function BlockedMerchantsProvider({ children }: BlockedMerchantsProviderP
    * Block a merchant store
    */
   const blockStore = useCallback(
-    async (storeId: number): Promise<boolean> => {
+    async (storeId: number): Promise<BlockStoreResult> => {
       try {
         const response = await blockListAPI.blockMerchant(storeId);
         const created = response?.blocked_merchant;
         if (hasValidStore(created)) {
-          // Add to local state
           setBlockedMerchants((prev) => [...prev, created]);
           setBlockedStoreIds((prev) => new Set([...prev, storeId]));
         } else {
-          // Avoid poisoning state with invalid entries; re-fetch canonical list.
           await fetchBlockedMerchants();
         }
-        return true;
-      } catch (err: any) {
-        setError(err?.response?.data?.error || err?.message || '封鎖失敗');
-        return false;
+        return { success: true };
+      } catch (err) {
+        const message = getErrorMessage(err);
+        setError(message);
+        return { success: false, message };
       }
     },
-    [fetchBlockedMerchants],
+    [fetchBlockedMerchants, getErrorMessage],
   );
 
   /**
    * Unblock a merchant store
    */
-  const unblockStore = useCallback(async (storeId: number): Promise<boolean> => {
-    try {
-      await blockListAPI.unblockMerchant(storeId);
-      // Remove from local state
-      setBlockedMerchants((prev) => prev.filter((b) => b?.store?.id !== storeId));
-      setBlockedStoreIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(storeId);
-        return newSet;
-      });
-      return true;
-    } catch (err: any) {
-      setError(err?.response?.data?.error || err?.message || '解除封鎖失敗');
-      return false;
-    }
-  }, []);
+  const unblockStore = useCallback(
+    async (storeId: number): Promise<UnblockStoreResult> => {
+      try {
+        await blockListAPI.unblockMerchant(storeId);
+        setBlockedMerchants((prev) => prev.filter((b) => b?.store?.id !== storeId));
+        setBlockedStoreIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(storeId);
+          return newSet;
+        });
+        return { success: true };
+      } catch (err) {
+        const message = getErrorMessage(err);
+        setError(message);
+        return { success: false, message };
+      }
+    },
+    [getErrorMessage],
+  );
 
   // Fetch blocked merchants on mount
   useEffect(() => {
