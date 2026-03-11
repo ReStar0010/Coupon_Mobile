@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { Alert, ScrollView } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { logout, fetchAPI } from '@/app/utils/authAPI';
 import { Text, XStack, YStack, Card, H4, ListItem, Separator } from 'tamagui';
 import {
@@ -20,17 +21,19 @@ const OptionsMenu: React.FC = () => {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = React.useState<string>('');
 
-  useEffect(() => {
-    const loadUserInfo = async () => {
-      try {
-        const response = await fetchAPI('/user-info/', { method: 'GET' });
-        setEmail(response.data?.email || '');
-      } catch (error) {
-        console.error('Failed to fetch user info:', error);
-      }
-    };
-    loadUserInfo();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const loadUserInfo = async () => {
+        try {
+          const response = await fetchAPI('/user-info/', { method: 'GET' });
+          setEmail(response.data?.email || '');
+        } catch (error) {
+          console.error('Failed to fetch user info:', error);
+        }
+      };
+      loadUserInfo();
+    }, []),
+  );
 
   const handleGoBack = useCallback(() => {
     router.back();
@@ -108,11 +111,16 @@ const OptionsMenu: React.FC = () => {
               <H4 fontWeight={'bold'}>選單</H4>
             </XStack>
 
-            {/* Tamagui Card */}
+            {/* Tamagui Card - 顯示使用者 Email 或提示驗證 */}
             <Card bg={'$white1'} bordered>
               <Card.Header>
-                <H4 fontWeight={'bold'}>{email}</H4>
-                {/* <Text color={'gray'}>rickylu@gmail.com</Text> */}
+                {email ? (
+                  <H4 fontWeight={'bold'}>{email}</H4>
+                ) : (
+                  <Text color="$gray10" fontSize="$5">
+                    請驗證您的 Email 地址
+                  </Text>
+                )}
               </Card.Header>
               {/* <Card.Footer pr={'$4'} pb={'$3'}> */}
               {/* <XStack flex={1}></XStack> */}
