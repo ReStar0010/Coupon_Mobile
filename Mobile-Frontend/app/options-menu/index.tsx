@@ -211,7 +211,7 @@ const OptionsMenu: React.FC = () => {
 
             {/* Footer with version info */}
             <Text text="center" color="#a0a0a0">
-              Version 1.0.0
+              Version {require('../../app.json').expo.version}
             </Text>
           </YStack>
         </ScrollView>

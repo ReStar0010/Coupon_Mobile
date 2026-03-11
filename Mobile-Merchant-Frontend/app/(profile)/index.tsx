@@ -312,6 +312,11 @@ export default function MerchantProfileScreen() {
                       </YStack>
                     )}
                   </YStack>
+
+                  {/* Footer with version info */}
+                  <Text text="center" color="#a0a0a0">
+                    Version {require('../../app.json').expo.version}
+                  </Text>
                 </YStack>
               </>
             )}
