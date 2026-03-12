@@ -307,11 +307,11 @@ export default function RegisterScreen() {
             <AlertModal
               isOpen={showSuccessModal}
               onClose={() => setShowSuccessModal(false)}
-              title="註冊成功"
+              title="申請已送出"
               message={
                 verificationRequired && formData.email
-                  ? `您的帳號已成功註冊！\n\n我們已發送驗證郵件到 ${formData.email}，請點擊郵件中的連結完成驗證後即可登入。\n\n若未收到郵件，請檢查垃圾郵件資料夾。`
-                  : '您的帳號已成功註冊！'
+                  ? `您的商家申請已送出！\n\n我們已發送驗證郵件到 ${formData.email}，請點擊郵件中的連結完成驗證。完成驗證後，待平台審核通過即可登入。\n若未收到郵件，請檢查垃圾郵件資料夾。`
+                  : '您的商家申請已送出，待平台審核通過後即可登入。'
               }
               type="success"
               confirmText="確定"

@@ -1,6 +1,7 @@
 let API_BASE_URL = "https://coupon-mobile.onrender.com";
 
 // API_BASE_URL = "https://coupon-mobile-dev.onrender.com";
+// let API_BASE_URL = "https://coupro-123.loca.lt";
 
 export const API_URL = `${API_BASE_URL}/api`;
 

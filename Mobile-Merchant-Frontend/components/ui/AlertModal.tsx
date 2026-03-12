@@ -191,13 +191,15 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   statusContent: {
-    paddingHorizontal: 16,
     width: 'auto',
+    maxWidth: '85%',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     minWidth: 134,
-    height: 56,
+    minHeight: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 40, // Fully rounded (pill shape) - large radius for pill shape
+    borderRadius: 24,
     alignSelf: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -233,5 +235,7 @@ const styles = StyleSheet.create({
   },
   statusMessageText: {
     textAlign: 'center',
+    lineHeight: 22,
+    flexShrink: 1,
   },
 });

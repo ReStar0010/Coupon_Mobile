@@ -41,6 +41,8 @@ from ..exceptions import (
     AlreadyVerified,
     ExpiredToken,
     EmailNotVerified,
+    MerchantApplicationPending,
+    MerchantApplicationRejected,
     WrongClientTypeMerchant,
     WrongClientTypeUser,
     InvalidCredentials,
@@ -487,6 +489,64 @@ def send_merchant_verification_email(user_email, token):
         else:
             raise Exception('發送郵件時發生錯誤，請稍後再試或聯繫客服')
 
+
+def send_merchant_application_approved_email(user_email):
+    """Notify a merchant that their application has been approved."""
+    subject = '您的 CouPro 商家申請已通過'
+    html_message = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CouPro 商家申請已通過</title>
+</head>
+<body>
+    <p>親愛的商家夥伴，您好！</p>
+    <p>您的 CouPro 商家申請已通過審核。</p>
+    <p>若您尚未完成電子郵件驗證，請先完成驗證；完成後即可登入商家端 App 使用平台功能。</p>
+    <p>CouPro 團隊</p>
+</body>
+</html>
+'''
+
+    params = {
+        "from": "noreply@coupro.pro",
+        "to": user_email,
+        "subject": subject,
+        "html": html_message,
+    }
+    resend.Emails.send(params)
+    logger.info("Sent merchant approval email to %s", user_email)
+
+
+def send_merchant_application_rejected_email(user_email):
+    """Notify a merchant that their application has been rejected."""
+    subject = '您的 CouPro 商家申請未通過'
+    html_message = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CouPro 商家申請未通過</title>
+</head>
+<body>
+    <p>親愛的商家夥伴，您好！</p>
+    <p>很抱歉，您的 CouPro 商家申請目前未通過審核。</p>
+    <p>若您需要進一步協助，請聯繫 CouPro 團隊。</p>
+    <p>CouPro 團隊</p>
+</body>
+</html>
+'''
+
+    params = {
+        "from": "noreply@coupro.pro",
+        "to": user_email,
+        "subject": subject,
+        "html": html_message,
+    }
+    resend.Emails.send(params)
+    logger.info("Sent merchant rejection email to %s", user_email)
+
 # Updated password reset email function
 def send_password_reset_email(user_email, token, user_type='student'):
     """
@@ -835,7 +895,7 @@ def register(request):
             logger.warning("Verification email failed but account created: %s", email_error)
             # Still return success, but note that email may not have been sent
             return Response({
-                'message': '註冊成功！但驗證郵件發送失敗，請稍後重新申請驗證郵件。',
+                'message': '申請已送出！但驗證郵件發送失敗，請稍後重新申請驗證郵件。完成驗證後，我們會在審核通過後開通您的商家權限。',
                 'user_id': user.id,
                 'email': email,
                 'verification_required': True,
@@ -845,7 +905,7 @@ def register(request):
             }, status=status.HTTP_201_CREATED)
         
         return Response({
-            'message': '註冊成功！驗證郵件已發送到您的信箱，請點擊連結完成驗證。',
+            'message': '商家申請已送出！驗證郵件已發送到您的信箱，請先完成信箱驗證；審核通過後即可登入商家平台。',
             'user_id': user.id,
             'email': email,
             'verification_required': True,
@@ -1088,13 +1148,24 @@ def login(request):
             logger.warning("StudentProfile not found for user %s during login", getattr(user, 'email', user.username))
             # For now, let's allow login if profile is missing, assuming they might be non-student users
         
-        # Check merchant verification status
-        if user.groups.filter(name='Merchant').exists():
+        # Check merchant verification status (cache result to avoid second DB query below)
+        is_merchant = user.groups.filter(name='Merchant').exists()
+        if is_merchant:
             try:
                 merchant_profile = MerchantProfile.objects.get(user=user)
                 if not merchant_profile.verified:
                     raise EmailNotVerified(
                         developer_message="請先驗證您的電子郵件",
+                        context={"email": user.email},
+                    )
+                if merchant_profile.application_status == 'pending':
+                    raise MerchantApplicationPending(
+                        developer_message="您的商家申請正在審核中。\n如有疑問，歡迎私訊我們的信箱 coupro707@gmail.com，或到粉絲專頁聯絡我們。",
+                        context={"email": user.email},
+                    )
+                if merchant_profile.application_status == 'rejected':
+                    raise MerchantApplicationRejected(
+                        developer_message="您的商家申請已被拒絕。\n如有疑問，歡迎私訊我們的信箱 coupro707@gmail.com，或到粉絲專頁聯絡我們。",
                         context={"email": user.email},
                     )
             except MerchantProfile.DoesNotExist:
@@ -1103,7 +1174,6 @@ def login(request):
 
         if check_password(password, user.password):
             # Enforce client_type vs account type: merchant account only on merchant app, user only on user app
-            is_merchant = user.groups.filter(name='Merchant').exists()
             if client_type == 'merchant' and not is_merchant:
                 raise WrongClientTypeMerchant(developer_message="此帳號為一般使用者，請使用使用者端 App 登入")
             if client_type == 'user' and is_merchant:

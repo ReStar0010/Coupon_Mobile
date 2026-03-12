@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch
 
-from api.models import StudentProfile
+from api.models import StudentProfile, MerchantProfile
 
 
 class AuthRoutesTest(TestCase):
@@ -103,6 +103,28 @@ class AuthRoutesTest(TestCase):
         }, format='json')
         self.assertGreaterEqual(response.status_code, 400)
         self.assertLess(response.status_code, 500)
+
+    @patch('api.views.authentication.send_merchant_verification_email')
+    def test_register_merchant_creates_pending_application(self, mock_send):
+        """Merchant registration creates a pending application and returns review messaging."""
+        response = self.client.post('/api/register/', {
+            'email': 'merchant-new@test.com',
+            'password': 'merchantpass123',
+            'user_type': 'merchant',
+            'phone': '0912345678',
+            'contact_person': 'Merchant Owner',
+            'contact_info': 'line@merchant',
+            'store_name': 'Pending Store',
+            'store_address': 'Test Address',
+            'store_lat': 25.033,
+            'store_lng': 121.5654,
+            'business_hours': '09:00-18:00',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.json())
+        profile = MerchantProfile.objects.get(user__email='merchant-new@test.com')
+        self.assertEqual(profile.application_status, 'pending')
+        self.assertIn('申請', response.json().get('message', ''))
 
     def test_forgot_password_accepts_email(self):
         """POST api/forgot-password/ accepts email and returns 200 or 4xx."""

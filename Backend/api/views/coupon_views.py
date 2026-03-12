@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 import logging
 from drf_yasg.utils import swagger_auto_schema
 
@@ -38,30 +38,26 @@ def get_store_coupons(request):
             BlockedMerchant.objects.filter(user=request.user).values_list('store_id', flat=True)
         )
 
-    # Query 1: Store coupons (existing logic)
+    # Query 1: Store coupons — annotate redemption counts in a single query to avoid N+1
     store_coupons = Coupon.objects.filter(
         coupon_type='store',
         expiry_date__gt=now,
         start_date__lte=now
-    ).select_related('store').prefetch_related('tags')  # Optimize DB query
+    ).select_related('store').prefetch_related('tags').annotate(
+        total_redemptions_count=Count('redemptions', distinct=True),
+        unique_users_count=Count('redemptions__user', distinct=True),
+    )
 
     # UGC Compliance: Exclude blocked merchants
     if blocked_store_ids:
         store_coupons = store_coupons.exclude(store_id__in=blocked_store_ids)
 
-    # 取得這些 coupon 關聯的所有 store IDs
-    store_ids = store_coupons.values_list('store_id', flat=True).distinct()
-
-    # 計算每個 store 的有效 coupon 數量
-    active_counts = Coupon.objects.filter(
-        store_id__in=store_ids,
-        coupon_type='store',
-        expiry_date__gt=now,
-        start_date__lte=now
-    ).values('store_id').annotate(active_coupon_count=Count('id'))
-
-    # 將數量轉換為字典方便查找 {store_id: count}
-    active_counts_dict = {item['store_id']: item['active_coupon_count'] for item in active_counts}
+    # Evaluate once; build active_counts_dict in Python to avoid a second DB round-trip
+    # (deriving the count from the annotated queryset risks inflated counts due to JOIN)
+    store_coupons_list = list(store_coupons)
+    active_counts_dict: dict[int, int] = {}
+    for c in store_coupons_list:
+        active_counts_dict[c.store_id] = active_counts_dict.get(c.store_id, 0) + 1
 
     # Query 2: Public pool coupons (shared exclusive coupons)
     public_share_coupon_ids = CouponShareRequest.objects.filter(
@@ -75,7 +71,7 @@ def get_store_coupons(request):
         expiry_date__gt=now,
         start_date__lte=now,
         current_holder__isnull=True  # Ensure not already claimed
-    ).select_related('store').prefetch_related('tags', 'share_requests')
+    ).select_related('store').prefetch_related('tags', Prefetch('share_requests', queryset=CouponShareRequest.objects.select_related('from_user')))
 
     # UGC Compliance: Exclude blocked merchants from public pool as well
     if blocked_store_ids:
@@ -84,7 +80,7 @@ def get_store_coupons(request):
     data = []
 
     # Add store coupons
-    for c in store_coupons:
+    for c in store_coupons_list:
         store_active_count = active_counts_dict.get(c.store_id, 0)
 
         data.append({
@@ -105,8 +101,8 @@ def get_store_coupons(request):
             "expiry_date": c.expiry_date,
             "coupon_type": c.coupon_type,
             "image_url": c.image_url,
-            "total_redemptions": c.get_redemption_count(),
-            "unique_users": c.get_unique_users_count(),
+            "total_redemptions": c.total_redemptions_count,
+            "unique_users": c.unique_users_count,
             "tags": [tag.display_name for tag in c.tags.all()],
             "is_public_share": False,
             "share_token": None,
@@ -116,8 +112,11 @@ def get_store_coupons(request):
 
     # Add public pool coupons
     for c in public_pool_coupons:
-        # Get the pending public share request for this coupon
-        share_request = c.share_requests.filter(is_public=True, status='pending').first()
+        # Use prefetch cache — .filter() would bypass it and hit DB per coupon (N+1)
+        share_request = next(
+            (sr for sr in c.share_requests.all() if sr.is_public and sr.status == 'pending'),
+            None,
+        )
         if share_request:
             data.append({
                 "id": c.id,
