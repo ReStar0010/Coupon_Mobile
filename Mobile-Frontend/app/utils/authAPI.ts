@@ -129,6 +129,7 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'SELF_CLAIM_NOT_ALLOWED',
   'SHARE_REQUEST_ALREADY_PROCESSED',
   'SHARE_ALREADY_CLAIMED',
+  'SHARE_NOT_PENDING_FOR_WITHDRAW',
 ]);
 
 // // Firebase Performance Monitoring — request interceptor

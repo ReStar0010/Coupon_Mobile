@@ -18,6 +18,7 @@ from api.exceptions import (
     ShareAlreadyClaimed,
     ShareAlreadyPublic,
     ShareFailed,
+    ShareNotPendingForWithdraw,
     ShareRequestAlreadyProcessed,
     ShareRequestNotFound,
     SelfClaimNotAllowed,
@@ -424,9 +425,8 @@ def withdraw_public_share(request, share_id):
         is_public=True,
     )
     if share_request.status != 'pending':
-        return Response(
-            {'error': 'Only pending public shares can be withdrawn.'},
-            status=status.HTTP_400_BAD_REQUEST,
+        raise ShareNotPendingForWithdraw(
+            developer_message="Only pending public shares can be withdrawn."
         )
 
     with transaction.atomic():

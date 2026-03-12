@@ -331,6 +331,12 @@ class ShareAlreadyClaimed(CouProAPIException):
     error_code = "SHARE_ALREADY_CLAIMED"
 
 
+class ShareNotPendingForWithdraw(CouProAPIException):
+    """Only pending public shares can be withdrawn."""
+    status_code = status.HTTP_400_BAD_REQUEST
+    error_code = "SHARE_NOT_PENDING_FOR_WITHDRAW"
+
+
 # ---------------------------------------------------------------------------
 # QR Code sessions
 # ---------------------------------------------------------------------------

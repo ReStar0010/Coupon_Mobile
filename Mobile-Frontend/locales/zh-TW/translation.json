@@ -168,6 +168,7 @@
     "SHARE_FAILED":                           "分享失敗，請稍後再試。",
     "SELF_CLAIM_NOT_ALLOWED":                 "無法領取自己分享的優惠券。",
     "SHARE_REQUEST_ALREADY_PROCESSED":        "此分享已處理完成，無法重複操作。",
-    "SHARE_ALREADY_CLAIMED":                  "此優惠券已被其他人領取。"
+    "SHARE_ALREADY_CLAIMED":                  "此優惠券已被其他人領取。",
+    "SHARE_NOT_PENDING_FOR_WITHDRAW":         "僅能收回尚未被領取的公開分享，此優惠券已被領取或已收回。"
   }
 }
