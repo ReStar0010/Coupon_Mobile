@@ -6,6 +6,8 @@
     "EMAIL_ALREADY_EXISTS":                   "此電子郵件已被使用，請使用其他電子郵件或直接登入。",
     "INVALID_CREDENTIALS":                    "帳號或密碼錯誤，請確認後再試。",
     "EMAIL_NOT_VERIFIED":                     "您的電子郵件尚未驗證，請先至信箱完成驗證。",
+    "MERCHANT_APPLICATION_PENDING":          "您的商家申請尚在審核中，待審核通過後即可登入。",
+    "MERCHANT_APPLICATION_REJECTED":         "您的商家申請未通過審核，請聯繫 CouPro 團隊了解後續處理方式。",
     "WRONG_CLIENT_TYPE_MERCHANT":             "此帳號為一般使用者帳號，請使用消費者 App 登入。",
     "WRONG_CLIENT_TYPE_USER":                 "此帳號為商家帳號，請使用商家端 App 登入。",
     "NOT_AUTHENTICATED":                      "請先登入後再繼續操作。",

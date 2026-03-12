@@ -1,12 +1,16 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from django.db.models import Count, Sum
+from django.db.models import Case, Count, IntegerField, Sum, Value, When
 from django.utils import timezone
 from django.urls import path
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import *
 from .utils import generate_platform_voucher_redeem_code
+from .views.authentication import (
+    send_merchant_application_approved_email,
+    send_merchant_application_rejected_email,
+)
 
 
 # =============================================================================
@@ -98,15 +102,19 @@ class StudentProfileAdmin(admin.ModelAdmin):
 @admin.register(MerchantProfile)
 class MerchantProfileAdmin(admin.ModelAdmin):
     list_display = [
-        'id', 'user_email', 'contact_person', 'phone', 
-        'verified', 'violation_count', 'suspension_status'
+        'id', 'user_email', 'contact_person', 'phone',
+        'application_status_badge', 'verified', 'store_summary',
+        'application_submitted_at', 'application_reviewed_at',
+        'violation_count', 'suspension_status'
     ]
-    list_filter = ['verified', 'suspension_flagged', 'violation_count']
+    list_filter = ['application_status', 'verified', 'suspension_flagged', 'violation_count']
     search_fields = ['user__email', 'user__username', 'contact_person', 'phone']
+    list_select_related = ['user']
     readonly_fields = [
         'email_verification_token', 'verification_token_created_at',
         'last_verification_email_sent', 'verification_email_count',
-        'violation_count', 'suspension_flagged_at'
+        'violation_count', 'suspension_flagged_at',
+        'application_submitted_at', 'application_reviewed_at',
     ]
     # Note: ViolationRecordInline removed - ViolationRecord.merchant points to User, not MerchantProfile
     # To view violations, use the User admin or ViolationRecord admin directly
@@ -121,17 +129,57 @@ class MerchantProfileAdmin(admin.ModelAdmin):
                 'verification_email_count'
             )
         }),
+        ('申請審核', {
+            'fields': (
+                'application_status', 'application_submitted_at',
+                'application_reviewed_at', 'application_review_notes',
+            )
+        }),
         ('違規管理', {
             'fields': ('violation_count', 'suspension_flagged', 'suspension_flagged_at'),
             'classes': ('collapse',)
         }),
     )
-    actions = ['mark_as_verified', 'flag_for_suspension']
+    actions = ['approve_applications', 'reject_applications', 'mark_as_verified', 'flag_for_suspension']
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related('user')
+            .annotate(
+                pending_first=Case(
+                    When(application_status='pending', then=Value(0)),
+                    When(application_status='approved', then=Value(1)),
+                    default=Value(2),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by('pending_first', '-application_submitted_at', 'user__email')
+        )
     
     def user_email(self, obj):
         return obj.user.email
     user_email.short_description = '電子郵件'
     user_email.admin_order_field = 'user__email'
+
+    def application_status_badge(self, obj):
+        labels = {
+            'pending': ('待審核', '#b26a00'),
+            'approved': ('已核准', '#137333'),
+            'rejected': ('已拒絕', '#b3261e'),
+        }
+        label, color = labels.get(obj.application_status, (obj.application_status, '#666666'))
+        return format_html('<strong style="color: {};">{}</strong>', color, label)
+    application_status_badge.short_description = '申請狀態'
+    application_status_badge.admin_order_field = 'application_status'
+
+    def store_summary(self, obj):
+        store = Store.objects.filter(owner=obj.user).first()
+        if not store:
+            return '—'
+        return f'{store.name or "未命名商店"} / {store.address or "未填地址"}'
+    store_summary.short_description = '商店資訊'
     
     def suspension_status(self, obj):
         if obj.suspension_flagged:
@@ -145,6 +193,28 @@ class MerchantProfileAdmin(admin.ModelAdmin):
         count = queryset.update(verified=True)
         self.message_user(request, f'已標記 {count} 位商家為已驗證')
     mark_as_verified.short_description = '標記為已驗證'
+
+    def approve_applications(self, request, queryset):
+        approved_count = 0
+        for profile in queryset.select_related('user'):
+            profile.application_status = 'approved'
+            profile.application_reviewed_at = timezone.now()
+            profile.save(update_fields=['application_status', 'application_reviewed_at'])
+            send_merchant_application_approved_email(profile.user.email)
+            approved_count += 1
+        self.message_user(request, f'已核准 {approved_count} 位商家申請')
+    approve_applications.short_description = '核准商家申請'
+
+    def reject_applications(self, request, queryset):
+        rejected_count = 0
+        for profile in queryset.select_related('user'):
+            profile.application_status = 'rejected'
+            profile.application_reviewed_at = timezone.now()
+            profile.save(update_fields=['application_status', 'application_reviewed_at'])
+            send_merchant_application_rejected_email(profile.user.email)
+            rejected_count += 1
+        self.message_user(request, f'已拒絕 {rejected_count} 位商家申請')
+    reject_applications.short_description = '拒絕商家申請'
     
     def flag_for_suspension(self, request, queryset):
         count = queryset.update(suspension_flagged=True, suspension_flagged_at=timezone.now())

@@ -92,12 +92,29 @@ class StudentProfile(models.Model):
 
 # Profile model for Merchants
 class MerchantProfile(models.Model):
+    APPLICATION_STATUS_CHOICES = [
+        ('pending', '待審核'),
+        ('approved', '已核准'),
+        ('rejected', '已拒絕'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='merchant_profile')
 
     # Merchant contact informations
     phone = models.CharField(max_length=20) # Merchant contact phone
     contact_person = models.CharField(max_length=100, blank=True)
     contact_info = models.CharField(max_length=100, help_text="e.g., Line ID or alternative phone") # Combined contact info
+
+    # Merchant application review fields
+    application_status = models.CharField(
+        max_length=20,
+        choices=APPLICATION_STATUS_CHOICES,
+        default='pending',
+        db_index=True,
+    )
+    application_submitted_at = models.DateTimeField(default=timezone.now)
+    application_reviewed_at = models.DateTimeField(null=True, blank=True)
+    application_review_notes = models.TextField(blank=True)
 
     # Email verification fields
     verified = models.BooleanField(default=False)

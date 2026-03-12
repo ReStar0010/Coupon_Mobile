@@ -70,6 +70,16 @@ class EmailNotVerified(CouProAPIException):
     error_code = "EMAIL_NOT_VERIFIED"
 
 
+class MerchantApplicationPending(CouProAPIException):
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = "MERCHANT_APPLICATION_PENDING"
+
+
+class MerchantApplicationRejected(CouProAPIException):
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = "MERCHANT_APPLICATION_REJECTED"
+
+
 class WrongClientTypeMerchant(CouProAPIException):
     """Consumer account trying to use merchant app."""
     status_code = status.HTTP_403_FORBIDDEN

@@ -38,6 +38,7 @@ class LoginClientTypeTest(TestCase):
             contact_person='Test Merchant',
             contact_info='line@test',
             verified=True,
+            application_status='approved',
         )
         Store.objects.create(
             owner=self.merchant_user,
@@ -69,28 +70,51 @@ class LoginClientTypeTest(TestCase):
         self.assertIn('access_token', data)
         self.assertIn('refresh_token', data)
 
+    def test_login_pending_merchant_with_client_type_merchant_returns_403(self):
+        """Pending merchant application cannot log in yet."""
+        self.merchant_user.merchant_profile.application_status = 'pending'
+        self.merchant_user.merchant_profile.save(update_fields=['application_status'])
+
+        response = self._login('merchant@example.com', 'testpass123', 'merchant')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        data = response.json()
+        self.assertEqual(data.get('error_code'), 'MERCHANT_APPLICATION_PENDING')
+
+    def test_login_rejected_merchant_with_client_type_merchant_returns_403(self):
+        """Rejected merchant application cannot log in."""
+        self.merchant_user.merchant_profile.application_status = 'rejected'
+        self.merchant_user.merchant_profile.save(update_fields=['application_status'])
+
+        response = self._login('merchant@example.com', 'testpass123', 'merchant')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        data = response.json()
+        self.assertEqual(data.get('error_code'), 'MERCHANT_APPLICATION_REJECTED')
+
     def test_login_user_with_client_type_merchant_returns_403(self):
         """Regular user logging in with client_type=merchant gets 403 wrong_client_type."""
         response = self._login('user@example.com', 'testpass123', 'merchant')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         data = response.json()
-        self.assertEqual(data.get('error'), 'wrong_client_type')
-        self.assertIn('使用者端', data.get('message', ''))
+        self.assertEqual(data.get('error_code'), 'WRONG_CLIENT_TYPE_MERCHANT')
+        self.assertIn('使用者端', data.get('developer_message', ''))
 
     def test_login_merchant_with_client_type_user_returns_403(self):
         """Merchant user logging in with client_type=user gets 403 wrong_client_type."""
         response = self._login('merchant@example.com', 'testpass123', 'user')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         data = response.json()
-        self.assertEqual(data.get('error'), 'wrong_client_type')
-        self.assertIn('商家端', data.get('message', ''))
+        self.assertEqual(data.get('error_code'), 'WRONG_CLIENT_TYPE_USER')
+        self.assertIn('商家端', data.get('developer_message', ''))
 
     def test_login_without_client_type_returns_400(self):
         """Login without client_type returns 400."""
         response = self._login('user@example.com', 'testpass123')  # no client_type
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         data = response.json()
-        self.assertIn('client_type', data)
+        self.assertEqual(data.get('error_code'), 'FIELD_REQUIRED')
+        self.assertEqual(data.get('context', {}).get('field'), 'client_type')
 
     def test_login_with_invalid_client_type_returns_400(self):
         """Login with invalid client_type returns 400."""
@@ -101,4 +125,5 @@ class LoginClientTypeTest(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         data = response.json()
-        self.assertIn('client_type', data)
+        self.assertEqual(data.get('error_code'), 'VALIDATION_ERROR')
+        self.assertEqual(data.get('context', {}).get('field'), 'client_type')
