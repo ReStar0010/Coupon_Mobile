@@ -134,6 +134,7 @@
     "IMAGE_TYPE_INVALID":                     "不支援此圖片格式，請上傳 JPG、PNG、GIF 或 WebP 檔案。",
     "IMAGE_TOO_LARGE":                        "圖片檔案過大，最大限制為 {{max_mb}} MB。",
     "IMAGE_UPLOAD_FAILED":                    "圖片上傳失敗，請稍後再試。",
+    "IMAGE_DELETE_FAILED":                     "刪除圖片檔案時發生錯誤，請稍後再試。",
 
     "INVALID_DATE_FORMAT":                    "日期格式不正確，請使用 YYYY-MM-DD 格式。",
     "INVALID_DATE_RANGE":                     "結束日期不得早於開始日期，請重新設定。",

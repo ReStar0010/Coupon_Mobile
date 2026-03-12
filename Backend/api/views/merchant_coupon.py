@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError, ErrorDetail
 from django.utils import timezone
 from django.conf import settings
+from django.core.files.storage import default_storage
 import secrets
 import os
 from pathlib import Path
@@ -29,6 +30,7 @@ from api.exceptions import (
     ImageTypeInvalid,
     ImageTooLarge,
     ImageUploadFailed,
+    ImageDeleteFailed,
     PhoneNotRegistered,
     PhoneFormatInvalid,
 )
@@ -68,15 +70,16 @@ def merchant_consolidate_coupon(request):
     # T015: Verify merchant owns this template's store
     store = get_merchant_store(request.user)
     if not store:
-        return Response({
-            'error': 'No store found for this merchant.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise NoStoreForMerchant(developer_message="No store found for this merchant.")
     
     # Validate and normalize phone number
     try:
         phone_number = validate_phone_number(phone_number_raw)
     except ValueError as e:
-        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        raise PhoneFormatInvalid(
+            developer_message=str(e),
+            context={"field": "phone_number"},
+        )
     
     # T015: Check if the template exists AND belongs to merchant's store
     try:
@@ -87,9 +90,9 @@ def merchant_consolidate_coupon(request):
             remaining_quantity__gt=0
         )
     except CouponTemplate.DoesNotExist:
-        return Response({
-            'error': 'Coupon template not found or not available.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise CouponTemplateNotFound(
+            developer_message="Coupon template not found or not available."
+        )
     
     # T016 & T017: Try to find registered user, or create pending coupon
     try:
@@ -198,9 +201,9 @@ def refresh_redeem_code(request):
         }, status=status.HTTP_200_OK)
 
     except CouponTemplate.DoesNotExist:
-        return Response({
-            'error': 'Coupon template does not exist.'
-        }, status=status.HTTP_404_NOT_FOUND)
+        raise CouponTemplateNotFound(
+            developer_message="Coupon template does not exist."
+        )
 
 
 # Helper function to check if user owns the store
@@ -555,47 +558,35 @@ def delete_coupon_template(request, id):
         if existing_coupon:
             existing_coupon.delete()
         
-        # Delete associated image file if it exists and is stored locally
+        # Delete associated image file from default storage (local disk or R2) if it's our media
         if template.image_url:
             image_url = template.image_url
-            # Check if it's a local file
-            # Local files can be:
-            # 1. Starts with /media/ (relative path)
-            # 2. Contains the MEDIA_URL path (full URL with domain)
-            # 3. Just a filename (no http/https)
-            is_local_file = False
-            filename = None
-            
+            # Extract storage key (filename): /media/xxx, full URL with MEDIA_URL, or bare filename
+            storage_key = None
             if image_url.startswith(settings.MEDIA_URL):
-                # Relative path like /media/filename.jpg
-                filename = image_url.replace(settings.MEDIA_URL, '')
-                is_local_file = True
+                storage_key = image_url.replace(settings.MEDIA_URL, '').lstrip('/')
             elif settings.MEDIA_URL in image_url:
-                # Full URL like http://localhost:8000/media/filename.jpg
-                # Extract filename from URL
                 parts = image_url.split(settings.MEDIA_URL)
                 if len(parts) > 1:
-                    filename = parts[-1].split('?')[0]  # Remove query parameters if any
-                    is_local_file = True
+                    storage_key = (parts[-1].split('?')[0]).lstrip('/')
             elif not (image_url.startswith('http://') or image_url.startswith('https://')):
-                # Just a filename without path
-                filename = image_url.split('/')[-1].split('?')[0]
-                is_local_file = True
-            
-            if is_local_file and filename:
+                storage_key = image_url.split('/')[-1].split('?')[0]
+            else:
+                # Full external URL (e.g. R2): key is the last path segment
+                storage_key = image_url.rstrip('/').split('/')[-1].split('?')[0]
+            if storage_key:
                 try:
-                    # Build full file path
-                    file_path = settings.MEDIA_ROOT / filename
-                    
-                    # Delete the file if it exists
-                    if file_path.exists() and file_path.is_file():
-                        os.remove(file_path)
-                        logger.info("Successfully deleted image file: %s", file_path)
+                    if default_storage.exists(storage_key):
+                        default_storage.delete(storage_key)
+                        logger.info("Successfully deleted image file: %s", storage_key)
                     else:
-                        logger.debug("Image file not found during cleanup: %s", file_path)
+                        logger.debug("Image file not found during cleanup: %s", storage_key)
                 except Exception as e:
-                    # Log error but don't fail the deletion
-                    logger.error("Failed to delete image file %s: %s", filename, e)
+                    logger.error("Failed to delete image file %s: %s", storage_key, e)
+                    raise ImageDeleteFailed(
+                        developer_message=f"Failed to delete image file from storage: {e}",
+                        context={"storage_key": storage_key},
+                    )
         
         # Delete the template
         template.delete()
@@ -795,24 +786,15 @@ def upload_image(request):
         raise ImageTooLarge(developer_message="File too large. Maximum size is 5MB.", context={"max_mb": 5})
     
     try:
-        # Ensure images directory exists
-        images_dir = settings.MEDIA_ROOT
-        os.makedirs(images_dir, exist_ok=True)
-        
         # Generate unique filename: {timestamp}_{random}_{original_filename}
         timestamp = int(datetime.now().timestamp())
         random_str = secrets.token_hex(4)  # 8 character random string
         original_filename = Path(file_name).stem
         unique_filename = f"{timestamp}_{random_str}_{original_filename}{file_extension}"
         
-        # Save file
-        file_path = images_dir / unique_filename
-        with open(file_path, 'wb+') as destination:
-            for chunk in image_file.chunks():
-                destination.write(chunk)
-        
-        # Return the URL
-        image_url = f"{settings.MEDIA_URL}{unique_filename}"
+        # Save via default storage (local MEDIA_ROOT or R2 when configured)
+        path = default_storage.save(unique_filename, image_file)
+        image_url = default_storage.url(path)
         
         return Response({
             'image_url': image_url

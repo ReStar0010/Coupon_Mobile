@@ -72,14 +72,49 @@ CSRF_COOKIE_SAMESITE = 'None'
 # -----------------------------------------------------------------------------
 # Static & media storage
 # -----------------------------------------------------------------------------
-STORAGES = {
-    'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
-    },
-    'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
-    },
-}
+# When R2 env vars are set, media files go to Cloudflare R2 (S3-compatible).
+# Otherwise fall back to local disk (e.g. Render ephemeral disk).
+R2_ACCOUNT_ID = os.environ.get('R2_ACCOUNT_ID')
+R2_ACCESS_KEY_ID = os.environ.get('R2_ACCESS_KEY_ID')
+R2_SECRET_ACCESS_KEY = os.environ.get('R2_SECRET_ACCESS_KEY')
+R2_BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
+# Public URL for media (e.g. https://pub-xxx.r2.dev or custom domain). Must end with /
+R2_PUBLIC_MEDIA_URL = (os.environ.get('R2_PUBLIC_MEDIA_URL') or '').rstrip('/')
+if R2_PUBLIC_MEDIA_URL:
+    R2_PUBLIC_MEDIA_URL = R2_PUBLIC_MEDIA_URL + '/'
+
+_use_r2 = bool(R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_BUCKET_NAME and R2_PUBLIC_MEDIA_URL)
+
+if _use_r2:
+    # Cloudflare R2 (S3-compatible)
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'bucket_name': R2_BUCKET_NAME,
+                'endpoint_url': f'https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com',
+                'region_name': 'auto',
+                'access_key': R2_ACCESS_KEY_ID,
+                'secret_key': R2_SECRET_ACCESS_KEY,
+                'custom_domain': R2_PUBLIC_MEDIA_URL.rstrip('/').replace('https://', '').replace('http://', '').split('/')[0],
+                'querystring_auth': False,
+                'file_overwrite': False,
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+        },
+    }
+    MEDIA_URL = R2_PUBLIC_MEDIA_URL
+else:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+        },
+    }
 
 # -----------------------------------------------------------------------------
 # Database (PgBouncer-friendly)

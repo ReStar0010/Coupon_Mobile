@@ -377,6 +377,12 @@ class ImageUploadFailed(CouProAPIException):
     error_code = "IMAGE_UPLOAD_FAILED"
 
 
+class ImageDeleteFailed(CouProAPIException):
+    """Raised when deleting an image file from storage fails (e.g. during template delete)."""
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_code = "IMAGE_DELETE_FAILED"
+
+
 # ---------------------------------------------------------------------------
 # Analytics / date ranges
 # ---------------------------------------------------------------------------
