@@ -354,7 +354,7 @@ const Statistics: React.FC = () => {
         </View>
       )}
     {/* // </Sentry.ErrorBoundary> */}
-    </>
+    // </>
   );
 };
 

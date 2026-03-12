@@ -1088,8 +1088,9 @@ def login(request):
             logger.warning("StudentProfile not found for user %s during login", getattr(user, 'email', user.username))
             # For now, let's allow login if profile is missing, assuming they might be non-student users
         
-        # Check merchant verification status
-        if user.groups.filter(name='Merchant').exists():
+        # Check merchant verification status (cache result to avoid second DB query below)
+        is_merchant = user.groups.filter(name='Merchant').exists()
+        if is_merchant:
             try:
                 merchant_profile = MerchantProfile.objects.get(user=user)
                 if not merchant_profile.verified:
@@ -1103,7 +1104,6 @@ def login(request):
 
         if check_password(password, user.password):
             # Enforce client_type vs account type: merchant account only on merchant app, user only on user app
-            is_merchant = user.groups.filter(name='Merchant').exists()
             if client_type == 'merchant' and not is_merchant:
                 raise WrongClientTypeMerchant(developer_message="此帳號為一般使用者，請使用使用者端 App 登入")
             if client_type == 'user' and is_merchant:

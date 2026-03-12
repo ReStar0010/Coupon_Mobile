@@ -82,10 +82,10 @@ def main() -> int:
         import requests
         run_locust_only = os.environ.get("RUN_LOCUST_ONLY") == "1"
         secret = os.environ.get("LOAD_TEST_SECRET")
-        if not secret:
-            print("LOAD_TEST_SECRET is required for remote load test.", file=sys.stderr)
+        if not run_locust_only and not secret:
+            print("LOAD_TEST_SECRET is required for remote load test (reset + verify). Set RUN_LOCUST_ONLY=1 to run Locust only without secret.", file=sys.stderr)
             return 1
-        headers = {"X-Load-Test-Secret": secret, "Content-Type": "application/json"}
+        headers = {"X-Load-Test-Secret": secret or "", "Content-Type": "application/json"}
 
         if not run_locust_only:
             reset_timeout = int(os.environ.get("LOAD_TEST_RESET_TIMEOUT", "60"))
@@ -139,7 +139,10 @@ def main() -> int:
         if rc != 0:
             print("Locust run had failures (check artifacts).", file=sys.stderr)
 
-        # Step 4: Verify consistency via API
+        # Step 3: Verify consistency via API (skip if RUN_LOCUST_ONLY=1 or no secret)
+        if run_locust_only or not secret:
+            print("Skipping consistency check (RUN_LOCUST_ONLY=1 or no LOAD_TEST_SECRET).")
+            return rc
         print("Step 3: Consistency check (GET /api/load-test/verify-consistency/)...")
         try:
             r2 = requests.get(
