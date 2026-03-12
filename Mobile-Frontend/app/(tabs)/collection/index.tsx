@@ -3,7 +3,7 @@ import { RefreshControl, FlatList } from 'react-native';
 import { Stack } from 'expo-router';
 import { YStack, Text, Spinner, View } from 'tamagui';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import AppHeader from '@/app/components/shared/AppHeader';
 import { useRequireAuth } from '@/app/utils/authAPI';
@@ -319,18 +319,19 @@ const Collection: React.FC = () => {
   }
 
   return (
-    // <Sentry.ErrorBoundary
-    //   fallback={({ error, componentStack, resetError }) => (
-    //     <ScreenErrorFallback
-    //       error={error as Error}
-    //       componentStack={componentStack}
-    //       resetError={resetError}
-    //     />
-    //   )}
-    //   beforeCapture={(scope) => {
-    //     scope.setTag('boundary', 'collection-screen');
-    //     scope.setTag('boundary_type', 'screen');
-    //   }}
+    <Sentry.ErrorBoundary
+      fallback={({ error, componentStack, resetError }) => (
+        <ScreenErrorFallback
+          error={error as Error}
+          componentStack={componentStack}
+          resetError={resetError}
+        />
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'collection-screen');
+        scope.setTag('boundary_type', 'screen');
+      }}
+    >
     <>
       <Stack.Screen options={{ headerShown: false }} />
 
@@ -400,7 +401,7 @@ const Collection: React.FC = () => {
         />
       </YStack>
     </>
-    // </Sentry.ErrorBoundary>
+    </Sentry.ErrorBoundary>
   );
 };
 

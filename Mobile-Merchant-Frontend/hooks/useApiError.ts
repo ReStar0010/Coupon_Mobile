@@ -1,4 +1,4 @@
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -132,7 +132,7 @@ export function useApiError() {
       // Report unexpected errors to Sentry
       const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(code);
       if (isUnexpected) {
-        // Sentry.captureException(error);
+        Sentry.captureException(error);
       }
 
       return t(`errors.${code}`, {

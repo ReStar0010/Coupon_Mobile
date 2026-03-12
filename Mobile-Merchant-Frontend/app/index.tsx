@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import { useRouter } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -42,7 +42,7 @@ export default function Index() {
         }
       } catch (error) {
         console.error('[Index] Error checking tokens:', error);
-        // Sentry.captureException(error, { data: { context: 'merchant.index.checkTokens' } });
+        Sentry.captureException(error, { data: { context: 'merchant.index.checkTokens' } });
         // Only redirect if we're sure there are no tokens
         if (!isAuthenticated) {
           router.replace('/(auth)/login');

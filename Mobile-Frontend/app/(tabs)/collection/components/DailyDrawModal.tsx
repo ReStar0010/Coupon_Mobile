@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import ModalErrorFallback from '@/app/components/ModalErrorFallback';
 import { Modal, Dimensions } from 'react-native';
 import { YStack, XStack, Text, Button, Card, Spinner, Separator } from 'tamagui';
@@ -41,13 +41,13 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
 
   return (
     <Modal visible={isOpen} transparent={true} animationType="fade" onRequestClose={onClose}>
-      {/* <Sentry.ErrorBoundary */}
-        {/* fallback={({ resetError }) => <ModalErrorFallback onDismiss={resetError} />}
+      <Sentry.ErrorBoundary
+        fallback={({ resetError }) => <ModalErrorFallback onDismiss={resetError} />}
         beforeCapture={(scope) => {
           scope.setTag('boundary', 'daily-draw-widget');
           scope.setTag('boundary_type', 'widget');
         }}
-      > */}
+      >
         <YStack
           flex={1}
           alignItems="center"
@@ -195,7 +195,7 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
             )}
           </Card>
         </YStack>
-      {/* </Sentry.ErrorBoundary> */}
+      </Sentry.ErrorBoundary>
     </Modal>
   );
 };

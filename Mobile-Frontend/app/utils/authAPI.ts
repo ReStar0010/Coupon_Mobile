@@ -13,7 +13,7 @@ import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
 import axios, { AxiosRequestConfig, AxiosResponse, isAxiosError } from 'axios';
 // import perf from '@react-native-firebase/perf';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import { API_URL } from '../config/api';
 import { authEvents, AUTH_EVENT_TYPES } from './authEvents';
 import {
@@ -386,7 +386,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     return false;
   } catch (error) {
     console.error('Token refresh error:', error);
-    // Sentry.captureException(error, { data: { context: 'authAPI.refreshAccessToken' } });
+    Sentry.captureException(error, { data: { context: 'authAPI.refreshAccessToken' } });
     isRefreshing = false;
     onRefreshComplete(false);
 
@@ -447,7 +447,7 @@ export const ensureValidAuth = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Error ensuring valid auth:', error);
-    // Sentry.captureException(error, { data: { context: 'authAPI.ensureValidAuth' } });
+    Sentry.captureException(error, { data: { context: 'authAPI.ensureValidAuth' } });
     return false;
   }
 };
@@ -540,17 +540,17 @@ export const fetchAPI = async (
 
         const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(error.errorCode ?? '');
         if (isUnexpected) {
-          // Sentry.captureException(error, {
-          //   data: { context: 'authAPI.fetchAPI', endpoint, status: statusCode },
-          // });
+          Sentry.captureException(error, {
+            data: { context: 'authAPI.fetchAPI', endpoint, status: statusCode },
+          });
         }
         throw error;
       } else {
         const apiError = new Error('API request failed: Unknown error');
         console.error('API request error:', apiError);
-        // Sentry.captureException(error, {
-        //   data: { context: 'authAPI.fetchAPI', endpoint },
-        // });
+        Sentry.captureException(error, {
+          data: { context: 'authAPI.fetchAPI', endpoint },
+        });
         throw apiError;
       }
     }
@@ -651,7 +651,7 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
     authEvents.emit({ type: AUTH_EVENT_TYPES.SESSION_REFRESHED });
   } catch (error) {
     console.error('Error storing login data:', error);
-    // Sentry.captureException(error, { data: { context: 'authAPI.storeLoginData' } });
+    Sentry.captureException(error, { data: { context: 'authAPI.storeLoginData' } });
     throw error;
   }
 };
@@ -706,7 +706,7 @@ export const logout = async (): Promise<void> => {
     await fetchAPI('/logout/', { method: 'POST' });
   } catch (_error) {
     devLog('Logout API call failed, proceeding with local logout');
-    // Sentry.captureException(_error, { data: { context: 'authAPI.logout' } });
+    Sentry.captureException(_error, { data: { context: 'authAPI.logout' } });
   }
 
   // Clear all stored tokens

@@ -11,6 +11,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 
 /**
  * Storage keys - single source of truth for key names
@@ -50,6 +51,7 @@ export const initStorage = async (): Promise<void> => {
     });
   } catch (error) {
     console.error('[TokenStorage] Failed to load tokens from AsyncStorage:', error);
+    Sentry.captureException(error, { data: { context: 'tokenUtils.initStorage' } });
     // Keep in-memory storage as fallback
     console.log('[TokenStorage] Using in-memory storage fallback');
   }
@@ -115,6 +117,7 @@ export async function storeTokens(accessToken: string, refreshToken: string): Pr
     console.log('[TokenStorage] Tokens saved to AsyncStorage');
   } catch (error) {
     console.error('[TokenStorage] Failed to save tokens to AsyncStorage:', error);
+    Sentry.captureException(error, { data: { context: 'tokenUtils.storeTokens' } });
     // In-memory storage still works as fallback
   }
 }
@@ -137,6 +140,7 @@ export async function clearTokens(): Promise<void> {
     console.log('[TokenStorage] Tokens cleared from AsyncStorage');
   } catch (error) {
     console.error('[TokenStorage] Failed to clear tokens from AsyncStorage:', error);
+    Sentry.captureException(error, { data: { context: 'tokenUtils.clearTokens' } });
   }
 }
 

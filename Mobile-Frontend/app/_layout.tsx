@@ -20,29 +20,29 @@ import DismissedStoresProvider from './components/providers/DismissedStoresProvi
 import { getApiConfig } from './config/api';
 import BlockedMerchantsProvider from './components/providers/BlockedMerchantsProvider';
 import { toastConfig } from './config/toastConfig';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 
-// Sentry.init({
-//   dsn: 'https://7e7d75e22f890cd1cb1f5c826402c1b7@o4510952144961536.ingest.us.sentry.io/4510952321843200',
+Sentry.init({
+  dsn: 'https://7e7d75e22f890cd1cb1f5c826402c1b7@o4510952144961536.ingest.us.sentry.io/4510952321843200',
 
-//   // Adds more context data to events (IP address, cookies, user, etc.)
-//   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-//   sendDefaultPii: true,
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
 
-//   // Disable SDK debug output in console so app logs stay clear (Sentry still captures/sends everything)
-//   debug: false,
+  // Disable SDK debug output in console so app logs stay clear (Sentry still captures/sends everything)
+  debug: false,
 
-//   // Enable Logs
-//   enableLogs: true,
+  // Enable Logs
+  enableLogs: true,
 
-//   // Configure Session Replay
-//   replaysSessionSampleRate: 0.1,
-//   replaysOnErrorSampleRate: 1,
-//   integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
 
-//   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-//   // spotlight: __DEV__,
-// });
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 export type InitStatus = 'checking' | 'downloading';
 
@@ -78,7 +78,7 @@ async function handleAppInitialization(onStatus?: (status: InitStatus) => void):
       console.warn('OTA 更新檢查逾時，略過並繼續啟動');
     } else {
       console.error('OTA 更新檢查失敗', error);
-      // Sentry.captureException(error, { data: { context: 'OTA update non-timeout failure' } });
+      Sentry.captureException(error, { data: { context: 'OTA update non-timeout failure' } });
     }
   }
 }
@@ -181,8 +181,7 @@ function InitializationLoadingScreen({ message }: { message: string }) {
   );
 }
 
-// export default Sentry.wrap(function RootLayout() {
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [isAppReady, setIsAppReady] = useState(__DEV__);
   const [loadingMessage, setLoadingMessage] = useState<string>(INIT_MESSAGES.checking);
 
@@ -244,4 +243,4 @@ export default function RootLayout() {
       </TamaguiProvider>
     </SafeAreaProvider>
   );
-}
+});
