@@ -29,35 +29,25 @@ const VerifyEmailClient: React.FC = () => {
               ? data.message
                   .replace(
                     "Email verified successfully",
-                    "驗證成功！即將返回登入頁面。"
+                    "驗證成功！請手動返回 CouPro App 登入。",
                   )
                   .replace(
                     "Email already verified",
-                    "此信箱已驗證過，請直接登入。"
+                    "此信箱已驗證過，請手動開啟 CouPro App 登入。",
                   )
-              : "驗證成功！"
+              : "驗證成功！",
           );
           setError(null);
-          setTimeout(() => {
-            // 取得 email 和 password 參數
-            const urlEmail = searchParams.get("email");
-            const urlPassword = searchParams.get("password");
-            const params = new URLSearchParams();
-            params.set("verified", "true");
-            if (urlEmail) params.set("email", urlEmail);
-            if (urlPassword) params.set("password", urlPassword);
-            window.location.href = `/Login?${params.toString()}`;
-          }, 1500); // 1.5秒後跳轉
         } else {
           setError(
             data.error
               ? data.error
                   .replace(
                     "Invalid or expired token",
-                    "驗證碼無效或已過期，請重新註冊。"
+                    "驗證碼無效或已過期，請重新註冊。",
                   )
                   .replace("Missing token", "驗證連結錯誤，缺少驗證碼。")
-              : "驗證失敗，請確認連結是否正確。"
+              : "驗證失敗，請確認連結是否正確。",
           );
           setMessage("");
         }
