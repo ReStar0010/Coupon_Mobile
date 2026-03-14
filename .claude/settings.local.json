@@ -12,7 +12,9 @@
       "Bash(powershell:*)",
       "WebSearch",
       "Bash(npx tsc:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(.venv/Scripts/python manage.py makemigrations api --name progress_tracker_fields)",
+      "Bash(.venv/Scripts/python manage.py migrate)"
     ]
   }
 }
