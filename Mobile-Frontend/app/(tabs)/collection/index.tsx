@@ -203,8 +203,7 @@ const Collection: React.FC = () => {
     async (shareId: number) => {
       try {
         await withdrawPublicShare(shareId);
-        fetchCoupons();
-        fetchPublicShares();
+        await Promise.all([fetchCoupons(), fetchPublicShares()]);
       } catch (err) {
         console.error('Withdraw from pool failed:', err);
       }
@@ -375,7 +374,6 @@ const Collection: React.FC = () => {
             }
             ListHeaderComponent={ListHeaderComponent}
             ListEmptyComponent={ListEmptyComponent}
-            removeClippedSubviews
             maxToRenderPerBatch={10}
             windowSize={10}
             initialNumToRender={6}
