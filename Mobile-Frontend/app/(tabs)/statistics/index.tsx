@@ -150,15 +150,12 @@ const Statistics: React.FC = () => {
             ) : data ? (
               <YStack gap="$4" mt="$2">
                 {/* Metric 1 — Total redemption count */}
-                <StatCard
-                  title="總兌換次數"
-                  value={data.total_redemptions.toString()}
-                />
+                <StatCard title="總兌換次數" value={data.total_redemptions.toString()} />
 
                 {/* Metric 2 — Sharing light system */}
                 <LightSystem
                   title="分享進度"
-                  description="分享或兌換他人的專屬優惠券以點亮燈泡，每達 3 個點亮可獲 $10 現金券"
+                  description="分享或兌換他人的專屬優惠券以點亮燈泡，點亮至第 3 盞燈即可獲 $10 現金券，之後每盞獲 $10 現金券"
                   count={data.sharing_progress.count}
                   threshold={data.sharing_progress.threshold}
                   rewardType="sharing"
