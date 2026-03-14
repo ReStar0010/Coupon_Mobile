@@ -354,20 +354,21 @@ class FullFlowUser(CouProUser):
 
 
 # Assign task weights for FullFlowUser (only weights > 0)
-FullFlowUser.tasks = [
-    (FullFlowUser.browse_store_coupons, TASK_WEIGHTS.get("browse_store_coupons", 10)),
-    (FullFlowUser.redeem_store_coupon, TASK_WEIGHTS.get("redeem_store_coupon", 2)),
-    (FullFlowUser.claim_public_pool, TASK_WEIGHTS.get("claim_public_pool", 1)),
-    (FullFlowUser.browse_exclusive_coupons, TASK_WEIGHTS.get("browse_exclusive_coupons", 5)),
-    (FullFlowUser.coupon_detail, TASK_WEIGHTS.get("coupon_detail", 3)),
-    (FullFlowUser.share_private, TASK_WEIGHTS.get("share_private", 1)),
-    (FullFlowUser.accept_private_share, TASK_WEIGHTS.get("accept_private_share", 1)),
-    (FullFlowUser.share_public, TASK_WEIGHTS.get("share_public", 1)),
-    (FullFlowUser.my_public_shares, TASK_WEIGHTS.get("my_public_shares", 1)),
-    (FullFlowUser.daily_draw_templates, TASK_WEIGHTS.get("daily_draw_templates", 2)),
-    (FullFlowUser.daily_draw, TASK_WEIGHTS.get("daily_draw", 1)),
-    (FullFlowUser.draw_history, TASK_WEIGHTS.get("draw_history", 1)),
-    (FullFlowUser.redeem_shared_exclusive_idempotency, TASK_WEIGHTS.get("redeem_shared_exclusive_idempotency", 0)),
-]
-# Drop zero-weight tasks so Locust doesn't run them
-FullFlowUser.tasks = [(t, w) for t, w in FullFlowUser.tasks if w > 0]
+# Use dict format {callable: weight} — required by Locust 2.x; list-of-tuples raises TypeError
+FullFlowUser.tasks = {
+    t: w for t, w in [
+        (FullFlowUser.browse_store_coupons, TASK_WEIGHTS.get("browse_store_coupons", 10)),
+        (FullFlowUser.redeem_store_coupon, TASK_WEIGHTS.get("redeem_store_coupon", 2)),
+        (FullFlowUser.claim_public_pool, TASK_WEIGHTS.get("claim_public_pool", 1)),
+        (FullFlowUser.browse_exclusive_coupons, TASK_WEIGHTS.get("browse_exclusive_coupons", 5)),
+        (FullFlowUser.coupon_detail, TASK_WEIGHTS.get("coupon_detail", 3)),
+        (FullFlowUser.share_private, TASK_WEIGHTS.get("share_private", 1)),
+        (FullFlowUser.accept_private_share, TASK_WEIGHTS.get("accept_private_share", 1)),
+        (FullFlowUser.share_public, TASK_WEIGHTS.get("share_public", 1)),
+        (FullFlowUser.my_public_shares, TASK_WEIGHTS.get("my_public_shares", 1)),
+        (FullFlowUser.daily_draw_templates, TASK_WEIGHTS.get("daily_draw_templates", 2)),
+        (FullFlowUser.daily_draw, TASK_WEIGHTS.get("daily_draw", 1)),
+        (FullFlowUser.draw_history, TASK_WEIGHTS.get("draw_history", 1)),
+        (FullFlowUser.redeem_shared_exclusive_idempotency, TASK_WEIGHTS.get("redeem_shared_exclusive_idempotency", 0)),
+    ] if w > 0
+}
