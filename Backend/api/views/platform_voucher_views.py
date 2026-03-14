@@ -12,8 +12,9 @@ from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.db import transaction
 
-from ..models import PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, Store
+from ..models import PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, Store, CouponRedemption
 from ..serializers import PlatformVoucherRedeemRequestSerializer
+from ..utils import apply_referral_reward
 from .merchant_profile import get_merchant_store
 
 
@@ -105,6 +106,22 @@ def redeem_platform_voucher(request, voucher_id):
         store=store,
         amount_used=voucher.face_value,
     )
+
+    # === Progress Tracker: Metric 3 only (011-progress-tracker) ===
+    # Platform vouchers count toward new-user referral, but NOT sharing light system
+    try:
+        exclusive_count = CouponRedemption.objects.filter(
+            user=request.user, coupon_type='exclusive'
+        ).count()
+        voucher_count = PlatformVoucherRedemption.objects.filter(
+            user=request.user
+        ).count()
+        is_first_redemption = (exclusive_count == 0 and voucher_count == 1)
+        if is_first_redemption and voucher.original_owner and voucher.original_owner != request.user:
+            apply_referral_reward(voucher.original_owner)
+    except Exception:
+        pass
+
     return Response({"message": "Redeemed successfully."}, status=status.HTTP_200_OK)
 
 

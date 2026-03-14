@@ -16,7 +16,8 @@ from api.exceptions import (
     UnifiedCodeInvalid,
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
-from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher
+from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption
+from ..utils import grant_reward_voucher, apply_referral_reward
 
 logger = logging.getLogger(__name__)
 
@@ -418,16 +419,57 @@ def redeem_coupon(request, id):
         
         # 更新優惠券使用統計
         student_profile.coupons_used_count += 1
-        
+
         # 更新總節省和月度節省
         student_profile.total_savings += savings_amount
         student_profile.monthly_savings += savings_amount
         student_profile.save()
-        
+
     except (StudentProfile.DoesNotExist, AttributeError):
         # 處理用戶沒有學生檔案的情況
         pass
-         
+
+    # === Progress Tracker updates (011-progress-tracker) ===
+    # Metric 2 (sharing light system) and Metric 3 (referral light system)
+    if coupon.coupon_type == 'exclusive':
+        original_owner = coupon.original_owner
+        is_shared_redemption = (original_owner is not None and original_owner != request.user)
+
+        if is_shared_redemption:
+            # Metric 2 — case (b): redeemer gets +1 for redeeming someone else's shared coupon
+            try:
+                redeemer_profile = request.user.student_profile
+                redeemer_profile.sharing_progress_count += 1
+                redeemer_profile.save(update_fields=['sharing_progress_count'])
+                if redeemer_profile.sharing_progress_count >= 3:
+                    grant_reward_voucher(request.user, 10, 'Sharing Reward')
+            except (StudentProfile.DoesNotExist, AttributeError):
+                pass
+
+            # Metric 2 — case (a): original owner gets +1 when their coupon is redeemed by someone else
+            try:
+                owner_profile = original_owner.student_profile
+                owner_profile.sharing_progress_count += 1
+                owner_profile.save(update_fields=['sharing_progress_count'])
+                if owner_profile.sharing_progress_count >= 3:
+                    grant_reward_voucher(original_owner, 10, 'Sharing Reward')
+            except (StudentProfile.DoesNotExist, AttributeError):
+                pass
+
+        # Metric 3 — check if this is the redeemer's very first exclusive coupon/voucher redemption
+        try:
+            exclusive_count = CouponRedemption.objects.filter(
+                user=request.user, coupon_type='exclusive'
+            ).count()
+            voucher_count = PlatformVoucherRedemption.objects.filter(
+                user=request.user
+            ).count()
+            is_first_redemption = (exclusive_count == 1 and voucher_count == 0)
+            if is_first_redemption and original_owner and original_owner != request.user:
+                apply_referral_reward(original_owner)
+        except Exception:
+            pass
+
     return Response({
         "message": "優惠券兌換成功", 
         "coupon_name": coupon.coupon_name,

@@ -31,9 +31,9 @@ from api.views.sharing_views import (
     apple_app_site_association,
     assetlinks_json,
 )
-from api.views.user_profile import (user_statistics, set_savings_goal, reset_savings_goal, 
+from api.views.user_profile import (user_statistics, set_savings_goal, reset_savings_goal,
                                   coupon_history, coupon_history_detail, completed_goals, add_completed_goal,
-                                  user_phone)
+                                  user_phone, progress_trackers)
 from api.views.daily_draw import get_daily_draw_templates, draw_coupon, draw_history, get_last_draw_time
 from api.views.merchant_coupon import (
     merchant_consolidate_coupon, refresh_redeem_code,
@@ -190,6 +190,7 @@ urlpatterns = [
     path('api/forgot-password/phone/reset/', verify_password_reset_otp, name='verify_password_reset_otp'),
 
     # User statistics endpoints
+    path('api/progress-trackers/', progress_trackers, name='progress_trackers'),
     path('api/user-statistics/', user_statistics, name='user_statistics'),
     path('api/set-savings-goal/', set_savings_goal, name='set_savings_goal'),
     path('api/completed-goals/', completed_goals, name='completed_goals'),

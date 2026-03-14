@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Alert,
+  Share,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
@@ -31,9 +33,11 @@ export default function PlatformVoucherDetailScreen() {
   const [voucher, setVoucher] = useState<PlatformVoucherDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const numId = id ? parseInt(id, 10) : NaN;
 
   const fetchDetail = useCallback(async () => {
-    const numId = id ? parseInt(id, 10) : NaN;
     if (!id || Number.isNaN(numId)) {
       setError('無效的現金券');
       setIsLoading(false);
@@ -58,7 +62,7 @@ export default function PlatformVoucherDetailScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, numId]);
 
   useEffect(() => {
     fetchDetail();
@@ -71,6 +75,48 @@ export default function PlatformVoucherDetailScreen() {
   const handleRedeem = useCallback(() => {
     router.push('/(tabs)/easyuse/enter-redeem-code');
   }, [router]);
+
+  const handleSharePublic = useCallback(() => {
+    Alert.alert(
+      '確認分享現金券',
+      '此現金券將移至公共交換池，其他用戶可領取。此操作無法復原。確定要分享嗎？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '確定分享',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSharing(true);
+            try {
+              await platformVoucherAPI.sharePublic(numId);
+              Alert.alert('分享成功', '現金券已移至公共交換池');
+              router.back();
+            } catch {
+              Alert.alert('分享失敗', '無法分享現金券，請稍後再試。');
+            } finally {
+              setIsSharing(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [numId, router]);
+
+  const handleShareLink = useCallback(async () => {
+    setIsSharing(true);
+    try {
+      const result = await platformVoucherAPI.share(numId);
+      const shareUrl = result.share_url || result.token;
+      await Share.share({
+        message: `我分享了一張現金券給你！連結：${shareUrl}`,
+        url: shareUrl,
+      });
+    } catch {
+      Alert.alert('分享失敗', '無法生成分享連結，請稍後再試。');
+    } finally {
+      setIsSharing(false);
+    }
+  }, [numId]);
 
   if (isLoading) {
     return (
@@ -150,9 +196,33 @@ export default function PlatformVoucherDetailScreen() {
             style={styles.primaryButton}
             onPress={handleRedeem}
             activeOpacity={0.7}
+            disabled={isSharing}
           >
             <Text style={styles.primaryButtonText}>到店核銷</Text>
           </TouchableOpacity>
+
+          <View style={styles.shareRow}>
+            <TouchableOpacity
+              style={[styles.secondaryButton, isSharing && styles.buttonDisabled]}
+              onPress={handleSharePublic}
+              activeOpacity={0.7}
+              disabled={isSharing}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {isSharing ? '分享中...' : '分享到 CouPro'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.secondaryButton, isSharing && styles.buttonDisabled]}
+              onPress={handleShareLink}
+              activeOpacity={0.7}
+              disabled={isSharing}
+            >
+              <Text style={styles.secondaryButtonText}>分享連結</Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.hint}>至店家後輸入該店家的 6 碼核銷碼即可核銷此現金券</Text>
         </View>
       )}
@@ -300,6 +370,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1f2937',
+  },
+  shareRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  secondaryButton: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#FFAD31',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFAD31',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   hint: {
     marginTop: 12,
