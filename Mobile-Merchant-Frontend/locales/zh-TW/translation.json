@@ -4,6 +4,7 @@
 
     "USER_NOT_FOUND":                         "找不到此帳號，請確認後再試。",
     "EMAIL_ALREADY_EXISTS":                   "此電子郵件已被使用，請使用其他電子郵件或直接登入。",
+    "EMAIL_ALREADY_REGISTERED_AS_MERCHANT":   "此信箱已用於商家帳號，請使用商家 App 登入或使用其他信箱註冊消費者帳號。",
     "INVALID_CREDENTIALS":                    "帳號或密碼錯誤，請確認後再試。",
     "EMAIL_NOT_VERIFIED":                     "您的電子郵件尚未驗證，請先至信箱完成驗證。",
     "MERCHANT_APPLICATION_PENDING":          "您的商家申請尚在審核中，待審核通過後即可登入。",

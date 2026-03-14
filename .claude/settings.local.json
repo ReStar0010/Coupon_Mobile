@@ -14,7 +14,11 @@
       "Bash(npx tsc:*)",
       "Bash(git checkout:*)",
       "Bash(.venv/Scripts/python manage.py makemigrations api --name progress_tracker_fields)",
-      "Bash(.venv/Scripts/python manage.py migrate)"
+      "Bash(.venv/Scripts/python manage.py migrate)",
+      "Bash(DJANGO_SETTINGS_MODULE=Backend.test_settings .venv/Scripts/python manage.py test api.tests --verbosity=1)",
+      "Bash(ls \"c:/Users/Kayne/Desktop/PlayGround/Coupon_Mobile/Mobile-Frontend/app/\\(tabs\\)/statistics/\")",
+      "Bash(ls \"c:/Users/Kayne/Desktop/PlayGround/Coupon_Mobile/Mobile-Frontend/app/\\(tabs\\)/statistics/hooks/\")",
+      "Bash(npm run:*)"
     ]
   }
 }
