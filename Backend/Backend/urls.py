@@ -28,6 +28,7 @@ from api.views.sharing_views import (
     withdraw_public_share,
     collection_landing,
     claim_landing,
+    voucher_landing,
     apple_app_site_association,
     assetlinks_json,
 )
@@ -149,6 +150,7 @@ urlpatterns = [
     path('collection/<str:token>/', collection_landing, name='collection_landing'),
     path('claim/<str:token>/', claim_landing, name='claim_landing'),
     path('cl/<str:token>/', claim_landing, name='claim_landing_short'),
+    path('voucher/<str:token>/', voucher_landing, name='voucher_landing'),
     # iOS/Android verification (https://api.coupro.pro/.well-known/...)
     path('.well-known/apple-app-site-association', apple_app_site_association, name='apple_app_site_association'),
     path('.well-known/assetlinks.json', assetlinks_json, name='assetlinks_json'),

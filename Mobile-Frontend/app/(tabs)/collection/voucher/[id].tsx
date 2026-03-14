@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   Share,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
@@ -106,11 +107,14 @@ export default function PlatformVoucherDetailScreen() {
     setIsSharing(true);
     try {
       const result = await platformVoucherAPI.share(numId);
-      const shareUrl = result.share_url || result.token;
-      await Share.share({
-        message: `我分享了一張現金券給你！連結：${shareUrl}`,
-        url: shareUrl,
-      });
+      // Prefer web landing page (clickable in messages/browser); fallback to deep link
+      const shareUrl = result.share_link_web || result.share_link;
+      await Share.share(
+        Platform.select({
+          ios: { url: shareUrl },
+          default: { message: shareUrl },
+        })!,
+      );
     } catch {
       Alert.alert('分享失敗', '無法生成分享連結，請稍後再試。');
     } finally {

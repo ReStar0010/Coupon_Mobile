@@ -16,6 +16,12 @@ from ..models import PlatformVoucher, PlatformVoucherRedemption, PlatformVoucher
 from ..serializers import PlatformVoucherRedeemRequestSerializer
 from ..utils import apply_referral_reward
 from .merchant_profile import get_merchant_store
+from ..exceptions import (
+    CouponAlreadyRedeemed,
+    SelfClaimNotAllowed,
+    ShareAlreadyClaimed,
+    ShareRequestAlreadyProcessed,
+)
 
 
 def _redeemable_platform_vouchers_queryset(user):
@@ -150,7 +156,7 @@ def share_platform_voucher(request, voucher_id):
     return Response({
         "token": token,
         "share_link": f"coupro://platform-voucher?token={token}",
-        "share_link_web": f"{api_base}/api/platform-voucher/share/{token}/",
+        "share_link_web": f"{api_base}/voucher/{token}",
     }, status=status.HTTP_200_OK)
 
 
@@ -175,17 +181,25 @@ def accept_platform_voucher_share(request, token):
     """POST /api/platform-voucher/share/<token>/accept/ — accept share; race-safe with select_for_update."""
     share = get_object_or_404(PlatformVoucherShareRequest, token=token)
     if share.is_public and share.from_user_id == request.user.id:
-        return Response({"error": "You cannot claim your own public share."}, status=status.HTTP_400_BAD_REQUEST)
+        raise SelfClaimNotAllowed(
+            developer_message="You cannot claim your own shared voucher."
+        )
 
     with transaction.atomic():
         share = PlatformVoucherShareRequest.objects.select_for_update().get(token=token)
         if share.status != 'pending':
-            return Response({"error": "This share has already been accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
+            raise ShareRequestAlreadyProcessed(
+                developer_message="This share has already been accepted or declined."
+            )
         voucher = share.voucher
         if PlatformVoucherRedemption.objects.filter(voucher=voucher).exists():
-            return Response({"error": "Voucher has already been redeemed."}, status=status.HTTP_400_BAD_REQUEST)
+            raise CouponAlreadyRedeemed(
+                developer_message="Voucher has already been redeemed."
+            )
         if share.is_public and voucher.current_holder_id is not None:
-            return Response({"error": "This voucher has already been claimed."}, status=status.HTTP_400_BAD_REQUEST)
+            raise ShareAlreadyClaimed(
+                developer_message="This voucher has already been claimed."
+            )
 
         voucher.current_holder = request.user
         voucher.last_holder = share.from_user

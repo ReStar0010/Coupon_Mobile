@@ -141,3 +141,4 @@ class PlatformVoucherSharingTest(TestCase):
         self.client.force_authenticate(user=self.user)
         resp = self.client.post("/api/platform-voucher/share/selfclaim/accept/", {}, format="json")
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp.data.get("error_code"), "SELF_CLAIM_NOT_ALLOWED")

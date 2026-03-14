@@ -787,7 +787,7 @@ export const platformVoucherAPI = {
     return response.data;
   },
 
-  share: async (id: number): Promise<{ token: string; share_url: string }> => {
+  share: async (id: number): Promise<{ token: string; share_link: string; share_link_web: string }> => {
     const response = await fetchAPI(`/platform-voucher/${id}/share/`, { method: 'POST' });
     return response.data;
   },
