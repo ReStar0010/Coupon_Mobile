@@ -59,7 +59,7 @@ export type CouponType = {
   importantNotes?: string;
   startDate: Date;
   expiryDate: Date;
-  couponType: 'store' | 'exclusive' | 'gift';
+  couponType: 'store' | 'exclusive' | 'gift' | 'platform_voucher_gift';
   sourceUser?: string;
   storeId?: number;
   storeLocation?: {
@@ -597,7 +597,7 @@ const CouPro = () => {
 
   // Handle claiming a gift
   const handleClaimGift = useCallback(
-    async (shareToken: string) => {
+    async (shareToken: string, couponType: 'gift' | 'platform_voucher_gift' = 'gift') => {
       if (!isUserLoggedIn()) {
         router.push(`/(auth)/login?returnUrl=${encodeURIComponent('/(tabs)/easyuse')}`);
         return;
@@ -606,11 +606,15 @@ const CouPro = () => {
       setClaimingToken(shareToken);
 
       try {
-        const response = await fetchAPI(`/coupon/share/${shareToken}/accept/`, {
+        const endpoint =
+          couponType === 'platform_voucher_gift'
+            ? `/platform-voucher/share/${shareToken}/accept/`
+            : `/coupon/share/${shareToken}/accept/`;
+        const response = await fetchAPI(endpoint, {
           method: 'POST',
         });
 
-        Alert.alert('領取成功！', `您已獲得: ${response.data.coupon_name}`, [
+        Alert.alert('領取成功！', `您已獲得: ${response.data.coupon_name ?? response.data.message ?? '現金券'}`, [
           {
             text: '查看收藏',
             onPress: () => router.push('/(tabs)/collection'),
@@ -1032,7 +1036,7 @@ const CouPro = () => {
                       </View>
                     ) : (
                       filteredCoupons.map((coupon) =>
-                        coupon.couponType === 'gift' && coupon.shareToken ? (
+                        (coupon.couponType === 'gift' || coupon.couponType === 'platform_voucher_gift') && coupon.shareToken ? (
                           <GiftCard
                             key={`gift-${coupon.id}`}
                             storeName={coupon.storeName}
@@ -1042,7 +1046,7 @@ const CouPro = () => {
                             tags={coupon.tags}
                             shareToken={coupon.shareToken}
                             sharedBy={coupon.sharedBy || '未知用戶'}
-                            onClaim={() => handleClaimGift(coupon.shareToken!)}
+                            onClaim={() => handleClaimGift(coupon.shareToken!, coupon.couponType as 'gift' | 'platform_voucher_gift')}
                             isClaiming={claimingToken === coupon.shareToken}
                           />
                         ) : (

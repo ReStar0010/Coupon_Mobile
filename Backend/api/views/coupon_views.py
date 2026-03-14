@@ -16,7 +16,7 @@ from api.exceptions import (
     UnifiedCodeInvalid,
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
-from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption
+from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest
 from ..utils import grant_reward_voucher, apply_referral_reward
 
 logger = logging.getLogger(__name__)
@@ -145,6 +145,41 @@ def get_store_coupons(request):
                 "shared_by": share_request.from_user.email,
                 "merchant_deleted": c.store.owner is None,
             })
+
+    # Add public pool platform vouchers
+    public_voucher_shares = PlatformVoucherShareRequest.objects.filter(
+        is_public=True,
+        status='pending',
+        voucher__expiry_date__gt=now,
+        voucher__start_date__lte=now,
+    ).select_related('voucher', 'from_user')
+
+    for share in public_voucher_shares:
+        v = share.voucher
+        face = int(v.face_value) if v.face_value == int(v.face_value) else v.face_value
+        data.append({
+            "id": v.id,
+            "store_name": "平台現金券",
+            "store_id": None,
+            "store_location": None,
+            "address": None,
+            "active_coupon_count": 1,
+            "has_active_coupons": True,
+            "coupon_name": f"${face} {v.currency_code} 現金券",
+            "coupon_detail": v.batch_name or "",
+            "important_notes": "",
+            "start_date": v.start_date,
+            "expiry_date": v.expiry_date,
+            "coupon_type": "platform_voucher_gift",
+            "image_url": None,
+            "total_redemptions": 0,
+            "unique_users": 0,
+            "tags": [],
+            "is_public_share": True,
+            "share_token": share.token,
+            "shared_by": share.from_user.email,
+            "merchant_deleted": False,
+        })
 
     return Response(data)
 

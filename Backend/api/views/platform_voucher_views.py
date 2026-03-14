@@ -197,7 +197,9 @@ def accept_platform_voucher_share(request, token):
         share.responded_at = timezone.now()
         share.save()
 
-    return Response({"message": "Share accepted."}, status=status.HTTP_200_OK)
+    face = int(voucher.face_value) if voucher.face_value == int(voucher.face_value) else voucher.face_value
+    coupon_name = f"${face} {voucher.currency_code} 現金券"
+    return Response({"message": "Share accepted.", "coupon_name": coupon_name}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
