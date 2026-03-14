@@ -3,8 +3,10 @@ import { RefreshControl } from 'react-native';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AlignJustify } from 'lucide-react-native';
+import { AlignJustify, List, ChevronRight } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProgressTrackers } from './hooks/useProgressTrackers';
+import { useTransactionHistory } from './hooks/useTransactionHistory';
 import StatCard from './components/StatCard';
 import LightSystem from './components/LightSystem';
 import {
@@ -15,6 +17,8 @@ import {
   ScrollView,
   View,
   Text,
+  ListItem,
+  Separator,
   Spinner,
 } from 'tamagui';
 
@@ -24,19 +28,43 @@ const Statistics: React.FC = () => {
 
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
   const { data, loading, error, refetch } = useProgressTrackers();
+  const {
+    transactionHistory,
+    isLoading: historyLoading,
+    error: historyError,
+    formatDate,
+    refetch: refetchHistory,
+  } = useTransactionHistory(isAuthenticated, 2);
 
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refetch();
+      await Promise.all([refetch(), refetchHistory()]);
     } catch {
       // silently ignore
     } finally {
       setRefreshing(false);
     }
-  }, [refetch]);
+  }, [refetch, refetchHistory]);
+
+  const handleViewHistory = () => {
+    router.push('/(tabs)/statistics/history');
+  };
+
+  const handleHistoryItemClick = useCallback(
+    async (couponId: number, item: unknown) => {
+      try {
+        await AsyncStorage.setItem('selectedCouponHistory', JSON.stringify(item));
+        await AsyncStorage.setItem('couponNavigationSource', 'statistics');
+        router.push(`/(tabs)/statistics/history/${couponId}`);
+      } catch (err) {
+        console.error('Error storing coupon history:', err);
+      }
+    },
+    [router],
+  );
 
   return (
     <>
@@ -86,6 +114,7 @@ const Statistics: React.FC = () => {
               />
             }
           >
+            {/* Progress Trackers */}
             {error ? (
               <YStack
                 bg="white"
@@ -138,13 +167,120 @@ const Statistics: React.FC = () => {
                 {/* Metric 3 — New user referral light system */}
                 <LightSystem
                   title="推薦新用戶"
-                  description="邀請新用戶完成首次兌換，第 1 位獲 $5 現金券，之後每位獲 $10 現金券"
+                  description="邀請新用戶完成首次兌換，第 2 位獲 $5 現金券，之後每位獲 $10 現金券"
                   count={data.referral_progress.count}
                   threshold={data.referral_progress.threshold}
                   rewardType="referral"
                 />
               </YStack>
             ) : null}
+
+            {/* Transaction History */}
+            <YStack mt="$3">
+              {historyLoading ? (
+                <YStack
+                  bg="white"
+                  rounded="$4"
+                  p="$4"
+                  items="center"
+                  borderWidth={1}
+                  borderColor="#e0e0e0"
+                >
+                  <Text fontSize={14} color="#707070">
+                    載入中...
+                  </Text>
+                </YStack>
+              ) : historyError ? (
+                <YStack
+                  bg="white"
+                  rounded="$4"
+                  p="$4"
+                  items="center"
+                  borderWidth={1}
+                  borderColor="#e0e0e0"
+                >
+                  <Text fontSize={14} color="#707070">
+                    載入失敗
+                  </Text>
+                </YStack>
+              ) : transactionHistory.length > 0 ? (
+                <YStack
+                  bg="white"
+                  rounded="$4"
+                  overflow="hidden"
+                  borderWidth={1}
+                  borderColor="#e0e0e0"
+                >
+                  {transactionHistory.map((item, index) => (
+                    <React.Fragment key={item.redemption_id}>
+                      <ListItem
+                        bg="white"
+                        hoverTheme
+                        pressTheme
+                        p="$3"
+                        onPress={() => handleHistoryItemClick(item.coupon_id, item)}
+                      >
+                        <ListItem.Text fontSize={13} color="#333333">
+                          {item.store_name}
+                        </ListItem.Text>
+                        <ListItem.Subtitle fontSize={12} color="#707070">
+                          {formatDate(item.used_date)}
+                        </ListItem.Subtitle>
+                        {item.estimated_savings != null && !Number.isNaN(item.estimated_savings) ? (
+                          <Text fontSize={12} color="#22c55e" style={{ marginTop: 2 }}>
+                            節省 {Number(item.estimated_savings)} 元
+                          </Text>
+                        ) : null}
+                        <ChevronRight size={16} color="#333333" />
+                      </ListItem>
+                      {index < transactionHistory.length - 1 && <Separator />}
+                    </React.Fragment>
+                  ))}
+                  <Separator />
+                  <ListItem
+                    bg="white"
+                    hoverTheme
+                    pressTheme
+                    p="$3"
+                    onPress={handleViewHistory}
+                    icon={<List size={20} color="#333333" />}
+                  >
+                    <ListItem.Text fontSize={13} color="#333333">
+                      使用紀錄
+                    </ListItem.Text>
+                    <ChevronRight size={16} color="#333333" />
+                  </ListItem>
+                </YStack>
+              ) : (
+                <YStack
+                  bg="white"
+                  rounded="$4"
+                  overflow="hidden"
+                  borderWidth={1}
+                  borderColor="#e0e0e0"
+                >
+                  <YStack p="$4" items="center">
+                    <Text fontSize={14} color="#707070">
+                      尚無使用紀錄
+                    </Text>
+                  </YStack>
+                  <Separator />
+                  <ListItem
+                    bg="white"
+                    hoverTheme
+                    pressTheme
+                    p="$3"
+                    onPress={handleViewHistory}
+                    icon={<List size={20} color="#333333" />}
+                  >
+                    <ListItem.Text fontSize={13} color="#333333">
+                      使用紀錄
+                    </ListItem.Text>
+                    <ChevronRight size={16} color="#333333" />
+                  </ListItem>
+                </YStack>
+              )}
+            </YStack>
           </ScrollView>
         </View>
       )}

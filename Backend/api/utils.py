@@ -132,8 +132,9 @@ def apply_referral_reward(referrer) -> None:
     if the new count crosses a threshold.
 
     Thresholds (Metric 3, N=2):
-      - count == 1  →  $5 TWD voucher
-      - count >= 2  →  $10 TWD voucher per increment
+      - count == 1  →  no reward (first referral)
+      - count == 2  →  $5 TWD voucher (second referral)
+      - count >= 3  →  $10 TWD voucher per increment
 
     Args:
         referrer: Django User instance whose referral counter should increment.
@@ -143,9 +144,9 @@ def apply_referral_reward(referrer) -> None:
         profile.referral_progress_count += 1
         profile.save(update_fields=['referral_progress_count'])
         count = profile.referral_progress_count
-        if count == 1:
+        if count == 2:
             grant_reward_voucher(referrer, 5, 'Referral Reward')
-        elif count >= 2:
+        elif count >= 3:
             grant_reward_voucher(referrer, 10, 'Referral Reward')
     except Exception:
         pass
