@@ -70,7 +70,7 @@ class ReportContentView(APIView):
                 {'error': '您無法檢舉自己的商店'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        elif content_type == 'coupon' and content_obj.store.owner == request.user:
+        elif content_type == 'coupon' and content_obj.store and content_obj.store.owner == request.user:
             return Response(
                 {'error': '您無法檢舉自己的優惠券'},
                 status=status.HTTP_400_BAD_REQUEST

@@ -120,6 +120,7 @@
     "EULA_VERSION_MISMATCH":                  "使用條款版本不符，請重新載入後再試。",
 
     "COUPON_TEMPLATE_NOT_FOUND":              "找不到此優惠券，請確認後再試。",
+    "COUPON_TEMPLATE_NOT_OWNED":             "您沒有權限修改此優惠券模板。",
     "COUPON_TEMPLATE_EXPIRED":                "此優惠券已過期，無法領取。",
     "COUPON_TEMPLATE_OUT_OF_STOCK":           "此優惠券已發放完畢，請留意下次活動。",
     "TEMPLATE_QUANTITY_DECREASE_NOT_ALLOWED": "優惠券數量不得減少，目前數量為 {{current}} 張。",

@@ -256,6 +256,12 @@ class EulaVersionMismatch(CouProAPIException):
 # Coupon templates
 # ---------------------------------------------------------------------------
 
+class CouponTemplateNotOwned(CouProAPIException):
+    """Authenticated user does not own the store that owns this template."""
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = "COUPON_TEMPLATE_NOT_OWNED"
+
+
 class CouponTemplateNotFound(CouProAPIException):
     status_code = status.HTTP_404_NOT_FOUND
     error_code = "COUPON_TEMPLATE_NOT_FOUND"
