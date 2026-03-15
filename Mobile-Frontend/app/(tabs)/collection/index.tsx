@@ -219,10 +219,17 @@ const Collection: React.FC = () => {
     [fetchCoupons, fetchPublicShares],
   );
 
-  const onRefresh = useCallback(() => {
-    fetchCoupons();
-    fetchPublicShares();
-    fetchVouchers();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([fetchCoupons(), fetchPublicShares(), fetchVouchers()]);
+    } catch (err) {
+      console.error('Refresh failed:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [fetchCoupons, fetchPublicShares, fetchVouchers]);
 
   // Tabs preserve state for performance; refresh only when explicitly invalidated.
@@ -393,7 +400,7 @@ const Collection: React.FC = () => {
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
-                refreshing={isLoading}
+                refreshing={isRefreshing || isLoading}
                 onRefresh={onRefresh}
                 colors={[COLORS.primary]}
                 tintColor={COLORS.primary}
