@@ -12,7 +12,7 @@
     "sharing": "分享中...",
     "generating": "生成中...",
     "share": "分享",
-    "warning": "注意：一旦將此優惠分享至「隨取即用」，該優惠將自您的「專屬優惠」中移除，無法復原。"
+    "warning": "注意：一旦將此優惠券分享至 CouPro 便有可能被其他用戶領取，請確認您想分享此優惠券。"
   },
   "easyuse": {
     "invalidCouponId": "無效的優惠券 ID。",
@@ -79,6 +79,7 @@
 
     "USER_NOT_FOUND":                         "找不到此帳號，請確認後再試。",
     "EMAIL_ALREADY_EXISTS":                   "此電子郵件已被使用，請使用其他電子郵件或直接登入。",
+    "EMAIL_ALREADY_REGISTERED_AS_MERCHANT":   "此信箱已用於商家帳號，請使用商家 App 登入或使用其他信箱註冊消費者帳號。",
     "INVALID_CREDENTIALS":                    "帳號或密碼錯誤，請確認後再試。",
     "EMAIL_NOT_VERIFIED":                     "您的電子郵件尚未驗證，請先至信箱完成驗證。",
     "WRONG_CLIENT_TYPE_MERCHANT":             "此帳號為一般使用者帳號，請使用消費者 App 登入。",
@@ -171,5 +172,27 @@
     "SHARE_REQUEST_ALREADY_PROCESSED":        "此分享已處理完成，無法重複操作。",
     "SHARE_ALREADY_CLAIMED":                  "此優惠券已被其他人領取。",
     "SHARE_NOT_PENDING_FOR_WITHDRAW":         "僅能收回尚未被領取的公開分享，此優惠券已被領取或已收回。"
+  },
+  "statistics": {
+    "progressTracker": "進度追蹤",
+    "totalRedemptions": "總兌換次數",
+    "sharingProgress": "分享進度",
+    "referralProgress": "推薦新用戶",
+    "sharingDescription": "分享或兌換他人的專屬優惠券以點亮燈泡，每達 3 個點亮可獲 $10 現金券",
+    "referralDescription": "邀請新用戶完成首次兌換，第 1 位獲 $5 現金券，之後每位獲 $10 現金券",
+    "noRewardYet": "尚未獲得獎勵",
+    "rewardsEarned": "已獲得獎勵：{{rewards}}"
+  },
+  "voucherShare": {
+    "confirmTitle": "確認分享現金券",
+    "confirmMessage": "此現金券將移至公共交換池，其他用戶可領取。此操作無法復原。確定要分享嗎？",
+    "confirmCancel": "取消",
+    "confirmConfirm": "確定分享",
+    "shareToCouPro": "分享到 CouPro",
+    "shareLink": "分享連結",
+    "sharing": "分享中...",
+    "shareSuccess": "現金券已分享",
+    "shareSuccessMessage": "現金券已移至公共交換池",
+    "shareFailed": "分享失敗，請稍後再試。"
   }
 }

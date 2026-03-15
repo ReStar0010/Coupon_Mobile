@@ -12,9 +12,16 @@ from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.db import transaction
 
-from ..models import PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, Store
+from ..models import PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, Store, CouponRedemption
 from ..serializers import PlatformVoucherRedeemRequestSerializer
+from ..utils import apply_referral_reward
 from .merchant_profile import get_merchant_store
+from ..exceptions import (
+    CouponAlreadyRedeemed,
+    SelfClaimNotAllowed,
+    ShareAlreadyClaimed,
+    ShareRequestAlreadyProcessed,
+)
 
 
 def _redeemable_platform_vouchers_queryset(user):
@@ -105,6 +112,22 @@ def redeem_platform_voucher(request, voucher_id):
         store=store,
         amount_used=voucher.face_value,
     )
+
+    # === Progress Tracker: Metric 3 only (011-progress-tracker) ===
+    # Platform vouchers count toward new-user referral, but NOT sharing light system
+    try:
+        exclusive_count = CouponRedemption.objects.filter(
+            user=request.user, coupon_type='exclusive'
+        ).count()
+        voucher_count = PlatformVoucherRedemption.objects.filter(
+            user=request.user
+        ).count()
+        is_first_redemption = (exclusive_count == 0 and voucher_count == 1)
+        if is_first_redemption and voucher.original_owner and voucher.original_owner != request.user:
+            apply_referral_reward(voucher.original_owner)
+    except Exception:
+        pass
+
     return Response({"message": "Redeemed successfully."}, status=status.HTTP_200_OK)
 
 
@@ -133,7 +156,7 @@ def share_platform_voucher(request, voucher_id):
     return Response({
         "token": token,
         "share_link": f"coupro://platform-voucher?token={token}",
-        "share_link_web": f"{api_base}/api/platform-voucher/share/{token}/",
+        "share_link_web": f"{api_base}/voucher/{token}",
     }, status=status.HTTP_200_OK)
 
 
@@ -158,17 +181,25 @@ def accept_platform_voucher_share(request, token):
     """POST /api/platform-voucher/share/<token>/accept/ — accept share; race-safe with select_for_update."""
     share = get_object_or_404(PlatformVoucherShareRequest, token=token)
     if share.is_public and share.from_user_id == request.user.id:
-        return Response({"error": "You cannot claim your own public share."}, status=status.HTTP_400_BAD_REQUEST)
+        raise SelfClaimNotAllowed(
+            developer_message="You cannot claim your own shared voucher."
+        )
 
     with transaction.atomic():
         share = PlatformVoucherShareRequest.objects.select_for_update().get(token=token)
         if share.status != 'pending':
-            return Response({"error": "This share has already been accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
+            raise ShareRequestAlreadyProcessed(
+                developer_message="This share has already been accepted or declined."
+            )
         voucher = share.voucher
         if PlatformVoucherRedemption.objects.filter(voucher=voucher).exists():
-            return Response({"error": "Voucher has already been redeemed."}, status=status.HTTP_400_BAD_REQUEST)
+            raise CouponAlreadyRedeemed(
+                developer_message="Voucher has already been redeemed."
+            )
         if share.is_public and voucher.current_holder_id is not None:
-            return Response({"error": "This voucher has already been claimed."}, status=status.HTTP_400_BAD_REQUEST)
+            raise ShareAlreadyClaimed(
+                developer_message="This voucher has already been claimed."
+            )
 
         voucher.current_holder = request.user
         voucher.last_holder = share.from_user
@@ -180,7 +211,9 @@ def accept_platform_voucher_share(request, token):
         share.responded_at = timezone.now()
         share.save()
 
-    return Response({"message": "Share accepted."}, status=status.HTTP_200_OK)
+    face = int(voucher.face_value) if voucher.face_value == int(voucher.face_value) else voucher.face_value
+    coupon_name = f"${face} {voucher.currency_code} 現金券"
+    return Response({"message": "Share accepted.", "coupon_name": coupon_name}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

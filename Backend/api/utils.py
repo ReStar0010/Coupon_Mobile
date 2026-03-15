@@ -93,6 +93,67 @@ def generate_platform_voucher_redeem_code() -> str:
     raise RuntimeError("Could not generate unique platform voucher redeem_code after %d attempts" % max_attempts)
 
 
+def grant_reward_voucher(user, face_value: int, description: str = 'System Reward'):
+    """
+    Auto-create a PlatformVoucher as a reward for the given user.
+
+    Args:
+        user: Django User instance who earns the reward.
+        face_value: Integer TWD amount (e.g. 5 or 10).
+        description: Human-readable batch_name for the voucher.
+
+    Returns:
+        The created PlatformVoucher instance.
+    """
+    from django.apps import apps
+    from django.utils import timezone as dj_timezone
+    from datetime import datetime
+
+    PlatformVoucher = apps.get_model('api', 'PlatformVoucher')
+    redeem_code = generate_platform_voucher_redeem_code()
+    now = dj_timezone.now()
+    year = now.year if (now.month < 3 or (now.month == 3 and now.day <= 29)) else now.year + 1
+    expiry_date = datetime(year, 3, 29, 23, 59, 59, tzinfo=now.tzinfo)
+    return PlatformVoucher.objects.create(
+        face_value=face_value,
+        currency_code='TWD',
+        start_date=now,
+        expiry_date=expiry_date,
+        current_holder=user,
+        original_owner=user,
+        last_holder=None,
+        acquisition_method='reward',
+        batch_name=description,
+        redeem_code=redeem_code,
+    )
+
+
+def apply_referral_reward(referrer) -> None:
+    """
+    Increment the referrer's referral_progress_count and grant a reward voucher
+    if the new count crosses a threshold.
+
+    Thresholds (Metric 3, N=2):
+      - count == 1  →  no reward (first referral)
+      - count == 2  →  $5 TWD voucher (second referral)
+      - count >= 3  →  $10 TWD voucher per increment
+
+    Args:
+        referrer: Django User instance whose referral counter should increment.
+    """
+    try:
+        profile = referrer.student_profile
+        profile.referral_progress_count += 1
+        profile.save(update_fields=['referral_progress_count'])
+        count = profile.referral_progress_count
+        if count == 2:
+            grant_reward_voucher(referrer, 5, 'Referral Reward')
+        elif count >= 3:
+            grant_reward_voucher(referrer, 10, 'Referral Reward')
+    except Exception:
+        pass
+
+
 def get_store_today(store) -> date:
     """
     Return "today" as a date in the store's timezone.

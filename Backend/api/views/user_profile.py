@@ -11,7 +11,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from ..serializers import SetSavingsGoalSerializer
-from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log
+from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log, PlatformVoucherRedemption
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,43 @@ def user_statistics(request):
             "monthly_savings": 0,
             "has_goal": False,
         })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def progress_trackers(request):
+    """
+    GET /api/progress-trackers/
+    Returns the three progress metrics for the authenticated user:
+      - total_redemptions: exclusive coupon + platform voucher redemptions
+      - sharing_progress: O count and N threshold for sharing light system
+      - referral_progress: O count and N threshold for new user referral light system
+    """
+    try:
+        profile = request.user.student_profile
+        exclusive_count = CouponRedemption.objects.filter(
+            user=request.user, coupon_type='exclusive'
+        ).count()
+        voucher_count = PlatformVoucherRedemption.objects.filter(
+            user=request.user
+        ).count()
+        return Response({
+            "total_redemptions": exclusive_count + voucher_count,
+            "sharing_progress": {
+                "count": profile.sharing_progress_count,
+                "threshold": 3,
+            },
+            "referral_progress": {
+                "count": profile.referral_progress_count,
+                "threshold": 2,
+            },
+        })
+    except (StudentProfile.DoesNotExist, AttributeError):
+        return Response({
+            "total_redemptions": 0,
+            "sharing_progress": {"count": 0, "threshold": 3},
+            "referral_progress": {"count": 0, "threshold": 2},
+        })
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

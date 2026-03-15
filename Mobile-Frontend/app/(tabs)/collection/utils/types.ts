@@ -49,6 +49,16 @@ export interface ShareRequestInfo {
   status: string;
 }
 
+// Interface for shared platform voucher (GET /api/platform-voucher/share/<token>/)
+export interface VoucherShareRequestInfo {
+  voucher_id: number;
+  face_value: string;
+  currency_code: string;
+  from_user_email: string;
+  status: string;
+  is_public?: boolean;
+}
+
 // Interface for daily draw template
 export interface DrawTemplate {
   id: number;

@@ -8,6 +8,7 @@ import ScreenErrorFallback from '@/app/components/ScreenErrorFallback';
 import AppHeader from '@/app/components/shared/AppHeader';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import Gift from './Gift';
+import VoucherGift from './components/VoucherGift';
 import { filterCoupons, withdrawPublicShare } from './utils/couponUtils';
 import { COLORS } from '@/app/constants/theme';
 import { useDismissedStores } from '@/app/components/providers/DismissedStoresProvider';
@@ -19,6 +20,7 @@ import { consumeCollectionDirty } from '@/app/utils/collectionRefresh';
 import { useCoupons } from './hooks/useCoupons';
 import { useDailyDraw } from './hooks/useDailyDraw';
 import { useSharedCoupon } from './hooks/useSharedCoupon';
+import { useSharedVoucher } from './hooks/useSharedVoucher';
 import { useSearch } from './hooks/useSearch';
 import { useMyPublicShares } from './hooks/useMyPublicShares';
 import { usePlatformVouchers } from './hooks/usePlatformVouchers';
@@ -135,6 +137,12 @@ const Collection: React.FC = () => {
     isLoading: vouchersLoading,
     fetchVouchers,
   } = usePlatformVouchers(isAuthenticated, authLoading);
+  const {
+    shareToken: voucherShareToken,
+    sharedVoucher,
+    showSharedVoucher,
+    handleVoucherAccepted,
+  } = useSharedVoucher(fetchVouchers);
   const { tags } = useTags(isAuthenticated);
   const merchants = useMemo(() => {
     const merchantSet = new Set<string>();
@@ -203,8 +211,7 @@ const Collection: React.FC = () => {
     async (shareId: number) => {
       try {
         await withdrawPublicShare(shareId);
-        fetchCoupons();
-        fetchPublicShares();
+        await Promise.all([fetchCoupons(), fetchPublicShares()]);
       } catch (err) {
         console.error('Withdraw from pool failed:', err);
       }
@@ -271,7 +278,9 @@ const Collection: React.FC = () => {
       <YStack gap={25}>
         <MyPlatformVouchers vouchers={platformVouchers} isLoading={vouchersLoading} />
 
-        {!hasDailyDrawn && !showSharedGift && <DailyDrawBanner onClick={handleOpenDailyDraw} />}
+        {!hasDailyDrawn && !showSharedGift && !showSharedVoucher && (
+          <DailyDrawBanner onClick={handleOpenDailyDraw} />
+        )}
 
         {showSharedGift && sharedCoupon && (
           <Gift
@@ -285,6 +294,18 @@ const Collection: React.FC = () => {
             onAccepted={handleGiftAccepted}
           />
         )}
+
+        {showSharedVoucher && sharedVoucher && (
+          <VoucherGift
+            token={voucherShareToken || undefined}
+            voucherInfo={{
+              face_value: sharedVoucher.face_value,
+              currency_code: sharedVoucher.currency_code,
+              from_user_email: sharedVoucher.from_user_email,
+            }}
+            onAccepted={handleVoucherAccepted}
+          />
+        )}
       </YStack>
     ),
     [
@@ -295,6 +316,10 @@ const Collection: React.FC = () => {
       sharedCoupon,
       shareToken,
       handleGiftAccepted,
+      showSharedVoucher,
+      sharedVoucher,
+      voucherShareToken,
+      handleVoucherAccepted,
       handleOpenDailyDraw,
     ],
   );
@@ -376,7 +401,6 @@ const Collection: React.FC = () => {
             }
             ListHeaderComponent={ListHeaderComponent}
             ListEmptyComponent={ListEmptyComponent}
-            removeClippedSubviews
             maxToRenderPerBatch={10}
             windowSize={10}
             initialNumToRender={6}

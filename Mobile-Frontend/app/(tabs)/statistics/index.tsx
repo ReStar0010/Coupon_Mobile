@@ -3,16 +3,16 @@ import { RefreshControl } from 'react-native';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStatisticsData } from './hooks/useStatisticsData';
-import { useTransactionHistory } from './hooks/useTransactionHistory';
 import { AlignJustify, List, ChevronRight } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import StatisticsChart from './components/StatisticsChart';
+import { useProgressTrackers } from './hooks/useProgressTrackers';
+import { useTransactionHistory } from './hooks/useTransactionHistory';
 import StatCard from './components/StatCard';
 import GoalModal from './components/GoalModal';
 import StatisticsToast from './components/StatisticsToast';
 import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '../../components/ScreenErrorFallback';
+import LightSystem from './components/LightSystem';
 import {
   XStack,
   YStack,
@@ -26,32 +26,12 @@ import {
   Spinner,
 } from 'tamagui';
 
-interface Goal {
-  id: string;
-  name: string;
-  targetAmount: number;
-  currentAmount: number;
-}
-
 const Statistics: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Authentication hooks
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
-
-  // Statistics data hook
-  const {
-    stats,
-    completedGoals: _completedGoals,
-    isLoading,
-    error,
-    setSavingsGoal,
-    resetGoal: _resetGoal,
-    fetchUserStats,
-  } = useStatisticsData(isAuthenticated);
-
-  // Transaction history hook
+  const { data, loading, error, refetch } = useProgressTrackers();
   const {
     transactionHistory,
     isLoading: historyLoading,
@@ -60,45 +40,31 @@ const Statistics: React.FC = () => {
     refetch: refetchHistory,
   } = useTransactionHistory(isAuthenticated, 2);
 
-  const [_currentGoal, _setCurrentGoal] = useState<Goal | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [showToast, setShowToast] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const defaultImage = '/Info.png'; // Default image URL
 
-  const handleSetGoal = (customGoalName: string, customGoalAmount: number) => {
-    setSavingsGoal(customGoalName, customGoalAmount, defaultImage);
-
-    setIsModalVisible(false);
-    setShowToast(true);
-
-    // Hide toast after 3 seconds
-    setTimeout(() => setShowToast(false), 3000);
-  };
-
-  const openModal = () => {
-    setIsModalVisible(true);
-  };
-
-  const closeModal = () => {
-    setIsModalVisible(false);
-  };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refetch(), refetchHistory()]);
+    } catch {
+      // silently ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch, refetchHistory]);
 
   const handleViewHistory = () => {
     router.push('/(tabs)/statistics/history');
   };
 
-  // Handle clicking on a history item
   const handleHistoryItemClick = useCallback(
-    async (couponId: number, item: any) => {
+    async (couponId: number, item: unknown) => {
       try {
-        // Store the item data in AsyncStorage for use in detail page
         await AsyncStorage.setItem('selectedCouponHistory', JSON.stringify(item));
-        // Set navigation source to 'statistics' so the back button returns to Statistics page
         await AsyncStorage.setItem('couponNavigationSource', 'statistics');
         router.push(`/(tabs)/statistics/history/${couponId}`);
-      } catch (error) {
-        console.error('Error storing coupon history:', error);
+      } catch (err) {
+        console.error('Error storing coupon history:', err);
       }
     },
     [router],
@@ -132,10 +98,10 @@ const Statistics: React.FC = () => {
         scope.setTag('boundary_type', 'screen');
       }}
     >
+  return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Show loading indicator only while authentication is loading */}
       {authLoading ? (
         <View flex={1} bg="#f5f5f5" items="center" style={{ justifyContent: 'center' }}>
           <Spinner size="large" color="#FFAD31" />
@@ -152,11 +118,9 @@ const Statistics: React.FC = () => {
             px="$5"
             pt={insets.top + 10}
           >
-            <XStack gap="$3" items="center">
-              <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
-                成就列表
-              </H4>
-            </XStack>
+            <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
+              進度追蹤
+            </H4>
             <Button
               unstyled
               onPress={() => {
@@ -182,7 +146,7 @@ const Statistics: React.FC = () => {
               />
             }
           >
-            {/* Show error state inline if there's an error */}
+            {/* Progress Trackers */}
             {error ? (
               <YStack
                 bg="white"
@@ -200,7 +164,7 @@ const Statistics: React.FC = () => {
                   請稍後再試
                 </Text>
               </YStack>
-            ) : isLoading ? (
+            ) : loading && !data ? (
               <YStack
                 bg="white"
                 rounded="$4"
@@ -212,29 +176,35 @@ const Statistics: React.FC = () => {
               >
                 <Spinner size="large" color="#FFAD31" />
                 <Text mt="$4" fontSize={16} color="#707070">
-                  載入統計資料中...
+                  載入中...
                 </Text>
               </YStack>
-            ) : (
-              <>
-                {/* Statistics Chart */}
-                <StatisticsChart
-                  currentAmount={stats.totalSavings}
-                  targetAmount={stats.savingsGoalAmount}
-                  goalName={stats.savingsGoalName}
-                  goalImage={stats.savingsGoalImage}
-                  onSetGoal={openModal}
+            ) : data ? (
+              <YStack gap="$4" mt="$2">
+                {/* Metric 1 — Total redemption count */}
+                <StatCard title="總兌換次數" value={data.total_redemptions.toString()} />
+
+                {/* Metric 2 — Sharing light system */}
+                <LightSystem
+                  title="分享進度"
+                  description="分享或兌換他人的專屬優惠券以點亮燈泡，點亮至第 3 盞燈即可獲 $10 現金券，之後每盞獲 $10 現金券"
+                  count={data.sharing_progress.count}
+                  threshold={data.sharing_progress.threshold}
+                  rewardType="sharing"
                 />
 
-                {/* Statistics Cards */}
-                <XStack mt="$4" gap="$4">
-                  <StatCard title="酷胖使用張數" value={stats.couponsUsedCount.toString()} />
-                  <StatCard title="節省總金額 (元)" value={stats.totalSavings.toString()} />
-                </XStack>
-              </>
-            )}
+                {/* Metric 3 — New user referral light system */}
+                <LightSystem
+                  title="推薦新用戶"
+                  description="邀請新用戶完成首次兌換，第 2 位獲 $5 現金券，之後每位獲 $10 現金券"
+                  count={data.referral_progress.count}
+                  threshold={data.referral_progress.threshold}
+                  rewardType="referral"
+                />
+              </YStack>
+            ) : null}
 
-            {/* List Items */}
+            {/* Transaction History */}
             <YStack mt="$3">
               {historyLoading ? (
                 <YStack
@@ -341,16 +311,6 @@ const Statistics: React.FC = () => {
               )}
             </YStack>
           </ScrollView>
-
-          {/* Goal Modal */}
-          <GoalModal visible={isModalVisible} onClose={closeModal} onSave={handleSetGoal} />
-
-          {/* Toast */}
-          <StatisticsToast
-            visible={showToast}
-            message="目標設定成功"
-            onHide={() => setShowToast(false)}
-          />
         </View>
       )}
     </>

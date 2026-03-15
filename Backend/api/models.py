@@ -74,7 +74,11 @@ class StudentProfile(models.Model):
 
     # last logged in time
     last_logged_in = models.DateTimeField(null=True, blank=True)
- 
+
+    # Progress tracker counters (011-progress-tracker)
+    sharing_progress_count = models.IntegerField(default=0)   # Metric 2: O value for sharing light system
+    referral_progress_count = models.IntegerField(default=0)  # Metric 3: O value for new user referral light system
+
     def update_monthly_savings(self):
         """
         Check if it's a new month and reset monthly_savings if needed
@@ -520,6 +524,7 @@ ACQUISITION_METHOD_PLATFORM = [
     ('platform_issue', 'Platform Issue'),
     ('transfer', 'Transfer'),
     ('public_pool', 'Public Pool'),
+    ('reward', 'Reward'),
 ]
 
 

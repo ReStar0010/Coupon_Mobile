@@ -9,20 +9,22 @@ export function useSharedCoupon(fetchCouponsCallback: () => void) {
   const router = useRouter();
   const searchParams = useLocalSearchParams();
   const shareToken = searchParams.token as string;
+  const shareType = searchParams.shareType as string;
 
   const [sharedCoupon, setSharedCoupon] = useState<ShareRequestInfo | null>(null);
   const [showSharedGift, setShowSharedGift] = useState(false);
 
-  // Check if there's a share token in the URL
+  // Only handle coupon share when token is present and not a voucher share (mutually exclusive)
+  const isCouponShare = !!shareToken && shareType !== 'voucher';
+
   useEffect(() => {
-    if (shareToken) {
+    if (isCouponShare) {
       fetchShareRequest(shareToken);
     } else {
-      // Clear shared gift state if no token in URL
       setShowSharedGift(false);
       setSharedCoupon(null);
     }
-  }, [shareToken]);
+  }, [isCouponShare, shareToken]);
 
   // Fetch share request details if token is present
   const fetchShareRequest = async (token: string) => {

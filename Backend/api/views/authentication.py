@@ -36,6 +36,7 @@ from ..auth import generate_password_reset_token, is_token_valid
 from ..exceptions import (
     CouProAPIException,
     EmailAlreadyExists,
+    EmailAlreadyRegisteredAsMerchant,
     MissingToken,
     InvalidToken,
     AlreadyVerified,
@@ -840,7 +841,13 @@ def register(request):
     if not email or not password:
         return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    if User.objects.filter(username=email).exists():
+    existing_user = User.objects.filter(username=email).first()
+    if existing_user:
+        # Consumer app registration with an email that is already a merchant account
+        if user_type == 'student' and MerchantProfile.objects.filter(user=existing_user).exists():
+            raise EmailAlreadyRegisteredAsMerchant(
+                developer_message="此信箱已用於商家帳號，請使用商家 App 登入或使用其他信箱註冊。"
+            )
         raise EmailAlreadyExists(developer_message="Email already exists")
 
     # Create user

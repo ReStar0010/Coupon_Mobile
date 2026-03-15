@@ -56,6 +56,7 @@ const LEGACY_ERROR_MAP: Record<string, string> = {
 const EXPECTED_ERROR_CODES = new Set<string>([
   'USER_NOT_FOUND',
   'EMAIL_ALREADY_EXISTS',
+  'EMAIL_ALREADY_REGISTERED_AS_MERCHANT',
   'INVALID_CREDENTIALS',
   'EMAIL_NOT_VERIFIED',
   'WRONG_CLIENT_TYPE_MERCHANT',
@@ -293,6 +294,7 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     '/store-coupons/',
     'coupons/<int:id>/',
     'coupon/share/<str:token>/',
+    '/platform-voucher/share/',
     // Phone-based registration (009-phone-registration)
     '/register/send-otp/',
     '/register/verify-otp/',
@@ -783,6 +785,43 @@ export const platformVoucherAPI = {
       method: 'POST',
       data: { redeem_code: storeCode },
     });
+    return response.data;
+  },
+
+  share: async (id: number): Promise<{ token: string; share_link: string; share_link_web: string }> => {
+    const response = await fetchAPI(`/platform-voucher/${id}/share/`, { method: 'POST' });
+    return response.data;
+  },
+
+  sharePublic: async (id: number): Promise<{ message: string }> => {
+    const response = await fetchAPI(`/platform-voucher/${id}/share-public/`, { method: 'POST' });
+    return response.data;
+  },
+
+  getShareInfo: async (token: string): Promise<{ token: string; voucher_id: number; from_user_id: number; status: string }> => {
+    const response = await fetchAPI(`/platform-voucher/share/${token}/`, { method: 'GET' });
+    return response.data;
+  },
+
+  acceptShare: async (token: string): Promise<{ message: string }> => {
+    const response = await fetchAPI(`/platform-voucher/share/${token}/accept/`, { method: 'POST' });
+    return response.data;
+  },
+};
+
+/** Progress tracker data (011-progress-tracker) */
+export interface ProgressTrackers {
+  total_redemptions: number;
+  sharing_progress: { count: number; threshold: number };
+  referral_progress: { count: number; threshold: number };
+}
+
+/**
+ * Progress Tracker API (011-progress-tracker)
+ */
+export const progressTrackerAPI = {
+  get: async (): Promise<ProgressTrackers> => {
+    const response = await fetchAPI('/progress-trackers/', { method: 'GET' });
     return response.data;
   },
 };

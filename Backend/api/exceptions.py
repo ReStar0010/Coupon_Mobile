@@ -61,6 +61,12 @@ class EmailAlreadyExists(CouProAPIException):
     error_code = "EMAIL_ALREADY_EXISTS"
 
 
+class EmailAlreadyRegisteredAsMerchant(CouProAPIException):
+    """Email already used by a merchant account; cannot register as consumer with same email."""
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "EMAIL_ALREADY_REGISTERED_AS_MERCHANT"
+
+
 class InvalidCredentials(CouProAPIException):
     status_code = status.HTTP_401_UNAUTHORIZED
     error_code = "INVALID_CREDENTIALS"
