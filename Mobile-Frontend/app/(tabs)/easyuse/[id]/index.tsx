@@ -180,6 +180,7 @@ const CouponDetailPage: React.FC = () => {
   const onGoBackContainerClick = useCallback(() => {
     if (sourceParam === 'collection') {
       // Navigate directly to collection; single replace avoids race between two synchronous navigations.
+      router.replace('/(tabs)/easyuse');
       router.replace('/(tabs)/collection');
     } else {
       router.back();

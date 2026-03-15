@@ -11,6 +11,12 @@ interface ScreenErrorFallbackProps {
 const ScreenErrorFallback: React.FC<ScreenErrorFallbackProps> = ({ resetError }) => {
   const router = useRouter();
 
+  const handleGoToEasyuse = () => {
+    // Reset error, then replace the entire stack to the easyuse tab
+    resetError(); // Optional: could skip if navigation alone is always sufficient
+    router.replace('/(tabs)/easyuse');
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.message}>發生錯誤，請稍後再試</Text>
@@ -19,7 +25,7 @@ const ScreenErrorFallback: React.FC<ScreenErrorFallbackProps> = ({ resetError })
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.secondaryButton}
-        onPress={() => router.back()}
+        onPress={handleGoToEasyuse}
         activeOpacity={0.8}
       >
         <Text style={styles.secondaryButtonText}>返回</Text>
@@ -27,6 +33,7 @@ const ScreenErrorFallback: React.FC<ScreenErrorFallbackProps> = ({ resetError })
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
