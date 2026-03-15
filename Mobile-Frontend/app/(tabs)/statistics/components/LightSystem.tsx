@@ -17,10 +17,9 @@ function computeRewards(count: number, rewardType: 'sharing' | 'referral'): stri
     if (qty === 0) return '尚未獲得獎勵';
     return `已獲得 ${qty} 張 $10 現金券`;
   }
-  // referral: O=1 → nothing, O=2 → $5 voucher, O>=3 → $10 each additional
-  if (count === 1) return '尚未獲得獎勵';
-  if (count === 2) return '已獲得 1 張 $5 現金券';
-  const tenDollarCount = count - 2;
+  // referral: O=0 → nothing, O=1 → $5 voucher, O>=2 → $10 each additional
+  if (count === 1) return '已獲得 1 張 $5 現金券';
+  const tenDollarCount = count - 1;
   return `已獲得 1 張 $5 + ${tenDollarCount} 張 $10 現金券`;
 }
 
