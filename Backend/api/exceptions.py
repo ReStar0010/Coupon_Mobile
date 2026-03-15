@@ -5,6 +5,7 @@ Every error raised via these classes produces a consistent JSON body:
     {
         "error_code":        "SOME_CONSTANT",
         "developer_message": "English technical explanation",
+        "error":             "English technical explanation",  # same as developer_message, for backward compatibility
         "context":           {"field": "email", "limit": 20}   # optional
     }
 
@@ -58,6 +59,12 @@ class UserNotFound(CouProAPIException):
 class EmailAlreadyExists(CouProAPIException):
     status_code = status.HTTP_409_CONFLICT
     error_code = "EMAIL_ALREADY_EXISTS"
+
+
+class EmailAlreadyRegisteredAsMerchant(CouProAPIException):
+    """Email already used by a merchant account; cannot register as consumer with same email."""
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "EMAIL_ALREADY_REGISTERED_AS_MERCHANT"
 
 
 class InvalidCredentials(CouProAPIException):
@@ -249,6 +256,12 @@ class EulaVersionMismatch(CouProAPIException):
 # Coupon templates
 # ---------------------------------------------------------------------------
 
+class CouponTemplateNotOwned(CouProAPIException):
+    """Authenticated user does not own the store that owns this template."""
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = "COUPON_TEMPLATE_NOT_OWNED"
+
+
 class CouponTemplateNotFound(CouProAPIException):
     status_code = status.HTTP_404_NOT_FOUND
     error_code = "COUPON_TEMPLATE_NOT_FOUND"
@@ -376,6 +389,12 @@ class ImageUploadFailed(CouProAPIException):
     error_code = "IMAGE_UPLOAD_FAILED"
 
 
+class ImageDeleteFailed(CouProAPIException):
+    """Raised when deleting an image file from storage fails (e.g. during template delete)."""
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_code = "IMAGE_DELETE_FAILED"
+
+
 # ---------------------------------------------------------------------------
 # Analytics / date ranges
 # ---------------------------------------------------------------------------
@@ -500,19 +519,22 @@ def _extract_serializer_error(exc: DRFValidationError) -> dict:
         field = "non_field_errors"
         first_error = detail[0]
     else:
+        msg = str(detail)
         return {
             "error_code": "VALIDATION_ERROR",
-            "developer_message": str(detail),
+            "developer_message": msg,
+            "error": msg,
             "context": {},
         }
 
     code = getattr(first_error, "code", "invalid")
     error_code = _SERIALIZER_CODE_MAP.get(code, "VALIDATION_ERROR")
     ctx: dict = {"field": field}
-
+    msg = str(first_error)
     return {
         "error_code": error_code,
-        "developer_message": str(first_error),
+        "developer_message": msg,
+        "error": msg,
         "context": ctx,
     }
 
@@ -534,7 +556,7 @@ def couPro_exception_handler(exc: Exception, context: dict):
         }
 
     All responses follow the shape:
-        {"error_code": str, "developer_message": str, "context": dict}
+        {"error_code": str, "developer_message": str, "error": str, "context": dict}
     """
     response = exception_handler(exc, context)
 
@@ -544,9 +566,11 @@ def couPro_exception_handler(exc: Exception, context: dict):
         return None
 
     if isinstance(exc, CouProAPIException):
+        msg = exc.developer_message
         response.data = {
             "error_code": exc.error_code,
-            "developer_message": exc.developer_message,
+            "developer_message": msg,
+            "error": msg,
             "context": exc.context,
         }
     elif isinstance(exc, DRFValidationError):
@@ -554,9 +578,11 @@ def couPro_exception_handler(exc: Exception, context: dict):
         response.data = _extract_serializer_error(exc)
     else:
         # Native DRF exceptions (AuthenticationFailed, PermissionDenied, etc.)
+        msg = str(exc.detail) if hasattr(exc, "detail") else str(exc)
         response.data = {
             "error_code": _map_drf_exception(exc),
-            "developer_message": str(exc.detail) if hasattr(exc, "detail") else str(exc),
+            "developer_message": msg,
+            "error": msg,
             "context": {},
         }
 

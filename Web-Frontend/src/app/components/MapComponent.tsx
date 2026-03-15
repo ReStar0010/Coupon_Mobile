@@ -58,13 +58,17 @@ const MapComponent: React.FC<MapComponentProps> = ({
     lng: number;
   } | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
 
   // Get user's current location
   useEffect(() => {
+    let cancelled = false;
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          if (cancelled) return;
           const userPos = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
@@ -74,13 +78,18 @@ const MapComponent: React.FC<MapComponentProps> = ({
           setMapCenter(userPos); // Center map on user location
         },
         (error) => {
+          if (cancelled) return;
           console.error("Error getting location:", error);
-          alert("無法獲取位置，請手動選擇商店或重新開啟定位服務");
+          setLocationError("無法獲取位置，請手動選擇商店或重新開啟定位服務");
         },
       );
     } else {
       devLog("Geolocation is not supported by this browser.");
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Clicking on map closes popup (handled via MapContainer onClick)
@@ -222,6 +231,11 @@ const MapComponent: React.FC<MapComponentProps> = ({
           border-radius: 12px;
         }
       `}</style>
+      {locationError && (
+        <div className="absolute top-2 left-2 right-2 z-[1001] bg-yellow-100 text-yellow-800 text-sm px-3 py-2 rounded-lg shadow">
+          {locationError}
+        </div>
+      )}
       <MapContainer
         center={[mapCenter.lat, mapCenter.lng]}
         zoom={15}

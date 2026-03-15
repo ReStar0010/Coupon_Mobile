@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Exists, OuterRef, Prefetch
 import logging
 from drf_yasg.utils import swagger_auto_schema
 
@@ -16,7 +16,8 @@ from api.exceptions import (
     UnifiedCodeInvalid,
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
-from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher
+from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest
+from ..utils import grant_reward_voucher, apply_referral_reward, display_face_value
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +146,41 @@ def get_store_coupons(request):
                 "merchant_deleted": c.store.owner is None,
             })
 
+    # Add public pool platform vouchers
+    public_voucher_shares = PlatformVoucherShareRequest.objects.filter(
+        is_public=True,
+        status='pending',
+        voucher__expiry_date__gt=now,
+        voucher__start_date__lte=now,
+    ).select_related('voucher', 'from_user')
+
+    for share in public_voucher_shares:
+        v = share.voucher
+        face = display_face_value(v.face_value)
+        data.append({
+            "id": v.id,
+            "store_name": "平台現金券",
+            "store_id": None,
+            "store_location": None,
+            "address": None,
+            "active_coupon_count": 1,
+            "has_active_coupons": True,
+            "coupon_name": f"${face} {v.currency_code} 現金券",
+            "coupon_detail": v.batch_name or "",
+            "important_notes": "",
+            "start_date": v.start_date,
+            "expiry_date": v.expiry_date,
+            "coupon_type": "platform_voucher_gift",
+            "image_url": None,
+            "total_redemptions": 0,
+            "unique_users": 0,
+            "tags": [],
+            "is_public_share": True,
+            "share_token": share.token,
+            "shared_by": share.from_user.email,
+            "merchant_deleted": False,
+        })
+
     return Response(data)
 
 @api_view(['GET'])
@@ -163,31 +199,28 @@ def get_exclusive_coupons(request):
 
     # 查詢：未過期、已開始，且屬於當前用戶的專屬優惠券
     # 包括用戶是原始擁有者或當前持有者的券
+    redeemed_subquery = Exists(
+        CouponRedemption.objects.filter(coupon=OuterRef('pk'))
+    )
     exclusive_coupons = Coupon.objects.filter(
         coupon_type='exclusive',
         expiry_date__gt=now,
         start_date__lte=now,
         current_holder=request.user,  # 當前持有者是請求的用戶
+    ).annotate(
+        _is_redeemed=redeemed_subquery,
+    ).filter(
+        _is_redeemed=False,
     ).select_related('store', 'template').prefetch_related('tags')  # Optimize DB query
 
     # UGC Compliance: Exclude blocked merchants
     if blocked_store_ids:
         exclusive_coupons = exclusive_coupons.exclude(store_id__in=blocked_store_ids)
-    
-    # Filter out redeemed coupons
-    unredeemed_coupons = []
-    for coupon in exclusive_coupons:
-        if not coupon.is_redeemed():
-            unredeemed_coupons.append(coupon)
-    
-    exclusive_coupons = unredeemed_coupons
-    
+
     # 檢查這些券是否已被兌換
     data = []
     for c in exclusive_coupons:
-
-        # 使用方法確認券是否已被兌換（基於 CouponRedemption 表）
-        is_redeemed = c.is_redeemed()
+        is_redeemed = c._is_redeemed
         data.append({
             "id": c.id,
             "store_name": c.store.name,
@@ -418,16 +451,67 @@ def redeem_coupon(request, id):
         
         # 更新優惠券使用統計
         student_profile.coupons_used_count += 1
-        
+
         # 更新總節省和月度節省
         student_profile.total_savings += savings_amount
         student_profile.monthly_savings += savings_amount
         student_profile.save()
-        
+
     except (StudentProfile.DoesNotExist, AttributeError):
         # 處理用戶沒有學生檔案的情況
         pass
-         
+
+    # === Progress Tracker updates (011-progress-tracker) ===
+    # Metric 2 (sharing light system) and Metric 3 (referral light system)
+    if coupon.coupon_type == 'exclusive':
+        original_owner = coupon.original_owner
+        is_shared_redemption = (original_owner is not None and original_owner != request.user)
+
+        if is_shared_redemption:
+            # Metric 2 — case (b): redeemer gets +1 for redeeming someone else's shared coupon.
+            # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
+            try:
+                redeemer_profile = request.user.student_profile
+                redeemer_profile.sharing_progress_count += 1
+                n = redeemer_profile.sharing_progress_count
+                vouchers = n // 3
+                for _ in range(vouchers):
+                    grant_reward_voucher(request.user, 10, 'Sharing Reward')
+                redeemer_profile.sharing_rewards_earned += vouchers
+                redeemer_profile.sharing_progress_count = n % 3
+                redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
+            except (StudentProfile.DoesNotExist, AttributeError):
+                pass
+
+            # Metric 2 — case (a): original owner gets +1 when their coupon is redeemed by someone else.
+            # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
+            try:
+                owner_profile = original_owner.student_profile
+                owner_profile.sharing_progress_count += 1
+                n = owner_profile.sharing_progress_count
+                vouchers = n // 3
+                for _ in range(vouchers):
+                    grant_reward_voucher(original_owner, 10, 'Sharing Reward')
+                owner_profile.sharing_rewards_earned += vouchers
+                owner_profile.sharing_progress_count = n % 3
+                owner_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
+            except (StudentProfile.DoesNotExist, AttributeError):
+                pass
+
+        # Metric 3 — check if this is the redeemer's very first exclusive coupon/voucher redemption
+        try:
+            exclusive_count = CouponRedemption.objects.filter(
+                user=request.user, coupon_type='exclusive'
+            ).count()
+            voucher_count = PlatformVoucherRedemption.objects.filter(
+                user=request.user
+            ).count()
+            is_first_redemption = (exclusive_count == 1 and voucher_count == 0)
+            if is_first_redemption and original_owner and original_owner != request.user:
+                apply_referral_reward(original_owner)
+        except Exception:
+            pass
+
     return Response({
         "message": "優惠券兌換成功", 
         "coupon_name": coupon.coupon_name,

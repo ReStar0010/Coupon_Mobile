@@ -84,7 +84,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="statistics"
         options={{
-          title: '成就列表',
+          title: '進度追蹤',
           tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} />,
         }}
       />

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import { Alert, Linking, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { isAxiosError } from 'axios';
@@ -137,7 +137,7 @@ const CouponDetailPage: React.FC = () => {
     } catch (error) {
       // Silently fail - don't interrupt user experience
       console.error('Failed to track template view:', error);
-      // Sentry.captureException(error, { data: { context: 'easyuse.trackTemplateView' } });
+      Sentry.captureException(error, { data: { context: 'easyuse.trackTemplateView' } });
     }
   };
 
@@ -179,8 +179,7 @@ const CouponDetailPage: React.FC = () => {
 
   const onGoBackContainerClick = useCallback(() => {
     if (sourceParam === 'collection') {
-      // 先 replace 到 easyuse 首頁，清掉 easyuse stack 上的 [id]，再切到專屬優惠，
-      // 否則之後點 CouPro tab 會再次看到此優惠券。
+      // Navigate directly to collection; single replace avoids race between two synchronous navigations.
       router.replace('/(tabs)/easyuse');
       router.replace('/(tabs)/collection');
     } else {
@@ -426,7 +425,7 @@ const CouponDetailPage: React.FC = () => {
           }
         })
         .catch((err) => {
-          // Sentry.captureException(err, { data: { context: 'easyuse.openMapsNavigation' } });
+          Sentry.captureException(err, { data: { context: 'easyuse.openMapsNavigation' } });
           Alert.alert(t('easyuse.error'), t('easyuse.openMapsFailed'));
         });
     } else {

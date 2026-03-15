@@ -1,18 +1,19 @@
 import React, { useState, useCallback } from 'react';
 import { RefreshControl } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStatisticsData } from './hooks/useStatisticsData';
-import { useTransactionHistory } from './hooks/useTransactionHistory';
 import { AlignJustify, List, ChevronRight } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import StatisticsChart from './components/StatisticsChart';
+import { useProgressTrackers } from './hooks/useProgressTrackers';
+import { useTransactionHistory } from './hooks/useTransactionHistory';
 import StatCard from './components/StatCard';
 import GoalModal from './components/GoalModal';
 import StatisticsToast from './components/StatisticsToast';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '../../components/ScreenErrorFallback';
+import LightSystem from './components/LightSystem';
 import {
   XStack,
   YStack,
@@ -26,32 +27,13 @@ import {
   Spinner,
 } from 'tamagui';
 
-interface Goal {
-  id: string;
-  name: string;
-  targetAmount: number;
-  currentAmount: number;
-}
-
 const Statistics: React.FC = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Authentication hooks
   const { isAuthenticated, loading: authLoading } = useRequireAuth();
-
-  // Statistics data hook
-  const {
-    stats,
-    completedGoals: _completedGoals,
-    isLoading,
-    error,
-    setSavingsGoal,
-    resetGoal: _resetGoal,
-    fetchUserStats,
-  } = useStatisticsData(isAuthenticated);
-
-  // Transaction history hook
+  const { data, loading, error, refetch } = useProgressTrackers();
   const {
     transactionHistory,
     isLoading: historyLoading,
@@ -60,87 +42,57 @@ const Statistics: React.FC = () => {
     refetch: refetchHistory,
   } = useTransactionHistory(isAuthenticated, 2);
 
-  const [_currentGoal, _setCurrentGoal] = useState<Goal | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [showToast, setShowToast] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const defaultImage = '/Info.png'; // Default image URL
 
-  const handleSetGoal = (customGoalName: string, customGoalAmount: number) => {
-    setSavingsGoal(customGoalName, customGoalAmount, defaultImage);
-
-    setIsModalVisible(false);
-    setShowToast(true);
-
-    // Hide toast after 3 seconds
-    setTimeout(() => setShowToast(false), 3000);
-  };
-
-  const openModal = () => {
-    setIsModalVisible(true);
-  };
-
-  const closeModal = () => {
-    setIsModalVisible(false);
-  };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refetch(), refetchHistory()]);
+    } catch {
+      // silently ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch, refetchHistory]);
 
   const handleViewHistory = () => {
     router.push('/(tabs)/statistics/history');
   };
 
-  // Handle clicking on a history item
   const handleHistoryItemClick = useCallback(
-    async (couponId: number, item: any) => {
+    async (couponId: number, item: unknown) => {
       try {
-        // Store the item data in AsyncStorage for use in detail page
         await AsyncStorage.setItem('selectedCouponHistory', JSON.stringify(item));
-        // Set navigation source to 'statistics' so the back button returns to Statistics page
         await AsyncStorage.setItem('couponNavigationSource', 'statistics');
         router.push(`/(tabs)/statistics/history/${couponId}`);
-      } catch (error) {
-        console.error('Error storing coupon history:', error);
+      } catch (err) {
+        console.error('Error storing coupon history:', err);
       }
     },
     [router],
   );
 
-  // Pull to refresh handler
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      // Refresh both statistics and transaction history
-      await Promise.all([fetchUserStats?.(), refetchHistory?.()]);
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      // Sentry.captureException(error, { data: { context: 'statistics.refreshData' } });
-    } finally {
-      setRefreshing(false);
-    }
-  }, [fetchUserStats, refetchHistory]);
-
   return (
-    // <Sentry.ErrorBoundary
-    //   fallback={({ error, componentStack, resetError }) => (
-    //     <ScreenErrorFallback
-    //       error={error as Error}
-    //       componentStack={componentStack}
-    //       resetError={resetError}
-    //     />
-    //   )}
-    //   beforeCapture={(scope) => {
-    //     scope.setTag('boundary', 'statistics-screen');
-    //     scope.setTag('boundary_type', 'screen');
-    //   }}
-    // >
-    <>
+    <Sentry.ErrorBoundary
+      fallback={({ error, componentStack, resetError }) => (
+        <ScreenErrorFallback
+          error={error as Error}
+          componentStack={componentStack}
+          resetError={resetError}
+        />
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'statistics-screen');
+        scope.setTag('boundary_type', 'screen');
+      }}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Show loading indicator only while authentication is loading */}
       {authLoading ? (
         <View flex={1} bg="#f5f5f5" items="center" style={{ justifyContent: 'center' }}>
           <Spinner size="large" color="#FFAD31" />
           <Text mt="$4" fontSize={16} color="#707070">
-            驗證身份中...
+            {t('statistics.verifyingAuth')}
           </Text>
         </View>
       ) : (
@@ -152,11 +104,9 @@ const Statistics: React.FC = () => {
             px="$5"
             pt={insets.top + 10}
           >
-            <XStack gap="$3" items="center">
-              <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
-                成就列表
-              </H4>
-            </XStack>
+            <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
+              {t('statistics.progressTracker')}
+            </H4>
             <Button
               unstyled
               onPress={() => {
@@ -182,7 +132,7 @@ const Statistics: React.FC = () => {
               />
             }
           >
-            {/* Show error state inline if there's an error */}
+            {/* Progress Trackers */}
             {error ? (
               <YStack
                 bg="white"
@@ -197,10 +147,10 @@ const Statistics: React.FC = () => {
                   {error}
                 </Text>
                 <Text mt="$2" fontSize={14} color="#707070">
-                  請稍後再試
+                  {t('statistics.tryAgainLater')}
                 </Text>
               </YStack>
-            ) : isLoading ? (
+            ) : loading && !data ? (
               <YStack
                 bg="white"
                 rounded="$4"
@@ -212,29 +162,36 @@ const Statistics: React.FC = () => {
               >
                 <Spinner size="large" color="#FFAD31" />
                 <Text mt="$4" fontSize={16} color="#707070">
-                  載入統計資料中...
+                  {t('statistics.loading')}
                 </Text>
               </YStack>
-            ) : (
-              <>
-                {/* Statistics Chart */}
-                <StatisticsChart
-                  currentAmount={stats.totalSavings}
-                  targetAmount={stats.savingsGoalAmount}
-                  goalName={stats.savingsGoalName}
-                  goalImage={stats.savingsGoalImage}
-                  onSetGoal={openModal}
+            ) : data ? (
+              <YStack gap="$4" mt="$2">
+                {/* Metric 1 — Total redemption count */}
+                <StatCard title={t('statistics.totalRedemptions')} value={data.total_redemptions.toString()} />
+
+                {/* Metric 2 — Sharing light system */}
+                <LightSystem
+                  title={t('statistics.sharingProgress')}
+                  description={t('statistics.sharingDescription')}
+                  count={data.sharing_progress.count}
+                  threshold={data.sharing_progress.threshold}
+                  rewardType="sharing"
+                  vouchersEarned={data.sharing_progress.vouchers_earned}
                 />
 
-                {/* Statistics Cards */}
-                <XStack mt="$4" gap="$4">
-                  <StatCard title="酷胖使用張數" value={stats.couponsUsedCount.toString()} />
-                  <StatCard title="節省總金額 (元)" value={stats.totalSavings.toString()} />
-                </XStack>
-              </>
-            )}
+                {/* Metric 3 — New user referral light system */}
+                <LightSystem
+                  title={t('statistics.referralProgress')}
+                  description={t('statistics.referralDescription')}
+                  count={data.referral_progress.count}
+                  threshold={data.referral_progress.threshold}
+                  rewardType="referral"
+                />
+              </YStack>
+            ) : null}
 
-            {/* List Items */}
+            {/* Transaction History */}
             <YStack mt="$3">
               {historyLoading ? (
                 <YStack
@@ -246,7 +203,7 @@ const Statistics: React.FC = () => {
                   borderColor="#e0e0e0"
                 >
                   <Text fontSize={14} color="#707070">
-                    載入中...
+                    {t('statistics.loading')}
                   </Text>
                 </YStack>
               ) : historyError ? (
@@ -259,7 +216,7 @@ const Statistics: React.FC = () => {
                   borderColor="#e0e0e0"
                 >
                   <Text fontSize={14} color="#707070">
-                    載入失敗
+                    {t('statistics.loadFailed')}
                   </Text>
                 </YStack>
               ) : transactionHistory.length > 0 ? (
@@ -287,7 +244,7 @@ const Statistics: React.FC = () => {
                         </ListItem.Subtitle>
                         {item.estimated_savings != null && !Number.isNaN(item.estimated_savings) ? (
                           <Text fontSize={12} color="#22c55e" style={{ marginTop: 2 }}>
-                            節省 {Number(item.estimated_savings)} 元
+                            {t('statistics.savingsAmount', { amount: Number(item.estimated_savings) })}
                           </Text>
                         ) : null}
                         <ChevronRight size={16} color="#333333" />
@@ -305,7 +262,7 @@ const Statistics: React.FC = () => {
                     icon={<List size={20} color="#333333" />}
                   >
                     <ListItem.Text fontSize={13} color="#333333">
-                      使用紀錄
+                      {t('statistics.viewHistory')}
                     </ListItem.Text>
                     <ChevronRight size={16} color="#333333" />
                   </ListItem>
@@ -320,7 +277,7 @@ const Statistics: React.FC = () => {
                 >
                   <YStack p="$4" items="center">
                     <Text fontSize={14} color="#707070">
-                      尚無使用紀錄
+                      {t('statistics.noHistoryYet')}
                     </Text>
                   </YStack>
                   <Separator />
@@ -333,7 +290,7 @@ const Statistics: React.FC = () => {
                     icon={<List size={20} color="#333333" />}
                   >
                     <ListItem.Text fontSize={13} color="#333333">
-                      使用紀錄
+                      {t('statistics.viewHistory')}
                     </ListItem.Text>
                     <ChevronRight size={16} color="#333333" />
                   </ListItem>
@@ -341,20 +298,9 @@ const Statistics: React.FC = () => {
               )}
             </YStack>
           </ScrollView>
-
-          {/* Goal Modal */}
-          <GoalModal visible={isModalVisible} onClose={closeModal} onSave={handleSetGoal} />
-
-          {/* Toast */}
-          <StatisticsToast
-            visible={showToast}
-            message="目標設定成功"
-            onHide={() => setShowToast(false)}
-          />
         </View>
       )}
-    {/* // </Sentry.ErrorBoundary> */}
-    // </>
+    </Sentry.ErrorBoundary>
   );
 };
 

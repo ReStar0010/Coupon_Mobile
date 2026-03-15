@@ -1,4 +1,4 @@
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +17,7 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'EMAIL_NOT_VERIFIED',
   'WRONG_CLIENT_TYPE_MERCHANT',
   'WRONG_CLIENT_TYPE_USER',
+  'EMAIL_ALREADY_REGISTERED_AS_MERCHANT',
   'NOT_AUTHENTICATED',
   'AUTHENTICATION_FAILED',
   'PERMISSION_DENIED',
@@ -68,6 +69,7 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'IMAGE_TYPE_INVALID',
   'IMAGE_TOO_LARGE',
   'IMAGE_UPLOAD_FAILED',
+  'IMAGE_DELETE_FAILED',
   // Analytics
   'INVALID_DATE_FORMAT',
   'INVALID_DATE_RANGE',
@@ -102,6 +104,7 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'SELF_CLAIM_NOT_ALLOWED',
   'SHARE_REQUEST_ALREADY_PROCESSED',
   'SHARE_ALREADY_CLAIMED',
+  'SHARE_NOT_PENDING_FOR_WITHDRAW',
 ]);
 
 /**
@@ -130,7 +133,7 @@ export function useApiError() {
       // Report unexpected errors to Sentry
       const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(code);
       if (isUnexpected) {
-        // Sentry.captureException(error);
+        Sentry.captureException(error);
       }
 
       return t(`errors.${code}`, {

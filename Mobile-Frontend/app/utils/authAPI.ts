@@ -13,7 +13,7 @@ import { useAuth } from '../components/providers/SessionProvider';
 import { devLog, devDebug } from './devLogger';
 import axios, { AxiosRequestConfig, AxiosResponse, isAxiosError } from 'axios';
 // import perf from '@react-native-firebase/perf';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import { API_URL } from '../config/api';
 import { authEvents, AUTH_EVENT_TYPES } from './authEvents';
 import {
@@ -56,6 +56,7 @@ const LEGACY_ERROR_MAP: Record<string, string> = {
 const EXPECTED_ERROR_CODES = new Set<string>([
   'USER_NOT_FOUND',
   'EMAIL_ALREADY_EXISTS',
+  'EMAIL_ALREADY_REGISTERED_AS_MERCHANT',
   'INVALID_CREDENTIALS',
   'EMAIL_NOT_VERIFIED',
   'WRONG_CLIENT_TYPE_MERCHANT',
@@ -88,6 +89,7 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'EULA_ALREADY_ACCEPTED',
   'EULA_VERSION_MISMATCH',
   'COUPON_TEMPLATE_NOT_FOUND',
+  'COUPON_TEMPLATE_NOT_OWNED',
   'COUPON_TEMPLATE_EXPIRED',
   'COUPON_TEMPLATE_OUT_OF_STOCK',
   'TEMPLATE_QUANTITY_DECREASE_NOT_ALLOWED',
@@ -100,6 +102,8 @@ const EXPECTED_ERROR_CODES = new Set<string>([
   'QR_SESSION_UNAUTHORIZED',
   'IMAGE_TYPE_INVALID',
   'IMAGE_TOO_LARGE',
+  'IMAGE_UPLOAD_FAILED',
+  'IMAGE_DELETE_FAILED',
   'INVALID_DATE_FORMAT',
   'INVALID_DATE_RANGE',
   'DATE_RANGE_FUTURE',
@@ -291,6 +295,7 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     '/store-coupons/',
     'coupons/<int:id>/',
     'coupon/share/<str:token>/',
+    '/platform-voucher/share/',
     // Phone-based registration (009-phone-registration)
     '/register/send-otp/',
     '/register/verify-otp/',
@@ -384,7 +389,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     return false;
   } catch (error) {
     console.error('Token refresh error:', error);
-    // Sentry.captureException(error, { data: { context: 'authAPI.refreshAccessToken' } });
+    Sentry.captureException(error, { data: { context: 'authAPI.refreshAccessToken' } });
     isRefreshing = false;
     onRefreshComplete(false);
 
@@ -445,7 +450,7 @@ export const ensureValidAuth = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Error ensuring valid auth:', error);
-    // Sentry.captureException(error, { data: { context: 'authAPI.ensureValidAuth' } });
+    Sentry.captureException(error, { data: { context: 'authAPI.ensureValidAuth' } });
     return false;
   }
 };
@@ -538,17 +543,17 @@ export const fetchAPI = async (
 
         const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(error.errorCode ?? '');
         if (isUnexpected) {
-          // Sentry.captureException(error, {
-          //   data: { context: 'authAPI.fetchAPI', endpoint, status: statusCode },
-          // });
+          Sentry.captureException(error, {
+            data: { context: 'authAPI.fetchAPI', endpoint, status: statusCode },
+          });
         }
         throw error;
       } else {
         const apiError = new Error('API request failed: Unknown error');
         console.error('API request error:', apiError);
-        // Sentry.captureException(error, {
-        //   data: { context: 'authAPI.fetchAPI', endpoint },
-        // });
+        Sentry.captureException(error, {
+          data: { context: 'authAPI.fetchAPI', endpoint },
+        });
         throw apiError;
       }
     }
@@ -649,7 +654,7 @@ export const storeLoginData = async (loginResponse: any): Promise<void> => {
     authEvents.emit({ type: AUTH_EVENT_TYPES.SESSION_REFRESHED });
   } catch (error) {
     console.error('Error storing login data:', error);
-    // Sentry.captureException(error, { data: { context: 'authAPI.storeLoginData' } });
+    Sentry.captureException(error, { data: { context: 'authAPI.storeLoginData' } });
     throw error;
   }
 };
@@ -704,7 +709,7 @@ export const logout = async (): Promise<void> => {
     await fetchAPI('/logout/', { method: 'POST' });
   } catch (_error) {
     devLog('Logout API call failed, proceeding with local logout');
-    // Sentry.captureException(_error, { data: { context: 'authAPI.logout' } });
+    Sentry.captureException(_error, { data: { context: 'authAPI.logout' } });
   }
 
   // Clear all stored tokens
@@ -781,6 +786,43 @@ export const platformVoucherAPI = {
       method: 'POST',
       data: { redeem_code: storeCode },
     });
+    return response.data;
+  },
+
+  share: async (id: number): Promise<{ token: string; share_link: string; share_link_web: string }> => {
+    const response = await fetchAPI(`/platform-voucher/${id}/share/`, { method: 'POST' });
+    return response.data;
+  },
+
+  sharePublic: async (id: number): Promise<{ message: string }> => {
+    const response = await fetchAPI(`/platform-voucher/${id}/share-public/`, { method: 'POST' });
+    return response.data;
+  },
+
+  getShareInfo: async (token: string): Promise<{ token: string; voucher_id: number; from_user_id: number; status: string }> => {
+    const response = await fetchAPI(`/platform-voucher/share/${token}/`, { method: 'GET' });
+    return response.data;
+  },
+
+  acceptShare: async (token: string): Promise<{ message: string }> => {
+    const response = await fetchAPI(`/platform-voucher/share/${token}/accept/`, { method: 'POST' });
+    return response.data;
+  },
+};
+
+/** Progress tracker data (011-progress-tracker) */
+export interface ProgressTrackers {
+  total_redemptions: number;
+  sharing_progress: { count: number; threshold: number; vouchers_earned?: number };
+  referral_progress: { count: number; threshold: number };
+}
+
+/**
+ * Progress Tracker API (011-progress-tracker)
+ */
+export const progressTrackerAPI = {
+  get: async (): Promise<ProgressTrackers> => {
+    const response = await fetchAPI('/progress-trackers/', { method: 'GET' });
     return response.data;
   },
 };

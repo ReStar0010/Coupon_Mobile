@@ -152,15 +152,19 @@ export const useStatisticsData = (isAuthenticated: boolean) => {
       // If current goal was achieved, add it to completed goals
       if (stats.goalAchieved && stats.hasGoal) {
 
-        fetchAPI("/add-completed-goal/", {
-          method: "POST",
-          withCredentials: true,
-          data: JSON.stringify({
-            goal_name: stats.savingsGoalName,
-            goal_amount: stats.savingsGoalAmount,
-            goal_image: stats.savingsGoalImage,
-          }),
-        });
+        try {
+          await fetchAPI("/add-completed-goal/", {
+            method: "POST",
+            withCredentials: true,
+            data: JSON.stringify({
+              goal_name: stats.savingsGoalName,
+              goal_amount: stats.savingsGoalAmount,
+              goal_image: stats.savingsGoalImage,
+            }),
+          });
+        } catch (err) {
+          console.error("Failed to save completed goal:", err);
+        }
 
         // Add to local state immediately for better UX
         const newCompletedGoal = {

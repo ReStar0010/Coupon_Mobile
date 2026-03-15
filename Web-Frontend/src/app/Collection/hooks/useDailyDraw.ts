@@ -12,6 +12,7 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
   const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
   const [hasDailyDrawn, setHasDailyDrawn] = useState(false);
   const [availableTemplates, setAvailableTemplates] = useState<DrawTemplate[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   // Check if user has already drawn today
   useEffect(() => {
@@ -35,6 +36,7 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
       devDebug("Available templates:", response.data.active_templates);
     } catch (err) {
       console.error("Error fetching available templates:", err);
+      setError("無法載入抽獎模板，請稍後再試");
     }
   };
 
@@ -83,6 +85,7 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
     } catch (err) {
       console.error("Error during daily draw:", err);
       let errorMessage = "抽獎失敗，請稍後再試。";
+      setError(errorMessage);
 
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 400) {
@@ -125,6 +128,7 @@ export function useDailyDraw(isAuthenticated: boolean, authLoading: boolean, onD
     isDailyDrawLoading,
     hasDailyDrawn,
     availableTemplates,
+    error,
     handleDailyDraw,
     resetDailyDrawUI,
     closeDailyDrawWithSuccess

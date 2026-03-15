@@ -74,7 +74,12 @@ class StudentProfile(models.Model):
 
     # last logged in time
     last_logged_in = models.DateTimeField(null=True, blank=True)
- 
+
+    # Progress tracker counters (011-progress-tracker)
+    sharing_progress_count = models.IntegerField(default=0)   # Metric 2: current cycle 0..2 (resets at 3)
+    sharing_rewards_earned = models.IntegerField(default=0)    # Metric 2: number of $10 vouchers granted for sharing
+    referral_progress_count = models.IntegerField(default=0)  # Metric 3: O value for new user referral light system
+
     def update_monthly_savings(self):
         """
         Check if it's a new month and reset monthly_savings if needed
@@ -259,36 +264,45 @@ class CouponTemplate(models.Model):
     is_active = models.BooleanField(default=True)
     
     def generate_coupon(self, recipient=None):
-        """Generate a new coupon from this template"""
-        if self.remaining_quantity <= 0:
-            return None
-            
-        coupon = Coupon(
-            store=self.store,
-            template=self,
-            coupon_name=self.coupon_name,
-            coupon_detail=self.coupon_detail,
-            important_notes=self.important_notes,
-            start_date=self.start_date,
-            expiry_date=self.expiry_date,
-            image_url=self.image_url,
-            coupon_type='exclusive',
-            estimated_savings=self.estimated_savings,
-            original_owner=recipient,
-            last_holder=None,
-            current_holder=recipient,
-            redeem_code=self.template_redeem_code if self.template_redeem_code else None,
-        )
-        coupon.save()
-        coupon.tags.set(self.tags.all())  # Set tags for the coupon        
-        
-        # Decrease remaining quantity
-        self.remaining_quantity -= 1
-        if self.remaining_quantity <= 0:
-            self.is_active = False
-        self.save()
-        
-        return coupon
+        """Generate a new coupon from this template (race-safe)."""
+        from django.db import transaction
+
+        with transaction.atomic():
+            # Re-read with row lock to prevent over-issuance
+            tpl = CouponTemplate.objects.select_for_update().get(pk=self.pk)
+            if tpl.remaining_quantity <= 0:
+                return None
+
+            coupon = Coupon(
+                store=tpl.store,
+                template=tpl,
+                coupon_name=tpl.coupon_name,
+                coupon_detail=tpl.coupon_detail,
+                important_notes=tpl.important_notes,
+                start_date=tpl.start_date,
+                expiry_date=tpl.expiry_date,
+                image_url=tpl.image_url,
+                coupon_type='exclusive',
+                estimated_savings=tpl.estimated_savings,
+                original_owner=recipient,
+                last_holder=None,
+                current_holder=recipient,
+                redeem_code=tpl.template_redeem_code if tpl.template_redeem_code else None,
+            )
+            coupon.save()
+            coupon.tags.set(tpl.tags.all())
+
+            # Decrease remaining quantity
+            tpl.remaining_quantity -= 1
+            if tpl.remaining_quantity <= 0:
+                tpl.is_active = False
+            tpl.save()
+
+            # Update self to reflect changes
+            self.remaining_quantity = tpl.remaining_quantity
+            self.is_active = tpl.is_active
+
+            return coupon
     
     def __str__(self):
         return f"Template: {self.coupon_name} ({self.remaining_quantity}/{self.total_quantity})"
@@ -520,6 +534,7 @@ ACQUISITION_METHOD_PLATFORM = [
     ('platform_issue', 'Platform Issue'),
     ('transfer', 'Transfer'),
     ('public_pool', 'Public Pool'),
+    ('reward', 'Reward'),
 ]
 
 

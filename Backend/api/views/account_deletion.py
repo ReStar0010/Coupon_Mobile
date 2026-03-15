@@ -10,7 +10,7 @@ from rest_framework import status
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.models import User
 from django.utils import timezone
-from django.db import transaction
+from django.db import DatabaseError, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +217,7 @@ def delete_account(request):
                 'deleted_at': deletion_log.completed_at.isoformat()
             }, status=status.HTTP_200_OK)
             
-    except Exception as e:
+    except (DatabaseError, OSError) as e:
         # Log error and return failure
         logger.error("Account deletion error: %s", e, exc_info=True)
         

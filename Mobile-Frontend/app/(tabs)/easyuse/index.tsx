@@ -1,5 +1,5 @@
 import * as React from 'react';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import ScreenErrorFallback from '../../components/ScreenErrorFallback';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -59,7 +59,7 @@ export type CouponType = {
   importantNotes?: string;
   startDate: Date;
   expiryDate: Date;
-  couponType: 'store' | 'exclusive' | 'gift';
+  couponType: 'store' | 'exclusive' | 'gift' | 'platform_voucher_gift';
   sourceUser?: string;
   storeId?: number;
   storeLocation?: {
@@ -99,6 +99,29 @@ const LogoIcon = () => (
   </Svg>
 );
 
+// Local fallback icons (no network) — used when coupon/gift has no imageUrl
+const StorefrontIcon: React.FC<{ size?: number }> = ({ size = 64 }) => (
+  <View style={{ width: size, height: size, borderRadius: 8, backgroundColor: '#FFF5E6', justifyContent: 'center', alignItems: 'center' }}>
+    <Svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21.9 7.89l-1.05-3.37c-.22-.9-1-1.52-1.91-1.52H5.05c-.9 0-1.69.63-1.9 1.52L2.1 7.89c-.46 1.97.85 3.11.9 3.17V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7.94c1.12-1.12 1.09-2.41.9-3.17zM13 5h1.96l.54 3.52c.09.71-.39 1.48-1.28 1.48-.67 0-1.22-.59-1.22-1.31zM6.44 8.86c-.08.65-.6 1.14-1.21 1.14-.93 0-1.35-.97-1.19-1.64L5.05 5h1.97zM11 8.69c0 .72-.55 1.31-1.29 1.31-.75 0-1.3-.7-1.22-1.48L9.04 5H11zM18.77 10c-.61 0-1.14-.49-1.21-1.14L16.98 5l1.93-.01 1.05 3.37c.16.67-.25 1.64-1.19 1.64z"
+        fill="#FFAD31"
+      />
+    </Svg>
+  </View>
+);
+
+const GiftIcon: React.FC<{ size?: number }> = ({ size = 64 }) => (
+  <View style={{ width: size, height: size, borderRadius: 8, backgroundColor: '#FFF5E6', justifyContent: 'center', alignItems: 'center' }}>
+    <Svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
+      <Path
+                d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.39 3.23 9.39 3 8.5 3 6.54 3 5 4.58 5 6.5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM8.5 5c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm3 6v8h-3v-8h3zm-5 0v8H4v-8h2.5zm11 8h-3v-8h3v8zm-4.5-8v8h-3v-8h3z"
+                fill="#FFAD31"
+      />
+    </Svg>
+  </View>
+);
+
 // Coupon Card Component
 interface CouponCardProps {
   storeName: string;
@@ -132,16 +155,14 @@ const CouponCard: React.FC<CouponCardProps> = ({
     height="auto"
   >
     <XStack gap={15} style={{ alignItems: 'center' }}>
-      <Image
-        source={{
-          uri:
-            imageUrl ||
-            'https://api.iconify.design/material-symbols:storefront-rounded.svg?color=%23ffad31',
-          width: 64,
-          height: 64,
-        }}
-        style={{ borderRadius: 8, flexShrink: 0 }}
-      />
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl, width: 64, height: 64 }}
+          style={{ borderRadius: 8, flexShrink: 0, width: 64, height: 64 }}
+        />
+      ) : (
+        <StorefrontIcon size={64} />
+      )}
       <YStack gap={8} flex={1} style={{ flexShrink: 1 }}>
         <Text fontSize={24} fontWeight="700" color="#000000" numberOfLines={1} ellipsizeMode="tail">
           {storeName}
@@ -211,14 +232,14 @@ const GiftCard: React.FC<GiftCardProps> = ({
   >
     <YStack gap={12}>
       <XStack gap={15} style={{ alignItems: 'center' }}>
-        <Image
-          source={{
-            uri: imageUrl || 'https://api.iconify.design/mdi:gift.svg?color=%23ffad31',
-            width: 64,
-            height: 64,
-          }}
-          style={{ borderRadius: 8, flexShrink: 0 }}
-        />
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl, width: 64, height: 64 }}
+            style={{ borderRadius: 8, flexShrink: 0, width: 64, height: 64 }}
+          />
+        ) : (
+          <GiftIcon size={64} />
+        )}
         <YStack gap={8} flex={1} style={{ flexShrink: 1 }}>
           <XStack gap={8} style={{ alignItems: 'center' }}>
             <Text fontSize={12} color="#FFAD31" fontWeight="600">
@@ -597,7 +618,7 @@ const CouPro = () => {
 
   // Handle claiming a gift
   const handleClaimGift = useCallback(
-    async (shareToken: string) => {
+    async (shareToken: string, couponType: 'gift' | 'platform_voucher_gift' = 'gift') => {
       if (!isUserLoggedIn()) {
         router.push(`/(auth)/login?returnUrl=${encodeURIComponent('/(tabs)/easyuse')}`);
         return;
@@ -606,11 +627,15 @@ const CouPro = () => {
       setClaimingToken(shareToken);
 
       try {
-        const response = await fetchAPI(`/coupon/share/${shareToken}/accept/`, {
+        const endpoint =
+          couponType === 'platform_voucher_gift'
+            ? `/platform-voucher/share/${shareToken}/accept/`
+            : `/coupon/share/${shareToken}/accept/`;
+        const response = await fetchAPI(endpoint, {
           method: 'POST',
         });
 
-        Alert.alert('領取成功！', `您已獲得: ${response.data.coupon_name}`, [
+        Alert.alert('領取成功！', `您已獲得: ${response.data.coupon_name ?? response.data.message ?? '現金券'}`, [
           {
             text: '查看收藏',
             onPress: () => router.push('/(tabs)/collection'),
@@ -778,19 +803,19 @@ const CouPro = () => {
   );
 
   return (
-    // <Sentry.ErrorBoundary
-    //   fallback={({ error, componentStack, resetError }) => (
-    //     <ScreenErrorFallback
-    //       error={error as Error}
-    //       componentStack={componentStack}
-    //       resetError={resetError}
-    //     />
-    //   )}
-    //   beforeCapture={(scope) => {
-    //     scope.setTag('boundary', 'easyuse-screen');
-    //     scope.setTag('boundary_type', 'screen');
-    //   }}
-    // >
+    <Sentry.ErrorBoundary
+      fallback={({ error, componentStack, resetError }) => (
+        <ScreenErrorFallback
+          error={error as Error}
+          componentStack={componentStack}
+          resetError={resetError}
+        />
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'easyuse-screen');
+        scope.setTag('boundary_type', 'screen');
+      }}
+    >
       <GestureHandlerRootView style={styles.container}>
         <Stack.Screen options={{ headerShown: false }} />
         {__DEV__ && <BackendIndicator />}
@@ -1032,7 +1057,7 @@ const CouPro = () => {
                       </View>
                     ) : (
                       filteredCoupons.map((coupon) =>
-                        coupon.couponType === 'gift' && coupon.shareToken ? (
+                        (coupon.couponType === 'gift' || coupon.couponType === 'platform_voucher_gift') && coupon.shareToken ? (
                           <GiftCard
                             key={`gift-${coupon.id}`}
                             storeName={coupon.storeName}
@@ -1042,7 +1067,7 @@ const CouPro = () => {
                             tags={coupon.tags}
                             shareToken={coupon.shareToken}
                             sharedBy={coupon.sharedBy || '未知用戶'}
-                            onClaim={() => handleClaimGift(coupon.shareToken!)}
+                            onClaim={() => handleClaimGift(coupon.shareToken!, coupon.couponType as 'gift' | 'platform_voucher_gift')}
                             isClaiming={claimingToken === coupon.shareToken}
                           />
                         ) : (
@@ -1075,7 +1100,7 @@ const CouPro = () => {
           storeName={merchantDeletedModal.storeName}
         />
       </GestureHandlerRootView>
-    // </Sentry.ErrorBoundary>
+    </Sentry.ErrorBoundary>
   );
 };
 

@@ -24,6 +24,7 @@ from api.exceptions import (
     SelfClaimNotAllowed,
 )
 from api.models import Coupon, CouponShareRequest, QRCodeSession
+from api.utils import display_face_value
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +141,39 @@ def collection_landing(request, token):
     })
 
 
+def voucher_landing(request, token):
+    """
+    Universal Link fallback page: https://api.coupro.pro/voucher/<token>
+    Renders HTML with Smart App Banner (iOS), Open Graph, and JS to try app then fallback to stores.
+    Same pattern as collection_landing but for PlatformVoucherShareRequest.
+    """
+    from api.models import PlatformVoucherShareRequest
+    share_request = get_object_or_404(PlatformVoucherShareRequest, token=token)
+    api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
+    page_url = f"{api_base_url}/voucher/{token}"
+    face_value = share_request.voucher.face_value
+    face_int = display_face_value(face_value)
+    currency = share_request.voucher.currency_code or 'NT$'
+    coupon_name = f"${face_int} {currency} 現金券"
+    title = f"CouPro － {coupon_name} 分享"
+    description = f"有人透過 CouPro 與您分享「{coupon_name}」。開啟 App 即可領取。"
+
+    app_store_id = getattr(settings, 'COUPRO_APP_STORE_ID', '') or ''
+    app_store_url = f"https://apps.apple.com/app/id{app_store_id}" if app_store_id else "#"
+    play_store_id = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
+    play_store_url = f"https://play.google.com/store/apps/details?id={play_store_id}"
+
+    return render(request, 'voucher_landing.html', {
+        'token': token,
+        'page_url': page_url,
+        'title': title,
+        'description': description,
+        'app_store_id': app_store_id,
+        'app_store_url': app_store_url,
+        'play_store_url': play_store_url,
+    })
+
+
 def apple_app_site_association(request):
     """
     iOS Universal Links: serve AASA at https://api.coupro.pro/.well-known/apple-app-site-association
@@ -156,7 +190,7 @@ def apple_app_site_association(request):
                 'details': [
                     {
                         'appID': f'{team_id}.{bundle_id}',
-                        'paths': ['/collection/*', '/claim/*'],
+                        'paths': ['/collection/*', '/claim/*', '/voucher/*'],
                     }
                 ],
             }
