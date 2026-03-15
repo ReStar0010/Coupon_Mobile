@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 import { YStack, XStack, Text, ScrollView } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -151,7 +151,7 @@ export default function ProfileEditScreen() {
         );
         return;
       }
-      // Sentry.captureException(error, { data: { context: 'merchant.profileEdit.loadProfile' } });
+      Sentry.captureException(error, { data: { context: 'merchant.profileEdit.loadProfile' } });
     } finally {
       setIsLoading(false);
     }
@@ -211,9 +211,9 @@ export default function ProfileEditScreen() {
           Alert.alert('成功', '圖片上傳成功');
         } catch (uploadError: any) {
           console.error('Image upload error:', uploadError);
-          // Sentry.captureException(uploadError, {
-          //   data: { context: 'merchant.profileEdit.uploadImage' },
-          // });
+          Sentry.captureException(uploadError, {
+            data: { context: 'merchant.profileEdit.uploadImage' },
+          });
           Alert.alert('錯誤', uploadError?.message || '圖片上傳失敗，請稍後再試');
           // Keep local URI for preview even if upload fails
         } finally {
@@ -222,7 +222,7 @@ export default function ProfileEditScreen() {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      // Sentry.captureException(error, { data: { context: 'merchant.profileEdit.pickImage' } });
+      Sentry.captureException(error, { data: { context: 'merchant.profileEdit.pickImage' } });
       Alert.alert('錯誤', '選擇圖片時發生錯誤');
       setIsLoading(false);
     }
@@ -249,7 +249,7 @@ export default function ProfileEditScreen() {
       setShowSuccessModal(true);
     } catch (error: any) {
       console.error('Failed to save profile:', error);
-      // Sentry.captureException(error, { data: { context: 'merchant.profileEdit.saveProfile' } });
+      Sentry.captureException(error, { data: { context: 'merchant.profileEdit.saveProfile' } });
       setErrorMessage(error?.message || '儲存失敗，請稍後再試');
       setShowErrorModal(true);
     } finally {

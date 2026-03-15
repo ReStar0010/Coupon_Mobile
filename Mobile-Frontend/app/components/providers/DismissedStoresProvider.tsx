@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/react-native';
 
 const DISMISSED_STORES_KEY = 'dismissed_deleted_merchant_stores';
 
@@ -40,9 +40,9 @@ const DismissedStoresProvider = ({ children }: DismissedStoresProviderProps) => 
         }
       } catch (error) {
         console.error('Error loading dismissed stores:', error);
-        // Sentry.captureException(error, {
-        //   data: { context: 'DismissedStoresProvider.loadDismissedStores' },
-        // });
+        Sentry.captureException(error, {
+          data: { context: 'DismissedStoresProvider.loadDismissedStores' },
+        });
       } finally {
         setLoading(false);
       }
@@ -60,9 +60,9 @@ const DismissedStoresProvider = ({ children }: DismissedStoresProviderProps) => 
       // Persist to AsyncStorage
       AsyncStorage.setItem(DISMISSED_STORES_KEY, JSON.stringify([...newSet])).catch((error) => {
         console.error('Error saving dismissed stores:', error);
-        // Sentry.captureException(error, {
-        //   data: { context: 'DismissedStoresProvider.saveDismissedStores' },
-        // });
+        Sentry.captureException(error, {
+          data: { context: 'DismissedStoresProvider.saveDismissedStores' },
+        });
       });
 
       return newSet;

@@ -8,6 +8,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProgressTrackers } from './hooks/useProgressTrackers';
 import { useTransactionHistory } from './hooks/useTransactionHistory';
 import StatCard from './components/StatCard';
+import GoalModal from './components/GoalModal';
+import StatisticsToast from './components/StatisticsToast';
+import * as Sentry from '@sentry/react-native';
+import ScreenErrorFallback from '../../components/ScreenErrorFallback';
 import LightSystem from './components/LightSystem';
 import {
   XStack,
@@ -66,6 +70,34 @@ const Statistics: React.FC = () => {
     [router],
   );
 
+  // Pull to refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Refresh both statistics and transaction history
+      await Promise.all([fetchUserStats?.(), refetchHistory?.()]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      Sentry.captureException(error, { data: { context: 'statistics.refreshData' } });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchUserStats, refetchHistory]);
+
+  return (
+    <Sentry.ErrorBoundary
+      fallback={({ error, componentStack, resetError }) => (
+        <ScreenErrorFallback
+          error={error as Error}
+          componentStack={componentStack}
+          resetError={resetError}
+        />
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('boundary', 'statistics-screen');
+        scope.setTag('boundary_type', 'screen');
+      }}
+    >
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -282,6 +314,7 @@ const Statistics: React.FC = () => {
         </View>
       )}
     </>
+    </Sentry.ErrorBoundary>
   );
 };
 
