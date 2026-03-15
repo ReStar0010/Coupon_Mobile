@@ -45,7 +45,10 @@ const OptionsMenu: FunctionComponent = () => {
         "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       document.cookie =
         "is_logged_in=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      router.push("/Login");
+      Promise.resolve(router.push("/Login")).catch(() => {
+        // Fallback: force navigate if router.push fails
+        window.location.href = "/Login";
+      });
     }
   };
 

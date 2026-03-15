@@ -90,8 +90,9 @@ const Gift: FunctionComponent<GiftType> = ({
       onAccepted();
     }
 
-    // Force a complete page refresh to ensure the new coupon appears
-    window.location.href = "/Collection";
+    // Navigate to collection and refresh data without full page reload
+    router.push("/Collection");
+    router.refresh();
   };
 
   // This function handles the click on the yellow button
