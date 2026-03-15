@@ -177,12 +177,24 @@
   "statistics": {
     "progressTracker": "進度追蹤",
     "totalRedemptions": "總兌換次數",
-    "sharingProgress": "分享進度",
+    "sharingProgress": "使用進度",
     "referralProgress": "推薦新用戶",
-    "sharingDescription": "分享或兌換他人的專屬優惠券以點亮燈泡，每達 3 個點亮可獲 $10 現金券",
+    "sharingDescription": "使用或兌換他人的專屬優惠券以點亮燈泡，每達 3 個點亮可獲 $10 現金券",
     "referralDescription": "邀請新用戶完成首次兌換，第 1 位獲 $5 現金券，之後每位獲 $10 現金券",
     "noRewardYet": "尚未獲得獎勵",
-    "rewardsEarned": "已獲得獎勵：{{rewards}}"
+    "rewardsEarned": "已獲得獎勵：{{rewards}}",
+    "verifyingAuth": "驗證身份中...",
+    "tryAgainLater": "請稍後再試",
+    "loading": "載入中...",
+    "loadFailed": "載入失敗",
+    "viewHistory": "使用紀錄",
+    "noHistoryYet": "尚無使用紀錄",
+    "savingsAmount": "節省 {{amount}} 元",
+    "lightSystem": {
+      "sharingRewardTenOnly": "已獲得 {{qty}} 張 $10 現金券",
+      "referralRewardFiveOnly": "已獲得 1 張 $5 現金券",
+      "referralRewardFiveAndTen": "已獲得 1 張 $5 + {{tenDollarCount}} 張 $10 現金券"
+    }
   },
   "voucherShare": {
     "confirmTitle": "確認分享現金券",

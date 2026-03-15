@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { YStack, XStack, Text, Card } from 'tamagui';
 
 interface LightSystemProps {
@@ -12,23 +13,6 @@ interface LightSystemProps {
   vouchersEarned?: number;
 }
 
-function computeRewards(
-  count: number,
-  rewardType: 'sharing' | 'referral',
-  vouchersEarned?: number,
-): string {
-  if (rewardType === 'sharing') {
-    const qty = vouchersEarned ?? Math.max(0, count - 2);
-    if (qty === 0) return '尚未獲得獎勵';
-    return `已獲得 ${qty} 張 $10 現金券`;
-  }
-  if (count === 0) return '尚未獲得獎勵';
-  // referral: O=0 → nothing, O=1 → $5 voucher, O>=2 → $10 each additional
-  if (count === 1) return '已獲得 1 張 $5 現金券';
-  const tenDollarCount = count - 1;
-  return `已獲得 1 張 $5 + ${tenDollarCount} 張 $10 現金券`;
-}
-
 const LightSystem: React.FC<LightSystemProps> = ({
   title,
   description,
@@ -37,11 +21,25 @@ const LightSystem: React.FC<LightSystemProps> = ({
   rewardType,
   vouchersEarned,
 }) => {
+  const { t } = useTranslation();
   // For 'sharing' (metric 2), backend sends current cycle 0..2; for referral use count capped at threshold
   const displayCount =
     rewardType === 'sharing' ? count : Math.min(count, threshold);
   const litCount = displayCount;
-  const rewardText = computeRewards(count, rewardType, vouchersEarned);
+
+  const rewardText = ((): string => {
+    if (rewardType === 'sharing') {
+      const qty = vouchersEarned ?? Math.max(0, count - 2);
+      if (qty === 0) return t('statistics.noRewardYet');
+      return t('statistics.lightSystem.sharingRewardTenOnly', { qty });
+    }
+    if (count === 0) return t('statistics.noRewardYet');
+    if (count === 1) return t('statistics.lightSystem.referralRewardFiveOnly');
+    const tenDollarCount = count - 1;
+    return t('statistics.lightSystem.referralRewardFiveAndTen', {
+      tenDollarCount,
+    });
+  })();
 
   return (
     <Card

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { RefreshControl } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,7 @@ import {
 } from 'tamagui';
 
 const Statistics: React.FC = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -90,7 +92,7 @@ const Statistics: React.FC = () => {
         <View flex={1} bg="#f5f5f5" items="center" style={{ justifyContent: 'center' }}>
           <Spinner size="large" color="#FFAD31" />
           <Text mt="$4" fontSize={16} color="#707070">
-            驗證身份中...
+            {t('statistics.verifyingAuth')}
           </Text>
         </View>
       ) : (
@@ -103,7 +105,7 @@ const Statistics: React.FC = () => {
             pt={insets.top + 10}
           >
             <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
-              進度追蹤
+              {t('statistics.progressTracker')}
             </H4>
             <Button
               unstyled
@@ -145,7 +147,7 @@ const Statistics: React.FC = () => {
                   {error}
                 </Text>
                 <Text mt="$2" fontSize={14} color="#707070">
-                  請稍後再試
+                  {t('statistics.tryAgainLater')}
                 </Text>
               </YStack>
             ) : loading && !data ? (
@@ -160,18 +162,18 @@ const Statistics: React.FC = () => {
               >
                 <Spinner size="large" color="#FFAD31" />
                 <Text mt="$4" fontSize={16} color="#707070">
-                  載入中...
+                  {t('statistics.loading')}
                 </Text>
               </YStack>
             ) : data ? (
               <YStack gap="$4" mt="$2">
                 {/* Metric 1 — Total redemption count */}
-                <StatCard title="總兌換次數" value={data.total_redemptions.toString()} />
+                <StatCard title={t('statistics.totalRedemptions')} value={data.total_redemptions.toString()} />
 
                 {/* Metric 2 — Sharing light system */}
                 <LightSystem
-                  title="分享進度"
-                  description="分享或兌換他人的專屬優惠券以點亮燈泡，點亮至第 3 盞燈即可獲 $10 現金券，之後每盞獲 $10 現金券"
+                  title={t('statistics.sharingProgress')}
+                  description={t('statistics.sharingDescription')}
                   count={data.sharing_progress.count}
                   threshold={data.sharing_progress.threshold}
                   rewardType="sharing"
@@ -180,8 +182,8 @@ const Statistics: React.FC = () => {
 
                 {/* Metric 3 — New user referral light system */}
                 <LightSystem
-                  title="推薦新用戶"
-                  description="邀請新用戶完成首次兌換，第 2 位獲 $5 現金券，之後每位獲 $10 現金券"
+                  title={t('statistics.referralProgress')}
+                  description={t('statistics.referralDescription')}
                   count={data.referral_progress.count}
                   threshold={data.referral_progress.threshold}
                   rewardType="referral"
@@ -201,7 +203,7 @@ const Statistics: React.FC = () => {
                   borderColor="#e0e0e0"
                 >
                   <Text fontSize={14} color="#707070">
-                    載入中...
+                    {t('statistics.loading')}
                   </Text>
                 </YStack>
               ) : historyError ? (
@@ -214,7 +216,7 @@ const Statistics: React.FC = () => {
                   borderColor="#e0e0e0"
                 >
                   <Text fontSize={14} color="#707070">
-                    載入失敗
+                    {t('statistics.loadFailed')}
                   </Text>
                 </YStack>
               ) : transactionHistory.length > 0 ? (
@@ -242,7 +244,7 @@ const Statistics: React.FC = () => {
                         </ListItem.Subtitle>
                         {item.estimated_savings != null && !Number.isNaN(item.estimated_savings) ? (
                           <Text fontSize={12} color="#22c55e" style={{ marginTop: 2 }}>
-                            節省 {Number(item.estimated_savings)} 元
+                            {t('statistics.savingsAmount', { amount: Number(item.estimated_savings) })}
                           </Text>
                         ) : null}
                         <ChevronRight size={16} color="#333333" />
@@ -260,7 +262,7 @@ const Statistics: React.FC = () => {
                     icon={<List size={20} color="#333333" />}
                   >
                     <ListItem.Text fontSize={13} color="#333333">
-                      使用紀錄
+                      {t('statistics.viewHistory')}
                     </ListItem.Text>
                     <ChevronRight size={16} color="#333333" />
                   </ListItem>
@@ -275,7 +277,7 @@ const Statistics: React.FC = () => {
                 >
                   <YStack p="$4" items="center">
                     <Text fontSize={14} color="#707070">
-                      尚無使用紀錄
+                      {t('statistics.noHistoryYet')}
                     </Text>
                   </YStack>
                   <Separator />
@@ -288,7 +290,7 @@ const Statistics: React.FC = () => {
                     icon={<List size={20} color="#333333" />}
                   >
                     <ListItem.Text fontSize={13} color="#333333">
-                      使用紀錄
+                      {t('statistics.viewHistory')}
                     </ListItem.Text>
                     <ChevronRight size={16} color="#333333" />
                   </ListItem>
