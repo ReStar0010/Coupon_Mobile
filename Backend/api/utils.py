@@ -183,6 +183,25 @@ def get_store_today(store) -> date:
     return local_dt.date()
 
 
+def display_face_value(val) -> int | float:
+    """
+    Safely convert a Decimal/float face value to int when there's no fractional part.
+    Returns 0 for None, NaN, or Infinity.
+    """
+    from decimal import Decimal, InvalidOperation
+    import math
+
+    if val is None:
+        return 0
+    try:
+        f = float(val)
+    except (TypeError, ValueError, InvalidOperation):
+        return 0
+    if math.isnan(f) or math.isinf(f):
+        return 0
+    return int(f) if f == int(f) else f
+
+
 def get_store_currency_code(store) -> str | None:
     """
     Return the store's currency code for cost display (e.g. TWD, NT$).

@@ -14,7 +14,7 @@ from django.db import transaction
 
 from ..models import PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, Store, CouponRedemption
 from ..serializers import PlatformVoucherRedeemRequestSerializer
-from ..utils import apply_referral_reward
+from ..utils import apply_referral_reward, display_face_value
 from .merchant_profile import get_merchant_store
 from ..exceptions import (
     CouponAlreadyRedeemed,
@@ -211,7 +211,7 @@ def accept_platform_voucher_share(request, token):
         share.responded_at = timezone.now()
         share.save()
 
-    face = int(voucher.face_value) if voucher.face_value == int(voucher.face_value) else voucher.face_value
+    face = display_face_value(voucher.face_value)
     coupon_name = f"${face} {voucher.currency_code} 現金券"
     return Response({"message": "Share accepted.", "coupon_name": coupon_name}, status=status.HTTP_200_OK)
 

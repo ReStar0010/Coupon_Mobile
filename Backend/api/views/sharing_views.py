@@ -24,6 +24,7 @@ from api.exceptions import (
     SelfClaimNotAllowed,
 )
 from api.models import Coupon, CouponShareRequest, QRCodeSession
+from api.utils import display_face_value
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +152,7 @@ def voucher_landing(request, token):
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
     page_url = f"{api_base_url}/voucher/{token}"
     face_value = share_request.voucher.face_value
-    face_int = int(face_value) if face_value == int(face_value) else face_value
+    face_int = display_face_value(face_value)
     currency = share_request.voucher.currency_code or 'NT$'
     coupon_name = f"${face_int} {currency} 現金券"
     title = f"CouPro － {coupon_name} 分享"

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Exists, OuterRef, Prefetch
 import logging
 from drf_yasg.utils import swagger_auto_schema
 
@@ -17,7 +17,7 @@ from api.exceptions import (
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
 from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest
-from ..utils import grant_reward_voucher, apply_referral_reward
+from ..utils import grant_reward_voucher, apply_referral_reward, display_face_value
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +156,7 @@ def get_store_coupons(request):
 
     for share in public_voucher_shares:
         v = share.voucher
-        face = int(v.face_value) if v.face_value == int(v.face_value) else v.face_value
+        face = display_face_value(v.face_value)
         data.append({
             "id": v.id,
             "store_name": "平台現金券",
@@ -199,31 +199,28 @@ def get_exclusive_coupons(request):
 
     # 查詢：未過期、已開始，且屬於當前用戶的專屬優惠券
     # 包括用戶是原始擁有者或當前持有者的券
+    redeemed_subquery = Exists(
+        CouponRedemption.objects.filter(coupon=OuterRef('pk'))
+    )
     exclusive_coupons = Coupon.objects.filter(
         coupon_type='exclusive',
         expiry_date__gt=now,
         start_date__lte=now,
         current_holder=request.user,  # 當前持有者是請求的用戶
+    ).annotate(
+        _is_redeemed=redeemed_subquery,
+    ).filter(
+        _is_redeemed=False,
     ).select_related('store', 'template').prefetch_related('tags')  # Optimize DB query
 
     # UGC Compliance: Exclude blocked merchants
     if blocked_store_ids:
         exclusive_coupons = exclusive_coupons.exclude(store_id__in=blocked_store_ids)
-    
-    # Filter out redeemed coupons
-    unredeemed_coupons = []
-    for coupon in exclusive_coupons:
-        if not coupon.is_redeemed():
-            unredeemed_coupons.append(coupon)
-    
-    exclusive_coupons = unredeemed_coupons
-    
+
     # 檢查這些券是否已被兌換
     data = []
     for c in exclusive_coupons:
-
-        # 使用方法確認券是否已被兌換（基於 CouponRedemption 表）
-        is_redeemed = c.is_redeemed()
+        is_redeemed = c._is_redeemed
         data.append({
             "id": c.id,
             "store_name": c.store.name,

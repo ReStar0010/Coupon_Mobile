@@ -19,6 +19,7 @@ from api.exceptions import (
     NoStoreForMerchant,
     NotAMerchant,
     CouponTemplateNotFound,
+    CouponTemplateNotOwned,
     CouponTemplateOutOfStock,
     TemplateQuantityDecreaseNotAllowed,
     CouponAlreadyRedeemed,
@@ -175,7 +176,7 @@ def merchant_consolidate_coupon(request):
         request_body=RefreshRedeemCodeSerializer,
 )
 @api_view(['POST'])
-@permission_classes([AllowAny]) #FIXME - @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def refresh_redeem_code(request):
     """
     Refresh the redeem code of CouponTemplate
@@ -191,7 +192,11 @@ def refresh_redeem_code(request):
     new_redeem_code = serializer.validated_data['new_redeem_code']
 
     try:
-        coupon_template = CouponTemplate.objects.get(id=template_id)
+        coupon_template = CouponTemplate.objects.select_related('store').get(id=template_id)
+        if coupon_template.store.owner != request.user:
+            raise CouponTemplateNotOwned(
+                developer_message="Authenticated user does not own the store for this template."
+            )
         coupon_template.template_redeem_code = new_redeem_code
         coupon_template.save()
 
