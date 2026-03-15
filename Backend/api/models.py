@@ -76,7 +76,8 @@ class StudentProfile(models.Model):
     last_logged_in = models.DateTimeField(null=True, blank=True)
 
     # Progress tracker counters (011-progress-tracker)
-    sharing_progress_count = models.IntegerField(default=0)   # Metric 2: O value for sharing light system
+    sharing_progress_count = models.IntegerField(default=0)   # Metric 2: current cycle 0..2 (resets at 3)
+    sharing_rewards_earned = models.IntegerField(default=0)    # Metric 2: number of $10 vouchers granted for sharing
     referral_progress_count = models.IntegerField(default=0)  # Metric 3: O value for new user referral light system
 
     def update_monthly_savings(self):

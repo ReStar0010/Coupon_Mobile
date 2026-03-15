@@ -468,23 +468,33 @@ def redeem_coupon(request, id):
         is_shared_redemption = (original_owner is not None and original_owner != request.user)
 
         if is_shared_redemption:
-            # Metric 2 — case (b): redeemer gets +1 for redeeming someone else's shared coupon
+            # Metric 2 — case (b): redeemer gets +1 for redeeming someone else's shared coupon.
+            # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
             try:
                 redeemer_profile = request.user.student_profile
                 redeemer_profile.sharing_progress_count += 1
-                redeemer_profile.save(update_fields=['sharing_progress_count'])
-                if redeemer_profile.sharing_progress_count >= 3:
+                n = redeemer_profile.sharing_progress_count
+                vouchers = n // 3
+                for _ in range(vouchers):
                     grant_reward_voucher(request.user, 10, 'Sharing Reward')
+                redeemer_profile.sharing_rewards_earned += vouchers
+                redeemer_profile.sharing_progress_count = n % 3
+                redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
             except (StudentProfile.DoesNotExist, AttributeError):
                 pass
 
-            # Metric 2 — case (a): original owner gets +1 when their coupon is redeemed by someone else
+            # Metric 2 — case (a): original owner gets +1 when their coupon is redeemed by someone else.
+            # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
             try:
                 owner_profile = original_owner.student_profile
                 owner_profile.sharing_progress_count += 1
-                owner_profile.save(update_fields=['sharing_progress_count'])
-                if owner_profile.sharing_progress_count >= 3:
+                n = owner_profile.sharing_progress_count
+                vouchers = n // 3
+                for _ in range(vouchers):
                     grant_reward_voucher(original_owner, 10, 'Sharing Reward')
+                owner_profile.sharing_rewards_earned += vouchers
+                owner_profile.sharing_progress_count = n % 3
+                owner_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
             except (StudentProfile.DoesNotExist, AttributeError):
                 pass
 

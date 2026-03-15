@@ -175,6 +175,7 @@ const Statistics: React.FC = () => {
                   count={data.sharing_progress.count}
                   threshold={data.sharing_progress.threshold}
                   rewardType="sharing"
+                  vouchersEarned={data.sharing_progress.vouchers_earned}
                 />
 
                 {/* Metric 3 — New user referral light system */}

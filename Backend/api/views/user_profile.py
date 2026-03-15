@@ -81,6 +81,7 @@ def progress_trackers(request):
             "sharing_progress": {
                 "count": profile.sharing_progress_count,
                 "threshold": 3,
+                "vouchers_earned": profile.sharing_rewards_earned,
             },
             "referral_progress": {
                 "count": profile.referral_progress_count,
@@ -90,7 +91,7 @@ def progress_trackers(request):
     except (StudentProfile.DoesNotExist, AttributeError):
         return Response({
             "total_redemptions": 0,
-            "sharing_progress": {"count": 0, "threshold": 3},
+            "sharing_progress": {"count": 0, "threshold": 3, "vouchers_earned": 0},
             "referral_progress": {"count": 0, "threshold": 2},
         })
 

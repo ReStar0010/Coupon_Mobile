@@ -813,7 +813,7 @@ export const platformVoucherAPI = {
 /** Progress tracker data (011-progress-tracker) */
 export interface ProgressTrackers {
   total_redemptions: number;
-  sharing_progress: { count: number; threshold: number };
+  sharing_progress: { count: number; threshold: number; vouchers_earned?: number };
   referral_progress: { count: number; threshold: number };
 }
 

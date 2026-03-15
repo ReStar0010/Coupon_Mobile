@@ -8,15 +8,21 @@ interface LightSystemProps {
   threshold: number;
   /** Reward tier: 'sharing' = $10 per O>=3; 'referral' = $5 at O=1, $10 for O>=2 */
   rewardType: 'sharing' | 'referral';
+  /** For sharing only: number of $10 vouchers already earned (backend resets count at 3) */
+  vouchersEarned?: number;
 }
 
-function computeRewards(count: number, rewardType: 'sharing' | 'referral'): string {
-  if (count === 0) return '尚未獲得獎勵';
+function computeRewards(
+  count: number,
+  rewardType: 'sharing' | 'referral',
+  vouchersEarned?: number,
+): string {
   if (rewardType === 'sharing') {
-    const qty = Math.max(0, count - 2);
+    const qty = vouchersEarned ?? Math.max(0, count - 2);
     if (qty === 0) return '尚未獲得獎勵';
     return `已獲得 ${qty} 張 $10 現金券`;
   }
+  if (count === 0) return '尚未獲得獎勵';
   // referral: O=0 → nothing, O=1 → $5 voucher, O>=2 → $10 each additional
   if (count === 1) return '已獲得 1 張 $5 現金券';
   const tenDollarCount = count - 1;
@@ -29,9 +35,13 @@ const LightSystem: React.FC<LightSystemProps> = ({
   count,
   threshold,
   rewardType,
+  vouchersEarned,
 }) => {
-  const litCount = Math.min(count, threshold);
-  const rewardText = computeRewards(count, rewardType);
+  // For 'sharing' (metric 2), backend sends current cycle 0..2; for referral use count capped at threshold
+  const displayCount =
+    rewardType === 'sharing' ? count : Math.min(count, threshold);
+  const litCount = displayCount;
+  const rewardText = computeRewards(count, rewardType, vouchersEarned);
 
   return (
     <Card
@@ -80,8 +90,10 @@ const LightSystem: React.FC<LightSystemProps> = ({
             );
           })}
           <Text fontSize={14} color="#666666" ml="$2">
-            {count} / {threshold}
-            {count > threshold ? ` (+${count - threshold})` : ''}
+            {displayCount} / {threshold}
+            {rewardType === 'referral' && count > threshold
+              ? ` (+${count - threshold})`
+              : ''}
           </Text>
         </XStack>
 

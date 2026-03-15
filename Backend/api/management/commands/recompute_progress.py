@@ -106,26 +106,36 @@ class Command(BaseCommand):
                 coupon_type='exclusive',
             ).exclude(coupon__original_owner=user).count()
 
-            new_sharing = a_count + b_count
+            # Metric 2 resets to 0 when reaching 3; store current cycle remainder (0..2).
+            total_sharing = a_count + b_count
+            new_sharing = total_sharing % 3
+            new_sharing_rewards = total_sharing // 3
 
             # Metric 3 — referral_progress_count
             new_referral = referral_counts.get(user.id, 0)
 
             old_sharing = profile.sharing_progress_count
             old_referral = profile.referral_progress_count
+            old_sharing_rewards = getattr(profile, 'sharing_rewards_earned', 0)
 
             if dry_run:
-                if new_sharing != old_sharing or new_referral != old_referral:
+                if (new_sharing != old_sharing or new_referral != old_referral
+                        or new_sharing_rewards != old_sharing_rewards):
                     self.stdout.write(
                         f"  [DRY-RUN] user={user.email} "
                         f"sharing: {old_sharing} → {new_sharing}, "
+                        f"sharing_rewards: {old_sharing_rewards} → {new_sharing_rewards}, "
                         f"referral: {old_referral} → {new_referral}"
                     )
             else:
-                if new_sharing != old_sharing or new_referral != old_referral:
+                if (new_sharing != old_sharing or new_referral != old_referral
+                        or new_sharing_rewards != old_sharing_rewards):
                     profile.sharing_progress_count = new_sharing
+                    profile.sharing_rewards_earned = new_sharing_rewards
                     profile.referral_progress_count = new_referral
-                    profile.save(update_fields=['sharing_progress_count', 'referral_progress_count'])
+                    profile.save(update_fields=[
+                        'sharing_progress_count', 'sharing_rewards_earned', 'referral_progress_count'
+                    ])
                     updated += 1
 
         if dry_run:
