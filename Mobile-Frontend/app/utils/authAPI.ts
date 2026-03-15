@@ -294,6 +294,7 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     '/store-coupons/',
     'coupons/<int:id>/',
     'coupon/share/<str:token>/',
+    '/platform-voucher/share/',
     // Phone-based registration (009-phone-registration)
     '/register/send-otp/',
     '/register/verify-otp/',
