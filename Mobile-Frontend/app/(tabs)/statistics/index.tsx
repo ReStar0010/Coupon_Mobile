@@ -70,20 +70,6 @@ const Statistics: React.FC = () => {
     [router],
   );
 
-  // Pull to refresh handler
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      // Refresh both statistics and transaction history
-      await Promise.all([fetchUserStats?.(), refetchHistory?.()]);
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      Sentry.captureException(error, { data: { context: 'statistics.refreshData' } });
-    } finally {
-      setRefreshing(false);
-    }
-  }, [fetchUserStats, refetchHistory]);
-
   return (
     <Sentry.ErrorBoundary
       fallback={({ error, componentStack, resetError }) => (
@@ -98,8 +84,6 @@ const Statistics: React.FC = () => {
         scope.setTag('boundary_type', 'screen');
       }}
     >
-  return (
-    <>
       <Stack.Screen options={{ headerShown: false }} />
 
       {authLoading ? (
@@ -313,7 +297,6 @@ const Statistics: React.FC = () => {
           </ScrollView>
         </View>
       )}
-    </>
     </Sentry.ErrorBoundary>
   );
 };
