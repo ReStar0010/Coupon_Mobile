@@ -107,16 +107,18 @@ def grant_reward_voucher(user, face_value: int, description: str = 'System Rewar
     """
     from django.apps import apps
     from django.utils import timezone as dj_timezone
-    from datetime import timedelta
+    from datetime import datetime
 
     PlatformVoucher = apps.get_model('api', 'PlatformVoucher')
     redeem_code = generate_platform_voucher_redeem_code()
     now = dj_timezone.now()
+    year = now.year if (now.month < 3 or (now.month == 3 and now.day <= 29)) else now.year + 1
+    expiry_date = datetime(year, 3, 29, 23, 59, 59, tzinfo=now.tzinfo)
     return PlatformVoucher.objects.create(
         face_value=face_value,
         currency_code='TWD',
         start_date=now,
-        expiry_date=now + timedelta(days=90),
+        expiry_date=expiry_date,
         current_holder=user,
         original_owner=user,
         last_holder=None,
