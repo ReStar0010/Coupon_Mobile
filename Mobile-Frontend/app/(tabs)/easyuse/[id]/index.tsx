@@ -286,9 +286,16 @@ const CouponDetailPage: React.FC = () => {
       });
 
       if (response.data.message) {
+        // 分享成功會改變專屬券歸屬，需讓收藏頁在回到焦點時刷新。
+        markCollectionDirty();
         setShowShareModal(false);
         Alert.alert(t('easyuse.shareSuccess'), t('easyuse.shareSuccessMessage'), [
-          { text: t('easyuse.ok'), onPress: () => router.push('/(tabs)/collection') },
+          {
+            text: t('easyuse.ok'),
+            onPress: () => {
+              router.push('/(tabs)/collection');
+            },
+          },
         ]);
 
         devLog('Public share successful:', response.data);
@@ -321,6 +328,8 @@ const CouponDetailPage: React.FC = () => {
       const schemeLink = response.data.share_link as string | undefined;
       const link = webLink ?? schemeLink;
       if (link) {
+        // 分享成功會改變專屬券歸屬，需讓收藏頁在回到焦點時刷新。
+        markCollectionDirty();
         devLog('Share link generated:', link);
         return link;
       }
