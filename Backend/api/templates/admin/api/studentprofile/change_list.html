@@ -1,0 +1,9 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+<li>
+  <a href="{% url 'admin:api_studentprofile_activity_overview' %}" class="viewsitelink">活動進度總覽</a>
+</li>
+{{ block.super }}
+{% endblock %}

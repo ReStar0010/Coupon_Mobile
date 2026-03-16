@@ -2,18 +2,30 @@ from django import forms
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.utils.html import format_html
-from django.db.models import Case, Count, F, IntegerField, Sum, Value, When
+from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Sum, Value, When
 from django.utils import timezone
 from django.urls import path, reverse
 from django.shortcuts import render, redirect
 from django.http import HttpResponseRedirect
 from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import *
 from .utils import generate_platform_voucher_redeem_code
 from .views.authentication import (
     send_merchant_application_approved_email,
     send_merchant_application_rejected_email,
 )
+
+admin.site.unregister(User)
+
+
+class UserAdmin(BaseUserAdmin):
+    list_display = BaseUserAdmin.list_display + ('date_joined',)
+
+
+admin.site.register(User, UserAdmin)
 
 
 # =============================================================================
@@ -56,14 +68,104 @@ class ViolationRecordInline(admin.TabularInline):
 # User Profile Admin
 # =============================================================================
 
+class SharingProgressFilter(admin.SimpleListFilter):
+    title = '分享進度 (0–2)'
+    parameter_name = 'sharing_progress'
+
+    def lookups(self, request, model_admin):
+        return [('0', '0'), ('1', '1'), ('2', '2')]
+
+    def queryset(self, request, queryset):
+        if self.value() is not None:
+            return queryset.filter(sharing_progress_count=int(self.value()))
+        return queryset
+
+
+class HasSharingRewardFilter(admin.SimpleListFilter):
+    title = '已得分享獎勵'
+    parameter_name = 'has_sharing_reward'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '是'), ('no', '否')]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.filter(sharing_rewards_earned__gt=0)
+        if self.value() == 'no':
+            return queryset.filter(sharing_rewards_earned=0)
+        return queryset
+
+
+class ReferralCountFilter(admin.SimpleListFilter):
+    title = '推薦數'
+    parameter_name = 'referral_count'
+
+    def lookups(self, request, model_admin):
+        return [('0', '0'), ('1', '1'), ('2', '2+')]
+
+    def queryset(self, request, queryset):
+        if self.value() == '0':
+            return queryset.filter(referral_progress_count=0)
+        if self.value() == '1':
+            return queryset.filter(referral_progress_count=1)
+        if self.value() == '2':
+            return queryset.filter(referral_progress_count__gte=2)
+        return queryset
+
+
 @admin.register(StudentProfile)
 class StudentProfileAdmin(admin.ModelAdmin):
+    change_list_template = 'admin/api/studentprofile/change_list.html'
     list_display = [
-        'id', 'user_email', 'phone_number', 'verified_status', 
-        'coupons_used_count', 'total_savings', 'last_logged_in'
+        'id', 'user_email', 'phone_number', 'verified_status',
+        'coupons_used_count', 'total_savings',
+        'sharing_progress_count', 'sharing_rewards_earned', 'referral_progress_count', 'game_next_reward',
+        'last_logged_in'
     ]
-    list_filter = ['verified', 'phone_verified', 'last_logged_in']
+    list_filter = [
+        'verified', 'phone_verified', 'last_logged_in',
+        SharingProgressFilter, HasSharingRewardFilter, ReferralCountFilter,
+    ]
     search_fields = ['user__email', 'user__username', 'phone_number']
+    actions = ['recompute_progress_selected']
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                'activity-overview/',
+                self.admin_site.admin_view(self.activity_overview_view),
+                name='api_studentprofile_activity_overview',
+            ),
+        ]
+        return extra + urls
+
+    def activity_overview_view(self, request):
+        sharing_0 = StudentProfile.objects.filter(sharing_progress_count=0).count()
+        sharing_1 = StudentProfile.objects.filter(sharing_progress_count=1).count()
+        sharing_2 = StudentProfile.objects.filter(sharing_progress_count=2).count()
+        sharing_reward_earners = StudentProfile.objects.filter(sharing_rewards_earned__gt=0).count()
+        referral_0 = StudentProfile.objects.filter(referral_progress_count=0).count()
+        referral_1 = StudentProfile.objects.filter(referral_progress_count=1).count()
+        referral_2_plus = StudentProfile.objects.filter(referral_progress_count__gte=2).count()
+        reward_vouchers_total = PlatformVoucher.objects.filter(acquisition_method='reward').count()
+        reward_sharing = PlatformVoucher.objects.filter(batch_name='Sharing Reward').count()
+        reward_referral = PlatformVoucher.objects.filter(batch_name='Referral Reward').count()
+        context = {
+            'opts': self.model._meta,
+            'title': '活動進度總覽',
+            'sharing_0': sharing_0,
+            'sharing_1': sharing_1,
+            'sharing_2': sharing_2,
+            'sharing_reward_earners': sharing_reward_earners,
+            'referral_0': referral_0,
+            'referral_1': referral_1,
+            'referral_2_plus': referral_2_plus,
+            'reward_vouchers_total': reward_vouchers_total,
+            'reward_sharing': reward_sharing,
+            'reward_referral': reward_referral,
+        }
+        return render(request, 'admin/api/studentprofile/activity_overview.html', context)
     readonly_fields = [
         'email_verification_token', 'last_draw_time', 'last_logged_in',
         'last_savings_reset', 'coupons_used_count', 'total_savings', 'monthly_savings',
@@ -102,6 +204,82 @@ class StudentProfileAdmin(admin.ModelAdmin):
             email_icon, phone_icon
         )
     verified_status.short_description = '驗證狀態'
+
+    def game_next_reward(self, obj):
+        """e.g. 1/3 to $10 or 1/2 referral."""
+        parts = []
+        if obj.sharing_progress_count is not None:
+            parts.append(f'{obj.sharing_progress_count}/3 分享')
+        if obj.referral_progress_count is not None:
+            parts.append(f'推薦 {obj.referral_progress_count}')
+        return ' | '.join(parts) if parts else '—'
+    game_next_reward.short_description = '活動進度'
+
+    def recompute_progress_selected(self, request, queryset):
+        from api.models import CouponRedemption
+        from api.management.commands.recompute_progress import Command as RecomputeCommand
+        User = get_user_model()
+        user_ids = list(queryset.values_list('user_id', flat=True).distinct())
+        if not user_ids:
+            self.message_user(request, '未選取任何使用者', level=messages.WARNING)
+            return
+        users = User.objects.filter(id__in=user_ids).select_related('student_profile')
+        referral_counts = {}
+        for user_b in users:
+            first_exclusive = (
+                CouponRedemption.objects.filter(user=user_b, coupon_type='exclusive')
+                .select_related('coupon')
+                .order_by('redeemed_at')
+                .first()
+            )
+            first_voucher = (
+                PlatformVoucherRedemption.objects.filter(user=user_b)
+                .select_related('voucher')
+                .order_by('redeemed_at')
+                .first()
+            )
+            first_obj = None
+            if first_exclusive and first_voucher:
+                first_obj = first_exclusive if first_exclusive.redeemed_at <= first_voucher.redeemed_at else first_voucher
+            elif first_exclusive:
+                first_obj = first_exclusive
+            elif first_voucher:
+                first_obj = first_voucher
+            if first_obj:
+                if hasattr(first_obj, 'coupon'):
+                    source = first_obj.coupon.original_owner
+                else:
+                    source = first_obj.voucher.original_owner
+                if source and source.id != user_b.id:
+                    referral_counts[source.id] = referral_counts.get(source.id, 0) + 1
+        updated = 0
+        for user in users:
+            try:
+                profile = user.student_profile
+            except StudentProfile.DoesNotExist:
+                continue
+            redeemer_count = CouponRedemption.objects.filter(
+                user=user, coupon_type='exclusive'
+            ).count()
+            owner_count = CouponRedemption.objects.filter(
+                coupon__original_owner=user, coupon_type='exclusive'
+            ).exclude(user=user).count()
+            total_sharing = redeemer_count + owner_count
+            new_sharing = total_sharing % 3
+            new_sharing_rewards = total_sharing // 3
+            new_referral = referral_counts.get(user.id, 0)
+            if (profile.sharing_progress_count != new_sharing or
+                    profile.sharing_rewards_earned != new_sharing_rewards or
+                    profile.referral_progress_count != new_referral):
+                profile.sharing_progress_count = new_sharing
+                profile.sharing_rewards_earned = new_sharing_rewards
+                profile.referral_progress_count = new_referral
+                profile.save(update_fields=[
+                    'sharing_progress_count', 'sharing_rewards_earned', 'referral_progress_count'
+                ])
+                updated += 1
+        self.message_user(request, f'已重算 {updated} 位使用者的活動進度')
+    recompute_progress_selected.short_description = '重算所選使用者的活動進度'
 
 
 @admin.register(MerchantProfile)
@@ -469,15 +647,108 @@ class CouponTemplateAdmin(admin.ModelAdmin):
         )
 
 
+# -----------------------------------------------------------------------------
+# Coupon list filters (derived state)
+# -----------------------------------------------------------------------------
+
+class CouponExpiredFilter(admin.SimpleListFilter):
+    title = '效期狀態'
+    parameter_name = 'expired'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '已過期'), ('no', '有效中')]
+
+    def queryset(self, request, queryset):
+        now = timezone.now()
+        if self.value() == 'yes':
+            return queryset.filter(expiry_date__lte=now)
+        if self.value() == 'no':
+            return queryset.filter(expiry_date__gt=now)
+        return queryset
+
+
+class CouponHasHolderFilter(admin.SimpleListFilter):
+    title = '持有者'
+    parameter_name = 'has_holder'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '有持有者'), ('no', '無持有者')]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.exclude(current_holder__isnull=True)
+        if self.value() == 'no':
+            return queryset.filter(current_holder__isnull=True)
+        return queryset
+
+
+class CouponRedeemedFilter(admin.SimpleListFilter):
+    title = '兌換狀態'
+    parameter_name = 'redeemed'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '已兌換'), ('no', '未兌換')]
+
+    def queryset(self, request, queryset):
+        from .models import CouponRedemption
+        redeemed = CouponRedemption.objects.filter(coupon_id=OuterRef('pk'))
+        if self.value() == 'yes':
+            return queryset.filter(Exists(redeemed))
+        if self.value() == 'no':
+            return queryset.exclude(Exists(redeemed))
+        return queryset
+
+
+class CouponPendingPhoneFilter(admin.SimpleListFilter):
+    title = '待歸戶電話'
+    parameter_name = 'pending_phone'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '有待歸戶'), ('no', '無')]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.filter(
+                coupon_type='exclusive',
+                pending_phone_number__isnull=False
+            ).exclude(pending_phone_number='')
+        if self.value() == 'no':
+            return queryset.filter(Q(pending_phone_number__isnull=True) | Q(pending_phone_number=''))
+        return queryset
+
+
+class CouponPublicPoolFilter(admin.SimpleListFilter):
+    title = '公共池'
+    parameter_name = 'public_pool'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '在公共池'), ('no', '否')]
+
+    def queryset(self, request, queryset):
+        from .models import CouponShareRequest
+        pending_public = CouponShareRequest.objects.filter(
+            coupon_id=OuterRef('pk'),
+            is_public=True,
+            status='pending'
+        )
+        if self.value() == 'yes':
+            return queryset.filter(current_holder__isnull=True).filter(Exists(pending_public))
+        if self.value() == 'no':
+            return queryset.exclude(Exists(pending_public))
+        return queryset
+
+
 @admin.register(Coupon)
 class CouponAdmin(admin.ModelAdmin):
     list_display = [
-        'id', 'coupon_name', 'store_name', 'coupon_type',
+        'id', 'coupon_name', 'store_name', 'store_owner_email', 'coupon_type',
         'holder_info', 'expiry_date', 'is_expired', 'redemption_info'
     ]
     list_filter = [
         'coupon_type', 'usage_per_day', 'acquisition_method',
-        'start_date', 'expiry_date'
+        CouponExpiredFilter, CouponRedeemedFilter, CouponHasHolderFilter,
+        CouponPendingPhoneFilter, CouponPublicPoolFilter,
+        'start_date', 'expiry_date', 'store__owner'
     ]
     search_fields = [
         'coupon_name', 'store__name', 'redeem_code',
@@ -510,13 +781,87 @@ class CouponAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    actions = ['mark_as_expired']
-    
+    actions = ['mark_as_expired', 'cancel_pending_public_share', 'assign_to_user']
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                'assign-user/',
+                self.admin_site.admin_view(self.assign_to_user_view),
+                name='api_coupon_assign_user',
+            ),
+        ]
+        return extra + urls
+
+    def assign_to_user_view(self, request):
+        from django import forms
+        User = get_user_model()
+        ids_param = request.GET.get('ids', '')
+        if not ids_param:
+            messages.error(request, '請從優惠券列表勾選後使用「指派給使用者」動作。')
+            return redirect('admin:api_coupon_changelist')
+        try:
+            ids = [int(x) for x in ids_param.split(',') if x.strip()]
+        except ValueError:
+            messages.error(request, '無效的優惠券 ID。')
+            return redirect('admin:api_coupon_changelist')
+        if not ids:
+            return redirect('admin:api_coupon_changelist')
+        redeemed_ids = set(
+            CouponRedemption.objects.filter(coupon_id__in=ids).values_list('coupon_id', flat=True)
+        )
+        eligible_ids = [
+            pk for pk in ids
+            if pk not in redeemed_ids
+            and Coupon.objects.filter(pk=pk, coupon_type='exclusive').exists()
+        ]
+        if not eligible_ids:
+            messages.warning(request, '沒有符合條件的優惠券（須為專屬且未兌換）。')
+            return redirect('admin:api_coupon_changelist')
+
+        class AssignForm(forms.Form):
+            user = forms.ModelChoiceField(
+                queryset=User.objects.all().order_by('email'),
+                label='指派給使用者',
+                required=True,
+            )
+
+        if request.method == 'POST':
+            form = AssignForm(request.POST)
+            if form.is_valid():
+                user = form.cleaned_data['user']
+                count = Coupon.objects.filter(id__in=eligible_ids).update(
+                    current_holder=user,
+                    pending_phone_number='',
+                    acquisition_method='transfer',
+                )
+                Coupon.objects.filter(
+                    id__in=eligible_ids,
+                    original_owner__isnull=True
+                ).update(original_owner=user)
+                messages.success(request, f'已將 {count} 張優惠券指派給 {user.email}')
+                return redirect('admin:api_coupon_changelist')
+        else:
+            form = AssignForm()
+        context = {
+            'form': form,
+            'opts': self.model._meta,
+            'eligible_count': len(eligible_ids),
+            'title': '指派優惠券給使用者',
+        }
+        return render(request, 'admin/api/coupon/assign_user.html', context)
+
     def store_name(self, obj):
         return obj.store.name
     store_name.short_description = '店家'
     store_name.admin_order_field = 'store__name'
-    
+
+    def store_owner_email(self, obj):
+        return obj.store.owner.email if obj.store and obj.store.owner else '—'
+    store_owner_email.short_description = '店主'
+    store_owner_email.admin_order_field = 'store__owner__email'
+
     def holder_info(self, obj):
         if obj.coupon_type == 'store':
             return '（隨取即用）'
@@ -549,10 +894,45 @@ class CouponAdmin(admin.ModelAdmin):
         count = queryset.update(expiry_date=timezone.now())
         self.message_user(request, f'已標記 {count} 張優惠券為過期')
     mark_as_expired.short_description = '標記為過期'
-    
+
+    def cancel_pending_public_share(self, request, queryset):
+        from .models import CouponShareRequest
+        exclusive = queryset.filter(coupon_type='exclusive')
+        not_redeemed = exclusive.exclude(
+            id__in=CouponRedemption.objects.values_list('coupon_id', flat=True)
+        )
+        updated = 0
+        for coupon in not_redeemed:
+            share = CouponShareRequest.objects.filter(
+                coupon=coupon, is_public=True, status='pending'
+            ).select_related('from_user').first()
+            if share:
+                share.status = 'cancelled'
+                share.responded_at = timezone.now()
+                share.save(update_fields=['status', 'responded_at'])
+                coupon.current_holder = share.from_user
+                coupon.save(update_fields=['current_holder'])
+                updated += 1
+        self.message_user(request, f'已取消 {updated} 張優惠券的公共池分享')
+    cancel_pending_public_share.short_description = '取消所選的公共池分享'
+
+    def assign_to_user(self, request, queryset):
+        """Redirect to intermediate form to pick user and assign selected coupons."""
+        selected = list(queryset.filter(coupon_type='exclusive').exclude(
+            id__in=CouponRedemption.objects.values_list('coupon_id', flat=True)
+        ).values_list('pk', flat=True)[:500])
+        if not selected:
+            self.message_user(request, '沒有符合條件的優惠券（須為專屬且未兌換）', level=messages.WARNING)
+            return
+        ids = ','.join(str(pk) for pk in selected)
+        url = reverse('admin:api_coupon_assign_user') + '?ids=' + ids
+        return redirect(url)
+
+    assign_to_user.short_description = '指派給使用者'
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related('store', 'template', 'current_holder', 'original_owner')
+        return qs.select_related('store', 'store__owner', 'template', 'current_holder', 'original_owner')
 
 
 @admin.register(CouponRedemption)
@@ -600,7 +980,21 @@ class CouponShareRequestAdmin(admin.ModelAdmin):
     search_fields = ['from_user__email', 'to_user__email', 'coupon__coupon_name', 'token']
     readonly_fields = ['token', 'created_at', 'responded_at']
     date_hierarchy = 'created_at'
-    
+    actions = ['cancel_pending_public']
+
+    def cancel_pending_public(self, request, queryset):
+        pending_public = queryset.filter(status='pending', is_public=True)
+        count = 0
+        for share in pending_public.select_related('coupon', 'from_user'):
+            share.status = 'cancelled'
+            share.responded_at = timezone.now()
+            share.save(update_fields=['status', 'responded_at'])
+            share.coupon.current_holder = share.from_user
+            share.coupon.save(update_fields=['current_holder'])
+            count += 1
+        self.message_user(request, f'已取消 {count} 筆待處理的公共池分享')
+    cancel_pending_public.short_description = '取消所選的待處理公共池分享'
+
     def coupon_name(self, obj):
         return obj.coupon.coupon_name
     coupon_name.short_description = '優惠券'
@@ -627,18 +1021,90 @@ class CouponShareRequestAdmin(admin.ModelAdmin):
 # Platform Cash Voucher (011)
 # =============================================================================
 
+class PlatformVoucherExpiredFilter(admin.SimpleListFilter):
+    title = '效期狀態'
+    parameter_name = 'expired'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '已過期'), ('no', '有效中')]
+
+    def queryset(self, request, queryset):
+        now = timezone.now()
+        if self.value() == 'yes':
+            return queryset.filter(expiry_date__lte=now)
+        if self.value() == 'no':
+            return queryset.filter(expiry_date__gt=now)
+        return queryset
+
+
+class PlatformVoucherRedeemedFilter(admin.SimpleListFilter):
+    title = '兌換狀態'
+    parameter_name = 'redeemed'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '已兌換'), ('no', '未兌換')]
+
+    def queryset(self, request, queryset):
+        redeemed = PlatformVoucherRedemption.objects.filter(voucher_id=OuterRef('pk'))
+        if self.value() == 'yes':
+            return queryset.filter(Exists(redeemed))
+        if self.value() == 'no':
+            return queryset.exclude(Exists(redeemed))
+        return queryset
+
+
+class PlatformVoucherHasHolderFilter(admin.SimpleListFilter):
+    title = '持有者'
+    parameter_name = 'has_holder'
+
+    def lookups(self, request, model_admin):
+        return [('yes', '有持有者'), ('no', '在公共池')]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.exclude(current_holder__isnull=True)
+        if self.value() == 'no':
+            return queryset.filter(current_holder__isnull=True)
+        return queryset
+
+
+class PlatformVoucherBatchFilter(admin.SimpleListFilter):
+    title = '批次／獎勵'
+    parameter_name = 'batch_type'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('reward', '獎勵券 (Sharing/Referral)'),
+            ('other', '其他批次'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'reward':
+            return queryset.filter(acquisition_method='reward')
+        if self.value() == 'other':
+            return queryset.exclude(acquisition_method='reward')
+        return queryset
+
+
 @admin.register(PlatformVoucher)
 class PlatformVoucherAdmin(admin.ModelAdmin):
     change_list_template = 'admin/api/platformvoucher/change_list.html'
     list_display = [
         'id', 'redeem_code', 'face_value', 'currency_code',
         'current_holder_email', 'batch_name', 'acquisition_method',
-        'start_date', 'expiry_date', 'created_at', 'is_redeemed_display'
+        'start_date', 'expiry_date', 'expiry_status_display', 'created_at',
+        'is_redeemed_display', 'in_public_pool_display'
     ]
-    list_filter = ['acquisition_method', 'currency_code', 'created_at']
+    list_filter = [
+        'acquisition_method', 'currency_code',
+        PlatformVoucherExpiredFilter, PlatformVoucherRedeemedFilter,
+        PlatformVoucherHasHolderFilter, PlatformVoucherBatchFilter,
+        'created_at'
+    ]
     search_fields = ['redeem_code', 'batch_name', 'current_holder__email', 'original_owner__email']
     readonly_fields = ['redeem_code', 'created_at']
     date_hierarchy = 'created_at'
+    actions = ['mark_as_expired', 'assign_vouchers_to_user', 'cancel_pending_public_share']
     fieldsets = (
         ('金額與效期', {
             'fields': ('face_value', 'currency_code', 'start_date', 'expiry_date')
@@ -656,18 +1122,128 @@ class PlatformVoucherAdmin(admin.ModelAdmin):
     current_holder_email.short_description = '當前持有者'
     current_holder_email.admin_order_field = 'current_holder__email'
 
+    def expiry_status_display(self, obj):
+        now = timezone.now()
+        if now > obj.expiry_date:
+            return format_html('<span style="color: red;">已過期</span>')
+        days = (obj.expiry_date - now).days
+        if days <= 3:
+            return format_html('<span style="color: orange;">{} 天後過期</span>', days)
+        return format_html('<span style="color: green;">有效</span>')
+    expiry_status_display.short_description = '效期狀態'
+
     def is_redeemed_display(self, obj):
-        from api.models import PlatformVoucherRedemption
-        return '是' if PlatformVoucherRedemption.objects.filter(voucher=obj).exists() else '否'
+        return '是' if getattr(obj, '_redeemed', False) else '否'
     is_redeemed_display.short_description = '已兌換'
+
+    def in_public_pool_display(self, obj):
+        return '是' if getattr(obj, '_in_public_pool', False) else '否'
+    in_public_pool_display.short_description = '在公共池'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        redeemed = PlatformVoucherRedemption.objects.filter(voucher_id=OuterRef('pk'))
+        in_public = PlatformVoucherShareRequest.objects.filter(
+            voucher_id=OuterRef('pk'), is_public=True, status='pending'
+        )
+        return qs.annotate(
+            _redeemed=Exists(redeemed),
+            _in_public_pool=Exists(in_public),
+        )
+
+    def mark_as_expired(self, request, queryset):
+        not_redeemed = queryset.exclude(
+            id__in=PlatformVoucherRedemption.objects.values_list('voucher_id', flat=True)
+        )
+        count = not_redeemed.update(expiry_date=timezone.now())
+        self.message_user(request, f'已標記 {count} 張平台券為過期')
+    mark_as_expired.short_description = '標記所選為過期'
+
+    def assign_vouchers_to_user(self, request, queryset):
+        not_redeemed = queryset.exclude(
+            id__in=PlatformVoucherRedemption.objects.values_list('voucher_id', flat=True)
+        ).values_list('pk', flat=True)[:500]
+        ids = list(not_redeemed)
+        if not ids:
+            self.message_user(request, '沒有未兌換的所選平台券', level=messages.WARNING)
+            return
+        url = reverse('admin:api_platformvoucher_assign_user') + '?ids=' + ','.join(str(pk) for pk in ids)
+        return redirect(url)
+    assign_vouchers_to_user.short_description = '指派所選給使用者'
+
+    def cancel_pending_public_share(self, request, queryset):
+        redeemed_ids = set(
+            PlatformVoucherRedemption.objects.values_list('voucher_id', flat=True)
+        )
+        not_redeemed = queryset.exclude(id__in=redeemed_ids)
+        updated = 0
+        for voucher in not_redeemed:
+            share = PlatformVoucherShareRequest.objects.filter(
+                voucher=voucher, is_public=True, status='pending'
+            ).select_related('from_user').first()
+            if share:
+                share.status = 'declined'
+                share.responded_at = timezone.now()
+                share.save(update_fields=['status', 'responded_at'])
+                voucher.current_holder = share.from_user
+                voucher.save(update_fields=['current_holder'])
+                updated += 1
+        self.message_user(request, f'已取消 {updated} 張平台券的公共池分享')
+    cancel_pending_public_share.short_description = '取消所選的公共池分享'
 
     def get_urls(self):
         urls = super().get_urls()
         extra = [
             path('batch-issue/', self.admin_site.admin_view(self.batch_issue_view), name='api_platformvoucher_batch_issue'),
             path('participating-stores/', self.admin_site.admin_view(self.participating_stores_view), name='api_platformvoucher_participating_stores'),
+            path('assign-user/', self.admin_site.admin_view(self.assign_to_user_view), name='api_platformvoucher_assign_user'),
         ]
         return extra + urls
+
+    def assign_to_user_view(self, request):
+        from django import forms
+        User = get_user_model()
+        ids_param = request.GET.get('ids', '')
+        if not ids_param:
+            messages.error(request, '請從平台券列表勾選後使用「指派所選給使用者」動作。')
+            return redirect('admin:api_platformvoucher_changelist')
+        try:
+            ids = [int(x) for x in ids_param.split(',') if x.strip()]
+        except ValueError:
+            messages.error(request, '無效的平台券 ID。')
+            return redirect('admin:api_platformvoucher_changelist')
+        redeemed_ids = set(
+            PlatformVoucherRedemption.objects.filter(voucher_id__in=ids).values_list('voucher_id', flat=True)
+        )
+        eligible_ids = [pk for pk in ids if pk not in redeemed_ids]
+        if not eligible_ids:
+            messages.warning(request, '沒有未兌換的所選平台券。')
+            return redirect('admin:api_platformvoucher_changelist')
+        class AssignForm(forms.Form):
+            user = forms.ModelChoiceField(
+                queryset=User.objects.all().order_by('email'),
+                label='指派給使用者',
+                required=True,
+            )
+        if request.method == 'POST':
+            form = AssignForm(request.POST)
+            if form.is_valid():
+                user = form.cleaned_data['user']
+                count = PlatformVoucher.objects.filter(id__in=eligible_ids).update(
+                    current_holder=user,
+                    original_owner=user,
+                )
+                messages.success(request, f'已將 {count} 張平台券指派給 {user.email}')
+                return redirect('admin:api_platformvoucher_changelist')
+        else:
+            form = AssignForm()
+        context = {
+            'form': form,
+            'opts': self.model._meta,
+            'eligible_count': len(eligible_ids),
+            'title': '指派平台券給使用者',
+        }
+        return render(request, 'admin/api/platformvoucher/assign_user.html', context)
 
     def batch_issue_view(self, request):
         """Custom view: form with batch_name, face_value, quantity, expiry_date; create that many vouchers."""
@@ -759,7 +1335,7 @@ class PlatformVoucherAdmin(admin.ModelAdmin):
 @admin.register(PlatformVoucherRedemption)
 class PlatformVoucherRedemptionAdmin(admin.ModelAdmin):
     list_display = ['id', 'voucher_id', 'user_email', 'store_name', 'amount_used', 'redeemed_at']
-    list_filter = ['redeemed_at']
+    list_filter = ['redeemed_at', 'store']
     search_fields = ['user__email', 'store__name', 'voucher__redeem_code']
     readonly_fields = ['redeemed_at']
 
@@ -775,13 +1351,38 @@ class PlatformVoucherRedemptionAdmin(admin.ModelAdmin):
 @admin.register(PlatformVoucherShareRequest)
 class PlatformVoucherShareRequestAdmin(admin.ModelAdmin):
     list_display = [
-        'id', 'voucher_id', 'from_user_email', 'to_user_email',
+        'id', 'voucher_id', 'voucher_redeem_code', 'voucher_batch_name',
+        'from_user_email', 'to_user_email',
         'share_type', 'status', 'created_at', 'responded_at'
     ]
     list_filter = ['status', 'is_public', 'created_at']
-    search_fields = ['from_user__email', 'to_user__email', 'token', 'voucher__redeem_code']
+    search_fields = ['from_user__email', 'to_user__email', 'token', 'voucher__redeem_code', 'voucher__batch_name']
     readonly_fields = ['token', 'created_at', 'responded_at']
     date_hierarchy = 'created_at'
+    actions = ['cancel_pending_requests']
+
+    def voucher_redeem_code(self, obj):
+        return obj.voucher.redeem_code if obj.voucher_id else '—'
+    voucher_redeem_code.short_description = '兌換碼'
+    voucher_redeem_code.admin_order_field = 'voucher__redeem_code'
+
+    def voucher_batch_name(self, obj):
+        return obj.voucher.batch_name or '—' if obj.voucher_id else '—'
+    voucher_batch_name.short_description = '批次'
+    voucher_batch_name.admin_order_field = 'voucher__batch_name'
+
+    def cancel_pending_requests(self, request, queryset):
+        pending = queryset.filter(status='pending')
+        count = 0
+        for share in pending.select_related('voucher', 'from_user'):
+            share.status = 'declined'
+            share.responded_at = timezone.now()
+            share.save(update_fields=['status', 'responded_at'])
+            share.voucher.current_holder = share.from_user
+            share.voucher.save(update_fields=['current_holder'])
+            count += 1
+        self.message_user(request, f'已取消 {count} 筆待處理分享')
+    cancel_pending_requests.short_description = '取消所選的待處理分享'
 
     def from_user_email(self, obj):
         return obj.from_user.email
@@ -794,6 +1395,9 @@ class PlatformVoucherShareRequestAdmin(admin.ModelAdmin):
     def share_type(self, obj):
         return '公共池' if obj.is_public else '私人'
     share_type.short_description = '類型'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('voucher', 'from_user', 'to_user')
 
 
 # =============================================================================
