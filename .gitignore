@@ -77,7 +77,6 @@ docker-compose.yml
 # Next.js
 .next/
 out/
-.claude/
 next-env.d.ts
 
 # Vercel
