@@ -467,22 +467,23 @@ def redeem_coupon(request, id):
         original_owner = coupon.original_owner
         is_shared_redemption = (original_owner is not None and original_owner != request.user)
 
-        if is_shared_redemption:
-            # Metric 2 — case (b): redeemer gets +1 for redeeming someone else's shared coupon.
-            # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
-            try:
-                redeemer_profile = request.user.student_profile
-                redeemer_profile.sharing_progress_count += 1
-                n = redeemer_profile.sharing_progress_count
-                vouchers = n // 3
-                for _ in range(vouchers):
-                    grant_reward_voucher(request.user, 10, 'Sharing Reward')
-                redeemer_profile.sharing_rewards_earned += vouchers
-                redeemer_profile.sharing_progress_count = n % 3
-                redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
-            except (StudentProfile.DoesNotExist, AttributeError):
-                pass
+        # Metric 2 — redeemer gets +1 for ANY exclusive coupon redemption (COU-87).
+        # Light turns on whenever a coupon is redeemed, regardless of share.
+        # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
+        try:
+            redeemer_profile = request.user.student_profile
+            redeemer_profile.sharing_progress_count += 1
+            n = redeemer_profile.sharing_progress_count
+            vouchers = n // 3
+            for _ in range(vouchers):
+                grant_reward_voucher(request.user, 10, 'Sharing Reward')
+            redeemer_profile.sharing_rewards_earned += vouchers
+            redeemer_profile.sharing_progress_count = n % 3
+            redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
+        except (StudentProfile.DoesNotExist, AttributeError):
+            pass
 
+        if is_shared_redemption:
             # Metric 2 — case (a): original owner gets +1 when their coupon is redeemed by someone else.
             # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
             try:
