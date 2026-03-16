@@ -914,7 +914,7 @@ const CouPro = () => {
               <Animated.View style={[styles.sheetContentContainer, sheetContainerAnimatedStyle]}>
                 <BottomSheetScrollView
                   contentContainerStyle={styles.scrollContent}
-                  showsVerticalScrollIndicator={false}
+                  showsVerticalScrollIndicator={true}
                 >
                   <YStack gap={13} style={{ paddingHorizontal: 15, paddingTop: 10 }}>
                     {/* Selected store info */}
