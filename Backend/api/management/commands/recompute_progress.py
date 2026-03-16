@@ -93,21 +93,21 @@ class Command(BaseCommand):
                 skipped += 1
                 continue
 
-            # Metric 2 — sharing_progress_count
-            # case (a): user is original_owner of exclusive coupon redeemed by someone else
-            a_count = CouponRedemption.objects.filter(
+            # Metric 2 — sharing_progress_count (COU-87: any redemption counts, not just shared)
+            # redeemer_count: user redeemed any exclusive coupon (light on for every redemption)
+            redeemer_count = CouponRedemption.objects.filter(
+                user=user,
+                coupon_type='exclusive',
+            ).count()
+
+            # owner_count: user is original_owner of exclusive coupon redeemed by someone else
+            owner_count = CouponRedemption.objects.filter(
                 coupon__original_owner=user,
                 coupon_type='exclusive',
             ).exclude(user=user).count()
 
-            # case (b): user redeemed exclusive coupon NOT originally theirs
-            b_count = CouponRedemption.objects.filter(
-                user=user,
-                coupon_type='exclusive',
-            ).exclude(coupon__original_owner=user).count()
-
             # Metric 2 resets to 0 when reaching 3; store current cycle remainder (0..2).
-            total_sharing = a_count + b_count
+            total_sharing = redeemer_count + owner_count
             new_sharing = total_sharing % 3
             new_sharing_rewards = total_sharing // 3
 
