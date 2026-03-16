@@ -405,6 +405,7 @@ class Coupon(models.Model):
         ('transfer', '私人轉讓'),
         ('public_pool', '公共池領取'),
         ('qr_claim', 'QR Code 領取'),
+        ('admin_issue', '後台發放'),
     ]
     acquisition_method = models.CharField(
         max_length=20, 
