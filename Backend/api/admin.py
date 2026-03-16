@@ -1,9 +1,12 @@
+from django import forms
 from django.contrib import admin
+from django.contrib.auth import get_user_model
 from django.utils.html import format_html
 from django.db.models import Case, Count, F, IntegerField, Sum, Value, When
 from django.utils import timezone
-from django.urls import path
+from django.urls import path, reverse
 from django.shortcuts import render, redirect
+from django.http import HttpResponseRedirect
 from django.contrib import messages
 from .models import *
 from .utils import generate_platform_voucher_redeem_code
@@ -319,6 +322,7 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(CouponTemplate)
 class CouponTemplateAdmin(admin.ModelAdmin):
+    change_list_template = 'admin/api/coupontemplate/change_list.html'
     list_display = [
         'id', 'coupon_name', 'store_name', 'quantity_status',
         'start_date', 'expiry_date', 'is_active', 'draw_probability'
@@ -328,6 +332,7 @@ class CouponTemplateAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'remaining_quantity']
     filter_horizontal = ['tags']
     date_hierarchy = 'start_date'
+    actions = ['deactivate_templates', 'activate_templates', 'issue_to_user_action']
     fieldsets = (
         ('基本資訊', {
             'fields': ('store', 'coupon_name', 'coupon_detail', 'important_notes', 'image_url')
@@ -346,8 +351,6 @@ class CouponTemplateAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    actions = ['deactivate_templates', 'activate_templates']
-    
     def store_name(self, obj):
         return obj.store.name
     store_name.short_description = '店家'
@@ -378,10 +381,92 @@ class CouponTemplateAdmin(admin.ModelAdmin):
         count = queryset.update(is_active=True)
         self.message_user(request, f'已啟用 {count} 個範本')
     activate_templates.short_description = '啟用所選範本'
-    
+
+    def issue_to_user_action(self, request, queryset):
+        """重導向至「發給指定使用者」表單，並預選目前勾選的範本。"""
+        ids = list(queryset.values_list('id', flat=True))
+        if not ids:
+            self.message_user(request, '請先勾選要發放的範本。', level=messages.WARNING)
+            return
+        url = reverse('admin:api_coupontemplate_issue_to_user') + f"?template_ids={','.join(str(i) for i in ids)}"
+        return HttpResponseRedirect(url)
+    issue_to_user_action.short_description = '發給指定使用者'
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related('store')
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                'issue-to-user/',
+                self.admin_site.admin_view(self.issue_to_user_view),
+                name='api_coupontemplate_issue_to_user',
+            ),
+        ]
+        return extra + urls
+
+    def issue_to_user_view(self, request):
+        """表單：選擇優惠券範本與指定使用者，建立範本實例並發給該使用者。"""
+        User = get_user_model()
+
+        class IssueToUserForm(forms.Form):
+            templates = forms.ModelMultipleChoiceField(
+                queryset=CouponTemplate.objects.filter(remaining_quantity__gt=0).select_related('store').order_by('store__name', 'coupon_name'),
+                widget=forms.CheckboxSelectMultiple,
+                required=True,
+                label='優惠券範本',
+                help_text='可多選；每個範本會建立一張優惠券並發給下方指定使用者。',
+            )
+            user = forms.ModelChoiceField(
+                queryset=User.objects.all().order_by('email'),
+                required=True,
+                label='指定使用者',
+                help_text='收到的使用者帳號（以 email 顯示）。',
+            )
+
+        template_ids_str = request.GET.get('template_ids', '')
+        if request.method == 'POST':
+            form = IssueToUserForm(request.POST)
+            if form.is_valid():
+                templates = form.cleaned_data['templates']
+                user = form.cleaned_data['user']
+                created = 0
+                failed = 0
+                for tpl in templates:
+                    coupon = tpl.generate_coupon(recipient=user)
+                    if coupon:
+                        coupon.acquisition_method = 'admin_issue'
+                        coupon.save(update_fields=['acquisition_method'])
+                        created += 1
+                    else:
+                        failed += 1
+                if created:
+                    messages.success(
+                        request,
+                        f'已建立 {created} 張優惠券並發給 {user.email}。' + (f'（{failed} 個範本庫存不足未建立）' if failed else ''),
+                    )
+                elif failed:
+                    messages.warning(request, '所選範本庫存不足，未建立任何優惠券。')
+                return redirect('admin:api_coupontemplate_changelist')
+        else:
+            initial = {}
+            if template_ids_str:
+                try:
+                    ids = [int(x) for x in template_ids_str.split(',') if x.strip()]
+                    initial['templates'] = CouponTemplate.objects.filter(
+                        id__in=ids, remaining_quantity__gt=0
+                    )
+                except ValueError:
+                    pass
+            form = IssueToUserForm(initial=initial)
+
+        return render(
+            request,
+            'admin/api/coupontemplate/issue_to_user.html',
+            {'form': form, 'opts': self.model._meta},
+        )
 
 
 @admin.register(Coupon)
