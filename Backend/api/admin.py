@@ -22,6 +22,9 @@ class UserAdmin(BaseUserAdmin):
     list_display = BaseUserAdmin.list_display + ('date_joined',)
 
 
+admin.site.register(User, UserAdmin)
+
+
 # =============================================================================
 # Inline Admin Classes
 # =============================================================================
