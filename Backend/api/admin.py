@@ -6,12 +6,20 @@ from django.urls import path, reverse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import *
 from .utils import generate_platform_voucher_redeem_code
 from .views.authentication import (
     send_merchant_application_approved_email,
     send_merchant_application_rejected_email,
 )
+
+admin.site.unregister(User)
+
+
+class UserAdmin(BaseUserAdmin):
+    list_display = BaseUserAdmin.list_display + ('date_joined',)
 
 
 # =============================================================================

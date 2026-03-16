@@ -21,8 +21,8 @@
  */
 
 // let BASE_URL: string = "https://coupon-mobile.onrender.com";
-let BASE_URL: string = "https://coupro-123.loca.lt";
-// BASE_URL = "https://coupon-mobile-dev.onrender.com";
+// let BASE_URL: string = "https://coupro-123.loca.lt";
+let BASE_URL = "https://coupon-mobile-dev.onrender.com";
 
 const API_BASE_URL: string = `${BASE_URL}/api`;
 
