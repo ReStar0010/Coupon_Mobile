@@ -211,7 +211,7 @@ def get_exclusive_coupons(request):
         _is_redeemed=redeemed_subquery,
     ).filter(
         _is_redeemed=False,
-    ).select_related('store', 'template').prefetch_related('tags')  # Optimize DB query
+    ).select_related('store', 'template', 'original_owner', 'last_holder').prefetch_related('tags')
 
     # UGC Compliance: Exclude blocked merchants
     if blocked_store_ids:
