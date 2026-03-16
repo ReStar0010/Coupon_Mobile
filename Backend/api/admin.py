@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from django.db.models import Case, Count, IntegerField, Sum, Value, When
+from django.db.models import Case, Count, F, IntegerField, Sum, Value, When
 from django.utils import timezone
 from django.urls import path
 from django.shortcuts import render, redirect
@@ -63,7 +63,8 @@ class StudentProfileAdmin(admin.ModelAdmin):
     search_fields = ['user__email', 'user__username', 'phone_number']
     readonly_fields = [
         'email_verification_token', 'last_draw_time', 'last_logged_in',
-        'last_savings_reset', 'coupons_used_count', 'total_savings', 'monthly_savings'
+        'last_savings_reset', 'coupons_used_count', 'total_savings', 'monthly_savings',
+        'sharing_progress_count', 'sharing_rewards_earned', 'referral_progress_count'
     ]
     fieldsets = (
         ('使用者資訊', {
@@ -74,8 +75,9 @@ class StudentProfileAdmin(admin.ModelAdmin):
         }),
         ('統計數據', {
             'fields': (
-                'coupons_used_count', 'total_savings', 'monthly_savings', 
-                'last_savings_reset', 'last_draw_time', 'last_logged_in'
+                'coupons_used_count', 'total_savings', 'monthly_savings',
+                'last_savings_reset', 'last_draw_time', 'last_logged_in',
+                'sharing_progress_count', 'sharing_rewards_earned', 'referral_progress_count'
             )
         }),
         ('儲蓄目標', {
@@ -270,7 +272,10 @@ class StoreAdmin(admin.ModelAdmin):
             'fields': ('address', 'lat', 'lng', 'business_hours')
         }),
         ('營運設定', {
-            'fields': ('average_order_value', 'unified_redeem_code', 'accepts_platform_vouchers')
+            'fields': (
+                'average_order_value', 'unified_redeem_code', 'accepts_platform_vouchers',
+                'timezone', 'currency_code'
+            )
         }),
     )
     
@@ -879,7 +884,7 @@ class AccountDeletionLogAdmin(admin.ModelAdmin):
     
     def retry_failed_deletions(self, request, queryset):
         failed = queryset.filter(status='failed')
-        count = failed.update(status='pending', retry_count=models.F('retry_count') + 1)
+        count = failed.update(status='pending', retry_count=F('retry_count') + 1)
         self.message_user(request, f'已標記 {count} 筆記錄重試刪除')
     retry_failed_deletions.short_description = '重試失敗的刪除'
 

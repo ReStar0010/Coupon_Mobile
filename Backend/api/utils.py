@@ -113,7 +113,9 @@ def grant_reward_voucher(user, face_value: int, description: str = 'System Rewar
     redeem_code = generate_platform_voucher_redeem_code()
     now = dj_timezone.now()
     year = now.year if (now.month < 3 or (now.month == 3 and now.day <= 29)) else now.year + 1
-    expiry_date = datetime(year, 3, 29, 23, 59, 59, tzinfo=now.tzinfo)
+    # 固定用台灣時區：3/29 23:59:59 為「台灣當日結束」，不隨伺服器時區變動
+    taiwan = ZoneInfo(DEFAULT_STORE_TIMEZONE)
+    expiry_date = datetime(year, 3, 29, 23, 59, 59, tzinfo=taiwan)
     return PlatformVoucher.objects.create(
         face_value=face_value,
         currency_code='TWD',
