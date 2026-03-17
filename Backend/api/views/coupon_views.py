@@ -44,7 +44,7 @@ def get_store_coupons(request):
         coupon_type='store',
         expiry_date__gt=now,
         start_date__lte=now
-    ).select_related('store').prefetch_related('tags').annotate(
+    ).select_related('store', 'store__owner').prefetch_related('tags').annotate(
         total_redemptions_count=Count('redemptions', distinct=True),
         unique_users_count=Count('redemptions__user', distinct=True),
     )
@@ -72,7 +72,7 @@ def get_store_coupons(request):
         expiry_date__gt=now,
         start_date__lte=now,
         current_holder__isnull=True  # Ensure not already claimed
-    ).select_related('store').prefetch_related('tags', Prefetch('share_requests', queryset=CouponShareRequest.objects.select_related('from_user')))
+    ).select_related('store', 'store__owner').prefetch_related('tags', Prefetch('share_requests', queryset=CouponShareRequest.objects.select_related('from_user')))
 
     # UGC Compliance: Exclude blocked merchants from public pool as well
     if blocked_store_ids:
@@ -211,7 +211,7 @@ def get_exclusive_coupons(request):
         _is_redeemed=redeemed_subquery,
     ).filter(
         _is_redeemed=False,
-    ).select_related('store', 'template').prefetch_related('tags')  # Optimize DB query
+    ).select_related('store', 'store__owner', 'template', 'original_owner', 'last_holder').prefetch_related('tags')
 
     # UGC Compliance: Exclude blocked merchants
     if blocked_store_ids:
@@ -253,7 +253,10 @@ def get_exclusive_coupons(request):
 def get_coupon_detail(request, id):
 
     now = timezone.now()
-    coupon = get_object_or_404(Coupon.objects.select_related('store').prefetch_related('tags'), id=id) 
+    coupon = get_object_or_404(
+        Coupon.objects.select_related('store', 'store__owner', 'template', 'original_owner', 'last_holder').prefetch_related('tags'),
+        id=id,
+    )
     
     if request.user.is_authenticated:
         # Get location from query parameters if available
