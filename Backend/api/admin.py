@@ -582,8 +582,27 @@ class CouponTemplateAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.issue_to_user_view),
                 name='api_coupontemplate_issue_to_user',
             ),
+            path(
+                'user-search/',
+                self.admin_site.admin_view(self.user_search_view),
+                name='api_coupontemplate_user_search',
+            ),
         ]
         return extra + urls
+
+    def user_search_view(self, request):
+        """JSON endpoint：依 email / username 搜尋使用者，供發放表單的搜尋框使用。"""
+        from django.http import JsonResponse
+        q = request.GET.get('q', '').strip()
+        if len(q) < 2:
+            return JsonResponse({'results': []})
+        User = get_user_model()
+        users = (
+            User.objects.filter(Q(email__icontains=q) | Q(username__icontains=q))
+            .order_by('email')[:20]
+        )
+        results = [{'id': u.id, 'text': u.email} for u in users]
+        return JsonResponse({'results': results})
 
     def issue_to_user_view(self, request):
         """表單：選擇優惠券範本與指定使用者，建立範本實例並發給該使用者。"""
