@@ -82,7 +82,12 @@
       "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
       "blockedPermissions": ["com.google.android.gms.permission.AD_ID"],
       "googleServicesFile": "./google-services.json",
-      "package": "com.cokayne.MobileFrontend"
+      "package": "com.cokayne.MobileFrontend",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyACVfhHwjl0L5QWVRUxWOyle4UOysZPSbA"
+        }
+      }
     },
     "extra": {
       "router": {},
