@@ -35,11 +35,7 @@ export default function EnterRedeemCodeScreen() {
   } | null>(null);
 
   const handleBack = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/(tabs)/collection');
-    }
+    router.replace('/(tabs)/collection');
   }, [router]);
 
   const handleCodeChange = useCallback((text: string) => {

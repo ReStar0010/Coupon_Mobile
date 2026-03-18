@@ -16,6 +16,8 @@ import { useBlockedMerchants } from '@/app/components/providers/BlockedMerchants
 import MerchantDeletedModal from '@/app/components/MerchantDeletedModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { consumeCollectionDirty } from '@/app/utils/collectionRefresh';
+import Toast from 'react-native-toast-message';
+import { useApiError } from '@/app/hooks/useApiError';
 
 import { useCoupons } from './hooks/useCoupons';
 import { useDailyDraw } from './hooks/useDailyDraw';
@@ -102,6 +104,7 @@ EmptyState.displayName = 'EmptyState';
 
 const Collection: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { getErrorMessage } = useApiError();
   const { dismissStore, isStoreDismissed } = useDismissedStores();
   const { isStoreBlocked } = useBlockedMerchants();
 
@@ -213,10 +216,17 @@ const Collection: React.FC = () => {
         await withdrawPublicShare(shareId);
         await Promise.all([fetchCoupons(), fetchPublicShares()]);
       } catch (err) {
-        console.error('Withdraw from pool failed:', err);
+        Toast.show({
+          type: 'failRed',
+          text1: getErrorMessage(err),
+          position: 'bottom',
+          visibilityTime: 3500,
+          autoHide: true,
+        });
+        await Promise.all([fetchCoupons(), fetchPublicShares()]);
       }
     },
-    [fetchCoupons, fetchPublicShares],
+    [fetchCoupons, fetchPublicShares, getErrorMessage],
   );
 
   const [isRefreshing, setIsRefreshing] = useState(false);
