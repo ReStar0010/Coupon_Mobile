@@ -18,7 +18,7 @@ const ContactUsPage: React.FC = () => {
   );
 
   const handleInstagramPress = () => {
-    router.push('https://www.instagram.com/');
+    router.push('https://www.instagram.com/coupro.tw?igsh=bzc3N25yNG8ybm1o&utm_source=qr');
   };
 
   return (

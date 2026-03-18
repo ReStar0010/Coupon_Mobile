@@ -591,17 +591,85 @@ class CouponTemplateAdmin(admin.ModelAdmin):
         return extra + urls
 
     def user_search_view(self, request):
-        """JSON endpoint：依 email / username 搜尋使用者，供發放表單的搜尋框使用。"""
+        """JSON：搜尋使用者。電話（StudentProfile）優先，其次 email／username。"""
+        import re
         from django.http import JsonResponse
+
         q = request.GET.get('q', '').strip()
         if len(q) < 2:
             return JsonResponse({'results': []})
+
+        def norm_digits(s: str) -> str:
+            return re.sub(r'\D', '', s or '')
+
+        digits_q = norm_digits(q)
         User = get_user_model()
-        users = (
-            User.objects.filter(Q(email__icontains=q) | Q(username__icontains=q))
-            .order_by('email')[:20]
+
+        has_phone = (
+            Q(student_profile__phone_number__isnull=False)
+            & ~Q(student_profile__phone_number='')
         )
-        results = [{'id': u.id, 'text': u.email} for u in users]
+        # 電話比對：完整輸入 + 純數字（方便 +886 / 空格分隔仍能找到）
+        if len(digits_q) >= 2:
+            phone_filter = has_phone & (
+                Q(student_profile__phone_number__icontains=q)
+                | Q(student_profile__phone_number__icontains=digits_q)
+            )
+        else:
+            phone_filter = has_phone & Q(student_profile__phone_number__icontains=q)
+
+        phone_users = list(
+            User.objects.filter(phone_filter)
+            .select_related('student_profile')
+            .distinct()[:40]
+        )
+
+        def profile_phone(u):
+            try:
+                p = u.student_profile.phone_number or ''
+            except StudentProfile.DoesNotExist:
+                return ''
+            return p
+
+        def phone_sort_key(u):
+            pn_digits = norm_digits(profile_phone(u))
+            if digits_q and pn_digits == digits_q:
+                return (0, u.email or '')
+            if digits_q and pn_digits.endswith(digits_q):
+                return (1, u.email or '')
+            if digits_q and digits_q in pn_digits:
+                return (2, u.email or '')
+            if q.lower() in (profile_phone(u) or '').lower():
+                return (3, u.email or '')
+            return (4, u.email or '')
+
+        phone_users.sort(key=phone_sort_key)
+        seen: set[int] = set()
+        results: list[dict] = []
+
+        def display_text(u) -> str:
+            phone = profile_phone(u)
+            if phone:
+                return f'{u.email} · 📱 {phone}'
+            return u.email
+
+        for u in phone_users:
+            if u.id in seen:
+                continue
+            seen.add(u.id)
+            results.append({'id': u.id, 'text': display_text(u)})
+            if len(results) >= 20:
+                return JsonResponse({'results': results})
+
+        remaining = 20 - len(results)
+        if remaining > 0:
+            for u in (
+                User.objects.filter(Q(email__icontains=q) | Q(username__icontains=q))
+                .exclude(id__in=seen)
+                .order_by('email')[:remaining]
+            ):
+                results.append({'id': u.id, 'text': display_text(u)})
+
         return JsonResponse({'results': results})
 
     def issue_to_user_view(self, request):
@@ -620,7 +688,7 @@ class CouponTemplateAdmin(admin.ModelAdmin):
                 queryset=User.objects.all().order_by('email'),
                 required=True,
                 label='指定使用者',
-                help_text='收到的使用者帳號（以 email 顯示）。',
+                help_text='搜尋時電話優先；無 StudentProfile／電話的帳號僅能以 email 找到。',
             )
 
         template_ids_str = request.GET.get('template_ids', '')

@@ -24,7 +24,7 @@
           <input
             type="text"
             id="user-search-input"
-            placeholder="輸入 email 搜尋使用者（至少 2 個字元）..."
+            placeholder="優先搜尋電話；亦可輸入 email／帳號（至少 2 個字元）…"
             autocomplete="off"
             style="width:100%; padding:6px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px;"
           >
@@ -35,7 +35,7 @@
         </div>
         <div id="user-selected-display" style="margin-top:6px; color:#137333; font-size:13px;"></div>
         <input type="hidden" name="user" id="user-hidden-input">
-        <small style="color:#666;">收到的使用者帳號（以 email 顯示）。</small>
+        <small style="color:#666;">結果會優先列出電話相符的學生帳號；選取後以該使用者的 email 發放。</small>
         {% if form.user.errors %}
           <ul class="errorlist">{% for e in form.user.errors %}<li>{{ e }}</li>{% endfor %}</ul>
         {% endif %}
