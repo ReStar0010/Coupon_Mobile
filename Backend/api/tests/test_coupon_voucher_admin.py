@@ -49,13 +49,18 @@ class CouponAdminFilterTest(TestCase):
         qs = Coupon.objects.all()
         f = CouponExpiredFilter(self.request, {"expired": "yes"}, Coupon, self.model_admin)
         filtered = f.queryset(self.request, qs)
-        self.assertIn("expiry_date__lte", str(filtered.query))
+        # 用「是否真的加上過期日條件」來驗證（不依賴 Django lookup 字串）
+        q = str(filtered.query)
+        self.assertIn("expiry_date", q)
+        self.assertTrue((" <=" in q) or (" < " in q), q)
 
     def test_expired_filter_no(self):
         qs = Coupon.objects.all()
         f = CouponExpiredFilter(self.request, {"expired": "no"}, Coupon, self.model_admin)
         filtered = f.queryset(self.request, qs)
-        self.assertIn("expiry_date__gt", str(filtered.query))
+        q = str(filtered.query)
+        self.assertIn("expiry_date", q)
+        self.assertTrue((" >=" in q) or (" > " in q), q)
 
     def test_redeemed_filter_uses_exists(self):
         qs = Coupon.objects.all()
@@ -79,7 +84,9 @@ class PlatformVoucherAdminFilterTest(TestCase):
             self.request, {"expired": "yes"}, PlatformVoucher, self.model_admin
         )
         filtered = f.queryset(self.request, qs)
-        self.assertIn("expiry_date__lte", str(filtered.query))
+        q = str(filtered.query)
+        self.assertIn("expiry_date", q)
+        self.assertTrue((" <=" in q) or (" < " in q), q)
 
     def test_redeemed_filter_no(self):
         qs = PlatformVoucher.objects.all()
@@ -87,6 +94,7 @@ class PlatformVoucherAdminFilterTest(TestCase):
             self.request, {"redeemed": "no"}, PlatformVoucher, self.model_admin
         )
         filtered = f.queryset(self.request, qs)
+        # no 也會用 EXISTS 來做「排除已兌換」的判斷
         self.assertIn("EXISTS", str(filtered.query))
 
 

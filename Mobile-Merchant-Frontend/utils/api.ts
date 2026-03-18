@@ -1,28 +1,4 @@
-/**
- * API and Authentication utilities for Merchant Frontend
- * Handles API calls, token management, and authentication
- */
-
-// ============================================
-// 🔧 配置區域 - 後端設置（改用環境變數，與 Mobile-Frontend 對齊）
-// ============================================
-
-/**
- * API 配置
- *
- * 使用方式：
- * 1. 設定 EXPO_PUBLIC_BACKEND_MODE 來切換不同的後端
- * 2. 若使用 'local-network'，請設定 EXPO_PUBLIC_LOCAL_HOST
- *
- * 模式說明：
- * - 'production': 使用 Render.com 生產環境
- * - 'local': 使用 localhost (僅適用於模擬器/瀏覽器)
- * - 'local-network': 使用本地網絡 IP (適用於 Expo Go 在真實設備上)
- */
-
 let BASE_URL: string = "https://coupon-mobile.onrender.com";
-// let BASE_URL: string = "https://coupro-123.loca.lt";
-// let BASE_URL = "https://coupon-mobile-dev.onrender.com";
 
 const API_BASE_URL: string = `${BASE_URL}/api`;
 

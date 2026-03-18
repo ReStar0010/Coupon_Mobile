@@ -76,6 +76,7 @@
   },
   "errors": {
     "GENERIC_ERROR":                          "發生未知錯誤，請稍後再試。",
+    "SERVER_ERROR":                           "伺服器暫時無法回應，請再試一次。",
 
     "USER_NOT_FOUND":                         "找不到此帳號，請確認後再試。",
     "EMAIL_ALREADY_EXISTS":                   "此電子郵件已被使用，請使用其他電子郵件或直接登入。",

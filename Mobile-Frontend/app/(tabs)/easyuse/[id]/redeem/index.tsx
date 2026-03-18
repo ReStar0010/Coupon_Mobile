@@ -131,18 +131,16 @@ export default function RedeemPage() {
 
       setInputError(false);
       setMessage('');
-      setIsLoading(true);
+    setIsLoading(true);
 
-      try {
-        const response = await fetchAPI(`/redeem/${id}/`, {
-          method: 'POST',
-          data: { redeem_code: code },
-        });
+    try {
+      const response = await fetchAPI(`/redeem/${id}/`, {
+        method: 'POST',
+        data: { redeem_code: code },
+      });
 
-        // Process the successful response
-        devLog('兌換成功', response.data);
+      devLog('兌換成功', response.data);
 
-        // Store redemption data
         setRedemptionData({
           couponName: response.data.coupon_name,
           discountValue: response.data.savings_amount,
@@ -150,28 +148,34 @@ export default function RedeemPage() {
           redemptionId: response.data.redemption_id,
         });
 
-        setInputError(false);
-        setShowSuccessConfirmation(true);
-        setRedeemCode('');
-        // 兌換會改變 `/exclusive-coupons/` 回傳結果，需讓收藏頁在回到焦點時刷新。
-        markCollectionDirty();
-      } catch (error) {
-        if (isAxiosError(error) && error.response?.status === 401) {
+      setInputError(false);
+      setShowSuccessConfirmation(true);
+      setRedeemCode('');
+      // 兌換會改變 `/exclusive-coupons/` 回傳結果，需讓收藏頁在回到焦點時刷新。
+      markCollectionDirty();
+    } catch (error) {
+        const status = isAxiosError(error) ? (error.response?.status ?? 0) : 0;
+        const isServerError = status >= 500;
+        if (isAxiosError(error) && status === 401) {
           setErrorToastMessage('');
           setShowErrorToast(false);
+        } else if (isServerError) {
+          setErrorToastMessage(t('errors.SERVER_ERROR'));
+          setShowErrorToast(true);
         } else {
           setErrorToastMessage(getErrorMessage(error));
           setShowErrorToast(true);
         }
         setInputError(true);
-        if (codeToUse === undefined) {
+        // On server errors (5xx), keep the code so the user can retry without re-entering
+        if (!isServerError && codeToUse === undefined) {
           setRedeemCode('');
         }
       } finally {
         setIsLoading(false);
       }
     },
-    [id, redeemCode, getErrorMessage],
+    [id, redeemCode, getErrorMessage, t],
   );
 
   const handleBarCodeScanned = useCallback(

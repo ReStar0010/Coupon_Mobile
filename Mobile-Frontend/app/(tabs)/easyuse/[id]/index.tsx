@@ -286,9 +286,16 @@ const CouponDetailPage: React.FC = () => {
       });
 
       if (response.data.message) {
+        // 分享成功會改變專屬券歸屬，需讓收藏頁在回到焦點時刷新。
+        markCollectionDirty();
         setShowShareModal(false);
         Alert.alert(t('easyuse.shareSuccess'), t('easyuse.shareSuccessMessage'), [
-          { text: t('easyuse.ok'), onPress: () => router.push('/(tabs)/collection') },
+          {
+            text: t('easyuse.ok'),
+            onPress: () => {
+              router.push('/(tabs)/collection');
+            },
+          },
         ]);
 
         devLog('Public share successful:', response.data);
@@ -321,6 +328,8 @@ const CouponDetailPage: React.FC = () => {
       const schemeLink = response.data.share_link as string | undefined;
       const link = webLink ?? schemeLink;
       if (link) {
+        // 分享成功會改變專屬券歸屬，需讓收藏頁在回到焦點時刷新。
+        markCollectionDirty();
         devLog('Share link generated:', link);
         return link;
       }
@@ -690,8 +699,25 @@ const CouponDetailPage: React.FC = () => {
       {/* Fixed Bottom Button */}
       {!coupon.is_redeemed && (
         <YStack style={{ position: 'absolute', bottom: 30, left: 20, right: 20 }}>
-          {sourceParam === 'collection' ? (
-            // Collection source: Keep original single button behavior
+          {coupon.coupon_type === 'store' ? (
+            // Store coupons: full-width map navigation button only (no use button)
+            <Button
+              onPress={openGoogleMaps}
+              bg="#FFAD31"
+              height={60}
+              style={{
+                borderRadius: 16,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+              <MapPin size={24} color="#333" />
+            </Button>
+          ) : (
+            // Exclusive coupons: full-width use button
             <Button
               onPress={isRedeeming || !coupon.can_use_today ? undefined : onRedeemClick}
               bg="#FFAD31"
@@ -715,47 +741,6 @@ const CouponDetailPage: React.FC = () => {
                     : t('easyuse.use')}
               </Text>
             </Button>
-          ) : (
-            // EasyUse source: Two buttons side by side (Paste_Image style)
-            <XStack gap={12} style={{ width: '100%' }}>
-              {/* Left: Large "使用" button */}
-              <Button
-                onPress={onRedeemClick}
-                bg="#FFAD31"
-                flex={2}
-                height={60}
-                style={{
-                  borderRadius: 16,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 8,
-                  elevation: 5,
-                }}
-              >
-                <Text color="#333" fontSize="$6" fontWeight="bold">
-                  {t('easyuse.use')}
-                </Text>
-              </Button>
-
-              {/* Right: Square map icon button */}
-              <Button
-                onPress={openGoogleMaps}
-                bg="#FFAD31"
-                width={60}
-                height={60}
-                style={{
-                  borderRadius: 16,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 8,
-                  elevation: 5,
-                }}
-              >
-                <MapPin size={24} color="#333" />
-              </Button>
-            </XStack>
           )}
         </YStack>
       )}

@@ -178,6 +178,7 @@ class ConsumerJourneyE2ETest(TestCase):
             contact_person='M',
             contact_info='line',
             verified=True,
+            application_status='approved',
         )
         store = Store.objects.create(
             owner=merchant,
@@ -279,6 +280,7 @@ class MerchantJourneyE2ETest(TestCase):
             contact_person='Contact',
             contact_info='line',
             verified=True,
+            application_status='approved',
         )
         Store.objects.create(
             owner=user,
@@ -318,6 +320,7 @@ class MerchantJourneyE2ETest(TestCase):
         user = User.objects.get(email='new_merchant@test.com')
         mp = MerchantProfile.objects.get(user=user)
         mp.verified = True
+        mp.application_status = 'approved'
         mp.save()
         EULAAcceptance.objects.create(
             merchant=user,
