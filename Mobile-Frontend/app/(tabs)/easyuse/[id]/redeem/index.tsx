@@ -131,37 +131,15 @@ export default function RedeemPage() {
 
       setInputError(false);
       setMessage('');
-      setIsLoading(true);
+    setIsLoading(true);
 
-      const attemptRedeem = async () => {
-        const maxRetries = 1;
-        const retryDelay = 1500;
-        let lastError: unknown;
+    try {
+      const response = await fetchAPI(`/redeem/${id}/`, {
+        method: 'POST',
+        data: { redeem_code: code },
+      });
 
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-          try {
-            return await fetchAPI(`/redeem/${id}/`, {
-              method: 'POST',
-              data: { redeem_code: code },
-            });
-          } catch (err) {
-            lastError = err;
-            const status = isAxiosError(err) ? (err.response?.status ?? 0) : 0;
-            const isServerError = status >= 500 || status === 502 || status === 503 || status === 504;
-            if (attempt < maxRetries && isServerError) {
-              await new Promise((resolve) => setTimeout(resolve, retryDelay));
-              continue;
-            }
-            throw err;
-          }
-        }
-        throw lastError;
-      };
-
-      try {
-        const response = await attemptRedeem();
-
-        devLog('兌換成功', response.data);
+      devLog('兌換成功', response.data);
 
         setRedemptionData({
           couponName: response.data.coupon_name,
@@ -170,12 +148,12 @@ export default function RedeemPage() {
           redemptionId: response.data.redemption_id,
         });
 
-        setInputError(false);
-        setShowSuccessConfirmation(true);
-        setRedeemCode('');
-        // 兌換會改變 `/exclusive-coupons/` 回傳結果，需讓收藏頁在回到焦點時刷新。
-        markCollectionDirty();
-      } catch (error) {
+      setInputError(false);
+      setShowSuccessConfirmation(true);
+      setRedeemCode('');
+      // 兌換會改變 `/exclusive-coupons/` 回傳結果，需讓收藏頁在回到焦點時刷新。
+      markCollectionDirty();
+    } catch (error) {
         const status = isAxiosError(error) ? (error.response?.status ?? 0) : 0;
         const isServerError = status >= 500;
         if (isAxiosError(error) && status === 401) {
@@ -197,7 +175,7 @@ export default function RedeemPage() {
         setIsLoading(false);
       }
     },
-    [id, redeemCode, getErrorMessage],
+    [id, redeemCode, getErrorMessage, t],
   );
 
   const handleBarCodeScanned = useCallback(
