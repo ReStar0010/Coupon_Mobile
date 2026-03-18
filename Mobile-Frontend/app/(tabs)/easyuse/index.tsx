@@ -392,16 +392,6 @@ const CouPro = () => {
   // ANIMATED STYLES
   // ============================================
 
-  // Bottom Sheet Handle/Container Border Radius Animation
-  const sheetContainerAnimatedStyle = useAnimatedStyle(() => {
-    // Border radius goes from 20 to 0 as index moves from 1 to 2
-    const borderRadius = interpolate(animatedIndex.value, [1, 2], [20, 0], Extrapolation.CLAMP);
-    return {
-      borderTopLeftRadius: borderRadius,
-      borderTopRightRadius: borderRadius,
-    };
-  });
-
   // Search Bar & Locate Button Fade Out Animation
   const searchBarAnimatedStyle = useAnimatedStyle(() => {
     // Stay visible (opacity: 1) from index 0 to 1, fade out from 1 to 2
@@ -425,18 +415,6 @@ const CouPro = () => {
       animatedIndex.value = withSpring(index, animationConfigs);
     },
     [animatedIndex, animationConfigs],
-  );
-
-  const handleAnimate = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      'worklet';
-      // Update animatedIndex for smooth interpolation
-      animatedIndex.value = withSpring(toIndex, {
-        damping: 15,
-        stiffness: 150,
-      });
-    },
-    [animatedIndex],
   );
 
   // Collapse to peek state (reserved for future use)
@@ -898,7 +876,6 @@ const CouPro = () => {
               index={0}
               snapPoints={snapPoints}
               onChange={handleSheetChanges}
-              onAnimate={handleAnimate}
               enablePanDownToClose={false}
               enableDynamicSizing={false}
               animateOnMount={true}
@@ -910,8 +887,7 @@ const CouPro = () => {
               enableContentPanningGesture={true}
               enableHandlePanningGesture={true}
             >
-              {/* Animated container for border radius */}
-              <Animated.View style={[styles.sheetContentContainer, sheetContainerAnimatedStyle]}>
+              <View style={styles.sheetContentContainer}>
                 <BottomSheetScrollView
                   contentContainerStyle={styles.scrollContent}
                   showsVerticalScrollIndicator={true}
@@ -1088,7 +1064,7 @@ const CouPro = () => {
                     <View style={{ height: 20 }} />
                   </YStack>
                 </BottomSheetScrollView>
-              </Animated.View>
+              </View>
             </BottomSheet>
           </View>
         </DismissKeyboardView>
@@ -1187,7 +1163,6 @@ const styles = StyleSheet.create({
   },
   sheetContentContainer: {
     flex: 1,
-    overflow: 'hidden',
   },
   scrollContent: {
     paddingBottom: 20,
