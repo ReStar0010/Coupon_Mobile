@@ -273,3 +273,28 @@ class PrivacyPolicyView(APIView):
             'contact_email': 'privacy@coupro.com'
         })
 
+
+class TermsOfServiceView(APIView):
+    """
+    GET /api/terms/
+    Retrieve terms of service (public, no auth required)
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        terms_path = os.path.join(settings.BASE_DIR, 'static', 'terms_zh.txt')
+
+        try:
+            with open(terms_path, 'r', encoding='utf-8') as f:
+                terms_content = f.read()
+        except FileNotFoundError:
+            terms_content = '服務條款載入失敗'
+
+        return Response({
+            'version': '1.0.0',
+            'title': 'CouPro 服務條款',
+            'content': terms_content,
+            'last_updated': '2026-03-18T00:00:00Z',
+            'contact_email': 'coupro707@gmail.com'
+        })
+

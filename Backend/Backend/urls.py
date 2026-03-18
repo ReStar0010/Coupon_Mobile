@@ -60,7 +60,7 @@ from api.views.content_moderation import (
 )
 from api.views.eula_acceptance import (
     EULAStatusView, EULAAcceptView, EULAContentView,
-    ContentGuidelinesView, PrivacyPolicyView
+    ContentGuidelinesView, PrivacyPolicyView, TermsOfServiceView
 )
 from api.views.admin_moderation import (
     ModerationQueueView, ReportDetailView, ModerationActionView,
@@ -278,6 +278,7 @@ urlpatterns = [
     # UGC Compliance: Public Legal Content (User Story 5)
     path('api/content-guidelines/', ContentGuidelinesView.as_view(), name='content_guidelines'),
     path('api/privacy-policy/', PrivacyPolicyView.as_view(), name='privacy_policy'),
+    path('api/terms/', TermsOfServiceView.as_view(), name='terms_of_service'),
 
     # UGC Compliance: Admin Moderation Dashboard (User Story 4)
     path('api/admin/moderation/queue/', ModerationQueueView.as_view(), name='moderation_queue'),
