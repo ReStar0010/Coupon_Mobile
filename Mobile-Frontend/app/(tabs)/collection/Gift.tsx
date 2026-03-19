@@ -5,6 +5,7 @@ import SuccessPopup from '../easyuse/[id]/redeem/SuccessPopup';
 import { isUserLoggedIn, fetchAPI } from '@/app/utils/authAPI';
 import { useApiError } from '@/app/hooks/useApiError';
 import { devLog } from '@/app/utils/devLogger';
+import Toast from 'react-native-toast-message';
 
 export type GiftType = {
   className?: string;
@@ -31,7 +32,6 @@ const Gift: React.FC<GiftType> = ({
 }) => {
   const { getErrorMessage } = useApiError();
   const [isAccepting, setIsAccepting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [acceptSuccess, setAcceptSuccess] = useState(false);
   const router = useRouter();
@@ -49,7 +49,6 @@ const Gift: React.FC<GiftType> = ({
     }
 
     setIsAccepting(true);
-    setError(null);
 
     try {
       const response = await fetchAPI(`/coupon/share/${token}/accept/`, {
@@ -61,7 +60,13 @@ const Gift: React.FC<GiftType> = ({
       setShowSuccessPopup(true);
     } catch (err: unknown) {
       console.error('Error accepting gift:', err);
-      setError(getErrorMessage(err));
+      Toast.show({
+        type: 'failRed',
+        text1: getErrorMessage(err),
+        position: 'bottom',
+        visibilityTime: 3500,
+        autoHide: true,
+      });
     } finally {
       setIsAccepting(false);
     }
@@ -127,11 +132,6 @@ const Gift: React.FC<GiftType> = ({
               </>
             )}
 
-            {error && (
-              <Text marginTop="$2" fontSize="$3" color="#ef4444">
-                {error}
-              </Text>
-            )}
           </YStack>
 
           {/* Right side - Action button */}

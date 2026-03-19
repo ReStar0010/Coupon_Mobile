@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, FlatList } from 'react-native';
 import { Stack } from 'expo-router';
 import { YStack, Text, Spinner, View } from 'tamagui';
@@ -125,7 +125,9 @@ const Collection: React.FC = () => {
     isDailyDrawLoading,
     hasDailyDrawn,
     availableTemplates,
+    dailyDrawError,
     handleDailyDraw,
+    clearDailyDrawError,
     closeDailyDrawWithSuccess,
   } = useDailyDraw(isAuthenticated, authLoading, fetchCoupons);
   const { shareToken, sharedCoupon, showSharedGift, handleGiftAccepted } =
@@ -254,6 +256,18 @@ const Collection: React.FC = () => {
   const handleOpenDailyDraw = useCallback(() => {
     setShowDailyDraw(true);
   }, [setShowDailyDraw]);
+
+  useEffect(() => {
+    if (!dailyDrawError) return;
+    Toast.show({
+      type: 'failRed',
+      text1: dailyDrawError,
+      position: 'bottom',
+      visibilityTime: 3500,
+      autoHide: true,
+    });
+    clearDailyDrawError();
+  }, [dailyDrawError, clearDailyDrawError]);
 
   const handleCloseDailyDraw = useCallback(() => {
     setShowDailyDraw(false);
