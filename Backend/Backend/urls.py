@@ -54,6 +54,7 @@ from api.views.phone_otp import (
 from api.views.qr_claim import generate_qr_session, invalidate_qr_session, claim_coupon_via_qr
 from api.views.account_deletion import pre_delete_check, delete_account, get_deletion_status
 from api.views.consumer_account_deletion import consumer_pre_delete_check, consumer_delete_account
+from api.views.feedback import submit_feedback
 from api.views.content_moderation import (
     ReportContentView, ReportStatusView, UserReportsView,
     BlockMerchantView, UnblockMerchantView, BlockedMerchantsListView, BlockStatusView
@@ -199,6 +200,7 @@ urlpatterns = [
     path('api/add-completed-goal/', add_completed_goal, name='add_completed_goal'),    # Daily draw endpoints
     path('api/reset-savings-goal/', reset_savings_goal, name='reset_savings_goal'),
     path('api/user-info/', user_info),
+    path('api/feedback/', submit_feedback, name='feedback'),
 
     # User phone endpoints (phone-based coupon send feature)
     # Phone OTP verification endpoints

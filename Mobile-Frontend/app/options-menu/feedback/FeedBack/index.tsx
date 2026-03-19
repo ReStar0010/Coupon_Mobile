@@ -1,35 +1,57 @@
 import React, { useState } from 'react';
-import { Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
 import { View, Text, H4, XStack, YStack, Tabs, TextArea, Button } from 'tamagui';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft, Bug, Lightbulb, Send } from 'lucide-react-native';
+import { fetchAPI } from '@/app/utils/authAPI';
 
 const FeedBack: React.FC = () => {
   const router = useRouter();
   const [bugReport, setBugReport] = useState('');
   const [featureRequest, setFeatureRequest] = useState('');
   const [activeTab, setActiveTab] = useState('bug');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleGoBack = () => router.back();
 
-  const handleSubmit = () => {
-    // Handle submission logic here
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+
     const content = activeTab === 'bug' ? bugReport : featureRequest;
-    if (content.trim()) {
-      // You can implement your submission logic here
-      console.log(`${activeTab === 'bug' ? 'Bug Report' : 'Feature Request'}: ${content}`);
+    const feedback_type = activeTab === 'bug' ? 'bug' : 'feature';
+
+    if (!content.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+
+      await fetchAPI('/feedback/', {
+        method: 'POST',
+        data: {
+          feedback_type,
+          details: content.trim(),
+        },
+      });
+
+      Alert.alert('已送出', '感謝你的回饋！我們會盡快處理。');
+
       // Clear the form after submission
       if (activeTab === 'bug') {
         setBugReport('');
       } else {
         setFeatureRequest('');
       }
+    } catch (error) {
+      console.error('送出回饋失敗:', error);
+      Alert.alert('送出失敗', '請稍後再試，或手動聯絡 coupro707@gmail.com');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true }} />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <KeyboardAvoidingView
@@ -97,8 +119,8 @@ const FeedBack: React.FC = () => {
                   <Button
                     bg="#ffad31"
                     onPress={handleSubmit}
-                    disabled={!bugReport.trim()}
-                    opacity={bugReport.trim() ? 1 : 0.5}
+                    disabled={!bugReport.trim() || isSubmitting}
+                    opacity={!bugReport.trim() || isSubmitting ? 0.5 : 1}
                     iconAfter={Send}
                   >
                     提交
@@ -127,8 +149,8 @@ const FeedBack: React.FC = () => {
                   <Button
                     bg="#ffad31"
                     onPress={handleSubmit}
-                    disabled={!featureRequest.trim()}
-                    opacity={featureRequest.trim() ? 1 : 0.5}
+                    disabled={!featureRequest.trim() || isSubmitting}
+                    opacity={!featureRequest.trim() || isSubmitting ? 0.5 : 1}
                     iconAfter={Send}
                   >
                     提交

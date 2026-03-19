@@ -708,3 +708,21 @@ class MerchantStatisticsCostExtrasSerializer(serializers.Serializer):
     today_cost_currency = serializers.CharField(
         max_length=10, required=False, allow_null=True, allow_blank=True
     )
+
+
+class FeedbackSubmitSerializer(serializers.Serializer):
+    """
+    Serializer for user feedback submission.
+    POST /api/feedback/
+    """
+
+    feedback_type = serializers.ChoiceField(
+        choices=['bug', 'feature'],
+        help_text="bug = Bug 回報；feature = 功能建議",
+    )
+    details = serializers.CharField(
+        max_length=2000,
+        help_text="User feedback details",
+        allow_blank=False,
+        required=True,
+    )
