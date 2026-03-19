@@ -416,9 +416,9 @@ const CouponDetailPage: React.FC = () => {
       const { lat, lng } = coupon.store_location;
       const label = encodeURIComponent(coupon.store_name || 'Store Location');
 
-      // Create Google Maps URL
+      // Use Universal Links for maps — more reliable than custom schemes on iOS 18+
       const url = Platform.select({
-        ios: `maps:0,0?q=${lat},${lng}(${label})`,
+        ios: `https://maps.apple.com/?q=${lat},${lng}&label=${label}`,
         android: `geo:0,0?q=${lat},${lng}(${label})`,
         default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
       });
@@ -428,13 +428,11 @@ const CouponDetailPage: React.FC = () => {
           if (supported) {
             return Linking.openURL(url!);
           } else {
-            // Fallback to web version
             const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
             return Linking.openURL(webUrl);
           }
         })
-        .catch((err) => {
-          Sentry.captureException(err, { data: { context: 'easyuse.openMapsNavigation' } });
+        .catch((_err) => {
           Alert.alert(t('easyuse.error'), t('easyuse.openMapsFailed'));
         });
     } else {
