@@ -1,5 +1,4 @@
-export const API_BASE_URL: string =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || 'https://coupon-mobile.onrender.com';
+export const API_BASE_URL: string = process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || 'https://coupon-mobile.onrender.com';
 
 export const API_URL = `${API_BASE_URL}/api`;
 
