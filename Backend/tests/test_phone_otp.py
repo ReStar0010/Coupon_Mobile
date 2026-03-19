@@ -271,6 +271,54 @@ class PhoneOTPCouponClaimTests(PhoneOTPTestBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['pending_coupons_claimed'], 0)
 
+    def test_expired_pending_coupon_not_claimed_on_verification(self):
+        """Expired pending coupons are skipped (aligned with assign_pending_coupons)."""
+        expired = Coupon.objects.create(
+            store=self.store,
+            template=self.template,
+            coupon_name='Expired Pending',
+            coupon_detail='Test detail',
+            start_date=timezone.now() - timedelta(days=60),
+            expiry_date=timezone.now() - timedelta(days=1),
+            coupon_type='exclusive',
+            pending_phone_number=self.test_phone,
+        )
+        otp_record = PhoneOTPRecord.create_otp(self.user, self.test_phone)
+        response = self.client.post('/api/phone-otp/verify/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_record.otp_code
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['pending_coupons_claimed'], 0)
+        expired.refresh_from_db()
+        self.assertIsNone(expired.current_holder)
+        self.assertEqual(expired.pending_phone_number, self.test_phone)
+
+    def test_pending_claim_preserves_non_empty_acquisition_method(self):
+        """Claim does not overwrite acquisition_method when already set (e.g. qr_claim)."""
+        coupon = Coupon.objects.create(
+            store=self.store,
+            template=self.template,
+            coupon_name='QR Pending',
+            coupon_detail='Test detail',
+            start_date=timezone.now(),
+            expiry_date=timezone.now() + timedelta(days=30),
+            coupon_type='exclusive',
+            pending_phone_number=self.test_phone,
+            acquisition_method='qr_claim',
+        )
+        otp_record = PhoneOTPRecord.create_otp(self.user, self.test_phone)
+        response = self.client.post('/api/phone-otp/verify/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_record.otp_code
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['pending_coupons_claimed'], 1)
+        coupon.refresh_from_db()
+        self.assertEqual(coupon.current_holder, self.user)
+        self.assertIsNone(coupon.pending_phone_number)
+        self.assertEqual(coupon.acquisition_method, 'qr_claim')
+
 
 @override_settings(SMS_DEV_MODE=True)
 class UserPhoneEndpointTests(PhoneOTPTestBase):
@@ -695,6 +743,60 @@ class RegistrationIntegrationTests(TestCase):
         # Step 4: Verify JWT tokens are valid
         access_token = verify_response.data['access_token']
         self.assertIsNotNone(access_token)
+
+    def test_registration_claims_pending_coupons_and_sets_owner(self):
+        """Pending coupons for the registering phone match assign_pending_coupons semantics."""
+        merchant = User.objects.create_user(
+            username='merchant_reg_pending@example.com',
+            email='merchant_reg_pending@example.com',
+            password='pass123',
+        )
+        store = Store.objects.create(
+            owner=merchant,
+            name='Reg Pending Store',
+            lat=25.0,
+            lng=121.0,
+            address='Addr',
+        )
+        template = CouponTemplate.objects.create(
+            store=store,
+            coupon_name='Tpl',
+            coupon_detail='D',
+            total_quantity=5,
+            remaining_quantity=5,
+            start_date=timezone.now(),
+            expiry_date=timezone.now() + timedelta(days=30),
+        )
+        pending = Coupon.objects.create(
+            store=store,
+            template=template,
+            coupon_name='Pending For Reg',
+            coupon_detail='D',
+            start_date=timezone.now(),
+            expiry_date=timezone.now() + timedelta(days=30),
+            coupon_type='exclusive',
+            pending_phone_number=self.test_phone,
+        )
+
+        send_response = self.client.post('/api/register/send-otp/', {
+            'phone_number': self.test_phone
+        })
+        self.assertEqual(send_response.status_code, status.HTTP_200_OK)
+        otp_code = send_response.data['otp_code']
+
+        verify_response = self.client.post('/api/register/verify-otp/', {
+            'phone_number': self.test_phone,
+            'otp_code': otp_code,
+            'password': self.test_password
+        })
+        self.assertEqual(verify_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(verify_response.data.get('coupons_claimed'), 1)
+
+        user = User.objects.get(username=self.test_phone)
+        pending.refresh_from_db()
+        self.assertEqual(pending.current_holder, user)
+        self.assertEqual(pending.original_owner, user)
+        self.assertIsNone(pending.pending_phone_number)
 
     def test_registration_failure_duplicate_phone(self):
         """T018: Test registration fails for duplicate phone (409)."""

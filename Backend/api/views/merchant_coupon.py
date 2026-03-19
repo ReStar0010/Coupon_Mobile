@@ -40,9 +40,10 @@ from drf_yasg import openapi
 from ..models import Coupon, CouponShareRequest, Log, StudentProfile, CouponTemplate, Store, Tag, CouponRedemption
 from ..serializers import ConsolidateCouponSerializer, RefreshRedeemCodeSerializer, CouponTemplateSerializer, MerchantRedeemSerializer, UnifiedRedemptionCodeSerializer
 from ..utils import generate_unified_redemption_code, get_store_today, get_store_currency_code
-from django.db.models import Count, F, Sum, Value
+from django.db.models import Count, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.db.models import DecimalField
+from django.db import transaction
 from datetime import timedelta, datetime, date as date_type
 import math
 from zoneinfo import ZoneInfo
@@ -137,29 +138,40 @@ def merchant_consolidate_coupon(request):
         
     except StudentProfile.DoesNotExist:
         # T017: Unregistered phone - create pending coupon
-        coupon = Coupon.objects.create(
-            store=coupon_template.store,
-            template=coupon_template,
-            coupon_name=coupon_template.coupon_name,
-            coupon_detail=coupon_template.coupon_detail,
-            important_notes=coupon_template.important_notes,
-            start_date=coupon_template.start_date,
-            expiry_date=coupon_template.expiry_date,
-            image_url=coupon_template.image_url,
-            coupon_type='exclusive',
-            estimated_savings=coupon_template.estimated_savings,
-            acquisition_method='consolidate',
-            pending_phone_number=phone_number,
-            current_holder=None,
-            original_owner=None,
-        )
-        coupon.tags.set(coupon_template.tags.all())
-        
-        # Decrement template quantity
-        coupon_template.remaining_quantity -= 1
-        if coupon_template.remaining_quantity <= 0:
-            coupon_template.is_active = False
-        coupon_template.save()
+        with transaction.atomic():
+            updated_rows = CouponTemplate.objects.filter(
+                id=coupon_template.id,
+                is_active=True,
+                remaining_quantity__gt=0,
+            ).update(remaining_quantity=F('remaining_quantity') - 1)
+
+            if updated_rows == 0:
+                raise CouponTemplateOutOfStock(
+                    developer_message="Coupon template is out of stock."
+                )
+
+            coupon_template.refresh_from_db(fields=['remaining_quantity', 'is_active'])
+            if coupon_template.remaining_quantity <= 0 and coupon_template.is_active:
+                coupon_template.is_active = False
+                coupon_template.save(update_fields=['is_active'])
+
+            coupon = Coupon.objects.create(
+                store=coupon_template.store,
+                template=coupon_template,
+                coupon_name=coupon_template.coupon_name,
+                coupon_detail=coupon_template.coupon_detail,
+                important_notes=coupon_template.important_notes,
+                start_date=coupon_template.start_date,
+                expiry_date=coupon_template.expiry_date,
+                image_url=coupon_template.image_url,
+                coupon_type='exclusive',
+                estimated_savings=coupon_template.estimated_savings,
+                acquisition_method='consolidate',
+                pending_phone_number=phone_number,
+                current_holder=None,
+                original_owner=None,
+            )
+            coupon.tags.set(coupon_template.tags.all())
         
         # T018: Return with recipient_status and masked phone
         return Response({
@@ -262,9 +274,22 @@ def list_coupon_templates(request):
     store = get_merchant_store(request.user)
     if not store:
         raise NoStoreForMerchant(developer_message="No store found for this merchant. Please create a store first.")
-    
-    templates = CouponTemplate.objects.filter(store=store).order_by('-created_at')
-    
+
+    # prefetch_related('tags') avoids N tag queries.
+    # annotate redemption_count in a single DB round-trip instead of one .count() per template.
+    templates = (
+        CouponTemplate.objects.filter(store=store)
+        .order_by('-created_at')
+        .prefetch_related('tags')
+        .annotate(
+            redemption_count=Count(
+                'coupons',
+                filter=Q(coupons__coupon_type='exclusive'),
+                distinct=True,
+            )
+        )
+    )
+
     template_list = []
     for template in templates:
         template_data = {
@@ -283,13 +308,13 @@ def list_coupon_templates(request):
             'is_active': template.is_active,
             'created_at': template.created_at.isoformat(),
             'tags': [tag.id for tag in template.tags.all()],
-            'redemption_count': template.coupons.filter(coupon_type='exclusive').count(),
+            'redemption_count': template.redemption_count,
             # Only exclusive coupons (total_quantity > 0) can be sold out
             # Store coupons (total_quantity = 0) are always available
             'is_sold_out': template.total_quantity > 0 and template.remaining_quantity <= 0,
         }
         template_list.append(template_data)
-    
+
     return Response(template_list, status=status.HTTP_200_OK)
 
 

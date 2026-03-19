@@ -13,7 +13,7 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from api.models import MerchantProfile, Store, CouponTemplate, Coupon
+from api.models import MerchantProfile, Store, CouponTemplate, Coupon, StudentProfile
 
 
 class MerchantCouponRoutesTest(TestCase):
@@ -139,3 +139,73 @@ class MerchantCouponRoutesTest(TestCase):
             'user_id': 1,
         }, format='json')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_401_UNAUTHORIZED, status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND))
+
+    def test_consolidate_coupon_pending_branch_decrements_stock_consistently(self):
+        """Unregistered flow should create pending coupons and decrement stock exactly once per success."""
+        self.client.force_authenticate(user=self.merchant)
+        self.template.remaining_quantity = 3
+        self.template.total_quantity = 3
+        self.template.is_active = True
+        self.template.save(update_fields=['remaining_quantity', 'total_quantity', 'is_active'])
+
+        phone_1 = '0911222333'
+        phone_2 = '0911222444'
+        self.assertFalse(StudentProfile.objects.filter(phone_number=phone_1).exists())
+        self.assertFalse(StudentProfile.objects.filter(phone_number=phone_2).exists())
+
+        response_1 = self.client.post(
+            '/api/merchant/consolidate-coupon/',
+            {'template_id': self.template.id, 'phone_number': phone_1},
+            format='json',
+        )
+        response_2 = self.client.post(
+            '/api/merchant/consolidate-coupon/',
+            {'template_id': self.template.id, 'phone_number': phone_2},
+            format='json',
+        )
+
+        self.assertEqual(response_1.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_2.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_1.data.get('recipient_status'), 'pending')
+        self.assertEqual(response_2.data.get('recipient_status'), 'pending')
+
+        self.template.refresh_from_db()
+        pending_count = Coupon.objects.filter(template=self.template, pending_phone_number__isnull=False).count()
+        self.assertEqual(pending_count, 2)
+        self.assertEqual(self.template.remaining_quantity, 1)
+        self.assertGreaterEqual(self.template.remaining_quantity, 0)
+
+    def test_consolidate_coupon_pending_branch_second_request_fails_when_stock_is_one(self):
+        """When stock is 1, only first pending consolidate succeeds and stock never goes negative."""
+        self.client.force_authenticate(user=self.merchant)
+        self.template.remaining_quantity = 1
+        self.template.total_quantity = 1
+        self.template.is_active = True
+        self.template.save(update_fields=['remaining_quantity', 'total_quantity', 'is_active'])
+
+        first_phone = '0911333444'
+        second_phone = '0911333555'
+
+        response_1 = self.client.post(
+            '/api/merchant/consolidate-coupon/',
+            {'template_id': self.template.id, 'phone_number': first_phone},
+            format='json',
+        )
+        response_2 = self.client.post(
+            '/api/merchant/consolidate-coupon/',
+            {'template_id': self.template.id, 'phone_number': second_phone},
+            format='json',
+        )
+
+        self.assertEqual(response_1.status_code, status.HTTP_200_OK)
+        self.assertIn(
+            response_2.status_code,
+            (status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT),
+        )
+
+        self.template.refresh_from_db()
+        pending_count = Coupon.objects.filter(template=self.template, pending_phone_number__isnull=False).count()
+        self.assertEqual(pending_count, 1)
+        self.assertEqual(self.template.remaining_quantity, 0)
+        self.assertFalse(self.template.is_active)
+        self.assertGreaterEqual(self.template.remaining_quantity, 0)
