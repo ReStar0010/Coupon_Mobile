@@ -76,16 +76,18 @@ def draw_coupon(request):
             start_date__lte=now,
             expiry_date__gt=now
         )
-          # Set user's last draw time in their StudentProfile
-        try:
-            student_profile = StudentProfile.objects.get(user=request.user)
-            student_profile.last_draw_time = timezone.now()
-            student_profile.save()
-        except StudentProfile.DoesNotExist:
-            logger.warning(
-                "StudentProfile not found for authenticated user %s during daily draw",
+        # Ensure StudentProfile exists (create if missing) and set last draw time
+        student_profile, created = StudentProfile.objects.get_or_create(
+            user=request.user,
+            defaults={},
+        )
+        if created:
+            logger.info(
+                "Created missing StudentProfile for user %s during daily draw",
                 request.user.id,
             )
+        student_profile.last_draw_time = timezone.now()
+        student_profile.save()
         
         # Determine if user successfully draws the coupon based on probability
         success = random.random() < template.draw_probability

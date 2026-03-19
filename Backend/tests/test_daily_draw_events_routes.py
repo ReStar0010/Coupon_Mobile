@@ -62,6 +62,24 @@ class DailyDrawEventsRoutesTest(TestCase):
         }, format='json')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND))
 
+    def test_daily_draw_creates_student_profile_when_missing(self):
+        """POST api/coupon/daily-draw/ creates StudentProfile when user has none (no 502)."""
+        user_no_profile = User.objects.create_user(
+            username='noprofile@test.com',
+            email='noprofile@test.com',
+            password='testpass123',
+        )
+        self.assertFalse(StudentProfile.objects.filter(user=user_no_profile).exists())
+        self.client.force_authenticate(user=user_no_profile)
+        response = self.client.post('/api/coupon/daily-draw/', {
+            'template_id': self.template.id,
+        }, format='json')
+        self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST))
+        self.assertTrue(
+            StudentProfile.objects.filter(user=user_no_profile).exists(),
+            "StudentProfile should be created when missing during daily draw",
+        )
+
     def test_draw_history_requires_auth(self):
         """GET api/coupon/draw-history/ without auth returns 401."""
         response = self.client.get('/api/coupon/draw-history/')
