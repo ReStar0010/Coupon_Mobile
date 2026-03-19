@@ -45,6 +45,52 @@ const Terms: React.FC = () => {
     }
   };
 
+  let content: React.ReactNode = null;
+
+  if (loading) {
+    content = (
+      <View flex={1} py="$8" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+        <Text mt="$4" color="$gray10">載入中...</Text>
+      </View>
+    );
+  } else if (error) {
+    content = (
+      <View flex={1} py="$8" style={{ alignItems: 'center' }}>
+        <Text color="$red10" style={{ textAlign: 'center' }}>{error}</Text>
+        <Text mt="$4" color="$blue10" onPress={loadTerms}>重試</Text>
+      </View>
+    );
+  } else if (termsData) {
+    content = (
+      <View
+        flex={1}
+        gap={'$4'}
+        mt={'$5'}
+        bg="white"
+        rounded={'$5'}
+        p={'$5'}
+        style={{ borderWidth: 1, borderColor: '#e1e1e1' }}
+      >
+        {termsData.last_updated ? (
+          <View mb="$2">
+            <Text fontSize={12} color="$gray10">
+              最後更新：{new Date(termsData.last_updated).toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </Text>
+          </View>
+        ) : null}
+        <H6 fontWeight="500" mb="$2">{termsData.title}</H6>
+        <Text fontSize={14} lineHeight={24} color="$gray12" whiteSpace="pre-line">
+          {termsData.content}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -57,43 +103,7 @@ const Terms: React.FC = () => {
           </H4>
         </XStack>
 
-        {loading ? (
-          <View flex={1} py="$8" style={{ justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" />
-            <Text mt="$4" color="$gray10">載入中...</Text>
-          </View>
-        ) : error ? (
-          <View flex={1} py="$8" style={{ alignItems: 'center' }}>
-            <Text color="$red10" style={{ textAlign: 'center' }}>{error}</Text>
-            <Text mt="$4" color="$blue10" onPress={loadTerms}>重試</Text>
-          </View>
-        ) : termsData ? (
-          <View
-            flex={1}
-            gap={'$4'}
-            mt={'$5'}
-            bg="white"
-            rounded={'$5'}
-            p={'$5'}
-            style={{ borderWidth: 1, borderColor: '#e1e1e1' }}
-          >
-            {termsData.last_updated ? (
-              <View mb="$2">
-                <Text fontSize={12} color="$gray10">
-                  最後更新：{new Date(termsData.last_updated).toLocaleDateString('zh-TW', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </Text>
-              </View>
-            ) : null}
-            <H6 fontWeight="500" mb="$2">{termsData.title}</H6>
-            <Text fontSize={14} lineHeight={24} color="$gray12" whiteSpace="pre-line">
-              {termsData.content}
-            </Text>
-          </View>
-        ) : null}
+        {content}
       </ScrollView>
     </>
   );

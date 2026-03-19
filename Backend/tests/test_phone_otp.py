@@ -749,7 +749,7 @@ class RegistrationIntegrationTests(TestCase):
         merchant = User.objects.create_user(
             username='merchant_reg_pending@example.com',
             email='merchant_reg_pending@example.com',
-            password='pass123',
+            password=self.test_password,
         )
         store = Store.objects.create(
             owner=merchant,
@@ -803,7 +803,7 @@ class RegistrationIntegrationTests(TestCase):
         # Create existing user
         existing_user = User.objects.create_user(
             username='0911111111',
-            password='pass123'
+            password=self.test_password
         )
         StudentProfile.objects.create(
             user=existing_user,

@@ -8,7 +8,7 @@
   {% csrf_token %}
   <table>
     <tr>
-      <th><label>優惠券範本：</label></th>
+      <th><label for="{{ form.templates.id_for_label }}">優惠券範本：</label></th>
       <td>
         {{ form.templates }}
         {% if form.templates.help_text %}<br><small>{{ form.templates.help_text }}</small>{% endif %}

@@ -590,85 +590,89 @@ class CouponTemplateAdmin(admin.ModelAdmin):
         ]
         return extra + urls
 
+    def _norm_digits(self, s: str) -> str:
+        import re
+        return re.sub(r'\D', '', s or '')
+
+    def _profile_phone(self, u) -> str:
+        try:
+            return u.student_profile.phone_number or ''
+        except StudentProfile.DoesNotExist:
+            return ''
+
+    def _phone_sort_key(self, u, q: str, digits_q: str) -> tuple[int, str]:
+        raw_phone = self._profile_phone(u)
+        pn_digits = self._norm_digits(raw_phone)
+        if digits_q and pn_digits == digits_q:
+            return (0, u.email or '')
+        if digits_q and pn_digits.endswith(digits_q):
+            return (1, u.email or '')
+        if digits_q and digits_q in pn_digits:
+            return (2, u.email or '')
+        if q.lower() in (raw_phone or '').lower():
+            return (3, u.email or '')
+        return (4, u.email or '')
+
+    def _display_user_text(self, u) -> str:
+        phone = self._profile_phone(u)
+        if phone:
+            return f'{u.email} · 📱 {phone}'
+        return u.email
+
+    def _build_phone_filter(self, q: str, digits_q: str, has_phone: Q) -> Q:
+        phone_contains = Q(student_profile__phone_number__icontains=q)
+        if digits_q and len(digits_q) >= 2:
+            phone_contains |= Q(student_profile__phone_number__icontains=digits_q)
+        return has_phone & phone_contains
+
+    def _build_phone_search_results(self, phone_users, limit: int = 20) -> tuple[list[dict], set[int]]:
+        seen: set[int] = set()
+        results: list[dict] = []
+        for u in phone_users:
+            if u.id in seen:
+                continue
+            seen.add(u.id)
+            results.append({'id': u.id, 'text': self._display_user_text(u)})
+            if len(results) >= limit:
+                break
+        return results, seen
+
     def user_search_view(self, request):
         """JSON：搜尋使用者。電話（StudentProfile）優先，其次 email／username。"""
-        import re
         from django.http import JsonResponse
 
         q = request.GET.get('q', '').strip()
         if len(q) < 2:
             return JsonResponse({'results': []})
 
-        def norm_digits(s: str) -> str:
-            return re.sub(r'\D', '', s or '')
-
-        digits_q = norm_digits(q)
-        User = get_user_model()
+        digits_q = self._norm_digits(q)
+        user_model = get_user_model()
 
         has_phone = (
             Q(student_profile__phone_number__isnull=False)
             & ~Q(student_profile__phone_number='')
         )
         # 電話比對：完整輸入 + 純數字（方便 +886 / 空格分隔仍能找到）
-        if len(digits_q) >= 2:
-            phone_filter = has_phone & (
-                Q(student_profile__phone_number__icontains=q)
-                | Q(student_profile__phone_number__icontains=digits_q)
-            )
-        else:
-            phone_filter = has_phone & Q(student_profile__phone_number__icontains=q)
+        phone_filter = self._build_phone_filter(q, digits_q, has_phone)
 
         phone_users = list(
-            User.objects.filter(phone_filter)
+            user_model.objects.filter(phone_filter)
             .select_related('student_profile')
             .distinct()[:40]
         )
+        phone_users.sort(key=lambda u: self._phone_sort_key(u, q, digits_q))
 
-        def profile_phone(u):
-            try:
-                p = u.student_profile.phone_number or ''
-            except StudentProfile.DoesNotExist:
-                return ''
-            return p
-
-        def phone_sort_key(u):
-            pn_digits = norm_digits(profile_phone(u))
-            if digits_q and pn_digits == digits_q:
-                return (0, u.email or '')
-            if digits_q and pn_digits.endswith(digits_q):
-                return (1, u.email or '')
-            if digits_q and digits_q in pn_digits:
-                return (2, u.email or '')
-            if q.lower() in (profile_phone(u) or '').lower():
-                return (3, u.email or '')
-            return (4, u.email or '')
-
-        phone_users.sort(key=phone_sort_key)
-        seen: set[int] = set()
-        results: list[dict] = []
-
-        def display_text(u) -> str:
-            phone = profile_phone(u)
-            if phone:
-                return f'{u.email} · 📱 {phone}'
-            return u.email
-
-        for u in phone_users:
-            if u.id in seen:
-                continue
-            seen.add(u.id)
-            results.append({'id': u.id, 'text': display_text(u)})
-            if len(results) >= 20:
-                return JsonResponse({'results': results})
+        results, seen = self._build_phone_search_results(phone_users, limit=20)
 
         remaining = 20 - len(results)
         if remaining > 0:
             for u in (
-                User.objects.filter(Q(email__icontains=q) | Q(username__icontains=q))
+                user_model.objects.filter(Q(email__icontains=q) | Q(username__icontains=q))
                 .exclude(id__in=seen)
                 .order_by('email')[:remaining]
             ):
-                results.append({'id': u.id, 'text': display_text(u)})
+                results.append({'id': u.id, 'text': self._display_user_text(u)})
+                seen.add(u.id)
 
         return JsonResponse({'results': results})
 
