@@ -1,36 +1,34 @@
 """
-Gunicorn configuration for CouPro backend (Render, 0.5 CPU / 512 MB).
+Gunicorn configuration for CouPro backend (Render).
 
-Start command:
-    python -m gunicorn Backend.asgi:application -k uvicorn.workers.UvicornWorker
+Actual start command on Render:
+    python -m gunicorn Backend.wsgi:application -k gthread --workers 3 --threads 2
+        --timeout 30 --graceful-timeout 15 --keep-alive 5
+        --max-requests 500 --max-requests-jitter 50
 
-Two workers: if one crashes the other continues serving while gunicorn
-restarts the failed worker, breaking the crash-and-no-recovery loop.
-Each UvicornWorker runs its own asyncio event loop; Django's ASGI handler
-dispatches synchronous views to a thread pool.
+This file documents and supplements the above. Values here are overridden by
+explicit CLI flags, so the Render start command remains the source of truth.
 """
 import os
 
-# 2 workers on 0.5 CPU / 512 MB: one crash does not take the service offline.
-# Override via WEB_CONCURRENCY env var (Render sets this on paid plans).
-workers = int(os.environ.get("WEB_CONCURRENCY", 2))
+# 3 workers × 2 threads = 6 concurrent request slots on 1 CPU / 2 GB.
+workers = int(os.environ.get("WEB_CONCURRENCY", 3))
+worker_class = "gthread"
+threads = int(os.environ.get("THREADS", 2))
 
-# UvicornWorker for ASGI (required by Backend.asgi:application).
-worker_class = "uvicorn.workers.UvicornWorker"
+# 60 s gives DB-heavy views (redeem_coupon: ~10 sequential queries) enough
+# headroom before gunicorn kills a worker under momentary DB slowness.
+# The root fix is reducing DB round-trips in the view; this is the safety net.
+timeout = 60
+graceful_timeout = 15
+keepalive = 5
 
-# Recycle each worker after N requests to prevent memory leaks accumulating.
-# Jitter spreads the restarts so both workers don't recycle simultaneously.
-max_requests = 200
+# Recycle workers after N requests to prevent memory leaks.
+# 500 + jitter avoids simultaneous restarts that would drop capacity to 4 slots.
+max_requests = 500
 max_requests_jitter = 50
 
-# Kill a worker that has not responded in 120 s.
-# 30 s was too short under moderate load; slow DB queries under concurrent
-# connections need more headroom before the worker is declared dead.
-timeout = 120
-graceful_timeout = 30
-
-# Use /dev/shm for the worker heartbeat temp file.
-# Avoids disk I/O stalls on Render's ephemeral filesystem under load.
+# Use /dev/shm for heartbeat temp file to avoid disk I/O stalls.
 worker_tmp_dir = "/dev/shm"
 
 # Send all logs to stdout so Render captures them.
