@@ -530,6 +530,18 @@ export const fetchAPI = async (
 
       // Handle other error responses: parse error_code/context, Sentry only for 5xx or unknown codes
       if (isAxiosError(error)) {
+        // User navigated away / request intentionally aborted.
+        // This is expected behavior and should not be reported to Sentry.
+        if (error.code === 'ERR_CANCELED') {
+          throw error;
+        }
+
+        // Network errors (offline, DNS, etc.) are common and usually user/environment related.
+        // We still surface them to the UI via getErrorMessage, but we don't report to Sentry to avoid noise.
+        if (!error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
+          throw error;
+        }
+
         const responseData = error.response?.data ?? {};
         const statusCode = error.response?.status ?? 0;
 
@@ -541,7 +553,9 @@ export const fetchAPI = async (
           error.errorContext = {};
         }
 
-        const isUnexpected = statusCode >= 500 || !EXPECTED_ERROR_CODES.has(error.errorCode ?? '');
+        // Gateway/infrastructure errors (502/503/504) are not application bugs — exclude from Sentry.
+        const isGatewayError = statusCode === 502 || statusCode === 503 || statusCode === 504;
+        const isUnexpected = !isGatewayError && (statusCode >= 500 || !EXPECTED_ERROR_CODES.has(error.errorCode ?? ''));
         if (isUnexpected) {
           Sentry.captureException(error, {
             data: { context: 'authAPI.fetchAPI', endpoint, status: statusCode },
