@@ -28,6 +28,9 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
 }) => {
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
 
+  const failedResultText =
+    !result?.success && result?.message ? result.message : '今天沒有抽中';
+
   useEffect(() => {
     if (isOpen && templatesAvailable === 0) {
       setIsLoadingTemplates(true);
@@ -167,7 +170,7 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({
                       textAlign="right"
                       numberOfLines={2}
                     >
-                      {result.success && result.coupon ? result.coupon.name : '今天沒有抽中'}
+                      {result.success && result.coupon ? result.coupon.name : failedResultText}
                     </Text>
                   </XStack>
                 </YStack>

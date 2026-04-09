@@ -12,6 +12,7 @@ import random
 import string
 
 from api.models import CouponTemplate, Coupon, StudentProfile, Log
+from api.exceptions import CouponTemplateNotFound, UserNotFound
 from ..serializers import DrawCouponSerializer
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,11 @@ def draw_coupon(request):
             logger.warning(
                 "StudentProfile not found for authenticated user %s during daily draw",
                 request.user.id,
+            )
+            raise UserNotFound(
+                developer_message=(
+                    f"StudentProfile not found for authenticated user {request.user.id} during daily draw"
+                )
             )
         
         # Determine if user successfully draws the coupon based on probability
