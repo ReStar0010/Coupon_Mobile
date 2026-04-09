@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, H4, XStack, YStack, Tabs, TextArea, Button } from 'tamagui';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeft, Bug, Lightbulb, Send } from 'lucide-react-native';
@@ -7,6 +8,7 @@ import { fetchAPI } from '@/app/utils/authAPI';
 
 const FeedBack: React.FC = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [bugReport, setBugReport] = useState('');
   const [featureRequest, setFeatureRequest] = useState('');
   const [activeTab, setActiveTab] = useState('bug');
@@ -59,7 +61,7 @@ const FeedBack: React.FC = () => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={90} // adjust if header overlaps
         >
-          <View flex={1} px="$4" py="$6" gap="$4">
+          <View flex={1} px="$4" py="$6" gap="$4" style={{ paddingTop: insets.top + 10 }}>
             {/* Header with back button and title */}
             <XStack gap={13} items="center">
               <ChevronLeft size={24} onPress={handleGoBack} color={'black'} />
