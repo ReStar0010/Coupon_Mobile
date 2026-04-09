@@ -2,7 +2,7 @@
   "expo": {
     "name": "CouPro",
     "slug": "Mobile-Frontend",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "scheme": ["coupro"],
     "web": {
       "favicon": "./assets/icon.png",
