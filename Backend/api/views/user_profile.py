@@ -14,7 +14,6 @@ from drf_yasg import openapi
 
 from ..serializers import SetSavingsGoalSerializer
 from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log, PlatformVoucherRedemption, WebRedemption
-from ..utils import sync_web_redemption_progress_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +67,10 @@ def progress_trackers(request):
     GET /api/progress-trackers/
     Returns the three progress metrics for the authenticated user:
       - total_redemptions: exclusive coupon + platform voucher + web (phone-linked) redemptions
-      - sharing_progress: O count and N threshold for sharing light system
+      - sharing_progress: in-app exclusive sharing lights only (web self-redemption excluded)
       - referral_progress: O count and N threshold for new user referral light system
     """
     try:
-        sync_web_redemption_progress_for_user(request.user)
         profile = request.user.student_profile
         exclusive_count = CouponRedemption.objects.filter(
             user=request.user, coupon_type='exclusive'

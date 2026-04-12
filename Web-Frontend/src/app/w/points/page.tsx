@@ -35,8 +35,14 @@ function PointsContent() {
         ...(session ? { session_token: session } : {}),
       });
       setResult(data);
-    } catch {
-      setError('查詢失敗，請確認手機號碼後再試。');
+    } catch (e: unknown) {
+      const data = e && typeof e === 'object' && 'data' in e ? (e as { data?: { error?: string } }).data : undefined;
+      const msg = data?.error;
+      setError(
+        typeof msg === 'string' && msg.length > 0
+          ? msg
+          : '查詢失敗，請確認手機號碼後再試。',
+      );
     } finally {
       setLoading(false);
     }
@@ -77,6 +83,9 @@ function PointsContent() {
         <div className="text-5xl mb-4">📱</div>
         <h1 className="text-2xl font-bold text-gray-900">要累積點數嗎？</h1>
         <p className="text-sm text-gray-500 mt-2">輸入手機號碼查看您的累積點數。</p>
+        <p className="text-xs text-gray-400 mt-3 leading-relaxed px-1">
+          註冊或登入 App 時請使用相同手機號碼，累積點數才會與您的帳號合併計算。
+        </p>
       </div>
 
       <div className="flex flex-col gap-3">

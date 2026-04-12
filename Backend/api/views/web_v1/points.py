@@ -3,7 +3,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from api.models import WebRedemption, CouponRedemption, StudentProfile
-from api.utils import sync_web_redemption_progress_for_user
+from api.utils import validate_phone_number
 
 POINTS_THRESHOLD = 3
 
@@ -11,11 +11,19 @@ POINTS_THRESHOLD = 3
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def points_lookup(request):
-    phone_number = request.data.get('phone_number', '').strip()
+    raw_phone = request.data.get('phone_number', '').strip()
     session_token = request.data.get('session_token', '').strip()
 
-    if not phone_number:
+    if not raw_phone:
         return Response({'error': '請輸入手機號碼'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        phone_number = validate_phone_number(raw_phone)
+    except ValueError:
+        return Response(
+            {'error': '手機號碼格式不正確，請輸入有效的台灣手機號碼（09 開頭共 10 碼）。'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Link current redemption to phone if not already linked
     if session_token:
@@ -31,7 +39,6 @@ def points_lookup(request):
     app_count = 0
     try:
         profile = StudentProfile.objects.get(phone_number=phone_number)
-        sync_web_redemption_progress_for_user(profile.user)
         app_count = CouponRedemption.objects.filter(user=profile.user).count()
     except StudentProfile.DoesNotExist:
         pass

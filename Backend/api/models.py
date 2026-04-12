@@ -416,7 +416,10 @@ class WebRedemption(models.Model):
     )
     progress_applied = models.BooleanField(
         default=False,
-        help_text="True once this web redemption has been synced to sharing progress for the phone owner",
+        help_text=(
+            "Legacy: Web self-redemption no longer advances sharing lights; "
+            "field retained for DB compatibility."
+        ),
     )
     redeemed_at = models.DateTimeField(auto_now_add=True)
 

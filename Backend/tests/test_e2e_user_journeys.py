@@ -800,7 +800,8 @@ class WebConsumerJourneyE2ETest(TestCase):
     def test_web_points_lookup_syncs_progress_trackers(self):
         """
         After linking a web redemption to a phone that matches a registered user,
-        sharing progress and total_redemptions reflect the web redemption like app redemptions.
+        total_redemptions includes phone-linked WebRedemptions; sharing_progress does not
+        advance from web self-redemption (only exclusive in-app redemptions do).
         """
         phone = '0912000999'
         consumer = User.objects.create_user(
@@ -843,16 +844,16 @@ class WebConsumerJourneyE2ETest(TestCase):
 
         wr.refresh_from_db()
         self.assertEqual(wr.phone_number, phone)
-        self.assertTrue(wr.progress_applied)
+        self.assertFalse(wr.progress_applied)
 
         after = consumer_client.get('/api/progress-trackers/')
         self.assertEqual(after.status_code, status.HTTP_200_OK, after.json())
         data = after.json()
         self.assertEqual(data['total_redemptions'], 1)
-        self.assertEqual(data['sharing_progress']['count'], 1)
+        self.assertEqual(data['sharing_progress']['count'], 0)
         self.assertEqual(data['sharing_progress']['threshold'], 3)
 
         # Idempotent: second fetch does not double-count
         again = consumer_client.get('/api/progress-trackers/')
         self.assertEqual(again.json()['total_redemptions'], 1)
-        self.assertEqual(again.json()['sharing_progress']['count'], 1)
+        self.assertEqual(again.json()['sharing_progress']['count'], 0)

@@ -28,7 +28,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        from api.models import StudentProfile, CouponRedemption, PlatformVoucherRedemption, WebRedemption
+        from api.models import StudentProfile, CouponRedemption, PlatformVoucherRedemption
 
         dry_run = options['dry_run']
         users = User.objects.select_related('student_profile').all()
@@ -106,14 +106,9 @@ class Command(BaseCommand):
                 coupon_type='exclusive',
             ).exclude(user=user).count()
 
-            phone = (profile.phone_number or '').strip()
-            web_count = (
-                WebRedemption.objects.filter(phone_number=phone).count()
-                if phone
-                else 0
-            )
+            # Web self-redemption does not advance sharing lights (COU: in-app exclusive only).
             # Metric 2 resets to 0 when reaching 3; store current cycle remainder (0..2).
-            total_sharing = redeemer_count + owner_count + web_count
+            total_sharing = redeemer_count + owner_count
             new_sharing = total_sharing % 3
             new_sharing_rewards = total_sharing // 3
 

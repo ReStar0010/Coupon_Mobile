@@ -154,40 +154,6 @@ def increment_sharing_progress_for_redeemer(user) -> None:
     redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
 
 
-def sync_web_redemption_progress_for_user(user) -> None:
-    """
-    Apply sharing progress for WebRedemption rows linked to the user's phone that
-    have not yet been counted (web flow attributes phone on points screen).
-    """
-    from django.apps import apps
-    from django.db import transaction
-
-    StudentProfile = apps.get_model('api', 'StudentProfile')
-    WebRedemption = apps.get_model('api', 'WebRedemption')
-    try:
-        profile = user.student_profile
-        phone = profile.phone_number
-    except (StudentProfile.DoesNotExist, AttributeError):
-        return
-    if not phone:
-        return
-    pending = list(
-        WebRedemption.objects.filter(phone_number=phone, progress_applied=False).order_by('id')
-    )
-    for wr in pending:
-        with transaction.atomic():
-            locked = (
-                WebRedemption.objects.select_for_update()
-                .filter(pk=wr.pk, progress_applied=False)
-                .first()
-            )
-            if not locked:
-                continue
-            increment_sharing_progress_for_redeemer(user)
-            locked.progress_applied = True
-            locked.save(update_fields=['progress_applied'])
-
-
 def apply_referral_reward(referrer) -> None:
     """
     Increment the referrer's referral_progress_count and grant a reward voucher

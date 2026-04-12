@@ -764,6 +764,27 @@ export const unifiedRedemptionAPI = {
   },
 };
 
+/** Web consumer redemption (same as Web /w/scanner → POST /api/web/v1/redemptions/) */
+export interface WebRedemptionCreateResponse {
+  redemption_id: number;
+  coupon_name: string;
+  store_name: string;
+}
+
+export const webRedemptionAPI = {
+  createRedemption: async (body: {
+    template_id: number;
+    session_token?: string;
+    fixed_session_token?: string;
+  }): Promise<WebRedemptionCreateResponse> => {
+    const response = await fetchAPI('/web/v1/redemptions/', {
+      method: 'POST',
+      data: body,
+    });
+    return response.data as WebRedemptionCreateResponse;
+  },
+};
+
 /** Platform voucher list item (GET /api/platform-vouchers/) */
 export interface PlatformVoucherListItem {
   id: number;
