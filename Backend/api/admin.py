@@ -1,4 +1,5 @@
 from django import forms
+import secrets
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.utils.html import format_html
@@ -8,6 +9,7 @@ from django.urls import path, reverse
 from django.shortcuts import render, redirect
 from django.http import HttpResponseRedirect
 from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -439,12 +441,13 @@ class PasswordResetProfileAdmin(admin.ModelAdmin):
 class StoreAdmin(admin.ModelAdmin):
     list_display = [
         'id', 'name', 'owner_email', 'store_type', 
-        'address', 'has_location', 'unified_redeem_code'
+        'address', 'has_location', 'unified_redeem_code', 'fixed_session_status'
     ]
     list_filter = ['store_type']
     search_fields = ['name', 'owner__email', 'address', 'unified_redeem_code']
     readonly_fields = ['unified_redeem_code']
     inlines = [CouponTemplateInline, CouponInline]
+    actions = ['generate_or_rotate_fixed_table_qr_token']
     fieldsets = (
         ('基本資訊', {
             'fields': ('owner', 'name', 'store_type', 'image_url')
@@ -473,6 +476,74 @@ class StoreAdmin(admin.ModelAdmin):
         """優化查詢效能"""
         qs = super().get_queryset(request)
         return qs.select_related('owner')
+
+    def fixed_session_status(self, obj):
+        fixed = getattr(obj, 'fixed_session', None)
+        if not fixed:
+            return '未生成'
+        if not fixed.is_active:
+            return '已停用'
+        return f'已生成 ({fixed.session_token[:10]}...)'
+    fixed_session_status.short_description = '桌貼 QR Token'
+
+    def generate_or_rotate_fixed_table_qr_token(self, request, queryset):
+        generated = 0
+        rotated = 0
+        for store in queryset:
+            token = secrets.token_urlsafe(24)
+            fixed, created = StoreFixedSession.objects.get_or_create(
+                store=store,
+                defaults={
+                    'session_token': token,
+                    'is_active': True,
+                },
+            )
+            if created:
+                generated += 1
+            else:
+                fixed.session_token = token
+                fixed.is_active = True
+                fixed.rotated_at = timezone.now()
+                fixed.save(update_fields=['session_token', 'is_active', 'rotated_at', 'updated_at'])
+                rotated += 1
+
+            api_base_url = getattr(settings, 'API_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
+            claim_fixed_url = f"{api_base_url}/claim-fixed/{token}/"
+            self.message_user(
+                request,
+                f"[{store.name}] 桌貼 URL: {claim_fixed_url}",
+                level=messages.INFO,
+            )
+
+        self.message_user(
+            request,
+            f"已建立 {generated} 間店家固定桌貼 token，已重置 {rotated} 間店家 token。",
+            level=messages.SUCCESS,
+        )
+    generate_or_rotate_fixed_table_qr_token.short_description = '生成/重置桌貼 QR token'
+
+
+@admin.register(StoreFixedSession)
+class StoreFixedSessionAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'store_name', 'session_token', 'is_active', 'claim_fixed_url', 'created_at', 'rotated_at'
+    ]
+    list_filter = ['is_active', 'created_at', 'rotated_at']
+    search_fields = ['store__name', 'store__owner__email', 'session_token']
+    readonly_fields = ['created_at', 'updated_at', 'rotated_at', 'claim_fixed_url']
+
+    def store_name(self, obj):
+        return obj.store.name
+    store_name.short_description = '店家'
+    store_name.admin_order_field = 'store__name'
+
+    def claim_fixed_url(self, obj):
+        api_base_url = getattr(settings, 'API_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
+        return f"{api_base_url}/claim-fixed/{obj.session_token}/"
+    claim_fixed_url.short_description = '桌貼 URL'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('store', 'store__owner')
 
 
 @admin.register(Tag)

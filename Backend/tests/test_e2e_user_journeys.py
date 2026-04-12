@@ -16,6 +16,9 @@ from api.models import (
     Store,
     CouponTemplate,
     Coupon,
+    QRCodeSession,
+    StoreFixedSession,
+    WebRedemption,
     EULAAcceptance,
 )
 
@@ -640,3 +643,156 @@ class SharingJourneyE2ETest(TestCase):
         my_list2 = my_resp2.json()
         found = next((s for s in my_list2 if s.get('status') == 'accepted' and s.get('claimed_by') == 'pub_b@test.com'), None)
         self.assertIsNotNone(found, f'Expected one accepted share claimed by pub_b@test.com in {my_list2}')
+
+
+class WebConsumerJourneyE2ETest(TestCase):
+    """E2E for web-based consumer flow redemption consistency."""
+
+    def setUp(self):
+        self.client = APIClient()
+
+        merchant_group, _ = Group.objects.get_or_create(name='Merchant')
+        self.merchant = User.objects.create_user(
+            username='webflow_merchant@test.com',
+            email='webflow_merchant@test.com',
+            password='testpass123',
+        )
+        self.merchant.groups.add(merchant_group)
+        MerchantProfile.objects.create(
+            user=self.merchant,
+            phone='0912111222',
+            contact_person='W',
+            contact_info='line',
+            verified=True,
+            application_status='approved',
+        )
+
+        self.store = Store.objects.create(
+            owner=self.merchant,
+            name='WebFlow Store',
+            lat=25.0,
+            lng=121.0,
+            address='Addr',
+        )
+        self.other_store = Store.objects.create(
+            owner=self.merchant,
+            name='Other Store',
+            lat=25.1,
+            lng=121.1,
+            address='Other Addr',
+        )
+
+        now = timezone.now()
+        self.template_a = CouponTemplate.objects.create(
+            store=self.store,
+            coupon_name='Template A',
+            coupon_detail='A',
+            total_quantity=20,
+            remaining_quantity=20,
+            start_date=now - timedelta(days=1),
+            expiry_date=now + timedelta(days=10),
+            is_active=True,
+        )
+        self.template_b = CouponTemplate.objects.create(
+            store=self.store,
+            coupon_name='Template B',
+            coupon_detail='B',
+            total_quantity=20,
+            remaining_quantity=20,
+            start_date=now - timedelta(days=1),
+            expiry_date=now + timedelta(days=10),
+            is_active=True,
+        )
+        self.other_store_template = CouponTemplate.objects.create(
+            store=self.other_store,
+            coupon_name='Template Other',
+            coupon_detail='Other',
+            total_quantity=20,
+            remaining_quantity=20,
+            start_date=now - timedelta(days=1),
+            expiry_date=now + timedelta(days=10),
+            is_active=True,
+        )
+
+        self.session = QRCodeSession.objects.create(
+            template=self.template_a,
+            merchant=self.merchant,
+            session_token='webflow-session-token',
+            is_active=True,
+        )
+        self.fixed_session = StoreFixedSession.objects.create(
+            store=self.store,
+            session_token='webflow-fixed-session-token',
+            is_active=True,
+        )
+
+    def test_web_redemption_uses_selected_template_and_decrements_it(self):
+        resp = self.client.post(
+            '/api/web/v1/redemptions/',
+            {'session_token': self.session.session_token, 'template_id': self.template_b.id},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.json())
+
+        self.template_a.refresh_from_db()
+        self.template_b.refresh_from_db()
+        self.assertEqual(self.template_a.remaining_quantity, 20)
+        self.assertEqual(self.template_b.remaining_quantity, 19)
+
+        redemption = WebRedemption.objects.get(session_token=self.session.session_token)
+        self.assertEqual(redemption.template_id, self.template_b.id)
+
+    def test_web_redemption_rejects_template_from_different_store(self):
+        resp = self.client.post(
+            '/api/web/v1/redemptions/',
+            {'session_token': self.session.session_token, 'template_id': self.other_store_template.id},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, resp.json())
+        self.assertEqual(resp.json().get('error'), '優惠券與掃描店家不一致')
+
+    def test_web_redemption_requires_template_id(self):
+        resp = self.client.post(
+            '/api/web/v1/redemptions/',
+            {'session_token': self.session.session_token},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, resp.json())
+        self.assertEqual(resp.json().get('error'), '缺少或無效的 template_id')
+
+    def test_web_fixed_session_resolve_success(self):
+        resp = self.client.get(f'/api/web/v1/fixed-sessions/{self.fixed_session.session_token}/resolve/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.json())
+        data = resp.json()
+        self.assertEqual(data.get('store_id'), self.store.id)
+        self.assertEqual(data.get('store_name'), self.store.name)
+
+    def test_web_fixed_session_redemption_success(self):
+        resp = self.client.post(
+            '/api/web/v1/redemptions/',
+            {
+                'fixed_session_token': self.fixed_session.session_token,
+                'template_id': self.template_a.id,
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.json())
+        redemption = WebRedemption.objects.latest('id')
+        self.assertEqual(redemption.fixed_session_token, self.fixed_session.session_token)
+        self.assertEqual(redemption.template_id, self.template_a.id)
+
+    def test_legacy_qr_claim_flow_still_works(self):
+        consumer = User.objects.create_user(
+            username='legacy_qr_consumer@test.com',
+            email='legacy_qr_consumer@test.com',
+            password='testpass123',
+        )
+        StudentProfile.objects.create(user=consumer, verified=True)
+        consumer_client = APIClient()
+        self.assertTrue(_login_consumer(consumer_client, 'legacy_qr_consumer@test.com', 'testpass123'))
+        claim_resp = consumer_client.post(
+            '/api/qr-claim/claim/',
+            {'template_id': self.template_a.id, 'session_token': self.session.session_token},
+            format='json',
+        )
+        self.assertEqual(claim_resp.status_code, status.HTTP_201_CREATED, claim_resp.json())

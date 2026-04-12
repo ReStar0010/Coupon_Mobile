@@ -7,7 +7,7 @@ Errors use api.exceptions (CouProAPIException) so responses follow:
   {"error_code": str, "developer_message": str, "context": dict}
 Frontend maps error_code to zh-TW via useApiError / errors.* in translation.json.
 """
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
@@ -33,10 +33,12 @@ from api.serializers import (
     SendOTPSerializer,
     VerifyOTPSerializer,
     RegistrationOTPSendSerializer,
+    RegistrationPhoneLookupSerializer,
     RegistrationOTPVerifySerializer,
     PhoneForgotPasswordSerializer,
     PhoneResetPasswordSerializer,
 )
+from api.throttles import PhoneRegistrationLookupThrottle
 from api.services.sms_service import SMSService
 from api.utils import mask_phone_number
 
@@ -182,6 +184,26 @@ def verify_otp(request):
         response_data['old_phone_coupons_transferred'] = old_phone_transferred
 
     return Response(response_data, status=status.HTTP_200_OK)
+
+
+# ===== REGISTRATION PHONE LOOKUP (Unauthenticated) =====
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@throttle_classes([PhoneRegistrationLookupThrottle])
+def check_registration_phone(request):
+    """
+    Check whether a Taiwan mobile number already has a StudentProfile (no SMS).
+
+    POST body: { "phone_number": "09XXXXXXXX" }
+    Response: { "registered": true|false }
+    """
+    serializer = RegistrationPhoneLookupSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    phone_number = serializer.validated_data["phone_number"]
+    registered = StudentProfile.objects.filter(phone_number=phone_number).exists()
+    return Response({"registered": registered}, status=status.HTTP_200_OK)
 
 
 # ===== REGISTRATION OTP ENDPOINTS (Unauthenticated) =====

@@ -83,6 +83,10 @@ def claim_landing(request, token):
     Renders HTML with install guidance and store links only (no claim actions on web).
     Same pattern as collection_landing (002-qr-deep-linking).
     """
+    if getattr(settings, 'WEB_CONSUMER_FLOW_ENABLED', False):
+        from django.shortcuts import redirect as http_redirect
+        frontend_url = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
+        return http_redirect(f"{frontend_url}/w/claim/{token}/", permanent=False)
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
     page_url = f"{api_base_url}/claim/{token}/"
     title = "CouPro 優惠券"
@@ -113,11 +117,44 @@ def claim_landing(request, token):
     })
 
 
+def claim_fixed_landing(request, token):
+    """
+    Fixed table-sticker claim URL fallback page: /claim-fixed/<token>/
+    Redirects to web consumer fixed-claim route when enabled.
+    """
+    if getattr(settings, 'WEB_CONSUMER_FLOW_ENABLED', False):
+        from django.shortcuts import redirect as http_redirect
+        frontend_url = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
+        return http_redirect(f"{frontend_url}/w/claim-fixed/{token}/", permanent=False)
+
+    api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
+    page_url = f"{api_base_url}/claim-fixed/{token}/"
+    title = "CouPro 優惠券"
+    description = "掃描桌上 QR Code 進入優惠頁。請下載 CouPro App 取得完整體驗。"
+    app_store_id = getattr(settings, 'COUPRO_APP_STORE_ID', '') or ''
+    app_store_url = f"https://apps.apple.com/app/id{app_store_id}" if app_store_id else "#"
+    play_store_id = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
+    play_store_url = f"https://play.google.com/store/apps/details?id={play_store_id}"
+    return render(request, 'claim_landing.html', {
+        'token': token,
+        'page_url': page_url,
+        'title': title,
+        'description': description,
+        'app_store_id': app_store_id,
+        'app_store_url': app_store_url,
+        'play_store_url': play_store_url,
+    })
+
+
 def collection_landing(request, token):
     """
     Universal Link fallback page: https://api.coupro.pro/collection/<token>
     Renders HTML with Smart App Banner (iOS), Open Graph, and JS to try app then fallback to stores.
     """
+    if getattr(settings, 'WEB_CONSUMER_FLOW_ENABLED', False):
+        from django.shortcuts import redirect as http_redirect
+        frontend_url = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
+        return http_redirect(f"{frontend_url}/w/share/{token}/", permanent=False)
     share_request = get_object_or_404(CouponShareRequest, token=token)
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
     page_url = f"{api_base_url}/collection/{token}"
