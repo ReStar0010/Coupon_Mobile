@@ -414,6 +414,10 @@ class WebRedemption(models.Model):
         db_index=True,
         help_text="Populated when user enters phone on points screen",
     )
+    progress_applied = models.BooleanField(
+        default=False,
+        help_text="True once this web redemption has been synced to sharing progress for the phone owner",
+    )
     redeemed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
