@@ -3,6 +3,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from api.models import WebRedemption, CouponRedemption, StudentProfile
+from api.utils import sync_web_redemption_progress_for_user
 
 POINTS_THRESHOLD = 3
 
@@ -30,6 +31,7 @@ def points_lookup(request):
     app_count = 0
     try:
         profile = StudentProfile.objects.get(phone_number=phone_number)
+        sync_web_redemption_progress_for_user(profile.user)
         app_count = CouponRedemption.objects.filter(user=profile.user).count()
     except StudentProfile.DoesNotExist:
         pass

@@ -3,7 +3,7 @@ Utility functions for phone number validation, formatting, and store timezone/cu
 """
 import re
 import secrets
-from datetime import date
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 # Default timezone when store has none (e.g. Asia/Taipei per research.md)
@@ -107,15 +107,16 @@ def grant_reward_voucher(user, face_value: int, description: str = 'System Rewar
     """
     from django.apps import apps
     from django.utils import timezone as dj_timezone
-    from datetime import datetime
 
     PlatformVoucher = apps.get_model('api', 'PlatformVoucher')
     redeem_code = generate_platform_voucher_redeem_code()
     now = dj_timezone.now()
-    year = now.year if (now.month < 3 or (now.month == 3 and now.day <= 29)) else now.year + 1
-    # 固定用台灣時區：3/29 23:59:59 為「台灣當日結束」，不隨伺服器時區變動
     taiwan = ZoneInfo(DEFAULT_STORE_TIMEZONE)
-    expiry_date = datetime(year, 3, 29, 23, 59, 59, tzinfo=taiwan)
+    now_local = now.astimezone(taiwan)
+    candidate = datetime(now_local.year, 4, 26, 23, 59, 59, tzinfo=taiwan)
+    if now_local > candidate:
+        candidate = datetime(now_local.year + 1, 4, 26, 23, 59, 59, tzinfo=taiwan)
+    expiry_date = candidate
     return PlatformVoucher.objects.create(
         face_value=face_value,
         currency_code='TWD',
@@ -128,6 +129,63 @@ def grant_reward_voucher(user, face_value: int, description: str = 'System Rewar
         batch_name=description,
         redeem_code=redeem_code,
     )
+
+
+def increment_sharing_progress_for_redeemer(user) -> None:
+    """
+    Metric 2 (sharing light system): +1 toward the 3-light cycle for this user;
+    grant $10 reward vouchers for each completed cycle.
+    Same rules as exclusive coupon redemption in redeem_coupon.
+    """
+    from django.apps import apps
+
+    StudentProfile = apps.get_model('api', 'StudentProfile')
+    try:
+        redeemer_profile = user.student_profile
+    except (StudentProfile.DoesNotExist, AttributeError):
+        return
+    redeemer_profile.sharing_progress_count += 1
+    n = redeemer_profile.sharing_progress_count
+    vouchers = n // 3
+    for _ in range(vouchers):
+        grant_reward_voucher(user, 10, 'Sharing Reward')
+    redeemer_profile.sharing_rewards_earned += vouchers
+    redeemer_profile.sharing_progress_count = n % 3
+    redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
+
+
+def sync_web_redemption_progress_for_user(user) -> None:
+    """
+    Apply sharing progress for WebRedemption rows linked to the user's phone that
+    have not yet been counted (web flow attributes phone on points screen).
+    """
+    from django.apps import apps
+    from django.db import transaction
+
+    StudentProfile = apps.get_model('api', 'StudentProfile')
+    WebRedemption = apps.get_model('api', 'WebRedemption')
+    try:
+        profile = user.student_profile
+        phone = profile.phone_number
+    except (StudentProfile.DoesNotExist, AttributeError):
+        return
+    if not phone:
+        return
+    pending = list(
+        WebRedemption.objects.filter(phone_number=phone, progress_applied=False).order_by('id')
+    )
+    for wr in pending:
+        with transaction.atomic():
+            locked = (
+                WebRedemption.objects.select_for_update()
+                .filter(pk=wr.pk, progress_applied=False)
+                .first()
+            )
+            if not locked:
+                continue
+            increment_sharing_progress_for_redeemer(user)
+            locked.progress_applied = True
+            locked.save(update_fields=['progress_applied'])
 
 
 def apply_referral_reward(referrer) -> None:

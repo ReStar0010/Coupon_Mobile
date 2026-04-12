@@ -13,7 +13,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from ..serializers import SetSavingsGoalSerializer
-from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log, PlatformVoucherRedemption
+from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log, PlatformVoucherRedemption, WebRedemption
+from ..utils import sync_web_redemption_progress_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +67,12 @@ def progress_trackers(request):
     """
     GET /api/progress-trackers/
     Returns the three progress metrics for the authenticated user:
-      - total_redemptions: exclusive coupon + platform voucher redemptions
+      - total_redemptions: exclusive coupon + platform voucher + web (phone-linked) redemptions
       - sharing_progress: O count and N threshold for sharing light system
       - referral_progress: O count and N threshold for new user referral light system
     """
     try:
+        sync_web_redemption_progress_for_user(request.user)
         profile = request.user.student_profile
         exclusive_count = CouponRedemption.objects.filter(
             user=request.user, coupon_type='exclusive'
@@ -78,8 +80,14 @@ def progress_trackers(request):
         voucher_count = PlatformVoucherRedemption.objects.filter(
             user=request.user
         ).count()
+        phone = (profile.phone_number or '').strip()
+        web_count = (
+            WebRedemption.objects.filter(phone_number=phone).count()
+            if phone
+            else 0
+        )
         return Response({
-            "total_redemptions": exclusive_count + voucher_count,
+            "total_redemptions": exclusive_count + voucher_count + web_count,
             "sharing_progress": {
                 "count": profile.sharing_progress_count,
                 "threshold": 3,

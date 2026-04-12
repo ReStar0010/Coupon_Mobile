@@ -18,7 +18,7 @@ from api.exceptions import (
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
 from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest
-from ..utils import grant_reward_voucher, apply_referral_reward, display_face_value
+from ..utils import apply_referral_reward, display_face_value, increment_sharing_progress_for_redeemer
 
 logger = logging.getLogger(__name__)
 
@@ -458,33 +458,11 @@ def redeem_coupon(request, id):
         is_shared_redemption = (original_owner is not None and original_owner != request.user)
 
         # Metric 2 — redeemer gets +1 for ANY exclusive coupon redemption.
-        try:
-            redeemer_profile = request.user.student_profile
-            redeemer_profile.sharing_progress_count += 1
-            n = redeemer_profile.sharing_progress_count
-            vouchers = n // 3
-            for _ in range(vouchers):
-                grant_reward_voucher(request.user, 10, 'Sharing Reward')
-            redeemer_profile.sharing_rewards_earned += vouchers
-            redeemer_profile.sharing_progress_count = n % 3
-            redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
-        except (StudentProfile.DoesNotExist, AttributeError):
-            pass
+        increment_sharing_progress_for_redeemer(request.user)
 
         if is_shared_redemption:
             # Metric 2 — original owner gets +1 when their coupon is redeemed by someone else.
-            try:
-                owner_profile = original_owner.student_profile
-                owner_profile.sharing_progress_count += 1
-                n = owner_profile.sharing_progress_count
-                vouchers = n // 3
-                for _ in range(vouchers):
-                    grant_reward_voucher(original_owner, 10, 'Sharing Reward')
-                owner_profile.sharing_rewards_earned += vouchers
-                owner_profile.sharing_progress_count = n % 3
-                owner_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
-            except (StudentProfile.DoesNotExist, AttributeError):
-                pass
+            increment_sharing_progress_for_redeemer(original_owner)
 
         # Metric 3 — first-ever exclusive redemption triggers referral reward for original owner.
         try:
