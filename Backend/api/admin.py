@@ -51,7 +51,6 @@ class CouponTemplateInline(admin.TabularInline):
     extra = 0
     max_num = 5
     fields = ['coupon_name', 'total_quantity', 'remaining_quantity', 'is_active']
-    readonly_fields = ['remaining_quantity']
     can_delete = False
     show_change_link = True
 
@@ -578,7 +577,7 @@ class CouponTemplateAdmin(admin.ModelAdmin):
     ]
     list_filter = ['is_active', 'store__store_type', 'start_date', 'expiry_date']
     search_fields = ['coupon_name', 'store__name', 'template_redeem_code']
-    readonly_fields = ['created_at', 'remaining_quantity']
+    readonly_fields = ['created_at']
     filter_horizontal = ['tags']
     date_hierarchy = 'start_date'
     actions = ['deactivate_templates', 'activate_templates', 'issue_to_user_action']
