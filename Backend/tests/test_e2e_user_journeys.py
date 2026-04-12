@@ -796,3 +796,63 @@ class WebConsumerJourneyE2ETest(TestCase):
             format='json',
         )
         self.assertEqual(claim_resp.status_code, status.HTTP_201_CREATED, claim_resp.json())
+
+    def test_web_points_lookup_syncs_progress_trackers(self):
+        """
+        After linking a web redemption to a phone that matches a registered user,
+        sharing progress and total_redemptions reflect the web redemption like app redemptions.
+        """
+        phone = '0912000999'
+        consumer = User.objects.create_user(
+            username='web_progress_consumer@test.com',
+            email='web_progress_consumer@test.com',
+            password='testpass123',
+        )
+        StudentProfile.objects.create(
+            user=consumer,
+            verified=True,
+            phone_number=phone,
+            sharing_progress_count=0,
+            sharing_rewards_earned=0,
+        )
+
+        redeem_resp = self.client.post(
+            '/api/web/v1/redemptions/',
+            {'session_token': self.session.session_token, 'template_id': self.template_b.id},
+            format='json',
+        )
+        self.assertEqual(redeem_resp.status_code, status.HTTP_201_CREATED, redeem_resp.json())
+        wr = WebRedemption.objects.get(session_token=self.session.session_token)
+        self.assertIsNone(wr.phone_number)
+        self.assertFalse(wr.progress_applied)
+
+        consumer_client = APIClient()
+        self.assertTrue(_login_consumer(consumer_client, 'web_progress_consumer@test.com', 'testpass123'))
+
+        before = consumer_client.get('/api/progress-trackers/')
+        self.assertEqual(before.status_code, status.HTTP_200_OK, before.json())
+        self.assertEqual(before.json()['total_redemptions'], 0)
+        self.assertEqual(before.json()['sharing_progress']['count'], 0)
+
+        points_resp = self.client.post(
+            '/api/web/v1/points/lookup/',
+            {'phone_number': phone, 'session_token': self.session.session_token},
+            format='json',
+        )
+        self.assertEqual(points_resp.status_code, status.HTTP_200_OK, points_resp.json())
+
+        wr.refresh_from_db()
+        self.assertEqual(wr.phone_number, phone)
+        self.assertTrue(wr.progress_applied)
+
+        after = consumer_client.get('/api/progress-trackers/')
+        self.assertEqual(after.status_code, status.HTTP_200_OK, after.json())
+        data = after.json()
+        self.assertEqual(data['total_redemptions'], 1)
+        self.assertEqual(data['sharing_progress']['count'], 1)
+        self.assertEqual(data['sharing_progress']['threshold'], 3)
+
+        # Idempotent: second fetch does not double-count
+        again = consumer_client.get('/api/progress-trackers/')
+        self.assertEqual(again.json()['total_redemptions'], 1)
+        self.assertEqual(again.json()['sharing_progress']['count'], 1)
