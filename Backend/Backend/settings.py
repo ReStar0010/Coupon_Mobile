@@ -250,6 +250,9 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
+    'DEFAULT_THROTTLE_RATES': {
+        'phone_registration_lookup': '20/hour',
+    },
 }
 
 SIMPLE_JWT = {

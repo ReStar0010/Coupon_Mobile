@@ -514,6 +514,103 @@ class PhoneChangeTests(PhoneOTPTestBase):
 
 
 @override_settings(SMS_DEV_MODE=True)
+class RegistrationPhoneLookupTests(TestCase):
+    """Tests for POST /api/register/check-phone/ (lookup only, no SMS)."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.free_phone = "0912345678"
+        self.registered_phone = "0911111111"
+
+    def test_check_phone_invalid_format(self):
+        response = self.client.post(
+            "/api/register/check-phone/",
+            {"phone_number": "08123456789"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error_code", response.data)
+
+    def test_check_phone_empty_body_no_crash(self):
+        response = self.client.post("/api/register/check-phone/", {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_check_phone_registered_false(self):
+        response = self.client.post(
+            "/api/register/check-phone/",
+            {"phone_number": self.free_phone},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("registered", response.data)
+        self.assertFalse(response.data["registered"])
+
+    def test_check_phone_registered_true(self):
+        user = User.objects.create_user(
+            username=self.registered_phone,
+            password="testpass123",
+        )
+        StudentProfile.objects.create(
+            user=user,
+            phone_number=self.registered_phone,
+            phone_verified=True,
+        )
+        response = self.client.post(
+            "/api/register/check-phone/",
+            {"phone_number": self.registered_phone},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["registered"])
+
+    def test_check_phone_throttle_21st_request_same_phone(self):
+        throttle_phone = "0933333333"
+        for i in range(20):
+            response = self.client.post(
+                "/api/register/check-phone/",
+                {"phone_number": throttle_phone},
+                format="json",
+            )
+            self.assertEqual(
+                response.status_code,
+                status.HTTP_200_OK,
+                msg=f"Request {i + 1} should succeed",
+            )
+        response21 = self.client.post(
+            "/api/register/check-phone/",
+            {"phone_number": throttle_phone},
+            format="json",
+        )
+        self.assertEqual(response21.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_check_phone_throttle_independent_per_phone(self):
+        """After exhausting one phone, another phone still works (same client)."""
+        phone_a = "0944444444"
+        phone_b = "0955555555"
+        for _ in range(20):
+            r = self.client.post(
+                "/api/register/check-phone/",
+                {"phone_number": phone_a},
+                format="json",
+            )
+            self.assertEqual(r.status_code, status.HTTP_200_OK)
+        blocked = self.client.post(
+            "/api/register/check-phone/",
+            {"phone_number": phone_a},
+            format="json",
+        )
+        self.assertEqual(blocked.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        ok_b = self.client.post(
+            "/api/register/check-phone/",
+            {"phone_number": phone_b},
+            format="json",
+        )
+        self.assertEqual(ok_b.status_code, status.HTTP_200_OK)
+        self.assertFalse(ok_b.data["registered"])
+
+
+@override_settings(SMS_DEV_MODE=True)
 class RegistrationOTPSendTests(TestCase):
     """Tests for POST /api/register/send-otp/ endpoint (US1).
     T015: Contract test validating request/response schema.

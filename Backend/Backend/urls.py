@@ -49,6 +49,7 @@ from api.views.merchant_profile import (
 from api.views.events import track_template_view
 from api.views.phone_otp import (
     send_otp, verify_otp,
+    check_registration_phone,
     send_registration_otp, verify_registration_otp,
     send_password_reset_otp, verify_password_reset_otp
 )
@@ -193,6 +194,7 @@ urlpatterns = [
     path('api/reset-password/', reset_password, name='reset_password'),
     
     # Phone-based registration endpoints
+    path('api/register/check-phone/', check_registration_phone, name='check_registration_phone'),
     path('api/register/send-otp/', send_registration_otp, name='send_registration_otp'),
     path('api/register/verify-otp/', verify_registration_otp, name='verify_registration_otp'),
     
