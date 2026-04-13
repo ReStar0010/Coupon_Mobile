@@ -9,8 +9,8 @@ export default function SoftSellPage() {
     <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center gap-6">
       <div className="text-6xl">🏆</div>
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">進到 App，查看累積點數</h1>
-        <p className="text-sm text-gray-500 mt-3 leading-relaxed">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">進到 App，查看累積點數</h1>
+        <p className="text-sm text-gray-500 dark:text-zinc-400 mt-3 leading-relaxed">
           下載 CouPro App，追蹤您的優惠使用紀錄、累積點數，並在達標後領取現金券！
         </p>
       </div>
