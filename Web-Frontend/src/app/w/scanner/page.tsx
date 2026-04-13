@@ -226,7 +226,7 @@ function ScannerContent() {
   if (scanState === 'processing') {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-act-yellow" />
         <p className="text-gray-600 font-medium">核銷中…</p>
       </div>
     );
@@ -238,7 +238,7 @@ function ScannerContent() {
 
       {/* Overlay frame */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <div className="w-56 h-56 border-4 border-white rounded-2xl opacity-70" />
+        <div className="w-56 h-56 border-4 border-act-yellow rounded-2xl opacity-90" />
         <p className="text-white text-sm mt-4 bg-black/40 px-3 py-1 rounded-full">
           對準店家桌上的 QR Code
         </p>
@@ -253,7 +253,7 @@ function ScannerContent() {
           <p className="text-sm text-gray-700 text-center">{errorMsg}</p>
           <button
             onClick={retry}
-            className="py-3 rounded-2xl bg-gray-900 text-white font-semibold text-base"
+            className="py-3 rounded-2xl bg-act-yellow text-sec-black font-semibold text-base hover:brightness-[0.96] active:brightness-[0.92]"
           >
             再試一次
           </button>
@@ -265,7 +265,7 @@ function ScannerContent() {
 
 export default function ScannerPage() {
   return (
-    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800" /></div>}>
+    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow" /></div>}>
       <ScannerContent />
     </Suspense>
   );

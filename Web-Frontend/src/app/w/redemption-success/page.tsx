@@ -33,7 +33,7 @@ function RedemptionSuccessContent() {
       </div>
       <button
         onClick={onAccumulatePoints}
-        className="w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg"
+        className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg hover:brightness-[0.96] active:brightness-[0.92]"
       >
         累積點數
       </button>
@@ -43,7 +43,7 @@ function RedemptionSuccessContent() {
 
 export default function RedemptionSuccessPage() {
   return (
-    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800" /></div>}>
+    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow" /></div>}>
       <RedemptionSuccessContent />
     </Suspense>
   );

@@ -35,7 +35,7 @@ export default function ClaimLandingPage({ params }: { params: { token: string }
 
   return (
     <div className="flex flex-col items-center justify-center flex-1 px-6 py-12">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mb-4" />
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow mb-4" />
       <p className="text-gray-500 text-sm">載入中…</p>
     </div>
   );

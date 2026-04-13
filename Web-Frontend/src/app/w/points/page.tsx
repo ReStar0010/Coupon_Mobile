@@ -1,19 +1,13 @@
 'use client';
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { getAppStoreUrl } from '../utils/appStoreUrl';
 import { webPost } from '../utils/webAPI';
 
 interface PointsLookupResponse {
   phone_number: string;
   total_points: number;
   threshold_reached: boolean;
-}
-
-function getAppStoreUrl(): string {
-  if (typeof navigator === 'undefined') return process.env.NEXT_PUBLIC_APP_STORE_URL ?? '#';
-  const ua = navigator.userAgent;
-  if (/Android/i.test(ua)) return process.env.NEXT_PUBLIC_PLAY_STORE_URL ?? '#';
-  return process.env.NEXT_PUBLIC_APP_STORE_URL ?? '#';
 }
 
 function PointsContent() {
@@ -68,7 +62,7 @@ function PointsContent() {
         </div>
         <a
           href={appStoreUrl}
-          className="w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg text-center block"
+          className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg text-center block hover:brightness-[0.96] active:brightness-[0.92]"
         >
           立即下載 CouPro
         </a>
@@ -94,14 +88,14 @@ function PointsContent() {
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="09XXXXXXXX"
-          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-gray-600"
+          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-act-yellow focus:ring-2 focus:ring-act-yellow/30"
           inputMode="numeric"
         />
         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
         <button
           onClick={handleSubmit}
           disabled={loading || !phone.trim()}
-          className="w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg disabled:opacity-50"
+          className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg disabled:opacity-50 hover:brightness-[0.96] active:brightness-[0.92] enabled:cursor-pointer"
         >
           {loading ? '查詢中…' : '確認'}
         </button>
@@ -112,7 +106,7 @@ function PointsContent() {
 
 export default function PointsPage() {
   return (
-    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800" /></div>}>
+    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow" /></div>}>
       <PointsContent />
     </Suspense>
   );

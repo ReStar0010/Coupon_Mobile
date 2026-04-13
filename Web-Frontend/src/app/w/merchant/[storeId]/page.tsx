@@ -45,7 +45,7 @@ function CouponCard({
         </p>
       </div>
       {coupon.estimated_savings && (
-        <span className="shrink-0 text-sm font-bold text-orange-500">
+        <span className="shrink-0 text-sm font-bold text-act-yellow">
           省 {coupon.estimated_savings}
         </span>
       )}
@@ -80,7 +80,7 @@ function MerchantContent({ params }: { params: { storeId: string } }) {
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mb-4" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow mb-4" />
         <p className="text-gray-500 text-sm">載入中…</p>
       </div>
     );
@@ -93,7 +93,7 @@ function MerchantContent({ params }: { params: { storeId: string } }) {
       : '';
 
   return (
-    <div className="flex flex-col flex-1 bg-gray-50">
+    <div className="flex flex-col flex-1 bg-bg-grey">
       {/* Store header */}
       <div className="bg-white px-4 pt-8 pb-4 flex items-center gap-3 shadow-sm">
         {data.store.image_url && (
@@ -130,7 +130,7 @@ function MerchantContent({ params }: { params: { storeId: string } }) {
 
 export default function MerchantPage({ params }: { params: { storeId: string } }) {
   return (
-    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800" /></div>}>
+    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow" /></div>}>
       <MerchantContent params={params} />
     </Suspense>
   );
