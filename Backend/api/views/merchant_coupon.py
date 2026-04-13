@@ -6,12 +6,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError, ErrorDetail
 from django.utils import timezone
-from django.conf import settings
 from django.core.files.storage import default_storage
-import secrets
-import os
-from pathlib import Path
-from datetime import datetime
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +35,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from ..models import Coupon, CouponShareRequest, Log, StudentProfile, CouponTemplate, Store, Tag, CouponRedemption
 from ..serializers import ConsolidateCouponSerializer, RefreshRedeemCodeSerializer, CouponTemplateSerializer, MerchantRedeemSerializer, UnifiedRedemptionCodeSerializer
-from ..utils import generate_unified_redemption_code, get_store_today, get_store_currency_code
+from ..utils import generate_unified_redemption_code, get_store_today, get_store_currency_code, save_uploaded_image
 from django.db.models import Count, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.db.models import DecimalField
@@ -805,36 +801,19 @@ def upload_image(request):
     
     image_file = request.FILES['image']
     
-    # Validate file type
-    allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-    file_name = image_file.name.lower()
-    file_extension = Path(file_name).suffix
-    
-    if file_extension not in allowed_extensions:
-        raise ImageTypeInvalid(
-            developer_message=f"Invalid file type. Allowed types: {', '.join(allowed_extensions)}"
-        )
-    
-    # Validate file size (5MB limit)
-    max_size = 5 * 1024 * 1024  # 5MB in bytes
-    if image_file.size > max_size:
-        raise ImageTooLarge(developer_message="File too large. Maximum size is 5MB.", context={"max_mb": 5})
-    
     try:
-        # Generate unique filename: {timestamp}_{random}_{original_filename}
-        timestamp = int(datetime.now().timestamp())
-        random_str = secrets.token_hex(4)  # 8 character random string
-        original_filename = Path(file_name).stem
-        unique_filename = f"{timestamp}_{random_str}_{original_filename}{file_extension}"
-        
-        # Save via default storage (local MEDIA_ROOT or R2 when configured)
-        path = default_storage.save(unique_filename, image_file)
-        image_url = default_storage.url(path)
+        image_url = save_uploaded_image(image_file)
         
         return Response({
             'image_url': image_url
         }, status=status.HTTP_200_OK)
-        
+    except ValueError as e:
+        message = str(e)
+        if "Invalid file type" in message:
+            raise ImageTypeInvalid(developer_message=message)
+        if "File too large" in message:
+            raise ImageTooLarge(developer_message=message, context={"max_mb": 5})
+        raise DRFValidationError({"image": [ErrorDetail(message, code="invalid")]})
     except Exception as e:
         raise ImageUploadFailed(developer_message=f"Failed to upload image: {str(e)}")
 
