@@ -1,5 +1,5 @@
 'use client';
-import { useState, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAppStoreDownloadHref } from '../utils/useAppStoreDownloadHref';
 import { webPost } from '../utils/webAPI';
@@ -10,9 +10,52 @@ interface PointsLookupResponse {
   threshold_reached: boolean;
 }
 
+function formatRedemptionTime(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  const utc8Ms = parsed.getTime() + 8 * 60 * 60 * 1000;
+  const utc8Date = new Date(utc8Ms);
+  const pad2 = (num: number): string => String(num).padStart(2, '0');
+
+  const year = utc8Date.getUTCFullYear();
+  const month = pad2(utc8Date.getUTCMonth() + 1);
+  const day = pad2(utc8Date.getUTCDate());
+  const hour = pad2(utc8Date.getUTCHours());
+  const minute = pad2(utc8Date.getUTCMinutes());
+  return `${year}/${month}/${day} ${hour}:${minute}`;
+}
+
+function RedemptionTimeText({ value }: { value: string }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+  return <>{formatRedemptionTime(value)}</>;
+}
+
+function RedemptionSummary({ couponName, redeemedAt }: { couponName: string; redeemedAt: string }) {
+  if (!couponName && !redeemedAt) return null;
+
+  return (
+    <div className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-left">
+      <p className="text-xs font-semibold text-gray-500">本次核銷資訊</p>
+      {couponName && <p className="mt-1 text-sm font-semibold text-gray-900">品項：{couponName}</p>}
+      {redeemedAt && (
+        <p className="mt-1 text-sm text-gray-700">
+          時間：<RedemptionTimeText value={redeemedAt} />
+        </p>
+      )}
+    </div>
+  );
+}
 function PointsContent() {
   const searchParams = useSearchParams();
   const session = searchParams.get('session') ?? '';
+  const couponName = searchParams.get('couponName') ?? '';
+  const redeemedAt = searchParams.get('redeemedAt') ?? '';
 
   const [phone, setPhone] = useState('');
   const [result, setResult] = useState<PointsLookupResponse | null>(null);
@@ -60,6 +103,7 @@ function PointsContent() {
               : `再累積 ${3 - result.total_points} 次核銷即可解鎖現金券獎勵。下載 CouPro App 追蹤您的進度！`}
           </p>
         </div>
+        <RedemptionSummary couponName={couponName} redeemedAt={redeemedAt} />
         <a
           href={appStoreUrl}
           target="_blank"
@@ -83,6 +127,7 @@ function PointsContent() {
           註冊或登入 App 時請使用相同手機號碼，累積點數才會與您的帳號合併計算。
         </p>
       </div>
+      <RedemptionSummary couponName={couponName} redeemedAt={redeemedAt} />
 
       <div className="flex flex-col gap-3">
         <input

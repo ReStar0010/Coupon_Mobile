@@ -102,4 +102,5 @@ def create_redemption(request):
         'redemption_id': web_redemption.id,
         'coupon_name': template.coupon_name,
         'store_name': template.store.name,
+        'redeemed_at': web_redemption.redeemed_at.isoformat(),
     }, status=status.HTTP_201_CREATED)
