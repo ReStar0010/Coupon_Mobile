@@ -8,6 +8,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Prefetch
 import logging
 import re
+from urllib.parse import unquote
 from drf_yasg.utils import swagger_auto_schema
 
 from api.exceptions import (
@@ -36,7 +37,7 @@ def _parse_web_table_qr_payload(raw_code: str) -> tuple[str, str] | None:
 
     query_match = re.search(r"[?&]token=([^&#]+)", s, re.IGNORECASE)
     if query_match and query_match.group(1):
-        return ("legacy", query_match.group(1))
+        return ("legacy", unquote(query_match.group(1)))
     return None
 
 @api_view(['GET'])
@@ -419,14 +420,14 @@ def redeem_coupon(request, id):
             qr_kind, qr_token = parsed_web_table_qr
             if qr_kind == 'fixed':
                 fixed_session = StoreFixedSession.objects.filter(
-                    session_token=qr_token,
+                    session_token__iexact=qr_token,
                     is_active=True,
                 ).select_related('store').first()
                 if not fixed_session or fixed_session.store_id != coupon.store_id:
                     raise RedeemCodeInvalid(developer_message="Invalid redeem code.")
             else:
                 qr_session = QRCodeSession.objects.filter(
-                    session_token=qr_token,
+                    session_token__iexact=qr_token,
                     is_active=True,
                 ).select_related('template__store').first()
                 if not qr_session or qr_session.template.store_id != coupon.store_id:

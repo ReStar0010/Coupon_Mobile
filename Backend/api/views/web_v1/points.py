@@ -32,9 +32,11 @@ def points_lookup(request):
     if session_token or fixed_session_token:
         token_filter = Q()
         if session_token:
-            token_filter |= Q(session_token=session_token) | Q(fixed_session_token=session_token)
+            token_filter |= Q(session_token__iexact=session_token) | Q(
+                fixed_session_token__iexact=session_token
+            )
         if fixed_session_token:
-            token_filter |= Q(fixed_session_token=fixed_session_token)
+            token_filter |= Q(fixed_session_token__iexact=fixed_session_token)
         WebRedemption.objects.filter(
             token_filter,
             phone_number__isnull=True,

@@ -26,11 +26,12 @@ def create_redemption(request):
         return Response({'error': '缺少或無效的 template_id'}, status=status.HTTP_400_BAD_REQUEST)
 
     is_legacy_session_flow = bool(session_token)
-    incoming_token = session_token or fixed_session_token
+    canonical_legacy_token: str | None = None
+    canonical_fixed_token: str | None = None
 
     # Legacy idempotency: session token can only redeem once.
     if is_legacy_session_flow and WebRedemption.objects.filter(
-        session_token=session_token,
+        session_token__iexact=session_token,
         fixed_session_token__isnull=True,
     ).exists():
         return Response({'error': '此優惠券已被核銷'}, status=status.HTTP_409_CONFLICT)
@@ -39,20 +40,22 @@ def create_redemption(request):
     if is_legacy_session_flow:
         try:
             session = QRCodeSession.objects.select_related('template__store').get(
-                session_token=session_token,
+                session_token__iexact=session_token,
                 is_active=True,
             )
         except QRCodeSession.DoesNotExist:
             return Response({'error': 'QR code 已過期或無效'}, status=status.HTTP_404_NOT_FOUND)
+        canonical_legacy_token = session.session_token
         session_store_id = session.template.store_id
     else:
         try:
             fixed_session = StoreFixedSession.objects.select_related('store').get(
-                session_token=fixed_session_token,
+                session_token__iexact=fixed_session_token,
                 is_active=True,
             )
         except StoreFixedSession.DoesNotExist:
             return Response({'error': 'QR code 已過期或無效'}, status=status.HTTP_404_NOT_FOUND)
+        canonical_fixed_token = fixed_session.session_token
         session_store_id = fixed_session.store_id
 
     try:
@@ -119,8 +122,8 @@ def create_redemption(request):
 
     with transaction.atomic():
         # Double-check idempotency inside transaction for legacy flow.
-        if is_legacy_session_flow and WebRedemption.objects.filter(
-            session_token=session_token,
+        if is_legacy_session_flow and canonical_legacy_token is not None and WebRedemption.objects.filter(
+            session_token=canonical_legacy_token,
             fixed_session_token__isnull=True,
         ).exists():
             return Response({'error': '此優惠券已被核銷'}, status=status.HTTP_409_CONFLICT)
@@ -142,16 +145,17 @@ def create_redemption(request):
         # For fixed table sessions, keep `session_token` unique per redemption record.
         # This avoids collisions in environments that may still carry an older DB-level
         # unique constraint on api_web_redemption.session_token.
-        persisted_session_token = (
-            incoming_token
-            if is_legacy_session_flow
-            else f"{fixed_session_token}:{secrets.token_urlsafe(8)}"
-        )
+        if is_legacy_session_flow:
+            assert canonical_legacy_token is not None
+            persisted_session_token = canonical_legacy_token
+        else:
+            assert canonical_fixed_token is not None
+            persisted_session_token = f"{canonical_fixed_token}:{secrets.token_urlsafe(8)}"
 
         web_redemption = WebRedemption.objects.create(
             template=template,
             session_token=persisted_session_token,
-            fixed_session_token=fixed_session_token or None,
+            fixed_session_token=(canonical_fixed_token if not is_legacy_session_flow else None),
         )
 
     return Response({

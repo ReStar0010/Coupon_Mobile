@@ -180,6 +180,30 @@ class CouponRoutesTest(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
 
+    def test_exclusive_redeem_fixed_table_token_matched_case_insensitively(self):
+        """Scanner may uppercase only the path segment; DB keeps original session_token casing."""
+        from api.models import StoreFixedSession
+
+        fixed_session = StoreFixedSession.objects.create(
+            store=self.store,
+            session_token='myFixedToken123',
+            is_active=True,
+        )
+        self.coupon.current_holder = self.user
+        self.coupon.save(update_fields=['current_holder'])
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            f'/api/redeem/{self.coupon.id}/',
+            {
+                'redeem_code': (
+                    f'https://api.coupro.pro/claim-fixed/MYFIXEDTOKEN123/'
+                ),
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
     def test_unified_redemption_get(self):
         """GET api/unified-redemption/<code>/ returns 200, 401, or 4xx."""
         response = self.client.get('/api/unified-redemption/INVALID_CODE/')
