@@ -14,6 +14,7 @@ def merchant_coupons(request, store_id):
     templates = CouponTemplate.objects.filter(
         store=store,
         is_active=True,
+        show_in_desk_qrcode=True,
         remaining_quantity__gt=0,
         expiry_date__gt=now,
     ).order_by('expiry_date')

@@ -728,6 +728,7 @@ export const merchantAPI = {
     expiry_date: string;
     draw_probability?: number;
     is_active?: boolean;
+    show_in_desk_qrcode?: boolean;
     tags?: number[];
   }) => {
     const response = await fetchAPI('/merchant/coupon-templates/create/', {
@@ -751,6 +752,7 @@ export const merchantAPI = {
       expiry_date: string;
       draw_probability: number;
       is_active: boolean;
+      show_in_desk_qrcode: boolean;
       tags: number[];
     }>,
   ) => {
