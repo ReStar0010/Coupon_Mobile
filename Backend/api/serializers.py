@@ -62,6 +62,30 @@ class RegistrationOTPSendSerializer(serializers.Serializer):
             )
         return normalized
 
+
+class RegistrationPhoneLookupSerializer(serializers.Serializer):
+    """
+    Serializer for POST /api/register/check-phone/
+    Returns whether a Taiwan mobile number already has a StudentProfile (no SMS).
+    """
+
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text="Taiwan mobile number (09XXXXXXXX format)",
+    )
+
+    def validate_phone_number(self, value):
+        """Same Taiwan mobile validation as RegistrationOTPSendSerializer."""
+        import re
+
+        normalized = re.sub(r"[-\s()]", "", value)
+        if not re.match(r"^09\d{8}$", normalized):
+            raise serializers.ValidationError(
+                "請輸入有效的台灣手機號碼 (09開頭，共10碼)"
+            )
+        return normalized
+
+
 class RegistrationOTPVerifySerializer(serializers.Serializer):
     """
     Serializer for POST /api/register/verify-otp/
@@ -707,4 +731,22 @@ class MerchantStatisticsCostExtrasSerializer(serializers.Serializer):
     )
     today_cost_currency = serializers.CharField(
         max_length=10, required=False, allow_null=True, allow_blank=True
+    )
+
+
+class FeedbackSubmitSerializer(serializers.Serializer):
+    """
+    Serializer for user feedback submission.
+    POST /api/feedback/
+    """
+
+    feedback_type = serializers.ChoiceField(
+        choices=['bug', 'feature'],
+        help_text="bug = Bug 回報；feature = 功能建議",
+    )
+    details = serializers.CharField(
+        max_length=2000,
+        help_text="User feedback details",
+        allow_blank=False,
+        required=True,
     )

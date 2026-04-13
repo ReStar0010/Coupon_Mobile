@@ -55,6 +55,10 @@ const OptionsMenu: React.FC = () => {
     router.push('/options-menu/email-settings/EmailSettings');
   }, [router]);
 
+  const handleFeedback = useCallback(() => {
+    router.push('/options-menu/feedback/FeedBack');
+  }, [router]);
+
   const handleDeleteAccount = useCallback(() => {
     Alert.alert('刪除帳號', '刪除帳號是永久性操作，無法復原。確定要繼續嗎？', [
       { text: '取消', style: 'cancel' },
@@ -167,6 +171,18 @@ const OptionsMenu: React.FC = () => {
                 onPress={handleBlockedMerchants}
               >
                 <ListItem.Text>封鎖的商家</ListItem.Text>
+              </ListItem>
+              <Separator />
+              <ListItem
+                icon={Mail}
+                iconAfter={ChevronRight}
+                bg="white"
+                hoverTheme
+                pressTheme
+                size="$6"
+                onPress={handleFeedback}
+              >
+                <ListItem.Text>意見回饋</ListItem.Text>
               </ListItem>
               <Separator />
               <ListItem

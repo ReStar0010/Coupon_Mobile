@@ -28,6 +28,7 @@ from api.views.sharing_views import (
     withdraw_public_share,
     collection_landing,
     claim_landing,
+    claim_fixed_landing,
     voucher_landing,
     apple_app_site_association,
     assetlinks_json,
@@ -48,25 +49,34 @@ from api.views.merchant_profile import (
 from api.views.events import track_template_view
 from api.views.phone_otp import (
     send_otp, verify_otp,
+    check_registration_phone,
     send_registration_otp, verify_registration_otp,
     send_password_reset_otp, verify_password_reset_otp
 )
 from api.views.qr_claim import generate_qr_session, invalidate_qr_session, claim_coupon_via_qr
 from api.views.account_deletion import pre_delete_check, delete_account, get_deletion_status
 from api.views.consumer_account_deletion import consumer_pre_delete_check, consumer_delete_account
+from api.views.feedback import submit_feedback
 from api.views.content_moderation import (
     ReportContentView, ReportStatusView, UserReportsView,
     BlockMerchantView, UnblockMerchantView, BlockedMerchantsListView, BlockStatusView
 )
 from api.views.eula_acceptance import (
     EULAStatusView, EULAAcceptView, EULAContentView,
-    ContentGuidelinesView, PrivacyPolicyView
+    ContentGuidelinesView, PrivacyPolicyView, TermsOfServiceView
 )
 from api.views.admin_moderation import (
     ModerationQueueView, ReportDetailView, ModerationActionView,
     EscalatedReportsView, MerchantViolationsView, ModerationStatsView
 )
 from api.views.load_test import load_test_verify_consistency, load_test_reset
+from api.views.web_v1.merchants import merchant_coupons
+from api.views.web_v1.coupons import coupon_detail as web_coupon_detail
+from api.views.web_v1.sessions import resolve_session
+from api.views.web_v1.fixed_sessions import resolve_fixed_session
+from api.views.web_v1.shares import share_detail
+from api.views.web_v1.redemptions import create_redemption
+from api.views.web_v1.points import points_lookup
 
 import logging
 
@@ -149,6 +159,7 @@ urlpatterns = [
     # Universal Link fallback pages (https://api.coupro.pro/collection/<token>)
     path('collection/<str:token>/', collection_landing, name='collection_landing'),
     path('claim/<str:token>/', claim_landing, name='claim_landing'),
+    path('claim-fixed/<str:token>/', claim_fixed_landing, name='claim_fixed_landing'),
     path('cl/<str:token>/', claim_landing, name='claim_landing_short'),
     path('voucher/<str:token>/', voucher_landing, name='voucher_landing'),
     # iOS/Android verification (https://api.coupro.pro/.well-known/...)
@@ -184,6 +195,7 @@ urlpatterns = [
     path('api/reset-password/', reset_password, name='reset_password'),
     
     # Phone-based registration endpoints
+    path('api/register/check-phone/', check_registration_phone, name='check_registration_phone'),
     path('api/register/send-otp/', send_registration_otp, name='send_registration_otp'),
     path('api/register/verify-otp/', verify_registration_otp, name='verify_registration_otp'),
     
@@ -199,6 +211,7 @@ urlpatterns = [
     path('api/add-completed-goal/', add_completed_goal, name='add_completed_goal'),    # Daily draw endpoints
     path('api/reset-savings-goal/', reset_savings_goal, name='reset_savings_goal'),
     path('api/user-info/', user_info),
+    path('api/feedback/', submit_feedback, name='feedback'),
 
     # User phone endpoints (phone-based coupon send feature)
     # Phone OTP verification endpoints
@@ -259,6 +272,15 @@ urlpatterns = [
     path('api/load-test/verify-consistency/', load_test_verify_consistency),
     path('api/load-test/reset/', load_test_reset),
 
+    # Web consumer flow (web-based-users feature)
+    path('api/web/v1/merchants/<int:store_id>/coupons/', merchant_coupons, name='web_merchant_coupons'),
+    path('api/web/v1/coupons/<int:template_id>/', web_coupon_detail, name='web_coupon_detail'),
+    path('api/web/v1/sessions/<str:session_token>/resolve/', resolve_session, name='web_resolve_session'),
+    path('api/web/v1/fixed-sessions/<str:session_token>/resolve/', resolve_fixed_session, name='web_resolve_fixed_session'),
+    path('api/web/v1/shares/<str:share_token>/', share_detail, name='web_share_detail'),
+    path('api/web/v1/redemptions/', create_redemption, name='web_create_redemption'),
+    path('api/web/v1/points/lookup/', points_lookup, name='web_points_lookup'),
+
     # UGC Compliance: Content Reporting (User Story 1)
     path('api/content/<str:content_type>/<int:content_id>/report/', ReportContentView.as_view(), name='report_content'),
     path('api/content/<str:content_type>/<int:content_id>/report/status/', ReportStatusView.as_view(), name='report_status'),
@@ -278,6 +300,7 @@ urlpatterns = [
     # UGC Compliance: Public Legal Content (User Story 5)
     path('api/content-guidelines/', ContentGuidelinesView.as_view(), name='content_guidelines'),
     path('api/privacy-policy/', PrivacyPolicyView.as_view(), name='privacy_policy'),
+    path('api/terms/', TermsOfServiceView.as_view(), name='terms_of_service'),
 
     # UGC Compliance: Admin Moderation Dashboard (User Story 4)
     path('api/admin/moderation/queue/', ModerationQueueView.as_view(), name='moderation_queue'),

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Prefetch
 import logging
 from drf_yasg.utils import swagger_auto_schema
@@ -17,7 +18,7 @@ from api.exceptions import (
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
 from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest
-from ..utils import grant_reward_voucher, apply_referral_reward, display_face_value
+from ..utils import apply_referral_reward, display_face_value, increment_sharing_progress_for_redeemer
 
 logger = logging.getLogger(__name__)
 
@@ -373,136 +374,97 @@ def get_coupon_detail(request, id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@transaction.atomic
 def redeem_coupon(request, id):
-    coupon = get_object_or_404(Coupon, id=id)
+    coupon = get_object_or_404(
+        Coupon.objects.select_related('store', 'template', 'original_owner'),
+        id=id,
+    )
 
-    # 檢查優惠券類型，處理方式不同
     if coupon.coupon_type == 'exclusive':
         # === 專屬優惠券（需要兌換碼） ===
-        
-        # 檢查是否已被兌換
+
         if coupon.is_redeemed():
             raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed.")
 
-        # 檢查用戶是否為優惠券持有者
         if coupon.current_holder != request.user:
             raise CouponNotHolder(developer_message="User is not the holder of this coupon.")
 
-        # 檢查兌換碼
         submitted_code = request.data.get('redeem_code')
         if not submitted_code:
             raise RedeemCodeInvalid(developer_message="Redeem code is required.")
 
-        # Validate unified redemption code first (if provided)
-        # Check if submitted code matches store's unified_redeem_code
-        if submitted_code and len(submitted_code) == 6 and submitted_code.isdigit():
+        # Determine whether the submitted code is a 6-digit unified store code.
+        # Run a single Store lookup and cache the result to avoid a duplicate query later.
+        _unified_store: Store | None = None
+        if len(submitted_code) == 6 and submitted_code.isdigit():
             try:
-                store = Store.objects.get(unified_redeem_code=submitted_code)
-                # Unified code validation: code must match the coupon's store
-                if store.id != coupon.store.id:
+                _unified_store = Store.objects.get(unified_redeem_code=submitted_code)
+                if _unified_store.id != coupon.store.id:
                     raise UnifiedCodeInvalid(developer_message="Unified code does not match coupon's store.")
-                # Unified code validation passed, proceed with coupon redemption
             except Store.DoesNotExist:
-                # Not a unified code, continue with coupon-specific code validation
-                pass
+                pass  # Not a unified code — fall through to coupon-specific validation
 
-        # 驗證兌換碼 (coupon-specific code validation)
-        # 優先使用 coupon.redeem_code（從 template 複製過來的）
-        # 如果 coupon.redeem_code 為 None，則檢查 template.template_redeem_code
-        expected_code = coupon.redeem_code
-        if not expected_code and coupon.template:
-            expected_code = coupon.template.template_redeem_code
-        
-        # If unified code was validated above, skip coupon-specific code check
-        # Otherwise, validate coupon-specific code
-        if not (submitted_code and len(submitted_code) == 6 and submitted_code.isdigit() and Store.objects.filter(unified_redeem_code=submitted_code, id=coupon.store.id).exists()):
-            # This is not a unified code, so validate as coupon-specific code
+        is_unified = _unified_store is not None and _unified_store.id == coupon.store.id
+
+        if not is_unified:
+            # Coupon-specific code validation:
+            # prefer coupon.redeem_code; fall back to template_redeem_code
+            expected_code = coupon.redeem_code or (
+                coupon.template.template_redeem_code if coupon.template else None
+            )
             if not expected_code:
                 raise RedeemCodeInvalid(developer_message="This coupon has no redeem code configured.")
-
             if expected_code != submitted_code:
                 raise RedeemCodeInvalid(developer_message="Invalid redeem code.")
-            
+
     elif coupon.coupon_type == 'store':
         pass
     else:
-        # 不支援的優惠券類型（前端以 GENERIC_ERROR 顯示翻譯）
         raise CouProAPIException(developer_message="Unsupported coupon type.")
-    
+
     # 建立兌換記錄（適用於兩種類型）
     savings_amount = coupon.estimated_savings or 0
-    
-    # 創建 CouponRedemption 記錄
+
     try:
         redemption = CouponRedemption(
             coupon=coupon,
             user=request.user,
             savings_amount=savings_amount,
-            coupon_type=coupon.coupon_type  # 設置 coupon_type 用於條件約束
+            coupon_type=coupon.coupon_type,
         )
         redemption.save()
+    except IntegrityError:
+        raise CouponAlreadyRedeemed(
+            developer_message="This coupon has already been redeemed by this user."
+        )
     except ValueError:
-        # 處理 exclusive coupon 已被此用戶兌換的情況
         raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed by this user.")
-    
+
     # 更新用戶統計資料
     try:
         student_profile = request.user.student_profile
-        
-        # 檢查是否需要重設月度統計 (新月份)
         student_profile.update_monthly_savings()
-        
-        # 更新優惠券使用統計
         student_profile.coupons_used_count += 1
-
-        # 更新總節省和月度節省
         student_profile.total_savings += savings_amount
         student_profile.monthly_savings += savings_amount
         student_profile.save()
-
     except (StudentProfile.DoesNotExist, AttributeError):
-        # 處理用戶沒有學生檔案的情況
         pass
 
     # === Progress Tracker updates (011-progress-tracker) ===
-    # Metric 2 (sharing light system) and Metric 3 (referral light system)
     if coupon.coupon_type == 'exclusive':
         original_owner = coupon.original_owner
         is_shared_redemption = (original_owner is not None and original_owner != request.user)
 
-        # Metric 2 — redeemer gets +1 for ANY exclusive coupon redemption (COU-87).
-        # Light turns on whenever a coupon is redeemed, regardless of share.
-        # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
-        try:
-            redeemer_profile = request.user.student_profile
-            redeemer_profile.sharing_progress_count += 1
-            n = redeemer_profile.sharing_progress_count
-            vouchers = n // 3
-            for _ in range(vouchers):
-                grant_reward_voucher(request.user, 10, 'Sharing Reward')
-            redeemer_profile.sharing_rewards_earned += vouchers
-            redeemer_profile.sharing_progress_count = n % 3
-            redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
-        except (StudentProfile.DoesNotExist, AttributeError):
-            pass
+        # Metric 2 — redeemer gets +1 for ANY exclusive coupon redemption.
+        increment_sharing_progress_for_redeemer(request.user)
 
         if is_shared_redemption:
-            # Metric 2 — case (a): original owner gets +1 when their coupon is redeemed by someone else.
-            # Progress resets to 0 when reaching 3 (grant $10, then count % 3).
-            try:
-                owner_profile = original_owner.student_profile
-                owner_profile.sharing_progress_count += 1
-                n = owner_profile.sharing_progress_count
-                vouchers = n // 3
-                for _ in range(vouchers):
-                    grant_reward_voucher(original_owner, 10, 'Sharing Reward')
-                owner_profile.sharing_rewards_earned += vouchers
-                owner_profile.sharing_progress_count = n % 3
-                owner_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
-            except (StudentProfile.DoesNotExist, AttributeError):
-                pass
+            # Metric 2 — original owner gets +1 when their coupon is redeemed by someone else.
+            increment_sharing_progress_for_redeemer(original_owner)
 
-        # Metric 3 — check if this is the redeemer's very first exclusive coupon/voucher redemption
+        # Metric 3 — first-ever exclusive redemption triggers referral reward for original owner.
         try:
             exclusive_count = CouponRedemption.objects.filter(
                 user=request.user, coupon_type='exclusive'
@@ -517,7 +479,7 @@ def redeem_coupon(request, id):
             pass
 
     return Response({
-        "message": "優惠券兌換成功", 
+        "message": "優惠券兌換成功",
         "coupon_name": coupon.coupon_name,
         "coupon_detail": coupon.coupon_detail,
         "savings_amount": savings_amount,
@@ -570,37 +532,35 @@ def validate_unified_redemption_code(request, code):
             )
         raise UnifiedCodeInvalid(developer_message="Unified code not found.")
     
-    # Get consumer's available coupons for this store
-    # Filter: owned by consumer, active, non-expired, not redeemed, exclusive type
+    # Get consumer's available coupons for this store.
+    # Use Exists() annotation to check redemption status in a single query instead of
+    # calling coupon.is_redeemed() per coupon (which would cause N+1 queries).
     now = timezone.now()
     available_coupons = Coupon.objects.filter(
         store=store,
         coupon_type='exclusive',
         current_holder=request.user,
         expiry_date__gt=now,
-        start_date__lte=now
+        start_date__lte=now,
+    ).annotate(
+        _is_redeemed=Exists(CouponRedemption.objects.filter(coupon=OuterRef('pk')))
     ).select_related('store', 'template').prefetch_related('tags')
-    
-    # Filter out redeemed coupons
-    unredeemed_coupons = []
-    for coupon in available_coupons:
-        if not coupon.is_redeemed():
-            unredeemed_coupons.append(coupon)
-    
-    # Format coupon data
+
+    # Format coupon data — use annotated _is_redeemed to avoid extra DB hits
     coupon_data = []
-    for coupon in unredeemed_coupons:
-        coupon_data.append({
-            "id": coupon.id,
-            "coupon_name": coupon.coupon_name,
-            "coupon_detail": coupon.coupon_detail,
-            "coupon_type": coupon.coupon_type,
-            "store_name": store.name,
-            "expiry_date": coupon.expiry_date.isoformat(),
-            "estimated_savings": float(coupon.estimated_savings) if coupon.estimated_savings else 0,
-            "is_redeemed": coupon.is_redeemed(),
-            "image_url": coupon.image_url,
-        })
+    for coupon in available_coupons:
+        if not coupon._is_redeemed:
+            coupon_data.append({
+                "id": coupon.id,
+                "coupon_name": coupon.coupon_name,
+                "coupon_detail": coupon.coupon_detail,
+                "coupon_type": coupon.coupon_type,
+                "store_name": store.name,
+                "expiry_date": coupon.expiry_date.isoformat(),
+                "estimated_savings": float(coupon.estimated_savings) if coupon.estimated_savings else 0,
+                "is_redeemed": False,
+                "image_url": coupon.image_url,
+            })
 
     # Platform vouchers: only when store participates
     available_platform_vouchers = []

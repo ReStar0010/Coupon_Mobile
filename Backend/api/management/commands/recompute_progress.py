@@ -106,6 +106,7 @@ class Command(BaseCommand):
                 coupon_type='exclusive',
             ).exclude(user=user).count()
 
+            # Web self-redemption does not advance sharing lights (COU: in-app exclusive only).
             # Metric 2 resets to 0 when reaching 3; store current cycle remainder (0..2).
             total_sharing = redeemer_count + owner_count
             new_sharing = total_sharing % 3

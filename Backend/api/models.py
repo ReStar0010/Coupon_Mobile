@@ -332,6 +332,33 @@ class QRCodeSession(models.Model):
         return f"QR Session {self.id} - Template {self.template_id} - {'Active' if self.is_active else 'Inactive'}"
 
 
+class StoreFixedSession(models.Model):
+    """
+    Fixed table-sticker session token for web consumers.
+    One store has one long-lived token unless admin rotates it.
+    """
+    store = models.OneToOneField(
+        Store,
+        on_delete=models.CASCADE,
+        related_name='fixed_session',
+    )
+    session_token = models.CharField(max_length=100, unique=True, db_index=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    rotated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'api_store_fixed_session'
+        indexes = [
+            models.Index(fields=['session_token'], name='store_fixed_session_token_idx'),
+            models.Index(fields=['store', 'is_active'], name='store_fixed_session_active_idx'),
+        ]
+
+    def __str__(self):
+        return f"StoreFixedSession {self.store_id} - {'Active' if self.is_active else 'Inactive'}"
+
+
 class QRCodeClaim(models.Model):
     """
     Tracks QR code coupon claims with idempotency key to prevent duplicate claims.
@@ -353,6 +380,54 @@ class QRCodeClaim(models.Model):
 
     def __str__(self):
         return f"QR Claim {self.id} - User {self.user.email} - Template {self.template_id} - {self.claimed_at}"
+
+
+class WebRedemption(models.Model):
+    """
+    Records an anonymous web-flow coupon redemption.
+    Created by POST /api/web/v1/redemptions/. Unique on session_token to prevent
+    double-redemption of the same table QR from the web flow.
+    phone_number is null at creation; optionally populated when the user
+    enters their phone on the Points Accumulation screen.
+    """
+    template = models.ForeignKey(
+        CouponTemplate,
+        on_delete=models.PROTECT,
+        related_name='web_redemptions',
+    )
+    session_token = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="The QRCodeSession.session_token from the scanned table QR",
+    )
+    fixed_session_token = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Store-level fixed session token for table sticker QR flow",
+    )
+    phone_number = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Populated when user enters phone on points screen",
+    )
+    progress_applied = models.BooleanField(
+        default=False,
+        help_text=(
+            "Legacy: Web self-redemption no longer advances sharing lights; "
+            "field retained for DB compatibility."
+        ),
+    )
+    redeemed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'api_web_redemption'
+
+    def __str__(self):
+        return f"WebRedemption {self.id} - template {self.template_id} - {self.redeemed_at}"
 
 
 class Coupon(models.Model):

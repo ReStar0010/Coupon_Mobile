@@ -7,11 +7,13 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 from django.utils import timezone
+from django.db import models, transaction
+from django.db.models import Case, F, Q, Value, When
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from ..serializers import SetSavingsGoalSerializer
-from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log, PlatformVoucherRedemption
+from ..models import StudentProfile, CompletedGoal, Coupon, CouponRedemption, Log, PlatformVoucherRedemption, WebRedemption
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +66,8 @@ def progress_trackers(request):
     """
     GET /api/progress-trackers/
     Returns the three progress metrics for the authenticated user:
-      - total_redemptions: exclusive coupon + platform voucher redemptions
-      - sharing_progress: O count and N threshold for sharing light system
+      - total_redemptions: exclusive coupon + platform voucher + web (phone-linked) redemptions
+      - sharing_progress: in-app exclusive sharing lights only (web self-redemption excluded)
       - referral_progress: O count and N threshold for new user referral light system
     """
     try:
@@ -76,8 +78,14 @@ def progress_trackers(request):
         voucher_count = PlatformVoucherRedemption.objects.filter(
             user=request.user
         ).count()
+        phone = (profile.phone_number or '').strip()
+        web_count = (
+            WebRedemption.objects.filter(phone_number=phone).count()
+            if phone
+            else 0
+        )
         return Response({
-            "total_redemptions": exclusive_count + voucher_count,
+            "total_redemptions": exclusive_count + voucher_count + web_count,
             "sharing_progress": {
                 "count": profile.sharing_progress_count,
                 "threshold": 3,
@@ -370,6 +378,43 @@ def user_phone(request):
         }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
+def bulk_claim_pending_coupons_for_user(user, phone_number):
+    """
+    Assign non-expired pending coupons for ``phone_number`` to ``user`` in one UPDATE.
+
+    Matches phone OTP / registration claim semantics:
+    - ``current_holder`` = user, ``pending_phone_number`` cleared
+    - ``original_owner`` set only when still null (first holder)
+    - ``acquisition_method`` preserved when set; null/blank -> 'consolidate'
+
+    Returns:
+        int: Number of coupons updated.
+    """
+    now = timezone.now()
+    acq_field = Coupon._meta.get_field('acquisition_method')
+    return Coupon.objects.filter(
+        pending_phone_number=phone_number,
+        current_holder__isnull=True,
+        expiry_date__gt=now,
+    ).update(
+        current_holder=user,
+        pending_phone_number=None,
+        original_owner_id=Case(
+            When(original_owner_id__isnull=True, then=Value(user.id)),
+            default=F('original_owner_id'),
+            output_field=models.IntegerField(),
+        ),
+        acquisition_method=Case(
+            When(
+                Q(acquisition_method__isnull=True) | Q(acquisition_method=''),
+                then=Value('consolidate'),
+            ),
+            default=F('acquisition_method'),
+            output_field=acq_field,
+        ),
+    )
+
+
 def assign_pending_coupons(user, phone_number):
     """
     Assign all pending coupons for a phone number to the user.
@@ -385,40 +430,20 @@ def assign_pending_coupons(user, phone_number):
     Returns:
         int: Number of pending coupons assigned
     """
-    pending_coupons = Coupon.objects.filter(
-        pending_phone_number=phone_number,
-        current_holder__isnull=True,
-        expiry_date__gt=timezone.now()  # Only assign non-expired coupons
-    ).select_related('template', 'store')
-    
-    count = 0
-    for coupon in pending_coupons:
-        # Assign coupon to user
-        coupon.current_holder = user
-        coupon.original_owner = user  # First holder
-        coupon.pending_phone_number = None  # Clear pending status
-        coupon.save()
-        count += 1
-        
-        # Log the assignment
-        try:
-            logger.info(
-                "Pending coupon claimed",
-                extra={
-                    "user_id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "action": "pending_coupon_claimed",
-                    "coupon_id": coupon.id,
-                    "coupon_name": coupon.coupon_name,
-                    "coupon_detail": coupon.coupon_detail,
-                    "coupon_type": coupon.coupon_type,
-                    "store_name": coupon.store.name,
-                    "acquisition_method": coupon.acquisition_method,
-                }
-            )
-        except Exception as e:
-            # Log creation failure shouldn't block the assignment
-            logger.warning("Failed to create log for pending coupon assignment: %s", e)
-    
+    with transaction.atomic():
+        count = bulk_claim_pending_coupons_for_user(user, phone_number)
+
+    if count:
+        logger.info(
+            "Pending coupons claimed (batch)",
+            extra={
+                "user_id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "action": "pending_coupon_claimed_batch",
+                "count": count,
+                "phone_number": phone_number,
+            },
+        )
+
     return count

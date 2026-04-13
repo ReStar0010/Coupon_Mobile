@@ -1,4 +1,5 @@
 from django import forms
+import secrets
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.utils.html import format_html
@@ -8,6 +9,7 @@ from django.urls import path, reverse
 from django.shortcuts import render, redirect
 from django.http import HttpResponseRedirect
 from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -49,7 +51,6 @@ class CouponTemplateInline(admin.TabularInline):
     extra = 0
     max_num = 5
     fields = ['coupon_name', 'total_quantity', 'remaining_quantity', 'is_active']
-    readonly_fields = ['remaining_quantity']
     can_delete = False
     show_change_link = True
 
@@ -439,12 +440,13 @@ class PasswordResetProfileAdmin(admin.ModelAdmin):
 class StoreAdmin(admin.ModelAdmin):
     list_display = [
         'id', 'name', 'owner_email', 'store_type', 
-        'address', 'has_location', 'unified_redeem_code'
+        'address', 'has_location', 'unified_redeem_code', 'fixed_session_url'
     ]
     list_filter = ['store_type']
     search_fields = ['name', 'owner__email', 'address', 'unified_redeem_code']
     readonly_fields = ['unified_redeem_code']
     inlines = [CouponTemplateInline, CouponInline]
+    actions = ['generate_or_rotate_fixed_table_qr_token']
     fieldsets = (
         ('基本資訊', {
             'fields': ('owner', 'name', 'store_type', 'image_url')
@@ -473,6 +475,86 @@ class StoreAdmin(admin.ModelAdmin):
         """優化查詢效能"""
         qs = super().get_queryset(request)
         return qs.select_related('owner')
+
+    def fixed_session_status(self, obj):
+        fixed = getattr(obj, 'fixed_session', None)
+        if not fixed:
+            return '未生成'
+        if not fixed.is_active:
+            return '已停用'
+        return f'已生成 ({fixed.session_token[:10]}...)'
+    fixed_session_status.short_description = '桌貼 QR Token'
+
+    def fixed_session_url(self, obj):
+        fixed = getattr(obj, 'fixed_session', None)
+        if not fixed or not fixed.is_active:
+            return '—'
+        api_base_url = getattr(settings, 'API_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
+        claim_fixed_url = f"{api_base_url}/claim-fixed/{fixed.session_token}/"
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>',
+            claim_fixed_url, claim_fixed_url
+        )
+    fixed_session_url.short_description = '桌貼 URL'
+
+    def generate_or_rotate_fixed_table_qr_token(self, request, queryset):
+        generated = 0
+        rotated = 0
+        for store in queryset:
+            token = secrets.token_urlsafe(24)
+            fixed, created = StoreFixedSession.objects.get_or_create(
+                store=store,
+                defaults={
+                    'session_token': token,
+                    'is_active': True,
+                },
+            )
+            if created:
+                generated += 1
+            else:
+                fixed.session_token = token
+                fixed.is_active = True
+                fixed.rotated_at = timezone.now()
+                fixed.save(update_fields=['session_token', 'is_active', 'rotated_at', 'updated_at'])
+                rotated += 1
+
+            api_base_url = getattr(settings, 'API_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
+            claim_fixed_url = f"{api_base_url}/claim-fixed/{token}/"
+            self.message_user(
+                request,
+                f"[{store.name}] 桌貼 URL: {claim_fixed_url}",
+                level=messages.INFO,
+            )
+
+        self.message_user(
+            request,
+            f"已建立 {generated} 間店家固定桌貼 token，已重置 {rotated} 間店家 token。",
+            level=messages.SUCCESS,
+        )
+    generate_or_rotate_fixed_table_qr_token.short_description = '生成/重置桌貼 QR token'
+
+
+@admin.register(StoreFixedSession)
+class StoreFixedSessionAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'store_name', 'session_token', 'is_active', 'claim_fixed_url', 'created_at', 'rotated_at'
+    ]
+    list_filter = ['is_active', 'created_at', 'rotated_at']
+    search_fields = ['store__name', 'store__owner__email', 'session_token']
+    readonly_fields = ['created_at', 'updated_at', 'rotated_at', 'claim_fixed_url']
+
+    def store_name(self, obj):
+        return obj.store.name
+    store_name.short_description = '店家'
+    store_name.admin_order_field = 'store__name'
+
+    def claim_fixed_url(self, obj):
+        api_base_url = getattr(settings, 'API_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
+        return f"{api_base_url}/claim-fixed/{obj.session_token}/"
+    claim_fixed_url.short_description = '桌貼 URL'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('store', 'store__owner')
 
 
 @admin.register(Tag)
@@ -507,7 +589,7 @@ class CouponTemplateAdmin(admin.ModelAdmin):
     ]
     list_filter = ['is_active', 'store__store_type', 'start_date', 'expiry_date']
     search_fields = ['coupon_name', 'store__name', 'template_redeem_code']
-    readonly_fields = ['created_at', 'remaining_quantity']
+    readonly_fields = ['created_at']
     filter_horizontal = ['tags']
     date_hierarchy = 'start_date'
     actions = ['deactivate_templates', 'activate_templates', 'issue_to_user_action']
@@ -582,8 +664,99 @@ class CouponTemplateAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.issue_to_user_view),
                 name='api_coupontemplate_issue_to_user',
             ),
+            path(
+                'user-search/',
+                self.admin_site.admin_view(self.user_search_view),
+                name='api_coupontemplate_user_search',
+            ),
         ]
         return extra + urls
+
+    def _norm_digits(self, s: str) -> str:
+        import re
+        return re.sub(r'\D', '', s or '')
+
+    def _profile_phone(self, u) -> str:
+        try:
+            return u.student_profile.phone_number or ''
+        except StudentProfile.DoesNotExist:
+            return ''
+
+    def _phone_sort_key(self, u, q: str, digits_q: str) -> tuple[int, str]:
+        raw_phone = self._profile_phone(u)
+        pn_digits = self._norm_digits(raw_phone)
+        if digits_q and pn_digits == digits_q:
+            return (0, u.email or '')
+        if digits_q and pn_digits.endswith(digits_q):
+            return (1, u.email or '')
+        if digits_q and digits_q in pn_digits:
+            return (2, u.email or '')
+        if q.lower() in (raw_phone or '').lower():
+            return (3, u.email or '')
+        return (4, u.email or '')
+
+    def _display_user_text(self, u) -> str:
+        phone = self._profile_phone(u)
+        if phone:
+            return f'{u.email} · 📱 {phone}'
+        return u.email
+
+    def _build_phone_filter(self, q: str, digits_q: str, has_phone: Q) -> Q:
+        phone_contains = Q(student_profile__phone_number__icontains=q)
+        if digits_q and len(digits_q) >= 2:
+            phone_contains |= Q(student_profile__phone_number__icontains=digits_q)
+        return has_phone & phone_contains
+
+    def _build_phone_search_results(self, phone_users, limit: int = 20) -> tuple[list[dict], set[int]]:
+        seen: set[int] = set()
+        results: list[dict] = []
+        for u in phone_users:
+            if u.id in seen:
+                continue
+            seen.add(u.id)
+            results.append({'id': u.id, 'text': self._display_user_text(u)})
+            if len(results) >= limit:
+                break
+        return results, seen
+
+    def user_search_view(self, request):
+        """JSON：搜尋使用者。電話（StudentProfile）優先，其次 email／username。"""
+        from django.http import JsonResponse
+
+        q = request.GET.get('q', '').strip()
+        if len(q) < 2:
+            return JsonResponse({'results': []})
+
+        digits_q = self._norm_digits(q)
+        user_model = get_user_model()
+
+        has_phone = (
+            Q(student_profile__phone_number__isnull=False)
+            & ~Q(student_profile__phone_number='')
+        )
+        # 電話比對：完整輸入 + 純數字（方便 +886 / 空格分隔仍能找到）
+        phone_filter = self._build_phone_filter(q, digits_q, has_phone)
+
+        phone_users = list(
+            user_model.objects.filter(phone_filter)
+            .select_related('student_profile')
+            .distinct()[:40]
+        )
+        phone_users.sort(key=lambda u: self._phone_sort_key(u, q, digits_q))
+
+        results, seen = self._build_phone_search_results(phone_users, limit=20)
+
+        remaining = 20 - len(results)
+        if remaining > 0:
+            for u in (
+                user_model.objects.filter(Q(email__icontains=q) | Q(username__icontains=q))
+                .exclude(id__in=seen)
+                .order_by('email')[:remaining]
+            ):
+                results.append({'id': u.id, 'text': self._display_user_text(u)})
+                seen.add(u.id)
+
+        return JsonResponse({'results': results})
 
     def issue_to_user_view(self, request):
         """表單：選擇優惠券範本與指定使用者，建立範本實例並發給該使用者。"""
@@ -601,7 +774,7 @@ class CouponTemplateAdmin(admin.ModelAdmin):
                 queryset=User.objects.all().order_by('email'),
                 required=True,
                 label='指定使用者',
-                help_text='收到的使用者帳號（以 email 顯示）。',
+                help_text='搜尋時電話優先；無 StudentProfile／電話的帳號僅能以 email 找到。',
             )
 
         template_ids_str = request.GET.get('template_ids', '')
@@ -1462,6 +1635,55 @@ class QRCodeClaimAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related('user', 'template', 'coupon')
+
+
+@admin.register(WebRedemption)
+class WebRedemptionAdmin(admin.ModelAdmin):
+    list_display = [
+        'id',
+        'store_name',
+        'template_name',
+        'session_token_preview',
+        'fixed_session_token_preview',
+        'phone_number',
+        'redeemed_at',
+    ]
+    list_filter = ['redeemed_at', 'template__store']
+    search_fields = [
+        'session_token',
+        'fixed_session_token',
+        'phone_number',
+        'template__coupon_name',
+        'template__store__name',
+    ]
+    readonly_fields = ['redeemed_at']
+    date_hierarchy = 'redeemed_at'
+
+    def store_name(self, obj):
+        return obj.template.store.name
+    store_name.short_description = '店家'
+    store_name.admin_order_field = 'template__store__name'
+
+    def template_name(self, obj):
+        return obj.template.coupon_name
+    template_name.short_description = '優惠券範本'
+    template_name.admin_order_field = 'template__coupon_name'
+
+    def session_token_preview(self, obj):
+        token = obj.session_token or ''
+        return token if len(token) <= 24 else f'{token[:24]}...'
+    session_token_preview.short_description = 'Session Token'
+
+    def fixed_session_token_preview(self, obj):
+        token = obj.fixed_session_token or ''
+        if not token:
+            return '—'
+        return token if len(token) <= 24 else f'{token[:24]}...'
+    fixed_session_token_preview.short_description = 'Fixed Session Token'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('template', 'template__store')
 
 
 # =============================================================================

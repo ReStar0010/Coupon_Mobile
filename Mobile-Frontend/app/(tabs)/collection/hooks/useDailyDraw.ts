@@ -14,8 +14,10 @@ interface UseDailyDrawReturn {
   isDailyDrawLoading: boolean;
   hasDailyDrawn: boolean;
   availableTemplates: DrawTemplate[];
+  dailyDrawError: string | null;
   handleDailyDraw: () => Promise<void>;
   resetDailyDrawUI: () => void;
+  clearDailyDrawError: () => void;
   closeDailyDrawWithSuccess: () => void;
 }
 
@@ -30,6 +32,7 @@ export function useDailyDraw(
   const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
   const [hasDailyDrawn, setHasDailyDrawn] = useState(false);
   const [availableTemplates, setAvailableTemplates] = useState<DrawTemplate[]>([]);
+  const [dailyDrawError, setDailyDrawError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -89,6 +92,7 @@ export function useDailyDraw(
 
   const handleDailyDraw = useCallback(async () => {
     setIsDailyDrawLoading(true);
+    setDailyDrawError(null);
 
     try {
       const selectedTemplate = selectRandomTemplate(availableTemplates);
@@ -122,6 +126,7 @@ export function useDailyDraw(
       }
     } catch (err) {
       console.error('Error during daily draw:', err);
+      const message = getErrorMessage(err);
 
       if (isAxiosError(err) && err.response?.status === 400) {
         if (isMountedRef.current) {
@@ -132,8 +137,9 @@ export function useDailyDraw(
       if (isMountedRef.current) {
         setDailyDrawResult({
           success: false,
-          message: getErrorMessage(err),
+          message,
         });
+        setDailyDrawError(message);
       }
     } finally {
       if (isMountedRef.current) {
@@ -145,6 +151,11 @@ export function useDailyDraw(
   const resetDailyDrawUI = useCallback(() => {
     setShowDailyDraw(false);
     setDailyDrawResult(null);
+    setDailyDrawError(null);
+  }, []);
+
+  const clearDailyDrawError = useCallback(() => {
+    setDailyDrawError(null);
   }, []);
 
   const closeDailyDrawWithSuccess = useCallback(() => {
@@ -162,8 +173,10 @@ export function useDailyDraw(
     isDailyDrawLoading,
     hasDailyDrawn,
     availableTemplates,
+    dailyDrawError,
     handleDailyDraw,
     resetDailyDrawUI,
+    clearDailyDrawError,
     closeDailyDrawWithSuccess,
   };
 }

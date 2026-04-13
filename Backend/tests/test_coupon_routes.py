@@ -3,6 +3,8 @@ T008 [US3]: Tests for coupon and store endpoints.
 Routes: api/store-coupons/, api/exclusive-coupons/, api/coupons/<id>/,
 api/redeem/<id>/, api/unified-redemption/<code>/
 """
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -91,6 +93,49 @@ class CouponRoutesTest(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.post(f'/api/redeem/{self.coupon.id}/', {}, format='json')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+
+    def test_exclusive_redeem_twice_returns_coupon_already_redeemed(self):
+        """Second redeem for same exclusive coupon returns 400 + COUPON_ALREADY_REDEEMED."""
+        redeem_code = '112233'
+        self.exclusive_template.template_redeem_code = redeem_code
+        self.exclusive_template.save(update_fields=['template_redeem_code'])
+        self.coupon.current_holder = self.user
+        self.coupon.redeem_code = redeem_code
+        self.coupon.save(update_fields=['current_holder', 'redeem_code'])
+
+        self.client.force_authenticate(user=self.user)
+        url = f'/api/redeem/{self.coupon.id}/'
+        body = {'redeem_code': redeem_code}
+        first = self.client.post(url, body, format='json')
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        second = self.client.post(url, body, format='json')
+        self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(second.data.get('error_code'), 'COUPON_ALREADY_REDEEMED')
+
+    def test_exclusive_redeem_integrity_error_maps_to_coupon_already_redeemed(self):
+        """Simulate unique-constraint race: map IntegrityError to COUPON_ALREADY_REDEEMED."""
+        redeem_code = '445566'
+        self.exclusive_template.template_redeem_code = redeem_code
+        self.exclusive_template.save(update_fields=['template_redeem_code'])
+        self.coupon.current_holder = self.user
+        self.coupon.redeem_code = redeem_code
+        self.coupon.save(update_fields=['current_holder', 'redeem_code'])
+
+        CouponRedemption.objects.create(
+            coupon=self.coupon,
+            user=self.user,
+            savings_amount=0,
+            coupon_type='exclusive',
+        )
+        self.client.force_authenticate(user=self.user)
+        with patch.object(Coupon, 'is_redeemed', return_value=False):
+            response = self.client.post(
+                f'/api/redeem/{self.coupon.id}/',
+                {'redeem_code': redeem_code},
+                format='json',
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data.get('error_code'), 'COUPON_ALREADY_REDEEMED')
 
     def test_unified_redemption_get(self):
         """GET api/unified-redemption/<code>/ returns 200, 401, or 4xx."""

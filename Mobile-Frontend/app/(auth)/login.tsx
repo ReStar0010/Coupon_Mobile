@@ -3,12 +3,18 @@ import { TouchableOpacity, View as RNView, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text } from 'tamagui';
 import Toast from 'react-native-toast-message';
+import { isAxiosError } from 'axios';
 import { fetchAPI, storeLoginData } from '@/app/utils/authAPI';
 import { useApiError } from '@/app/hooks/useApiError';
 import { devLog, devError } from '@/app/utils/devLogger';
 import { BackendIndicator } from '@/app/components/BackendIndicator';
 import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
-import { LoginFormContainer, AUTH_COLORS } from './_components';
+import {
+  LoginFormContainer,
+  AUTH_COLORS,
+  type AuthStep,
+} from './_components/LoginFormContainer';
+import { isValidPhoneNumber } from '@/app/services/phoneOtpAPI';
 
 type FormMode = 'login' | 'register' | 'forgotPassword';
 type LoginMode = 'phone' | 'email';
@@ -48,8 +54,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<FormMode>('login');
   const [loginMode, setLoginMode] = useState<LoginMode>('phone');
+  const [authStep, setAuthStep] = useState<AuthStep>('phone');
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
 
-  // Pre-fill phone/email/password when returning from verification
+  // Pre-fill phone/email/password when returning from verification / deep links
   useEffect(() => {
     const phone = typeof params.phone_number === 'string' ? params.phone_number : undefined;
     const emailParam = typeof params.email === 'string' ? params.email : undefined;
@@ -59,6 +67,7 @@ export default function LoginPage() {
       setPhoneNumber(phone);
       setLoginMode('phone');
       setMode('login');
+      setAuthStep('loginPassword');
     }
     if (emailParam) {
       setEmail(emailParam);
@@ -69,6 +78,72 @@ export default function LoginPage() {
       setPassword(passwordParam);
     }
   }, [params.phone_number, params.email, params.password]);
+
+  const handlePhoneContinue = async () => {
+    if (!isValidPhoneNumber(phoneNumber)) {
+      Toast.show({
+        type: 'failRed',
+        text1: '請輸入有效的台灣手機號碼',
+        position: 'bottom',
+        visibilityTime: 2000,
+        autoHide: true,
+      });
+      return;
+    }
+
+    setIsCheckingPhone(true);
+    try {
+      const { checkRegistrationPhone } = await import('@/app/services/phoneOtpAPI');
+      const { registered } = await checkRegistrationPhone(phoneNumber);
+      devLog('check-phone result', { registered });
+      if (registered) {
+        setMode('login');
+        setAuthStep('loginPassword');
+      } else {
+        setMode('register');
+        setAuthStep('registerPassword');
+      }
+    } catch (err: unknown) {
+      devError('check-phone error:', err);
+      if (isAxiosError(err) && err.response?.status === 429) {
+        Toast.show({
+          type: 'failRed',
+          text1: '查詢次數已達上限，請稍後再試',
+          position: 'bottom',
+          visibilityTime: 2000,
+          autoHide: true,
+        });
+        return;
+      }
+      Toast.show({
+        type: 'failRed',
+        text1: getErrorMessage(err),
+        position: 'bottom',
+        visibilityTime: 2000,
+        autoHide: true,
+      });
+    } finally {
+      setIsCheckingPhone(false);
+    }
+  };
+
+  const handleChangePhoneNumber = () => {
+    setAuthStep('phone');
+    setPassword('');
+    setMode('login');
+  };
+
+  const handleForgotPasswordBack = () => {
+    setMode('login');
+    setAuthStep('loginPassword');
+  };
+
+  const handleSwitchToPhoneLogin = () => {
+    setLoginMode('phone');
+    setAuthStep('phone');
+    setPassword('');
+    setMode('login');
+  };
 
   const handleLogin = async () => {
     devLog('Login attempted', { email, phoneNumber, loginMode });
@@ -183,17 +258,19 @@ export default function LoginPage() {
               handleLogin={handleLogin}
               handleForgotPassword={handleForgotPassword}
               handleRegister={handleRegister}
-              onLoginPress={() => setMode('login')}
-              onRegisterPress={() => setMode('register')}
               onForgotPasswordPress={() => setMode('forgotPassword')}
+              onForgotPasswordBack={handleForgotPasswordBack}
               mode={mode}
-              setMode={setMode}
               loginMode={loginMode}
               setLoginMode={setLoginMode}
+              authStep={authStep}
+              onPhoneContinue={handlePhoneContinue}
+              isCheckingPhone={isCheckingPhone}
+              onChangePhoneNumber={handleChangePhoneNumber}
+              onSwitchToPhoneLogin={handleSwitchToPhoneLogin}
             />
           </RNView>
 
-          {/* Privacy Policy Link (UGC Compliance) */}
           <TouchableOpacity
             onPress={() => router.push('/options-menu/privacy-policy')}
             style={styles.privacyLink}

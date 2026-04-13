@@ -19,9 +19,10 @@ import SuccessPopup from './SuccessPopup';
 import Toast from './Toast';
 import { devLog } from '@/app/utils/devLogger';
 import { isAxiosError } from 'axios';
-import { fetchAPI } from '@/app/utils/authAPI';
+import { fetchAPI, webRedemptionAPI } from '@/app/utils/authAPI';
 import { useApiError } from '@/app/hooks/useApiError';
 import { markCollectionDirty } from '@/app/utils/collectionRefresh';
+import { parseWebTableQr, toWebRedemptionTokenFields } from '@/app/utils/extractWebTableQrPayload';
 
 // Define the coupon interface
 interface Coupon {
@@ -30,18 +31,22 @@ interface Coupon {
   coupon_detail: string;
   coupon_name?: string;
   coupon_type: 'store' | 'exclusive';
-  // Add other properties as needed
+  template_id?: number | null;
 }
 
 export default function RedeemPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { getErrorMessage } = useApiError();
-  const { id, unifiedCode, source } = useLocalSearchParams<{
-    id: string;
-    unifiedCode?: string;
-    source?: string;
-  }>();
+  const { id, unifiedCode, source, session: expectedSessionParam, fixedSession: expectedFixedParam } =
+    useLocalSearchParams<{
+      id: string;
+      unifiedCode?: string;
+      source?: string;
+      session?: string;
+      fixedSession?: string;
+    }>();
+  const expectedWebTableToken = (expectedFixedParam || expectedSessionParam || '').trim();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [redeemCode, setRedeemCode] = useState('');
   const [message, setMessage] = useState('');
@@ -55,6 +60,8 @@ export default function RedeemPage() {
     discountValue?: number;
     redeemedAt?: string;
     redemptionId?: number;
+    /** When set (e.g. web redemption), overrides coupon.store_name in SuccessPopup */
+    storeName?: string;
   } | null>(null);
 
   // Camera states
@@ -180,7 +187,7 @@ export default function RedeemPage() {
 
   const handleBarCodeScanned = useCallback(
     async ({ type, data }: BarcodeScanningResult) => {
-      if (!isScanning) return;
+      if (!isScanning || !coupon) return;
 
       const now = Date.now();
       const scannedCode = data.trim();
@@ -195,12 +202,58 @@ export default function RedeemPage() {
       setIsScanning(false);
       devLog('Barcode scanned:', { type, data });
 
-      const isUnifiedCode = /^\d{6}$/.test(scannedCode);
       setIsCameraActive(false);
       setInputError(false);
       setMessage('');
       setShowErrorToast(false);
       setErrorToastMessage('');
+
+      // Web table QR (same as Web /w/scanner) — before unified 6-digit / redeem_code path
+      const parsedWeb = parseWebTableQr(scannedCode);
+      if (parsedWeb) {
+        if (coupon.template_id == null) {
+          setErrorToastMessage('此券不支援網頁同款桌碼核銷，請改用核銷碼');
+          setShowErrorToast(true);
+          return;
+        }
+
+        if (expectedWebTableToken && parsedWeb.token !== expectedWebTableToken) {
+          Alert.alert('掃描不符', '請掃描同一張入場 QR Code 才能完成核銷。');
+          return;
+        }
+
+        setIsLoading(true);
+        try {
+          const tokenFields = toWebRedemptionTokenFields(parsedWeb);
+          const response = await webRedemptionAPI.createRedemption({
+            template_id: coupon.template_id,
+            ...tokenFields,
+          });
+          const redeemedAtIso = new Date().toISOString();
+          setRedemptionData({
+            couponName: response.coupon_name,
+            storeName: response.store_name,
+            redeemedAt: redeemedAtIso,
+            redemptionId: response.redemption_id,
+          });
+          setShowSuccessConfirmation(true);
+          markCollectionDirty();
+        } catch (error) {
+          const status = isAxiosError(error) ? (error.response?.status ?? 0) : 0;
+          if (isAxiosError(error) && status === 401) {
+            setErrorToastMessage('');
+            setShowErrorToast(false);
+          } else {
+            setErrorToastMessage(getErrorMessage(error));
+            setShowErrorToast(true);
+          }
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      const isUnifiedCode = /^\d{6}$/.test(scannedCode);
 
       if (isUnifiedCode) {
         await handleSubmitCode(scannedCode);
@@ -210,7 +263,7 @@ export default function RedeemPage() {
         await handleSubmitCode(upperCode);
       }
     },
-    [isScanning, handleSubmitCode],
+    [isScanning, coupon, expectedWebTableToken, handleSubmitCode, getErrorMessage],
   );
 
   useEffect(() => {
@@ -698,7 +751,7 @@ export default function RedeemPage() {
       <SuccessPopup
         isOpen={showSuccessConfirmation}
         onClose={handleCloseSuccessPopup}
-        storeName={coupon?.store_name}
+        storeName={redemptionData?.storeName ?? coupon?.store_name}
         couponDetail={coupon?.coupon_detail}
         couponName={redemptionData?.couponName || coupon?.coupon_name}
         discountValue={redemptionData?.discountValue}

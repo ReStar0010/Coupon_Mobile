@@ -47,6 +47,9 @@ COOKIE_DOMAIN = None
 # URLs (backend API, frontend, public app)
 API_BASE_URL = os.getenv('API_BASE_URL', 'https://coupro-123.loca.lt')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://app.coupro.pro')
+# Feature flag: redirect claim/collection landing pages to the web consumer flow
+# Set to True once the Web-Frontend /w/ routes are deployed
+WEB_CONSUMER_FLOW_ENABLED = os.getenv('WEB_CONSUMER_FLOW_ENABLED', 'false').lower() == 'true'
 
 # Email
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
@@ -247,6 +250,9 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
+    'DEFAULT_THROTTLE_RATES': {
+        'phone_registration_lookup': '20/hour',
+    },
 }
 
 SIMPLE_JWT = {

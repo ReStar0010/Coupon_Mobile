@@ -4,12 +4,15 @@ import { Button, Text } from 'tamagui';
 interface FormButtonProps {
   title: string;
   onPress?: () => void;
+  disabled?: boolean;
 }
 
-export const FormButton: React.FC<FormButtonProps> = ({ title, onPress }) => {
+export const FormButton: React.FC<FormButtonProps> = ({ title, onPress, disabled = false }) => {
   return (
     <Button
       onPress={onPress}
+      disabled={disabled}
+      opacity={disabled ? 0.55 : 1}
       height={41}
       bg="#FFAD31"
       style={{ borderRadius: 9 }}

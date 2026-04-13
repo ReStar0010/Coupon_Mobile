@@ -7,12 +7,14 @@ Errors use api.exceptions (CouProAPIException) so responses follow:
   {"error_code": str, "developer_message": str, "context": dict}
 Frontend maps error_code to zh-TW via useApiError / errors.* in translation.json.
 """
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
 from django.contrib.auth.models import User
+
+from .user_profile import bulk_claim_pending_coupons_for_user
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from api.exceptions import (
@@ -26,15 +28,17 @@ from api.exceptions import (
     OTPRateLimited,
     SmsSendFailed,
 )
-from api.models import PhoneOTPRecord, StudentProfile, Coupon
+from api.models import PhoneOTPRecord, StudentProfile
 from api.serializers import (
     SendOTPSerializer,
     VerifyOTPSerializer,
     RegistrationOTPSendSerializer,
+    RegistrationPhoneLookupSerializer,
     RegistrationOTPVerifySerializer,
     PhoneForgotPasswordSerializer,
     PhoneResetPasswordSerializer,
 )
+from api.throttles import PhoneRegistrationLookupThrottle
 from api.services.sms_service import SMSService
 from api.utils import mask_phone_number
 
@@ -148,27 +152,17 @@ def verify_otp(request):
         # Transfer unclaimed coupons from old phone (if exists)
         old_phone_transferred = 0
         if old_phone and old_phone != phone_number:
-            old_phone_transferred = Coupon.objects.filter(
-                pending_phone_number=old_phone,
-                current_holder__isnull=True
-            ).update(
-                current_holder=request.user,
-                pending_phone_number=None,
-                acquisition_method='consolidate'
+            old_phone_transferred = bulk_claim_pending_coupons_for_user(
+                request.user, old_phone
             )
 
         # Update phone number
         profile.phone_number = phone_number
         profile.save()
 
-        # Claim coupons pending on new phone
-        new_phone_claimed = Coupon.objects.filter(
-            pending_phone_number=phone_number,
-            current_holder__isnull=True
-        ).update(
-            current_holder=request.user,
-            pending_phone_number=None,
-            acquisition_method='consolidate'
+        # Claim coupons pending on new phone (same semantics as assign_pending_coupons)
+        new_phone_claimed = bulk_claim_pending_coupons_for_user(
+            request.user, phone_number
         )
 
         # Mark OTP as verified
@@ -190,6 +184,26 @@ def verify_otp(request):
         response_data['old_phone_coupons_transferred'] = old_phone_transferred
 
     return Response(response_data, status=status.HTTP_200_OK)
+
+
+# ===== REGISTRATION PHONE LOOKUP (Unauthenticated) =====
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@throttle_classes([PhoneRegistrationLookupThrottle])
+def check_registration_phone(request):
+    """
+    Check whether a Taiwan mobile number already has a StudentProfile (no SMS).
+
+    POST body: { "phone_number": "09XXXXXXXX" }
+    Response: { "registered": true|false }
+    """
+    serializer = RegistrationPhoneLookupSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    phone_number = serializer.validated_data["phone_number"]
+    registered = StudentProfile.objects.filter(phone_number=phone_number).exists()
+    return Response({"registered": registered}, status=status.HTTP_200_OK)
 
 
 # ===== REGISTRATION OTP ENDPOINTS (Unauthenticated) =====
@@ -318,15 +332,8 @@ def verify_registration_otp(request):
             verified=False  # Email not verified yet (can be added later)
         )
 
-        # Claim pending coupons for this phone
-        coupons_claimed = Coupon.objects.filter(
-            pending_phone_number=phone_number,
-            current_holder__isnull=True
-        ).update(
-            current_holder=user,
-            pending_phone_number=None,
-            acquisition_method='consolidate'
-        )
+        # Claim pending coupons for this phone (same semantics as assign_pending_coupons)
+        coupons_claimed = bulk_claim_pending_coupons_for_user(user, phone_number)
 
         # Mark OTP as verified
         otp_record.is_verified = True

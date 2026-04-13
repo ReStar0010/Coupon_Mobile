@@ -282,6 +282,40 @@ export async function getPhone(): Promise<GetPhoneResponse> {
 // ============================================================================
 
 /**
+ * Request body for POST /api/register/check-phone/
+ */
+export interface RegistrationPhoneLookupRequest {
+  phone_number: string;
+}
+
+/**
+ * Response from POST /api/register/check-phone/
+ */
+export interface RegistrationPhoneLookupResponse {
+  registered: boolean;
+}
+
+/**
+ * Check whether a phone number already has a StudentProfile (no SMS).
+ */
+export async function checkRegistrationPhone(
+  phoneNumber: string,
+): Promise<RegistrationPhoneLookupResponse> {
+  const normalized = normalizePhoneNumber(phoneNumber);
+
+  const response = await authAPI.post<RegistrationPhoneLookupResponse | ErrorResponse>(
+    '/register/check-phone/',
+    { phone_number: normalized },
+  );
+
+  if ('error' in response) {
+    throw response;
+  }
+
+  return response;
+}
+
+/**
  * Request body for POST /api/register/send-otp/
  */
 export interface RegistrationOTPSendRequest {
