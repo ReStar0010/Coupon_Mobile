@@ -1,12 +1,15 @@
 /** Default Android applicationId; keep in sync with Backend COUPRO_PLAY_STORE_ID. */
 const DEFAULT_PLAY_PACKAGE = 'com.cokayne.MobileFrontend';
 
+/** When no App Store numeric id is configured, App Store search still opens a real destination (not "#"). */
+const IOS_APP_STORE_SEARCH_URL = 'https://apps.apple.com/search?term=CouPro';
+
 function iosAppStoreUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_STORE_URL?.trim();
   if (explicit) return explicit;
   const id = process.env.NEXT_PUBLIC_COUPRO_APP_STORE_ID?.trim();
   if (id) return `https://apps.apple.com/app/id${id}`;
-  return '#';
+  return IOS_APP_STORE_SEARCH_URL;
 }
 
 function androidPlayStoreUrl(): string {
@@ -14,6 +17,14 @@ function androidPlayStoreUrl(): string {
   if (explicit) return explicit;
   const pkg = process.env.NEXT_PUBLIC_COUPRO_PLAY_STORE_ID?.trim() || DEFAULT_PLAY_PACKAGE;
   return `https://play.google.com/store/apps/details?id=${encodeURIComponent(pkg)}`;
+}
+
+/**
+ * Default href for SSR and the first client render (no `navigator` yet).
+ * Keeps hydration markup stable; call `getAppStoreUrl()` after mount for the final URL.
+ */
+export function getAppStoreUrlHydrationDefault(): string {
+  return iosAppStoreUrl();
 }
 
 /**
