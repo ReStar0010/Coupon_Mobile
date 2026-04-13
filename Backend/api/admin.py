@@ -3,6 +3,8 @@ import secrets
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.utils.html import format_html
+from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Sum, Value, When
 from django.utils import timezone
 from django.urls import path, reverse
@@ -14,7 +16,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import *
-from .utils import generate_platform_voucher_redeem_code
+from .utils import generate_platform_voucher_redeem_code, save_uploaded_image, validate_uploaded_image_file
 from .views.authentication import (
     send_merchant_application_approved_email,
     send_merchant_application_rejected_email,
@@ -580,8 +582,27 @@ class TagAdmin(admin.ModelAdmin):
     template_count.admin_order_field = '_template_count'
 
 
-@admin.register(CouponTemplate)
+class CouponTemplateAdminForm(forms.ModelForm):
+    image_file = forms.ImageField(required=False, label='上傳圖片檔案')
+    clear_image = forms.BooleanField(required=False, label='清除現有圖片')
+
+    class Meta:
+        model = CouponTemplate
+        fields = '__all__'
+
+    def clean_image_file(self):
+        image_file = self.cleaned_data.get('image_file')
+        if image_file is None:
+            return image_file
+        try:
+            validate_uploaded_image_file(image_file)
+        except Exception as exc:
+            raise ValidationError(str(exc)) from exc
+        return image_file
+
+
 class CouponTemplateAdmin(admin.ModelAdmin):
+    form = CouponTemplateAdminForm
     change_list_template = 'admin/api/coupontemplate/change_list.html'
     list_display = [
         'id', 'coupon_name', 'store_name', 'quantity_status',
@@ -589,13 +610,16 @@ class CouponTemplateAdmin(admin.ModelAdmin):
     ]
     list_filter = ['is_active', 'show_in_desk_qrcode', 'store__store_type', 'start_date', 'expiry_date']
     search_fields = ['coupon_name', 'store__name', 'template_redeem_code']
-    readonly_fields = ['created_at']
+    readonly_fields = ['created_at', 'image_preview']
     filter_horizontal = ['tags']
     date_hierarchy = 'start_date'
     actions = ['deactivate_templates', 'activate_templates', 'issue_to_user_action']
     fieldsets = (
         ('基本資訊', {
-            'fields': ('store', 'coupon_name', 'coupon_detail', 'important_notes', 'image_url')
+            'fields': (
+                'store', 'coupon_name', 'coupon_detail', 'important_notes',
+                'image_url', 'image_file', 'clear_image', 'image_preview'
+            )
         }),
         ('數量與時效', {
             'fields': (
@@ -631,7 +655,57 @@ class CouponTemplateAdmin(admin.ModelAdmin):
             color, obj.remaining_quantity, obj.total_quantity, pct_str
         )
     quantity_status.short_description = '庫存狀態'
-    
+
+    def image_preview(self, obj):
+        if not obj or not obj.image_url:
+            return '（尚未設定圖片）'
+        return format_html(
+            '<a href="{0}" target="_blank" rel="noopener noreferrer">'
+            '<img src="{0}" alt="coupon image" style="max-height: 120px; border-radius: 8px;" />'
+            '</a>',
+            obj.image_url,
+        )
+    image_preview.short_description = '目前圖片預覽'
+
+    @staticmethod
+    def _extract_storage_key(image_url: str) -> str | None:
+        media_url = settings.MEDIA_URL
+        if image_url.startswith(media_url):
+            return image_url.replace(media_url, '').lstrip('/')
+        if media_url in image_url:
+            parts = image_url.split(media_url)
+            if len(parts) > 1:
+                return parts[-1].split('?')[0].lstrip('/')
+        if image_url.startswith('http://') or image_url.startswith('https://'):
+            return image_url.rstrip('/').split('/')[-1].split('?')[0]
+        return image_url.split('/')[-1].split('?')[0]
+
+    def save_model(self, request, obj, form, change):
+        old_image_url = None
+        if change and obj.pk:
+            old_image_url = CouponTemplate.objects.filter(pk=obj.pk).values_list('image_url', flat=True).first()
+
+        image_file = form.cleaned_data.get('image_file')
+        clear_image = form.cleaned_data.get('clear_image')
+
+        if clear_image:
+            obj.image_url = ''
+
+        if image_file:
+            obj.image_url = save_uploaded_image(image_file)
+
+        super().save_model(request, obj, form, change)
+
+        if clear_image and old_image_url:
+            old_key = self._extract_storage_key(old_image_url)
+            if old_key:
+                try:
+                    if default_storage.exists(old_key):
+                        default_storage.delete(old_key)
+                except Exception:
+                    pass
+
+
     def deactivate_templates(self, request, queryset):
         count = queryset.update(is_active=False)
         self.message_user(request, f'已停用 {count} 個範本')
@@ -818,6 +892,9 @@ class CouponTemplateAdmin(admin.ModelAdmin):
             'admin/api/coupontemplate/issue_to_user.html',
             {'form': form, 'opts': self.model._meta},
         )
+
+
+admin.site.register(CouponTemplate, CouponTemplateAdmin)
 
 
 # -----------------------------------------------------------------------------
