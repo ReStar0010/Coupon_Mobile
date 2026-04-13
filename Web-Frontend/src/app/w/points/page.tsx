@@ -1,7 +1,7 @@
 'use client';
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getAppStoreUrl } from '../utils/appStoreUrl';
+import { useAppStoreDownloadHref } from '../utils/useAppStoreDownloadHref';
 import { webPost } from '../utils/webAPI';
 
 interface PointsLookupResponse {
@@ -42,7 +42,7 @@ function PointsContent() {
     }
   };
 
-  const appStoreUrl = getAppStoreUrl();
+  const appStoreUrl = useAppStoreDownloadHref();
 
   // Show result branch
   if (result) {
@@ -62,7 +62,9 @@ function PointsContent() {
         </div>
         <a
           href={appStoreUrl}
-          className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg text-center block hover:brightness-[0.96] active:brightness-[0.92]"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg text-center block cursor-pointer hover:brightness-[0.96] active:brightness-[0.92]"
         >
           立即下載 CouPro
         </a>
