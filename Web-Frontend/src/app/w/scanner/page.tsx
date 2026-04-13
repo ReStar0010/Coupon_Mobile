@@ -216,8 +216,8 @@ function ScannerContent() {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center gap-4">
         <div className="text-5xl">📷</div>
-        <h2 className="text-lg font-bold text-gray-800">需要相機權限</h2>
-        <p className="text-sm text-gray-500">
+        <h2 className="text-lg font-bold text-gray-800 dark:text-zinc-100">需要相機權限</h2>
+        <p className="text-sm text-gray-500 dark:text-zinc-400">
           請在瀏覽器設定中允許存取相機，然後重新整理頁面。
         </p>
       </div>
@@ -232,7 +232,7 @@ function ScannerContent() {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-act-yellow" />
-        <p className="text-gray-600 font-medium">核銷中…</p>
+        <p className="text-gray-600 dark:text-zinc-300 font-medium">核銷中…</p>
       </div>
     );
   }
@@ -254,8 +254,8 @@ function ScannerContent() {
 
       {/* Retry toast */}
       {scanState === 'error_retry' && (
-        <div className="absolute bottom-0 left-0 right-0 bg-white px-6 py-5 flex flex-col gap-3 rounded-t-2xl shadow-lg">
-          <p className="text-sm text-gray-700 text-center">{errorMsg}</p>
+        <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-zinc-900 px-6 py-5 flex flex-col gap-3 rounded-t-2xl shadow-lg border-t border-gray-200 dark:border-zinc-700">
+          <p className="text-sm text-gray-700 dark:text-zinc-200 text-center">{errorMsg}</p>
           <button
             onClick={retry}
             className="py-3 rounded-2xl bg-act-yellow text-sec-black font-semibold text-base hover:brightness-[0.96] active:brightness-[0.92]"
