@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from api.models import QRCodeSession, CouponTemplate, StoreFixedSession, WebRedemption
+from api.models import QRCodeSession, CouponTemplate, StoreFixedSession, WebRedemption, Coupon, CouponRedemption, StudentProfile
 
 
 @api_view(['POST'])
@@ -71,6 +71,51 @@ def create_redemption(request):
 
     if template.expiry_date and template.expiry_date <= timezone.now():
         return Response({'error': '優惠券已過期'}, status=status.HTTP_410_GONE)
+
+    # App-based users may call this endpoint when scanning table QR from coupon detail.
+    # In authenticated context, redeem the holder's exclusive coupon directly so the
+    # coupon disappears from Collection (via CouponRedemption existence).
+    if request.user.is_authenticated:
+        holder_coupon = Coupon.objects.filter(
+            template=template,
+            coupon_type='exclusive',
+            current_holder=request.user,
+            expiry_date__gt=timezone.now(),
+            start_date__lte=timezone.now(),
+        ).order_by('id').first()
+        if holder_coupon is not None:
+            with transaction.atomic():
+                already_redeemed = CouponRedemption.objects.filter(
+                    coupon=holder_coupon,
+                    user=request.user,
+                ).exists()
+                if already_redeemed:
+                    return Response({'error': '此優惠券已被核銷'}, status=status.HTTP_409_CONFLICT)
+
+                savings_amount = holder_coupon.estimated_savings or 0
+                redemption = CouponRedemption.objects.create(
+                    coupon=holder_coupon,
+                    user=request.user,
+                    savings_amount=savings_amount,
+                    coupon_type=holder_coupon.coupon_type,
+                )
+
+                try:
+                    student_profile = request.user.student_profile
+                    student_profile.update_monthly_savings()
+                    student_profile.coupons_used_count += 1
+                    student_profile.total_savings += savings_amount
+                    student_profile.monthly_savings += savings_amount
+                    student_profile.save()
+                except (StudentProfile.DoesNotExist, AttributeError):
+                    pass
+
+            return Response({
+                'redemption_id': redemption.id,
+                'coupon_name': holder_coupon.coupon_name,
+                'store_name': template.store.name,
+                'redeemed_at': redemption.redeemed_at.isoformat(),
+            }, status=status.HTTP_201_CREATED)
 
     with transaction.atomic():
         # Double-check idempotency inside transaction for legacy flow.
