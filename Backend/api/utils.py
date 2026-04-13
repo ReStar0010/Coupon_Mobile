@@ -5,12 +5,17 @@ import re
 import secrets
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
+from pathlib import Path
+
+from django.core.files.storage import default_storage
 
 # Default timezone when store has none (e.g. Asia/Taipei per research.md)
 DEFAULT_STORE_TIMEZONE = "Asia/Taipei"
 
 # Taiwan mobile phone number format: 09XXXXXXXX (10 digits starting with 09)
 TAIWAN_MOBILE_REGEX = re.compile(r'^09\d{8}$')
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+MAX_IMAGE_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
 
 
 def validate_phone_number(phone: str) -> str:
@@ -239,4 +244,36 @@ def get_store_currency_code(store) -> str | None:
         Currency code string or None.
     """
     return getattr(store, "currency_code", None) or None
+
+
+def validate_uploaded_image_file(image_file) -> tuple[str, str]:
+    """
+    Validate uploaded image file metadata and return normalized names.
+
+    Returns:
+        tuple[str, str]: (lowercase_filename, file_extension)
+    """
+    file_name = image_file.name.lower()
+    file_extension = Path(file_name).suffix
+    if file_extension not in ALLOWED_IMAGE_EXTENSIONS:
+        allowed = ", ".join(sorted(ALLOWED_IMAGE_EXTENSIONS))
+        raise ValueError(f"Invalid file type. Allowed types: {allowed}")
+
+    if image_file.size > MAX_IMAGE_UPLOAD_SIZE:
+        raise ValueError("File too large. Maximum size is 5MB.")
+
+    return file_name, file_extension
+
+
+def save_uploaded_image(image_file) -> str:
+    """
+    Save an uploaded image file to default storage and return its URL.
+    """
+    file_name, file_extension = validate_uploaded_image_file(image_file)
+    timestamp = int(datetime.now().timestamp())
+    random_str = secrets.token_hex(4)
+    original_filename = Path(file_name).stem
+    unique_filename = f"{timestamp}_{random_str}_{original_filename}{file_extension}"
+    path = default_storage.save(unique_filename, image_file)
+    return default_storage.url(path)
 
