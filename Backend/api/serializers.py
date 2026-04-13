@@ -289,6 +289,11 @@ class CouponTemplateSerializer(serializers.Serializer):
     expiry_date = serializers.DateTimeField(help_text="Expiry date")
     draw_probability = serializers.FloatField(required=False, default=0.5, help_text="Draw probability (0-1)")
     is_active = serializers.BooleanField(required=False, default=True, help_text="Is template active")
+    show_in_desk_qrcode = serializers.BooleanField(
+        required=False,
+        default=True,
+        help_text="Show this template on desk QR web page",
+    )
     created_at = serializers.DateTimeField(read_only=True)
     tags = serializers.ListField(
         child=serializers.IntegerField(),

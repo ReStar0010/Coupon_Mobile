@@ -85,7 +85,7 @@ const CouponHistoryList: FunctionComponent<CouponHistoryListType> = ({
           className="self-stretch flex justify-center items-center pt-3 border-t border-gray-200 cursor-pointer"
           onClick={onViewMoreClick}
         >
-          <span className="text-primary-purple font-medium">查看更多</span>
+          <span className="text-act-yellow font-medium">查看更多</span>
         </div>
       </div>
     </section>

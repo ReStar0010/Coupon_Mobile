@@ -9,6 +9,7 @@ interface RedemptionResponse {
   redemption_id: number;
   coupon_name: string;
   store_name: string;
+  redeemed_at: string;
 }
 
 interface ScanControls {
@@ -23,6 +24,35 @@ function extractSessionToken(text: string): string | null {
   const queryToken = text.match(/[?&]token=([^&#]+)/);
   return queryToken ? decodeURIComponent(queryToken[1]) : null;
 }
+
+/** Prefer rear/environment camera when labels are missing (common on Safari before/without permission). */
+function pickPreferredVideoDeviceId(
+  devices: Array<{ deviceId: string; label: string }>,
+): string | undefined {
+  if (devices.length === 0) return undefined;
+  const score = (label: string) => {
+    const l = label.toLowerCase();
+    if (l.includes('back') || l.includes('rear') || l.includes('environment') || l.includes('後')) {
+      return 0;
+    }
+    if (
+      l.includes('front') ||
+      l.includes('user') ||
+      l.includes('facetime') ||
+      l.includes('自拍') ||
+      l.includes('前')
+    ) {
+      return 2;
+    }
+    return 1;
+  };
+  const sorted = [...devices].sort((a, b) => score(a.label) - score(b.label));
+  return sorted[0]?.deviceId;
+}
+
+/** Only for repeatedly scanning a different table QR than the one from the claim flow (actionable user error). */
+const WRONG_ENTRY_QR_BEFORE_FATAL = 8;
+const API_FAILS_BEFORE_FATAL = 3;
 
 function ScannerContent() {
   const router = useRouter();
@@ -40,7 +70,8 @@ function ScannerContent() {
 
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [errorMsg, setErrorMsg] = useState('');
-  const attemptRef = useRef(0);
+  const scanFailCountRef = useRef(0);
+  const apiFailCountRef = useRef(0);
 
   const stopScanner = useCallback(() => {
     if (controlsRef.current) {
@@ -61,11 +92,15 @@ function ScannerContent() {
       setScanState('processing');
       stopScanner();
       try {
-        await webPost<RedemptionResponse>('/api/web/v1/redemptions/', {
+        const redemption = await webPost<RedemptionResponse>('/api/web/v1/redemptions/', {
           ...(fixedSession ? { fixed_session_token: sessionToken } : { session_token: sessionToken }),
           template_id: selectedTemplateId,
         });
-        router.push(`/w/redemption-success?session=${sessionToken}`);
+        const params = new URLSearchParams();
+        params.set('session', sessionToken);
+        params.set('couponName', redemption.coupon_name);
+        params.set('redeemedAt', redemption.redeemed_at);
+        router.push(`/w/redemption-success?${params.toString()}`);
       } catch (err: unknown) {
         handledRef.current = false;
         const status = (err as { status?: number }).status;
@@ -73,8 +108,8 @@ function ScannerContent() {
           router.push(`/w/redemption-success?session=${sessionToken}&already=1`);
           return;
         }
-        const attempt = ++attemptRef.current;
-        if (attempt >= 2) {
+        const n = ++apiFailCountRef.current;
+        if (n >= API_FAILS_BEFORE_FATAL) {
           setScanState('error_fatal');
         } else {
           setErrorMsg('核銷失敗，請再試一次。');
@@ -85,14 +120,14 @@ function ScannerContent() {
     [fixedSession, router, selectedTemplateId, stopScanner],
   );
 
-  const handleScanFailure = useCallback((message?: string) => {
+  const handleWrongEntryToken = useCallback((message: string) => {
     if (handledRef.current) return;
-    const attempt = ++attemptRef.current;
-    if (attempt >= 2) {
+    const n = ++scanFailCountRef.current;
+    if (n >= WRONG_ENTRY_QR_BEFORE_FATAL) {
       stopScanner();
       setScanState('error_fatal');
     } else {
-      setErrorMsg(message ?? '未能識別 QR Code，請對準後再試一次。');
+      setErrorMsg(message);
       setScanState('error_retry');
     }
   }, [stopScanner]);
@@ -106,35 +141,43 @@ function ScannerContent() {
 
     const reader = new BrowserQRCodeReader();
 
-    try {
-      const devices = await BrowserQRCodeReader.listVideoInputDevices();
-      const backCamera = devices.find(
-        (d) => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'),
-      );
-      const deviceId = backCamera?.deviceId ?? devices[0]?.deviceId;
-
-      const controls = await reader.decodeFromVideoDevice(
-        deviceId,
-        videoRef.current,
-        (result, err) => {
-          if (!mountedRef.current || handledRef.current) return;
-          if (result) {
-            const token = extractSessionToken(result.getText());
-            if (token) {
-              // If session is preloaded from the claim flow, enforce scanning the same QR token.
-              if (expectedSessionToken && token !== expectedSessionToken) {
-                handleScanFailure('請掃描同一張入場 QR Code 才能完成核銷。');
-                return;
-              }
-              handleSuccess(token);
-            } else {
-              handleScanFailure();
-            }
-          } else if (err && err.name !== 'NotFoundException') {
-            handleScanFailure();
+    const onDecode = (result: { getText: () => string } | undefined, _err: Error | undefined) => {
+      if (!mountedRef.current || handledRef.current) return;
+      if (result) {
+        const token = extractSessionToken(result.getText());
+        if (token) {
+          if (expectedSessionToken && token !== expectedSessionToken) {
+            handleWrongEntryToken('請掃描同一張入場 QR Code 才能完成核銷。');
+            return;
           }
-        },
-      );
+          handleSuccess(token);
+          return;
+        }
+        return;
+      }
+      // Continuous scan: ignore decode noise between frames (NotFoundException and others).
+    };
+
+    try {
+      const videoEl = videoRef.current;
+      let controls: ScanControls;
+
+      try {
+        controls = await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: 'environment' } } },
+          videoEl,
+          onDecode,
+        );
+      } catch (constraintErr: unknown) {
+        const cname = (constraintErr as { name?: string }).name;
+        if (cname === 'NotAllowedError' || cname === 'PermissionDeniedError') {
+          throw constraintErr;
+        }
+        const devices = await BrowserQRCodeReader.listVideoInputDevices();
+        const deviceId = pickPreferredVideoDeviceId(devices);
+        controls = await reader.decodeFromVideoDevice(deviceId, videoEl, onDecode);
+      }
+
       controlsRef.current = controls;
     } catch (e: unknown) {
       if (!mountedRef.current) return;
@@ -145,7 +188,12 @@ function ScannerContent() {
         setScanState('error_fatal');
       }
     }
-  }, [expectedSessionToken, handleSuccess, handleScanFailure]);
+  }, [expectedSessionToken, handleSuccess, handleWrongEntryToken]);
+
+  useEffect(() => {
+    if (scanState !== 'error_fatal') return;
+    router.replace('/w/error');
+  }, [scanState, router]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -158,7 +206,8 @@ function ScannerContent() {
   }, []);
 
   const retry = () => {
-    attemptRef.current = 0;
+    scanFailCountRef.current = 0;
+    apiFailCountRef.current = 0;
     setScanState('scanning');
     startScanner();
   };
@@ -176,14 +225,13 @@ function ScannerContent() {
   }
 
   if (scanState === 'error_fatal') {
-    router.replace('/w/error');
     return null;
   }
 
   if (scanState === 'processing') {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-act-yellow" />
         <p className="text-gray-600 font-medium">核銷中…</p>
       </div>
     );
@@ -195,9 +243,12 @@ function ScannerContent() {
 
       {/* Overlay frame */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <div className="w-56 h-56 border-4 border-white rounded-2xl opacity-70" />
+        <div className="w-56 h-56 border-4 border-act-yellow rounded-2xl opacity-90" />
         <p className="text-white text-sm mt-4 bg-black/40 px-3 py-1 rounded-full">
           對準店家桌上的 QR Code
+        </p>
+        <p className="text-white/80 text-xs mt-2 bg-black/40 px-3 py-1 rounded-full max-w-[90%] text-center leading-snug">
+          {'系統會優先使用背面相機。若畫面是自拍鏡頭，請翻轉手機或重新整理頁面。'}
         </p>
       </div>
 
@@ -207,7 +258,7 @@ function ScannerContent() {
           <p className="text-sm text-gray-700 text-center">{errorMsg}</p>
           <button
             onClick={retry}
-            className="py-3 rounded-2xl bg-gray-900 text-white font-semibold text-base"
+            className="py-3 rounded-2xl bg-act-yellow text-sec-black font-semibold text-base hover:brightness-[0.96] active:brightness-[0.92]"
           >
             再試一次
           </button>
@@ -219,7 +270,7 @@ function ScannerContent() {
 
 export default function ScannerPage() {
   return (
-    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800" /></div>}>
+    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow" /></div>}>
       <ScannerContent />
     </Suspense>
   );

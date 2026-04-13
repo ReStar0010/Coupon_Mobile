@@ -5,6 +5,10 @@
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-rgb: 248, 248, 248; /* Corrected value for gray background */
+  /* Brand primary — matches Mobile-Frontend tab icon active (TabsFooter #ffad31) */
+  --brand-primary: #ffad31;
+  --brand-primary-ink: #333333;
+  --brand-primary-soft: #ffecbf;
 }
 
 body {

@@ -50,7 +50,7 @@ class CouponTemplateInline(admin.TabularInline):
     model = CouponTemplate
     extra = 0
     max_num = 5
-    fields = ['coupon_name', 'total_quantity', 'remaining_quantity', 'is_active']
+    fields = ['coupon_name', 'total_quantity', 'remaining_quantity', 'is_active', 'show_in_desk_qrcode']
     can_delete = False
     show_change_link = True
 
@@ -585,9 +585,9 @@ class CouponTemplateAdmin(admin.ModelAdmin):
     change_list_template = 'admin/api/coupontemplate/change_list.html'
     list_display = [
         'id', 'coupon_name', 'store_name', 'quantity_status',
-        'start_date', 'expiry_date', 'is_active', 'draw_probability'
+        'start_date', 'expiry_date', 'is_active', 'show_in_desk_qrcode', 'draw_probability'
     ]
-    list_filter = ['is_active', 'store__store_type', 'start_date', 'expiry_date']
+    list_filter = ['is_active', 'show_in_desk_qrcode', 'store__store_type', 'start_date', 'expiry_date']
     search_fields = ['coupon_name', 'store__name', 'template_redeem_code']
     readonly_fields = ['created_at']
     filter_horizontal = ['tags']
@@ -600,7 +600,7 @@ class CouponTemplateAdmin(admin.ModelAdmin):
         ('數量與時效', {
             'fields': (
                 'total_quantity', 'remaining_quantity', 
-                'start_date', 'expiry_date', 'is_active'
+                'start_date', 'expiry_date', 'is_active', 'show_in_desk_qrcode'
             )
         }),
         ('抽獎設定', {

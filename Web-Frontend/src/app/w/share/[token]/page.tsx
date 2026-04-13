@@ -46,7 +46,7 @@ export default function ShareLandingPage({ params }: { params: { token: string }
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mb-4" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow mb-4" />
         <p className="text-gray-500 text-sm">載入中…</p>
       </div>
     );
@@ -71,7 +71,7 @@ export default function ShareLandingPage({ params }: { params: { token: string }
       </p>
       <button
         onClick={() => router.push(`/w/scanner`)}
-        className="mt-auto py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg"
+        className="mt-auto py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg hover:brightness-[0.96] active:brightness-[0.92]"
       >
         核銷優惠券
       </button>

@@ -17,8 +17,14 @@ const config: Config = {
         "bg-grey": "#f8f8f8",
         "sec-black": "#333",
         "bg-white": "#fff",
+        /** Primary CTA / accents — same as mobile tab active icon (TabsFooter) */
         "act-yellow": "#ffad31",
         "act-yellow-light": "#ffecbf",
+        primary: {
+          DEFAULT: "#ffad31",
+          foreground: "#333333",
+          muted: "#ffecbf",
+        },
         tomato: "#eb3223",
         mid: "#b8b8b8",
       },

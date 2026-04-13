@@ -306,6 +306,7 @@ def list_coupon_templates(request):
             'end_date': template.expiry_date.isoformat(),
             'draw_probability': template.draw_probability,
             'is_active': template.is_active,
+            'show_in_desk_qrcode': template.show_in_desk_qrcode,
             'created_at': template.created_at.isoformat(),
             'tags': [tag.id for tag in template.tags.all()],
             'redemption_count': template.redemption_count,
@@ -352,6 +353,7 @@ def get_coupon_template(request, id):
         'end_date': template.expiry_date.isoformat(),
         'draw_probability': template.draw_probability,
         'is_active': template.is_active,
+        'show_in_desk_qrcode': template.show_in_desk_qrcode,
         'created_at': template.created_at.isoformat(),
         'tags': [tag.id for tag in template.tags.all()],
     }
@@ -408,6 +410,7 @@ def create_coupon_template(request):
             expiry_date=validated_data['expiry_date'],
             draw_probability=validated_data.get('draw_probability', 0.5),
             is_active=validated_data.get('is_active', True),
+            show_in_desk_qrcode=validated_data.get('show_in_desk_qrcode', True),
         )
         
     # Set tags if provided
@@ -488,6 +491,8 @@ def update_coupon_template(request, id):
         template.draw_probability = validated_data['draw_probability']
     if 'is_active' in validated_data:
         template.is_active = validated_data['is_active']
+    if 'show_in_desk_qrcode' in validated_data:
+        template.show_in_desk_qrcode = validated_data['show_in_desk_qrcode']
 
     # Handle quantity update (adjust remaining_quantity accordingly)
     old_total_quantity = template.total_quantity

@@ -255,6 +255,10 @@ class CouponTemplate(models.Model):
     
     # Daily drawing settings
     draw_probability = models.FloatField(default=0.5, help_text="Probability (0-1) of successful draw")
+    show_in_desk_qrcode = models.BooleanField(
+        default=True,
+        help_text="Whether template should be visible on desk QR web page",
+    )
 
 
     # remove this since it's not used

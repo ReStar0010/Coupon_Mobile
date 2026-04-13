@@ -16,6 +16,7 @@ from api.models import (
     Store,
     CouponTemplate,
     Coupon,
+    CouponRedemption,
     QRCodeSession,
     StoreFixedSession,
     WebRedemption,
@@ -804,6 +805,70 @@ class WebConsumerJourneyE2ETest(TestCase):
             WebRedemption.objects.filter(fixed_session_token=self.fixed_session.session_token).count(),
             2,
         )
+
+    def test_web_fixed_session_allows_redemption_when_template_sold_out(self):
+        self.template_a.remaining_quantity = 0
+        self.template_a.is_active = False
+        self.template_a.save(update_fields=['remaining_quantity', 'is_active'])
+
+        resp = self.client.post(
+            '/api/web/v1/redemptions/',
+            {
+                'fixed_session_token': self.fixed_session.session_token,
+                'template_id': self.template_a.id,
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.json())
+        self.assertTrue(
+            WebRedemption.objects.filter(
+                template_id=self.template_a.id,
+                fixed_session_token=self.fixed_session.session_token,
+            ).exists()
+        )
+
+    def test_authenticated_app_scan_creates_coupon_redemption_and_hides_collection_coupon(self):
+        consumer = User.objects.create_user(
+            username='web_fixed_auth_consumer@test.com',
+            email='web_fixed_auth_consumer@test.com',
+            password='testpass123',
+        )
+        StudentProfile.objects.create(user=consumer, verified=True)
+        issued_coupon = self.template_a.generate_coupon(consumer)
+        self.assertIsNotNone(issued_coupon)
+        self.template_a.refresh_from_db()
+        before_remaining = self.template_a.remaining_quantity
+
+        consumer_client = APIClient()
+        self.assertTrue(_login_consumer(consumer_client, 'web_fixed_auth_consumer@test.com', 'testpass123'))
+
+        redeem_resp = consumer_client.post(
+            '/api/web/v1/redemptions/',
+            {
+                'fixed_session_token': self.fixed_session.session_token,
+                'template_id': self.template_a.id,
+            },
+            format='json',
+        )
+        self.assertEqual(redeem_resp.status_code, status.HTTP_201_CREATED, redeem_resp.json())
+
+        self.assertTrue(
+            CouponRedemption.objects.filter(coupon=issued_coupon, user=consumer).exists()
+        )
+        self.assertFalse(
+            WebRedemption.objects.filter(
+                fixed_session_token=self.fixed_session.session_token,
+                template_id=self.template_a.id,
+            ).exists()
+        )
+
+        self.template_a.refresh_from_db()
+        self.assertEqual(self.template_a.remaining_quantity, before_remaining)
+
+        collection_resp = consumer_client.get('/api/exclusive-coupons/')
+        self.assertEqual(collection_resp.status_code, status.HTTP_200_OK, collection_resp.json())
+        returned_ids = [item['id'] for item in collection_resp.json()]
+        self.assertNotIn(issued_coupon.id, returned_ids)
 
     def test_legacy_qr_claim_flow_still_works(self):
         consumer = User.objects.create_user(

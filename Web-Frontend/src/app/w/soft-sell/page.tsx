@@ -1,14 +1,9 @@
 'use client';
 
-function getAppStoreUrl(): string {
-  if (typeof navigator === 'undefined') return process.env.NEXT_PUBLIC_APP_STORE_URL ?? '#';
-  const ua = navigator.userAgent;
-  if (/Android/i.test(ua)) return process.env.NEXT_PUBLIC_PLAY_STORE_URL ?? '#';
-  return process.env.NEXT_PUBLIC_APP_STORE_URL ?? '#';
-}
+import { useAppStoreDownloadHref } from '../utils/useAppStoreDownloadHref';
 
 export default function SoftSellPage() {
-  const appStoreUrl = getAppStoreUrl();
+  const appStoreUrl = useAppStoreDownloadHref();
 
   return (
     <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center gap-6">
@@ -21,7 +16,9 @@ export default function SoftSellPage() {
       </div>
       <a
         href={appStoreUrl}
-        className="w-full py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg text-center block"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg text-center block cursor-pointer hover:brightness-[0.96] active:brightness-[0.92]"
       >
         立即下載 CouPro
       </a>

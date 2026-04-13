@@ -42,7 +42,7 @@ function CouponDetailContent({ params }: { params: { templateId: string } }) {
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800 mb-4" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow mb-4" />
         <p className="text-gray-500 text-sm">載入中…</p>
       </div>
     );
@@ -78,13 +78,13 @@ function CouponDetailContent({ params }: { params: { templateId: string } }) {
       <div className="flex items-center justify-between text-xs text-gray-400 px-1">
         <span>有效期限：{new Date(data.expiry_date).toLocaleDateString('zh-TW')}</span>
         {data.estimated_savings && (
-          <span className="text-orange-500 font-semibold">預計省 NT${data.estimated_savings}</span>
+          <span className="text-act-yellow font-semibold">預計省 NT${data.estimated_savings}</span>
         )}
       </div>
 
       <button
         onClick={() => router.push(`/w/scanner${sessionParam}`)}
-        className="mt-auto py-4 rounded-2xl bg-gray-900 text-white font-bold text-lg"
+        className="mt-auto py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg hover:brightness-[0.96] active:brightness-[0.92]"
       >
         核銷優惠券
       </button>
@@ -94,7 +94,7 @@ function CouponDetailContent({ params }: { params: { templateId: string } }) {
 
 export default function CouponDetailPage({ params }: { params: { templateId: string } }) {
   return (
-    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800" /></div>}>
+    <Suspense fallback={<div className="flex flex-col items-center justify-center flex-1"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow" /></div>}>
       <CouponDetailContent params={params} />
     </Suspense>
   );

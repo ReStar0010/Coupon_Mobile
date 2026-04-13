@@ -48,6 +48,7 @@ export default function CouponEditScreen() {
   const [couponType, setCouponType] = useState<'隨取即用' | '專屬優惠'>('專屬優惠');
   const [limitPerDay, setLimitPerDay] = useState(false);
   const [drawProbability, setDrawProbability] = useState('50');
+  const [showInDeskQrcode, setShowInDeskQrcode] = useState(true);
   // Tag state
   const [availableTags, setAvailableTags] = useState<
     { id: number; name: string; display_name: string }[]
@@ -68,6 +69,7 @@ export default function CouponEditScreen() {
     quantity: string;
     startTime: string;
     endTime: string;
+    showInDeskQrcode: boolean;
   } | null>(null);
 
   // Date time picker state
@@ -138,6 +140,7 @@ export default function CouponEditScreen() {
       if (data.draw_probability !== undefined && data.draw_probability !== null) {
         setDrawProbability(String(Math.round(data.draw_probability * 100)));
       }
+      setShowInDeskQrcode(data.show_in_desk_qrcode !== false);
 
       // Load estimated savings (優惠金額) if available
       if (data.estimated_savings != null && data.estimated_savings !== '') {
@@ -165,6 +168,7 @@ export default function CouponEditScreen() {
         quantity: originalQuantity,
         startTime: originalStartTime,
         endTime: originalEndTime,
+        showInDeskQrcode: data.show_in_desk_qrcode !== false,
       });
     } catch (error) {
       console.error('Failed to load coupon:', error);
@@ -319,6 +323,7 @@ export default function CouponEditScreen() {
         expiry_date: new Date(endTime).toISOString(),
         draw_probability: couponType === '專屬優惠' ? (parseInt(drawProbability) || 50) / 100 : 0.5,
         is_active: true,
+        show_in_desk_qrcode: showInDeskQrcode,
         tags: selectedTags,
       };
 
@@ -336,6 +341,7 @@ export default function CouponEditScreen() {
             quantity: couponType === '專屬優惠' ? quantity : '1',
             startTime,
             endTime,
+            showInDeskQrcode,
           });
         }
         // Update original selected tags after successful save
@@ -407,6 +413,7 @@ export default function CouponEditScreen() {
       currentQuantity !== originalData.quantity ||
       startTime !== originalData.startTime ||
       endTime !== originalData.endTime ||
+      showInDeskQrcode !== originalData.showInDeskQrcode ||
       tagsChanged
     );
   };
@@ -643,6 +650,24 @@ export default function CouponEditScreen() {
                   <Switch
                     value={limitPerDay}
                     onValueChange={setLimitPerDay}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={colors.white}
+                  />
+                </XStack>
+              </XStack>
+
+              {/* 桌上 QRCode Web 顯示開關 */}
+              <XStack alignItems="center" justifyContent="space-between">
+                <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
+                  顯示於桌上 QRCode
+                </Text>
+                <XStack alignItems="center" gap="$2">
+                  <Text fontSize="$md" color={colors.textSecondary}>
+                    {showInDeskQrcode ? '是' : '否'}
+                  </Text>
+                  <Switch
+                    value={showInDeskQrcode}
+                    onValueChange={setShowInDeskQrcode}
                     trackColor={{ false: colors.border, true: colors.primary }}
                     thumbColor={colors.white}
                   />
