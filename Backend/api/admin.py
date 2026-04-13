@@ -583,7 +583,11 @@ class TagAdmin(admin.ModelAdmin):
 
 
 class CouponTemplateAdminForm(forms.ModelForm):
-    image_file = forms.ImageField(required=False, label='上傳圖片檔案')
+    image_file = forms.FileField(
+        required=False,
+        label='上傳圖片檔案',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/*'}),
+    )
     clear_image = forms.BooleanField(required=False, label='清除現有圖片')
 
     class Meta:
