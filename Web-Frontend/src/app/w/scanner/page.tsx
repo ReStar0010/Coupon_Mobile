@@ -9,6 +9,7 @@ interface RedemptionResponse {
   redemption_id: number;
   coupon_name: string;
   store_name: string;
+  redeemed_at: string;
 }
 
 interface ScanControls {
@@ -91,11 +92,15 @@ function ScannerContent() {
       setScanState('processing');
       stopScanner();
       try {
-        await webPost<RedemptionResponse>('/api/web/v1/redemptions/', {
+        const redemption = await webPost<RedemptionResponse>('/api/web/v1/redemptions/', {
           ...(fixedSession ? { fixed_session_token: sessionToken } : { session_token: sessionToken }),
           template_id: selectedTemplateId,
         });
-        router.push(`/w/redemption-success?session=${sessionToken}`);
+        const params = new URLSearchParams();
+        params.set('session', sessionToken);
+        params.set('couponName', redemption.coupon_name);
+        params.set('redeemedAt', redemption.redeemed_at);
+        router.push(`/w/redemption-success?${params.toString()}`);
       } catch (err: unknown) {
         handledRef.current = false;
         const status = (err as { status?: number }).status;
