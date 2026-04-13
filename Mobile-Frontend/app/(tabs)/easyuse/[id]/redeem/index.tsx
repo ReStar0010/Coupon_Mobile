@@ -258,9 +258,17 @@ export default function RedeemPage() {
       if (isUnifiedCode) {
         await handleSubmitCode(scannedCode);
       } else {
-        const upperCode = scannedCode.toUpperCase();
-        setRedeemCode(upperCode);
-        await handleSubmitCode(upperCode);
+        const t = scannedCode.trim();
+        // Table QR URLs must keep original casing: uppercasing breaks /redeem/ and
+        // _parse_web_table_qr_payload when paths become CLAIM-FIXED, etc.
+        const looksLikeTableOrUrl =
+          /^[a-z][a-z0-9+.-]*:/i.test(t) ||
+          /\/(?:w\/)?claim-fixed\//i.test(t) ||
+          /\/(?:w\/)?claim\//i.test(t) ||
+          /[?&]token=/i.test(t);
+        const codeForRedeem = looksLikeTableOrUrl ? t : t.toUpperCase();
+        setRedeemCode(codeForRedeem);
+        await handleSubmitCode(codeForRedeem);
       }
     },
     [isScanning, coupon, expectedWebTableToken, handleSubmitCode, getErrorMessage],

@@ -95,7 +95,7 @@ function PointsContent() {
         <div className="text-5xl">{reached ? '🎉' : '⭐'}</div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">
-            {reached ? '進到 App，查看現金券' : `目前累積：${result.total_points} 點`}
+            {reached ? '打開 CouPro，領取你的十元現金券' : `目前累積：${result.total_points} 點`}
           </h1>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-3 leading-relaxed">
             {reached

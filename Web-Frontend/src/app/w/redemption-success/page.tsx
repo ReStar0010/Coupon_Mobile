@@ -56,21 +56,23 @@ function RedemptionSuccessContent() {
     <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center gap-6">
       <div className="text-6xl">✅</div>
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">
           {already ? '已核銷' : '核銷成功！'}
         </h1>
-        <p className="text-sm text-gray-500 mt-2">
+        <p className="text-sm text-gray-500 dark:text-zinc-400 mt-2">
           {already
             ? '此優惠券已於先前核銷。'
             : '優惠券已成功核銷，請向店員出示此畫面。'}
         </p>
       </div>
       {(couponName || redeemedAt) && (
-        <div className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-left">
-          <p className="text-xs font-semibold text-gray-500">本次核銷資訊</p>
-          {couponName && <p className="mt-1 text-sm font-semibold text-gray-900">品項：{couponName}</p>}
+        <div className="w-full rounded-2xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/80 px-4 py-3 text-left">
+          <p className="text-xs font-semibold text-gray-500 dark:text-zinc-400">本次核銷資訊</p>
+          {couponName && (
+            <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-zinc-100">品項：{couponName}</p>
+          )}
           {redeemedAt && (
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm text-gray-700 dark:text-zinc-300">
               時間：<RedemptionTimeText value={redeemedAt} />
             </p>
           )}

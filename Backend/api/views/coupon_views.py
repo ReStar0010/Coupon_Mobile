@@ -26,15 +26,15 @@ logger = logging.getLogger(__name__)
 
 def _parse_web_table_qr_payload(raw_code: str) -> tuple[str, str] | None:
     s = raw_code.strip()
-    fixed_match = re.search(r"/(?:w/)?claim-fixed/([^/?#]+)/?", s)
+    fixed_match = re.search(r"/(?:w/)?claim-fixed/([^/?#]+)/?", s, re.IGNORECASE)
     if fixed_match and fixed_match.group(1):
         return ("fixed", fixed_match.group(1))
 
-    legacy_match = re.search(r"/(?:w/)?claim/([^/?#]+)/?", s)
+    legacy_match = re.search(r"/(?:w/)?claim/([^/?#]+)/?", s, re.IGNORECASE)
     if legacy_match and legacy_match.group(1):
         return ("legacy", legacy_match.group(1))
 
-    query_match = re.search(r"[?&]token=([^&#]+)", s)
+    query_match = re.search(r"[?&]token=([^&#]+)", s, re.IGNORECASE)
     if query_match and query_match.group(1):
         return ("legacy", query_match.group(1))
     return None

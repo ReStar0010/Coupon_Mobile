@@ -34,7 +34,7 @@ function CouponDetailContent({ params }: { params: { templateId: string } }) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center">
         <div className="text-5xl mb-4">⚠️</div>
-        <p className="text-gray-500 text-sm">{error}</p>
+        <p className="text-gray-500 dark:text-zinc-400 text-sm">{error}</p>
       </div>
     );
   }
@@ -43,7 +43,7 @@ function CouponDetailContent({ params }: { params: { templateId: string } }) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-12">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-act-yellow mb-4" />
-        <p className="text-gray-500 text-sm">載入中…</p>
+        <p className="text-gray-500 dark:text-zinc-400 text-sm">載入中…</p>
       </div>
     );
   }
@@ -62,20 +62,20 @@ function CouponDetailContent({ params }: { params: { templateId: string } }) {
         </div>
       )}
 
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{data.store.name}</p>
-      <h1 className="text-2xl font-bold text-gray-900 leading-tight">{data.coupon_name}</h1>
+      <p className="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">{data.store.name}</p>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 leading-tight">{data.coupon_name}</h1>
 
-      <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
-        <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.coupon_detail}</p>
+      <div className="bg-gray-50 dark:bg-zinc-800/80 rounded-2xl p-4 flex flex-col gap-2 border border-transparent dark:border-zinc-700">
+        <p className="text-sm text-gray-700 dark:text-zinc-200 whitespace-pre-wrap">{data.coupon_detail}</p>
         {data.important_notes && (
           <>
-            <hr className="border-gray-200" />
-            <p className="text-xs text-gray-400 whitespace-pre-wrap">{data.important_notes}</p>
+            <hr className="border-gray-200 dark:border-zinc-600" />
+            <p className="text-xs text-gray-400 dark:text-zinc-500 whitespace-pre-wrap">{data.important_notes}</p>
           </>
         )}
       </div>
 
-      <div className="flex items-center justify-between text-xs text-gray-400 px-1">
+      <div className="flex items-center justify-between text-xs text-gray-400 dark:text-zinc-500 px-1">
         <span>有效期限：{new Date(data.expiry_date).toLocaleDateString('zh-TW')}</span>
         {data.estimated_savings && (
           <span className="text-act-yellow font-semibold">預計省 NT${data.estimated_savings}</span>

@@ -28,17 +28,17 @@ export function isWebTableQrPayload(text: string): boolean {
 export function parseWebTableQr(text: string): ParsedWebTableQr | null {
   const s = text.trim();
 
-  const fixedMatch = s.match(/\/(?:w\/)?claim-fixed\/([^/?#]+)\/?/);
+  const fixedMatch = s.match(/\/(?:w\/)?claim-fixed\/([^/?#]+)\/?/i);
   if (fixedMatch?.[1]) {
     return { kind: 'fixed', token: fixedMatch[1] };
   }
 
-  const legacyMatch = s.match(/\/(?:w\/)?claim\/([^/?#]+)\/?/);
+  const legacyMatch = s.match(/\/(?:w\/)?claim\/([^/?#]+)\/?/i);
   if (legacyMatch?.[1]) {
     return { kind: 'legacy', token: legacyMatch[1] };
   }
 
-  const queryToken = s.match(/[?&]token=([^&#]+)/);
+  const queryToken = s.match(/[?&]token=([^&#]+)/i);
   if (queryToken?.[1]) {
     return { kind: 'legacy', token: decodeURIComponent(queryToken[1]) };
   }

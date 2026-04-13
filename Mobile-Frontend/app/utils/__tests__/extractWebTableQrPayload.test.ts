@@ -33,6 +33,12 @@ describe('parseWebTableQr', () => {
     });
   });
 
+  it('parses claim-fixed path case-insensitively (printed QR / CDNs)', () => {
+    expect(
+      parseWebTableQr('HTTPS://EXAMPLE.COM/W/CLAIM-FIXED/MyFixedToken/'),
+    ).toEqual({ kind: 'fixed', token: 'MyFixedToken' });
+  });
+
   it('parses coupro deep link token query (legacy)', () => {
     expect(parseWebTableQr('coupro://claim?token=hello%2Bworld')).toEqual({
       kind: 'legacy',
