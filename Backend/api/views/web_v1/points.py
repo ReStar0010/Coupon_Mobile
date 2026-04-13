@@ -2,6 +2,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from django.db.models import Q
+
 from api.models import WebRedemption, CouponRedemption, StudentProfile
 from api.utils import validate_phone_number
 
@@ -13,6 +15,7 @@ POINTS_THRESHOLD = 3
 def points_lookup(request):
     raw_phone = request.data.get('phone_number', '').strip()
     session_token = request.data.get('session_token', '').strip()
+    fixed_session_token = request.data.get('fixed_session_token', '').strip()
 
     if not raw_phone:
         return Response({'error': '請輸入手機號碼'}, status=status.HTTP_400_BAD_REQUEST)
@@ -26,9 +29,14 @@ def points_lookup(request):
         )
 
     # Link current redemption to phone if not already linked
-    if session_token:
+    if session_token or fixed_session_token:
+        token_filter = Q()
+        if session_token:
+            token_filter |= Q(session_token=session_token) | Q(fixed_session_token=session_token)
+        if fixed_session_token:
+            token_filter |= Q(fixed_session_token=fixed_session_token)
         WebRedemption.objects.filter(
-            session_token=session_token,
+            token_filter,
             phone_number__isnull=True,
         ).update(phone_number=phone_number)
 

@@ -440,7 +440,7 @@ class PasswordResetProfileAdmin(admin.ModelAdmin):
 class StoreAdmin(admin.ModelAdmin):
     list_display = [
         'id', 'name', 'owner_email', 'store_type', 
-        'address', 'has_location', 'unified_redeem_code', 'fixed_session_status'
+        'address', 'has_location', 'unified_redeem_code', 'fixed_session_url'
     ]
     list_filter = ['store_type']
     search_fields = ['name', 'owner__email', 'address', 'unified_redeem_code']
@@ -484,6 +484,18 @@ class StoreAdmin(admin.ModelAdmin):
             return '已停用'
         return f'已生成 ({fixed.session_token[:10]}...)'
     fixed_session_status.short_description = '桌貼 QR Token'
+
+    def fixed_session_url(self, obj):
+        fixed = getattr(obj, 'fixed_session', None)
+        if not fixed or not fixed.is_active:
+            return '—'
+        api_base_url = getattr(settings, 'API_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
+        claim_fixed_url = f"{api_base_url}/claim-fixed/{fixed.session_token}/"
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>',
+            claim_fixed_url, claim_fixed_url
+        )
+    fixed_session_url.short_description = '桌貼 URL'
 
     def generate_or_rotate_fixed_table_qr_token(self, request, queryset):
         generated = 0
@@ -1623,6 +1635,55 @@ class QRCodeClaimAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related('user', 'template', 'coupon')
+
+
+@admin.register(WebRedemption)
+class WebRedemptionAdmin(admin.ModelAdmin):
+    list_display = [
+        'id',
+        'store_name',
+        'template_name',
+        'session_token_preview',
+        'fixed_session_token_preview',
+        'phone_number',
+        'redeemed_at',
+    ]
+    list_filter = ['redeemed_at', 'template__store']
+    search_fields = [
+        'session_token',
+        'fixed_session_token',
+        'phone_number',
+        'template__coupon_name',
+        'template__store__name',
+    ]
+    readonly_fields = ['redeemed_at']
+    date_hierarchy = 'redeemed_at'
+
+    def store_name(self, obj):
+        return obj.template.store.name
+    store_name.short_description = '店家'
+    store_name.admin_order_field = 'template__store__name'
+
+    def template_name(self, obj):
+        return obj.template.coupon_name
+    template_name.short_description = '優惠券範本'
+    template_name.admin_order_field = 'template__coupon_name'
+
+    def session_token_preview(self, obj):
+        token = obj.session_token or ''
+        return token if len(token) <= 24 else f'{token[:24]}...'
+    session_token_preview.short_description = 'Session Token'
+
+    def fixed_session_token_preview(self, obj):
+        token = obj.fixed_session_token or ''
+        if not token:
+            return '—'
+        return token if len(token) <= 24 else f'{token[:24]}...'
+    fixed_session_token_preview.short_description = 'Fixed Session Token'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('template', 'template__store')
 
 
 # =============================================================================

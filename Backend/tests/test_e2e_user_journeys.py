@@ -781,6 +781,30 @@ class WebConsumerJourneyE2ETest(TestCase):
         self.assertEqual(redemption.fixed_session_token, self.fixed_session.session_token)
         self.assertEqual(redemption.template_id, self.template_a.id)
 
+    def test_web_fixed_session_allows_multiple_redemptions_with_same_token(self):
+        first = self.client.post(
+            '/api/web/v1/redemptions/',
+            {
+                'fixed_session_token': self.fixed_session.session_token,
+                'template_id': self.template_a.id,
+            },
+            format='json',
+        )
+        second = self.client.post(
+            '/api/web/v1/redemptions/',
+            {
+                'fixed_session_token': self.fixed_session.session_token,
+                'template_id': self.template_a.id,
+            },
+            format='json',
+        )
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED, first.json())
+        self.assertEqual(second.status_code, status.HTTP_201_CREATED, second.json())
+        self.assertEqual(
+            WebRedemption.objects.filter(fixed_session_token=self.fixed_session.session_token).count(),
+            2,
+        )
+
     def test_legacy_qr_claim_flow_still_works(self):
         consumer = User.objects.create_user(
             username='legacy_qr_consumer@test.com',

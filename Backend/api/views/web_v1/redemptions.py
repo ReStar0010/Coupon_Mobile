@@ -1,3 +1,5 @@
+import secrets
+
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
@@ -81,9 +83,18 @@ def create_redemption(request):
         if updated == 0:
             return Response({'error': '優惠券已售完'}, status=status.HTTP_410_GONE)
 
+        # For fixed table sessions, keep `session_token` unique per redemption record.
+        # This avoids collisions in environments that may still carry an older DB-level
+        # unique constraint on api_web_redemption.session_token.
+        persisted_session_token = (
+            incoming_token
+            if is_legacy_session_flow
+            else f"{fixed_session_token}:{secrets.token_urlsafe(8)}"
+        )
+
         web_redemption = WebRedemption.objects.create(
             template=template,
-            session_token=incoming_token,
+            session_token=persisted_session_token,
             fixed_session_token=fixed_session_token or None,
         )
 
