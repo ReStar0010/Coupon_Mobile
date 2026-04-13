@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Prefetch
 import logging
+import re
 from drf_yasg.utils import swagger_auto_schema
 
 from api.exceptions import (
@@ -17,10 +18,26 @@ from api.exceptions import (
     UnifiedCodeInvalid,
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
-from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest
+from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, QRCodeSession, StoreFixedSession
 from ..utils import apply_referral_reward, display_face_value, increment_sharing_progress_for_redeemer
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_web_table_qr_payload(raw_code: str) -> tuple[str, str] | None:
+    s = raw_code.strip()
+    fixed_match = re.search(r"/(?:w/)?claim-fixed/([^/?#]+)/?", s)
+    if fixed_match and fixed_match.group(1):
+        return ("fixed", fixed_match.group(1))
+
+    legacy_match = re.search(r"/(?:w/)?claim/([^/?#]+)/?", s)
+    if legacy_match and legacy_match.group(1):
+        return ("legacy", legacy_match.group(1))
+
+    query_match = re.search(r"[?&]token=([^&#]+)", s)
+    if query_match and query_match.group(1):
+        return ("legacy", query_match.group(1))
+    return None
 
 @api_view(['GET'])
 @permission_classes([AllowAny])  # 允許匿名訪問
@@ -394,29 +411,50 @@ def redeem_coupon(request, id):
         if not submitted_code:
             raise RedeemCodeInvalid(developer_message="Redeem code is required.")
 
-        # Determine whether the submitted code is a 6-digit unified store code.
-        # Run a single Store lookup and cache the result to avoid a duplicate query later.
-        _unified_store: Store | None = None
-        if len(submitted_code) == 6 and submitted_code.isdigit():
-            try:
-                _unified_store = Store.objects.get(unified_redeem_code=submitted_code)
-                if _unified_store.id != coupon.store.id:
-                    raise UnifiedCodeInvalid(developer_message="Unified code does not match coupon's store.")
-            except Store.DoesNotExist:
-                pass  # Not a unified code — fall through to coupon-specific validation
+        parsed_web_table_qr = _parse_web_table_qr_payload(submitted_code)
 
-        is_unified = _unified_store is not None and _unified_store.id == coupon.store.id
+        # App-user table QR flow: allow redeem by scanned table token,
+        # but enforce token belongs to the same store as the coupon.
+        if parsed_web_table_qr is not None:
+            qr_kind, qr_token = parsed_web_table_qr
+            if qr_kind == 'fixed':
+                fixed_session = StoreFixedSession.objects.filter(
+                    session_token=qr_token,
+                    is_active=True,
+                ).select_related('store').first()
+                if not fixed_session or fixed_session.store_id != coupon.store_id:
+                    raise RedeemCodeInvalid(developer_message="Invalid redeem code.")
+            else:
+                qr_session = QRCodeSession.objects.filter(
+                    session_token=qr_token,
+                    is_active=True,
+                ).select_related('template__store').first()
+                if not qr_session or qr_session.template.store_id != coupon.store_id:
+                    raise RedeemCodeInvalid(developer_message="Invalid redeem code.")
+        else:
+            # Determine whether the submitted code is a 6-digit unified store code.
+            # Run a single Store lookup and cache the result to avoid a duplicate query later.
+            _unified_store: Store | None = None
+            if len(submitted_code) == 6 and submitted_code.isdigit():
+                try:
+                    _unified_store = Store.objects.get(unified_redeem_code=submitted_code)
+                    if _unified_store.id != coupon.store.id:
+                        raise UnifiedCodeInvalid(developer_message="Unified code does not match coupon's store.")
+                except Store.DoesNotExist:
+                    pass  # Not a unified code — fall through to coupon-specific validation
 
-        if not is_unified:
-            # Coupon-specific code validation:
-            # prefer coupon.redeem_code; fall back to template_redeem_code
-            expected_code = coupon.redeem_code or (
-                coupon.template.template_redeem_code if coupon.template else None
-            )
-            if not expected_code:
-                raise RedeemCodeInvalid(developer_message="This coupon has no redeem code configured.")
-            if expected_code != submitted_code:
-                raise RedeemCodeInvalid(developer_message="Invalid redeem code.")
+            is_unified = _unified_store is not None and _unified_store.id == coupon.store.id
+
+            if not is_unified:
+                # Coupon-specific code validation:
+                # prefer coupon.redeem_code; fall back to template_redeem_code
+                expected_code = coupon.redeem_code or (
+                    coupon.template.template_redeem_code if coupon.template else None
+                )
+                if not expected_code:
+                    raise RedeemCodeInvalid(developer_message="This coupon has no redeem code configured.")
+                if expected_code != submitted_code:
+                    raise RedeemCodeInvalid(developer_message="Invalid redeem code.")
 
     elif coupon.coupon_type == 'store':
         pass

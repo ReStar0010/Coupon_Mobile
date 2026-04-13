@@ -56,12 +56,18 @@ def create_redemption(request):
         session_store_id = fixed_session.store_id
 
     try:
-        template = CouponTemplate.objects.select_related('store').get(id=template_id_int, is_active=True)
+        template = CouponTemplate.objects.select_related('store').get(id=template_id_int)
     except CouponTemplate.DoesNotExist:
         return Response({'error': '優惠券不存在或已下架'}, status=status.HTTP_404_NOT_FOUND)
 
     if template.store_id != session_store_id:
         return Response({'error': '優惠券與掃描店家不一致'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Legacy claim flow keeps strict "active template only" behavior.
+    # Fixed table-sticker flow is also used by User App redemption scanning, where
+    # already-issued coupons may still need redemption even after template sold out.
+    if is_legacy_session_flow and not template.is_active:
+        return Response({'error': '優惠券不存在或已下架'}, status=status.HTTP_404_NOT_FOUND)
 
     if template.expiry_date and template.expiry_date <= timezone.now():
         return Response({'error': '優惠券已過期'}, status=status.HTTP_410_GONE)
@@ -74,13 +80,18 @@ def create_redemption(request):
         ).exists():
             return Response({'error': '此優惠券已被核銷'}, status=status.HTTP_409_CONFLICT)
 
-        updated = CouponTemplate.objects.filter(
-            id=template.id,
-            is_active=True,
-            remaining_quantity__gt=0,
-        ).update(remaining_quantity=F('remaining_quantity') - 1)
+        updated = 1
+        should_decrease_inventory = template.total_quantity > 0
+        if should_decrease_inventory:
+            updated = CouponTemplate.objects.filter(
+                id=template.id,
+                is_active=True,
+                remaining_quantity__gt=0,
+            ).update(remaining_quantity=F('remaining_quantity') - 1)
 
-        if updated == 0:
+        # For fixed table sessions, allow redemption record creation even if template
+        # inventory reached 0 (User App scan of already-issued coupon).
+        if should_decrease_inventory and updated == 0 and is_legacy_session_flow:
             return Response({'error': '優惠券已售完'}, status=status.HTTP_410_GONE)
 
         # For fixed table sessions, keep `session_token` unique per redemption record.
