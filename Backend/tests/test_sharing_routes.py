@@ -145,3 +145,84 @@ class SharingRoutesTest(TestCase):
         """GET cl/<token>/ returns 200 or 404."""
         response = self.client.get('/cl/some-token/')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_404_NOT_FOUND))
+
+
+class ConsumerFlowFlagScopeTest(TestCase):
+    """
+    WEB_CONSUMER_FLOW_ENABLED must ONLY affect the table/desk QR (claim-fixed)
+    route. Shared coupon links (/collection/<token>/) and personal claim
+    fallbacks (/claim/<token>/, /cl/<token>/) must keep their mobile-first
+    Universal Link landing even when the flag is on.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='flagtest@test.com',
+            email='flagtest@test.com',
+            password='testpass123',
+        )
+        self.store = Store.objects.create(
+            owner=self.user,
+            name='Flag Store',
+            lat=25.0,
+            lng=121.0,
+            address='Flag',
+        )
+        self.template = CouponTemplate.objects.create(
+            store=self.store,
+            coupon_name='Flag',
+            coupon_detail='Flag Detail',
+            total_quantity=10,
+            remaining_quantity=10,
+            start_date=timezone.now(),
+            expiry_date=timezone.now() + timedelta(days=30),
+            is_active=True,
+        )
+        self.coupon = Coupon.objects.create(
+            store=self.store,
+            template=self.template,
+            coupon_name='Flag',
+            coupon_detail='Flag Detail',
+            start_date=timezone.now(),
+            expiry_date=timezone.now() + timedelta(days=30),
+            coupon_type='exclusive',
+            acquisition_method='consolidate',
+        )
+        self.share_request = CouponShareRequest.objects.create(
+            coupon=self.coupon,
+            from_user=self.user,
+            token='flag-share-token-xyz',
+        )
+
+    def test_collection_landing_stays_mobile_when_flag_enabled(self):
+        """Shared-link /collection/<token>/ must render mobile landing (200),
+        NOT redirect to the web flow, even with WEB_CONSUMER_FLOW_ENABLED=True."""
+        with self.settings(WEB_CONSUMER_FLOW_ENABLED=True, FRONTEND_URL='https://app.coupro.pro'):
+            response = self.client.get(f'/collection/{self.share_request.token}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        location = response.get('Location', '') or ''
+        self.assertNotIn('/w/share/', location)
+
+    def test_claim_landing_stays_mobile_when_flag_enabled(self):
+        """Personal claim fallback /claim/<token>/ must render mobile landing
+        when WEB_CONSUMER_FLOW_ENABLED=True (shared-link flow, not table QR)."""
+        with self.settings(WEB_CONSUMER_FLOW_ENABLED=True, FRONTEND_URL='https://app.coupro.pro'):
+            response = self.client.get('/claim/any-token/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        location = response.get('Location', '') or ''
+        self.assertNotIn('/w/claim/', location)
+
+    def test_claim_fixed_landing_redirects_to_web_when_flag_enabled(self):
+        """Table/desk QR /claim-fixed/<token>/ MUST still redirect to web
+        consumer flow when the flag is enabled."""
+        with self.settings(WEB_CONSUMER_FLOW_ENABLED=True, FRONTEND_URL='https://app.coupro.pro'):
+            response = self.client.get('/claim-fixed/table-token-1/')
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertIn('/w/claim-fixed/table-token-1/', response['Location'])
+
+    def test_claim_fixed_landing_renders_when_flag_disabled(self):
+        """Table/desk QR with flag disabled renders the mobile landing page."""
+        with self.settings(WEB_CONSUMER_FLOW_ENABLED=False):
+            response = self.client.get('/claim-fixed/table-token-2/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
