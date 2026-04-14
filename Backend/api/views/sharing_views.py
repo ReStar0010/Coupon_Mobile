@@ -82,11 +82,10 @@ def claim_landing(request, token):
     Claim URL fallback page: https://api.coupro.pro/claim/<token>/ or /cl/<token>/
     Renders HTML with install guidance and store links only (no claim actions on web).
     Same pattern as collection_landing (002-qr-deep-linking).
+
+    Shared-link flows (personal claim fallback) always render the mobile landing;
+    WEB_CONSUMER_FLOW_ENABLED is scoped to the table/desk QR flow only.
     """
-    if getattr(settings, 'WEB_CONSUMER_FLOW_ENABLED', False):
-        from django.shortcuts import redirect as http_redirect
-        frontend_url = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
-        return http_redirect(f"{frontend_url}/w/claim/{token}/", permanent=False)
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
     page_url = f"{api_base_url}/claim/{token}/"
     title = "CouPro 優惠券"
@@ -150,11 +149,11 @@ def collection_landing(request, token):
     """
     Universal Link fallback page: https://api.coupro.pro/collection/<token>
     Renders HTML with Smart App Banner (iOS), Open Graph, and JS to try app then fallback to stores.
+
+    Shared coupon links always render the mobile landing (Universal Link + store
+    fallback); WEB_CONSUMER_FLOW_ENABLED is scoped to the table/desk QR flow only
+    and must not redirect shared links into the web consumer flow.
     """
-    if getattr(settings, 'WEB_CONSUMER_FLOW_ENABLED', False):
-        from django.shortcuts import redirect as http_redirect
-        frontend_url = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
-        return http_redirect(f"{frontend_url}/w/share/{token}/", permanent=False)
     share_request = get_object_or_404(CouponShareRequest, token=token)
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
     page_url = f"{api_base_url}/collection/{token}"
