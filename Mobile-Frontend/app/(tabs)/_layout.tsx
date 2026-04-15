@@ -1,4 +1,5 @@
 import { Tabs, useSegments } from 'expo-router';
+import { Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { StretchHorizontal, BarChart2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -85,6 +86,11 @@ export default function TabLayout() {
         options={{
           title: '進度追蹤',
           tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} />,
+          // Narrow tab slots on Android: slightly smaller label avoids clipping four CJK glyphs.
+          tabBarLabelStyle:
+            Platform.OS === 'android'
+              ? { fontSize: 11, includeFontPadding: false }
+              : undefined,
         }}
       />
     </Tabs>

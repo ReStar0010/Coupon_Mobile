@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { RefreshControl } from 'react-native';
+import { Platform, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRequireAuth } from '@/app/utils/authAPI';
 import { useRouter, Stack } from 'expo-router';
@@ -103,18 +103,32 @@ const Statistics: React.FC = () => {
             style={{ justifyContent: 'space-between' }}
             px="$5"
             pt={insets.top + 10}
+            gap="$2"
           >
-            <H4 fontSize={30} color={'$black1'} fontWeight={'bold'}>
-              {t('statistics.progressTracker')}
-            </H4>
-            <Button
-              unstyled
-              onPress={() => {
-                router.push('/options-menu');
-              }}
-            >
-              <AlignJustify size={24} color="#333333" />
-            </Button>
+            <YStack flex={1} style={{ minWidth: 0 }}>
+              <H4
+                fontSize={30}
+                lineHeight={Platform.OS === 'android' ? 40 : undefined}
+                color={'$black1'}
+                fontWeight={'bold'}
+                numberOfLines={2}
+                style={
+                  Platform.OS === 'android' ? { includeFontPadding: false } : undefined
+                }
+              >
+                {t('statistics.progressTracker')}
+              </H4>
+            </YStack>
+            <YStack style={{ flexShrink: 0 }}>
+              <Button
+                unstyled
+                onPress={() => {
+                  router.push('/options-menu');
+                }}
+              >
+                <AlignJustify size={24} color="#333333" />
+              </Button>
+            </YStack>
           </XStack>
 
           <ScrollView

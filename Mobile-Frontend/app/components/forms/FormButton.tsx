@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { Button, Text } from 'tamagui';
 
 interface FormButtonProps {
@@ -24,7 +25,10 @@ export const FormButton: React.FC<FormButtonProps> = ({ title, onPress, disabled
         fontSize={16}
         fontWeight="normal"
         color="#374151"
-        style={{ fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif' }}
+        style={{
+          fontFamily: 'Inter, -apple-system, Roboto, Helvetica, sans-serif',
+          ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
+        }}
       >
         {title}
       </Text>
