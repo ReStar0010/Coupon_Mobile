@@ -1,6 +1,4 @@
-// dev branch 預設連 staging；本機或其它環境請用 .env 的 EXPO_PUBLIC_API_BASE_URL（勿提交 .env）。
-export const API_BASE_URL: string =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || 'https://coupon-mobile-dev.onrender.com';
+export const API_BASE_URL: string = process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || 'https://coupon-mobile.onrender.com';
 
 export const API_URL = `${API_BASE_URL}/api`;
 
