@@ -83,6 +83,45 @@
       "blockedPermissions": ["com.google.android.gms.permission.AD_ID"],
       "googleServicesFile": "./google-services.json",
       "package": "com.cokayne.MobileFrontend",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "api.coupro.pro",
+              "pathPrefix": "/collection/"
+            },
+            {
+              "scheme": "https",
+              "host": "api.coupro.pro",
+              "pathPrefix": "/claim/"
+            },
+            {
+              "scheme": "https",
+              "host": "api.coupro.pro",
+              "pathPrefix": "/voucher/"
+            },
+            {
+              "scheme": "https",
+              "host": "app.coupro.pro",
+              "pathPrefix": "/collection/"
+            },
+            {
+              "scheme": "https",
+              "host": "app.coupro.pro",
+              "pathPrefix": "/claim/"
+            },
+            {
+              "scheme": "https",
+              "host": "app.coupro.pro",
+              "pathPrefix": "/voucher/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyACVfhHwjl0L5QWVRUxWOyle4UOysZPSbA"
