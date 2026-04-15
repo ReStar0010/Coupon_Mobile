@@ -119,6 +119,23 @@ const Coupon: React.FC<CouponProps> = ({
             {couponName}
           </Text>
 
+          {isInPool && (
+            <XStack gap={8} flexWrap="wrap" style={{ marginTop: 2 }}>
+              <View
+                style={{
+                  backgroundColor: '#FEF3C7',
+                  borderRadius: BORDER_RADIUS.md,
+                  paddingHorizontal: SPACING.sm,
+                  paddingVertical: SPACING.xs,
+                }}
+              >
+                <Text fontSize={12} color="#D97706" fontWeight="500">
+                  等待對方回覆
+                </Text>
+              </View>
+            </XStack>
+          )}
+
           <Text fontSize="$3" color={COLORS.text.secondary} numberOfLines={1}>
             {isInPool ? `狀態 : ${inPoolLabel}` : `有效期限 : ${formattedDate}`}
           </Text>
