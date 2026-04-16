@@ -24,7 +24,7 @@ import { useDailyDraw } from './hooks/useDailyDraw';
 import { useSharedCoupon } from './hooks/useSharedCoupon';
 import { useSharedVoucher } from './hooks/useSharedVoucher';
 import { useSearch } from './hooks/useSearch';
-import { useMyPublicShares } from './hooks/useMyPublicShares';
+import { useMyPublicShares, type PublicShare } from './hooks/useMyPublicShares';
 import { usePlatformVouchers } from './hooks/usePlatformVouchers';
 import { useTags } from './hooks/useTags';
 
@@ -36,8 +36,15 @@ import { FilterBar } from './components/FilterBar';
 import type { CouponType } from './utils/types';
 import { useCollectionFilters } from './hooks/useCollectionFilters';
 
-/** List item: normal coupon or in-pool share (has shareIdInPool) */
-type CollectionListItem = CouponType & { shareIdInPool?: number };
+/**
+ * List item: normal coupon from /exclusive-coupons/, or a public-pool row from /my-public-shares/.
+ * In-pool UI is shown only when shareIdInPool and publicShareStatus === 'pending' (backend truth).
+ */
+type CollectionListItem = CouponType & {
+  shareIdInPool?: number;
+  /** From GET /my-public-shares/ `status`; required for in-pool rows */
+  publicShareStatus?: PublicShare['status'];
+};
 
 interface CouponItemProps {
   item: CollectionListItem;
@@ -59,6 +66,7 @@ const CouponItem: React.FC<CouponItemProps> = React.memo(
       merchantDeleted={item.merchantDeleted}
       onMerchantDeleted={onMerchantDeleted}
       shareIdInPool={item.shareIdInPool}
+      publicShareStatus={item.publicShareStatus}
       onWithdrawFromPool={onWithdrawFromPool}
       inPoolLabel="交換池中"
     />
@@ -192,19 +200,21 @@ const Collection: React.FC = () => {
   );
 
   const pendingPoolItems = useMemo((): CollectionListItem[] => {
-    const pending = publicShares.filter((s) => s.status === 'pending');
     const placeholderDate = new Date(0);
-    return pending.map((s) => ({
-      id: s.coupon_id,
-      couponName: s.coupon_name,
-      storeName: s.store_name ?? '',
-      description: '',
-      startDate: placeholderDate,
-      expiryDate: placeholderDate,
-      couponType: 'exclusive' as const,
-      imageUrl: s.image_url ?? undefined,
-      shareIdInPool: s.share_id,
-    }));
+    return publicShares
+      .filter((s): s is PublicShare & { status: 'pending' } => s.status === 'pending')
+      .map((s) => ({
+        id: s.coupon_id,
+        couponName: s.coupon_name,
+        storeName: s.store_name ?? '',
+        description: '',
+        startDate: placeholderDate,
+        expiryDate: placeholderDate,
+        couponType: 'exclusive' as const,
+        imageUrl: s.image_url ?? undefined,
+        shareIdInPool: s.share_id,
+        publicShareStatus: s.status,
+      }));
   }, [publicShares]);
 
   const filteredCoupons = useMemo(

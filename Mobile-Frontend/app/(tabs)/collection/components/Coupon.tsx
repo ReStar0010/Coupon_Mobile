@@ -4,13 +4,16 @@ import { YStack, XStack, Text, Card, View } from 'tamagui';
 import { useRouter } from 'expo-router';
 import { COLORS, BORDER_RADIUS, SPACING } from '@/app/constants/theme';
 import type { CouponType } from '@/app/(tabs)/collection/utils/types';
+import type { PublicShare } from '@/app/(tabs)/collection/hooks/useMyPublicShares';
 import { getAcquisitionMethodLabel } from '../utils/couponUtils';
 
 interface CouponProps extends Partial<CouponType> {
   className?: string;
   onMerchantDeleted?: (storeName: string, storeId: number) => void;
-  /** When set, this coupon is in the public pool; show withdraw UI */
+  /** Public-pool share id from GET /my-public-shares/ */
   shareIdInPool?: number;
+  /** Must be `pending` from GET /my-public-shares/ `status` for in-pool UI (omit for wallet coupons) */
+  publicShareStatus?: PublicShare['status'];
   onWithdrawFromPool?: (shareId: number) => void;
   /** Label when coupon is in pool (e.g. "交換池中") */
   inPoolLabel?: string;
@@ -52,11 +55,13 @@ const Coupon: React.FC<CouponProps> = ({
   merchantDeleted,
   onMerchantDeleted,
   shareIdInPool,
+  publicShareStatus,
   onWithdrawFromPool,
   inPoolLabel = '交換池中',
 }) => {
   const router = useRouter();
-  const isInPool = shareIdInPool != null;
+  const isInPool =
+    shareIdInPool != null && publicShareStatus === 'pending';
 
   const handleCouponPress = useCallback(() => {
     if (isInPool) return; // In-pool cards only act via withdraw button
@@ -73,10 +78,14 @@ const Coupon: React.FC<CouponProps> = ({
   }, [isInPool, router, id, merchantDeleted, storeId, storeName, onMerchantDeleted]);
 
   const handleWithdrawPress = useCallback(() => {
-    if (shareIdInPool != null && onWithdrawFromPool) {
+    if (
+      shareIdInPool != null &&
+      publicShareStatus === 'pending' &&
+      onWithdrawFromPool
+    ) {
       onWithdrawFromPool(shareIdInPool);
     }
-  }, [shareIdInPool, onWithdrawFromPool]);
+  }, [shareIdInPool, publicShareStatus, onWithdrawFromPool]);
 
   const formattedDate = useMemo(() => {
     return expiryDate ? expiryDate.toLocaleDateString() : '';
@@ -189,6 +198,7 @@ export default React.memo(Coupon, (prevProps, nextProps) => {
     JSON.stringify(prevProps.tags) === JSON.stringify(nextProps.tags) &&
     prevProps.storeId === nextProps.storeId &&
     prevProps.merchantDeleted === nextProps.merchantDeleted &&
-    prevProps.shareIdInPool === nextProps.shareIdInPool
+    prevProps.shareIdInPool === nextProps.shareIdInPool &&
+    prevProps.publicShareStatus === nextProps.publicShareStatus
   );
 });
