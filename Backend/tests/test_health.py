@@ -4,6 +4,7 @@ GET /api/health/ returns 200 when DB is ok, 503 when DB fails.
 """
 from unittest.mock import patch
 
+from django.db import OperationalError
 from django.test import TestCase, Client
 from rest_framework import status
 
@@ -26,9 +27,21 @@ class HealthCheckTest(TestCase):
         """GET /api/health/ returns 503 when database query fails."""
         with patch('Backend.urls.connection') as mock_conn:
             mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
-            mock_cursor.execute.side_effect = Exception('connection refused')
+            mock_cursor.execute.side_effect = OperationalError('connection refused')
             response = self.client.get('/api/health/')
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
         data = response.json()
         self.assertEqual(data.get('status'), 'error')
         self.assertIn('db', data)
+
+    @patch('Backend.urls.logger')
+    def test_health_db_failure_logs_warning_not_error(self, mock_logger):
+        """DB-down health checks should not log at error+exc_info (avoids Sentry noise)."""
+        with patch('Backend.urls.connection') as mock_conn:
+            mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
+            mock_cursor.execute.side_effect = OperationalError('connection refused')
+            response = self.client.get('/api/health/')
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        mock_logger.warning.assert_called_once()
+        mock_logger.error.assert_not_called()
+        self.assertIsNone(mock_logger.warning.call_args.kwargs.get("exc_info"))

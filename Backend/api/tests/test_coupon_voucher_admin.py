@@ -3,7 +3,9 @@ Tests for coupon and platform voucher admin: filters, list_display, and actions.
 """
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import RequestFactory, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from api.admin import (
@@ -68,6 +70,42 @@ class CouponAdminFilterTest(TestCase):
         f = CouponRedeemedFilter(self.request, {"redeemed": ["yes"]}, Coupon, self.model_admin)
         filtered = f.queryset(self.request, qs)
         self.assertIn("EXISTS", str(filtered.query))
+
+    def test_coupon_admin_redemption_info_uses_annotations_no_extra_queries(self):
+        """Changelist redemption_info should not N+1 CouponRedemption per row (Sentry PYTHON-DJANGO-Z/13)."""
+        consumer = User.objects.create_user(username="c1", email="c1@test.com", password="pass")
+        start = timezone.now()
+        end = start + timezone.timedelta(days=7)
+        store_coupons = []
+        for i in range(3):
+            c = Coupon.objects.create(
+                store=self.store,
+                coupon_name=f"Store {i}",
+                coupon_detail="d",
+                start_date=start,
+                expiry_date=end,
+                coupon_type="store",
+            )
+            store_coupons.append(c)
+        CouponRedemption.objects.create(coupon=store_coupons[0], user=consumer, coupon_type="store")
+        CouponRedemption.objects.create(coupon=store_coupons[0], user=consumer, coupon_type="store")
+        ex = Coupon.objects.create(
+            store=self.store,
+            coupon_name="Ex",
+            coupon_detail="d",
+            start_date=start,
+            expiry_date=end,
+            coupon_type="exclusive",
+            current_holder=consumer,
+        )
+        CouponRedemption.objects.create(coupon=ex, user=consumer, coupon_type="exclusive")
+
+        qs = list(self.model_admin.get_queryset(self.request))
+        self.assertEqual(len(qs), 4)
+        with CaptureQueriesContext(connection) as ctx:
+            for obj in qs:
+                self.model_admin.redemption_info(obj)
+        self.assertEqual(len(ctx.captured_queries), 0)
 
 
 class PlatformVoucherAdminFilterTest(TestCase):

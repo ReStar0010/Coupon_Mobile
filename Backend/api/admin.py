@@ -1138,7 +1138,14 @@ class CouponAdmin(admin.ModelAdmin):
     
     def redemption_info(self, obj):
         if obj.coupon_type == 'exclusive':
+            has = getattr(obj, '_admin_has_redemption', None)
+            if has is not None:
+                return '已兌換' if has else '未兌換'
             return '已兌換' if obj.is_redeemed() else '未兌換'
+        count = getattr(obj, '_admin_redemption_count', None)
+        users = getattr(obj, '_admin_unique_user_count', None)
+        if count is not None and users is not None:
+            return format_html('{} 次 / {} 人', count, users)
         count = obj.get_redemption_count()
         users = obj.get_unique_users_count()
         return format_html('{} 次 / {} 人', count, users)
@@ -1186,7 +1193,13 @@ class CouponAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related('store', 'store__owner', 'template', 'current_holder', 'original_owner')
+        qs = qs.select_related('store', 'store__owner', 'template', 'current_holder', 'original_owner')
+        redeemed_exists = CouponRedemption.objects.filter(coupon_id=OuterRef('pk'))
+        return qs.annotate(
+            _admin_has_redemption=Exists(redeemed_exists),
+            _admin_redemption_count=Count('redemptions'),
+            _admin_unique_user_count=Count('redemptions__user', distinct=True),
+        )
 
 
 @admin.register(CouponRedemption)

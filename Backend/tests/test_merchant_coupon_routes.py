@@ -13,7 +13,7 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from api.models import MerchantProfile, Store, CouponTemplate, Coupon, StudentProfile
+from api.models import MerchantProfile, Store, CouponTemplate, Coupon, StudentProfile, WebRedemption
 
 
 class MerchantCouponRoutesTest(TestCase):
@@ -96,6 +96,18 @@ class MerchantCouponRoutesTest(TestCase):
         self.client.force_authenticate(user=self.merchant)
         response = self.client.delete(f'/api/merchant/coupon-templates/{self.template.id}/delete/')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_204_NO_CONTENT, status.HTTP_400_BAD_REQUEST))
+
+    def test_coupon_template_delete_conflict_when_web_redemption_exists(self):
+        """DELETE template returns 409 when WebRedemption still references it (PROTECT)."""
+        WebRedemption.objects.create(
+            template=self.template,
+            session_token='sess-test-delete-block',
+        )
+        self.client.force_authenticate(user=self.merchant)
+        response = self.client.delete(f'/api/merchant/coupon-templates/{self.template.id}/delete/')
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data.get('error_code'), 'COUPON_TEMPLATE_REFERENCED_BY_WEB_REDEMPTIONS')
+        self.assertTrue(CouponTemplate.objects.filter(id=self.template.id).exists())
 
     def test_consolidate_coupon_requires_merchant(self):
         """POST api/merchant/consolidate-coupon/ without merchant returns 401/403."""

@@ -277,6 +277,13 @@ class CouponTemplateOutOfStock(CouProAPIException):
     error_code = "COUPON_TEMPLATE_OUT_OF_STOCK"
 
 
+class CouponTemplateReferencedByWebRedemptions(CouProAPIException):
+    """Cannot delete template while web self-redemption rows still reference it (PROTECT)."""
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "COUPON_TEMPLATE_REFERENCED_BY_WEB_REDEMPTIONS"
+    default_detail = "Cannot delete template while web redemption records exist."
+
+
 class TemplateQuantityDecreaseNotAllowed(CouProAPIException):
     """context: {"current": 50}"""
     status_code = status.HTTP_400_BAD_REQUEST
