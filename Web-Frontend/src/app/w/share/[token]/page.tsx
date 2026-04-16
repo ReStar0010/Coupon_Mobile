@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { webGet } from '../../utils/webAPI';
 
+type ShareStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
+
 interface ShareDetailResponse {
   coupon_id: number;
   coupon_name: string;
@@ -13,6 +15,8 @@ interface ShareDetailResponse {
   expiry_date: string;
   estimated_savings?: string;
   template_id?: number;
+  status?: ShareStatus;
+  is_public?: boolean;
   store: { id: number; name: string };
 }
 
@@ -24,7 +28,10 @@ export default function ShareLandingPage({ params }: { params: { token: string }
   useEffect(() => {
     webGet<ShareDetailResponse>(`/api/web/v1/shares/${params.token}/`)
       .then((d) => {
-        if (d.template_id) {
+        // Only redirect to the template landing when this share is still open.
+        // If it's already accepted/cancelled, stay here to show the claimed state.
+        const isOpen = !d.status || d.status === 'pending';
+        if (isOpen && d.template_id) {
           router.replace(`/w/coupon/${d.template_id}`);
         } else {
           setData(d);
@@ -39,6 +46,26 @@ export default function ShareLandingPage({ params }: { params: { token: string }
         <div className="text-5xl mb-4">⚠️</div>
         <h1 className="text-xl font-bold text-gray-800 dark:text-zinc-100 mb-2">連結無效</h1>
         <p className="text-gray-500 dark:text-zinc-400 text-sm">{error}</p>
+      </div>
+    );
+  }
+
+  const claimed = data && data.status && data.status !== 'pending';
+  if (claimed) {
+    const headline =
+      data!.status === 'accepted' ? '此優惠券已被領取' : '此分享連結已失效';
+    const subline =
+      data!.status === 'accepted'
+        ? '這張優惠券已由其他人先一步領走。'
+        : '分享者已取消此連結，或優惠券已被其他人領取。';
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center">
+        <div className="text-5xl mb-4">🎟️</div>
+        <h1 className="text-xl font-bold text-gray-800 dark:text-zinc-100 mb-2">{headline}</h1>
+        <p className="text-gray-500 dark:text-zinc-400 text-sm mb-6">{subline}</p>
+        <p className="text-xs text-gray-400 dark:text-zinc-500">
+          「{data!.coupon_name}」· {data!.store.name}
+        </p>
       </div>
     );
   }
