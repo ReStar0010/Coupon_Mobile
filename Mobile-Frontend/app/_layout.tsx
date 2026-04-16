@@ -18,6 +18,7 @@ import AuthOrchestrator from './components/providers/AuthOrchestrator';
 import ToastProvider from './components/providers/ToastProvider';
 import DismissedStoresProvider from './components/providers/DismissedStoresProvider';
 import { getApiConfig } from './config/api';
+import { parseDeepLinkUrl } from './utils/parseDeepLinkUrl';
 import BlockedMerchantsProvider from './components/providers/BlockedMerchantsProvider';
 import { toastConfig } from './config/toastConfig';
 import * as Sentry from '@sentry/react-native';
@@ -81,36 +82,6 @@ async function handleAppInitialization(onStatus?: (status: InitStatus) => void):
       Sentry.captureException(error, { data: { context: 'OTA update non-timeout failure' } });
     }
   }
-}
-
-/**
- * Parse deep link URL. Handles all formats:
- * - Query:  coupro://collection?token=<t>  (from share sheet)
- * - Path:   coupro://collection/<t>         (Smart App Banner, 2nd tap)
- * - Path:   coupro:///collection/<t>        (Smart App Banner, 1st tap — empty authority)
- * - HTTPS:  https://api.coupro.pro/collection/<t>  (Universal Link)
- * - Voucher: coupro://platform-voucher?token=<t> and https://api.coupro.pro/voucher/<t>
- */
-function parseDeepLinkUrl(
-  url: string | null,
-): { type: 'claim' | 'collection' | 'voucher'; token: string } | null {
-  if (!url || typeof url !== 'string') return null;
-  const s = url.trim();
-  // Query-style: coupro://claim?token=<t> or coupro://collection?token=<t> or coupro://platform-voucher?token=<t>
-  const claimQuery = /^coupro:\/\/claim\?(?:.*&)?token=([^&]+)/i.exec(s);
-  if (claimQuery) return { type: 'claim', token: claimQuery[1] };
-  const collectionQuery = /^coupro:\/\/collection\?(?:.*&)?token=([^&]+)/i.exec(s);
-  if (collectionQuery) return { type: 'collection', token: collectionQuery[1] };
-  const voucherQuery = /^coupro:\/\/platform-voucher\?(?:.*&)?token=([^&]+)/i.exec(s);
-  if (voucherQuery) return { type: 'voucher', token: voucherQuery[1] };
-  // Path-style: covers coupro://, coupro:///, and https:// Universal Links
-  const claimPath = /\/claim\/([^/?]+)/i.exec(s);
-  if (claimPath) return { type: 'claim', token: claimPath[1] };
-  const collectionPath = /\/collection\/([^/?]+)/i.exec(s);
-  if (collectionPath) return { type: 'collection', token: collectionPath[1] };
-  const voucherPath = /\/voucher\/([^/?]+)/i.exec(s);
-  if (voucherPath) return { type: 'voucher', token: voucherPath[1] };
-  return null;
 }
 
 // 在應用啟動時顯示後端配置

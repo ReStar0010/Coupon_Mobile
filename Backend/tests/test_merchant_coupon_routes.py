@@ -13,7 +13,7 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from api.models import MerchantProfile, Store, CouponTemplate, Coupon, StudentProfile
+from api.models import MerchantProfile, Store, CouponTemplate, Coupon, StudentProfile, WebRedemption
 
 
 class MerchantCouponRoutesTest(TestCase):
@@ -96,6 +96,23 @@ class MerchantCouponRoutesTest(TestCase):
         self.client.force_authenticate(user=self.merchant)
         response = self.client.delete(f'/api/merchant/coupon-templates/{self.template.id}/delete/')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_204_NO_CONTENT, status.HTTP_400_BAD_REQUEST))
+
+    def test_coupon_template_delete_succeeds_when_web_redemption_exists_preserves_legacy(self):
+        """DELETE template clears FK on WebRedemption but keeps legacy template identity (SET_NULL + snapshot)."""
+        wr = WebRedemption.objects.create(
+            template=self.template,
+            session_token='sess-test-delete-legacy',
+        )
+        tid = self.template.id
+        tname = self.template.coupon_name
+        self.client.force_authenticate(user=self.merchant)
+        response = self.client.delete(f'/api/merchant/coupon-templates/{tid}/delete/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(CouponTemplate.objects.filter(id=tid).exists())
+        wr.refresh_from_db()
+        self.assertIsNone(wr.template_id)
+        self.assertEqual(wr.legacy_template_id, tid)
+        self.assertEqual(wr.legacy_template_coupon_name, tname)
 
     def test_consolidate_coupon_requires_merchant(self):
         """POST api/merchant/consolidate-coupon/ without merchant returns 401/403."""

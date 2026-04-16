@@ -393,11 +393,28 @@ class WebRedemption(models.Model):
     double-redemption of the same table QR from the web flow.
     phone_number is null at creation; optionally populated when the user
     enters their phone on the Points Accumulation screen.
+
+    `template` may be set NULL when the merchant deletes the CouponTemplate; legacy_* fields
+    preserve which template this row referred to for audit and admin display.
     """
     template = models.ForeignKey(
         CouponTemplate,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='web_redemptions',
+    )
+    legacy_template_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="CouponTemplate pk at time of redemption; kept after template is deleted.",
+    )
+    legacy_template_coupon_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Snapshot of template coupon_name; kept after template is deleted.",
     )
     session_token = models.CharField(
         max_length=255,
@@ -430,8 +447,19 @@ class WebRedemption(models.Model):
     class Meta:
         db_table = 'api_web_redemption'
 
+    def save(self, *args, **kwargs):
+        if self.template_id:
+            self.legacy_template_id = self.template_id
+            try:
+                tpl = CouponTemplate.objects.get(pk=self.template_id)
+                self.legacy_template_coupon_name = tpl.coupon_name
+            except CouponTemplate.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"WebRedemption {self.id} - template {self.template_id} - {self.redeemed_at}"
+        tid = self.template_id or self.legacy_template_id
+        return f"WebRedemption {self.id} - template {tid} - {self.redeemed_at}"
 
 
 class Coupon(models.Model):

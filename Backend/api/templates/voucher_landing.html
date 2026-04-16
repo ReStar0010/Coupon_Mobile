@@ -69,10 +69,11 @@
   </style>
 </head>
 <body>
+  {% include '_landing_open_ext_redirect.html' %}
   <div class="card">
     <h1>CouPro 現金券分享</h1>
     <p>{{ description }}</p>
-    <a href="coupro://platform-voucher?token={{ token }}" class="btn btn-primary" id="open-app">在 App 中開啟</a>
+    <button type="button" class="btn btn-primary" id="open-app">在 App 中開啟</button>
     <p class="hint">若未自動開啟 App，請使用下方連結下載。</p>
     <div class="links">
       {% if app_store_id %}
@@ -82,5 +83,6 @@
       <a href="{{ play_store_url }}" id="link-android">從 Google Play 下載</a>
     </div>
   </div>
+  {% include '_landing_open_app_script.html' %}
 </body>
 </html>

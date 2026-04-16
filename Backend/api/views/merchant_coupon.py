@@ -8,7 +8,6 @@ from rest_framework.exceptions import ValidationError as DRFValidationError, Err
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
-
 logger = logging.getLogger(__name__)
 
 from api.exceptions import (
@@ -619,7 +618,7 @@ def delete_coupon_template(request, id):
                         context={"storage_key": storage_key},
                     )
         
-        # Delete the template
+        # Delete the template (WebRedemption rows use SET_NULL + legacy_* snapshot fields)
         template.delete()
         return Response({
             'message': 'Coupon template deleted successfully'

@@ -19,6 +19,23 @@ export const getAcquisitionMethodLabel = (method?: string): string => {
 };
 
 /**
+ * Collection card badge for pending share (public pool vs private link), or null if none.
+ * `isInPool` must only be true when backend confirms public-pool pending share.
+ */
+export function getSharePendingIndicatorLabel(args: {
+  isInPool: boolean;
+  hasPendingPrivateShare?: boolean;
+}): string | null {
+  if (args.isInPool) {
+    return '交換池 · 等待對方領取';
+  }
+  if (args.hasPendingPrivateShare) {
+    return '私人分享 · 等待對方回覆';
+  }
+  return null;
+}
+
+/**
  * Transform API coupon data to frontend format
  */
 export const transformApiCoupon = (coupon: ApiCoupon): CouponType => {
@@ -37,6 +54,7 @@ export const transformApiCoupon = (coupon: ApiCoupon): CouponType => {
     acquisitionMethod: coupon.acquisition_method,
     storeId: coupon.store_id,
     merchantDeleted: coupon.merchant_deleted || false,
+    hasPendingPrivateShare: Boolean(coupon.has_pending_private_share),
   };
 };
 

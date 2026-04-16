@@ -1,0 +1,22 @@
+{# Client-side handoff from in-app browsers (Instagram, Messenger, etc.) to the system browser. #}
+<script>
+(function () {
+  try {
+    var search = window.location.search || '';
+    if (search.indexOf('open_ext=1') === -1) return;
+    var path = window.location.pathname || '/';
+    var host = window.location.hostname || '';
+    if (!host) return;
+    var clean = 'https://' + host + path;
+    var ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua)) {
+      window.location.replace('x-safari-https://' + host + path);
+      return;
+    }
+    if (/Android/i.test(ua)) {
+      window.location.replace('googlechrome://navigate?url=' + encodeURIComponent(clean));
+      return;
+    }
+  } catch (e) {}
+})();
+</script>

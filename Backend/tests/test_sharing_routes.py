@@ -72,6 +72,17 @@ class SharingRoutesTest(TestCase):
         }, format='json')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
 
+    def test_share_coupon_web_link_requests_external_browser(self):
+        """share_link_web includes open_ext=1 so the landing can hand off to Safari/Chrome."""
+        self.coupon.current_holder = self.user
+        self.coupon.save(update_fields=['current_holder'])
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(f'/api/coupon/{self.coupon.id}/share/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        web = response.data.get('share_link_web') or ''
+        self.assertIn('open_ext=1', web)
+        self.assertIn('/collection/', web)
+
     def test_share_public_requires_auth(self):
         """POST api/coupon/<id>/share-public/ without auth returns 401."""
         response = self.client.post(f'/api/coupon/{self.coupon.id}/share-public/', {}, format='json')
@@ -130,6 +141,16 @@ class SharingRoutesTest(TestCase):
         """GET collection/<token>/ returns 200 or 404."""
         response = self.client.get('/collection/some-token/')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_404_NOT_FOUND))
+
+    def test_collection_landing_has_smart_open_app_markup(self):
+        """Fallback page should escape in-app browsers and open app / store via script."""
+        response = self.client.get(f'/collection/{self.share_request.token}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        body = response.content.decode('utf-8')
+        self.assertIn('x-safari-https://', body)
+        self.assertIn('googlechrome://navigate', body)
+        self.assertIn('visibilitychange', body)
+        self.assertIn('scheme=coupro', body)
 
     def test_collection_short_landing(self):
         """GET c/<token>/ returns 200 or 404."""

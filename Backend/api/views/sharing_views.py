@@ -68,7 +68,7 @@ def share_coupon(request, coupon_id):
     # Deep link: custom scheme (for in-app / native share) and Universal Link (clickable in messages)
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
     share_link = f"coupro://collection?token={token}"
-    share_link_web = f"{api_base_url}/collection/{token}"
+    share_link_web = f"{api_base_url}/collection/{token}/?open_ext=1"
 
     return Response({
         'share_link': share_link,
@@ -105,6 +105,7 @@ def claim_landing(request, token):
     app_store_url = f"https://apps.apple.com/app/id{app_store_id}" if app_store_id else "#"
     play_store_id = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
     play_store_url = f"https://play.google.com/store/apps/details?id={play_store_id}"
+    android_package = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
     return render(request, 'claim_landing.html', {
         'token': token,
         'page_url': page_url,
@@ -113,6 +114,8 @@ def claim_landing(request, token):
         'app_store_id': app_store_id,
         'app_store_url': app_store_url,
         'play_store_url': play_store_url,
+        'android_package': android_package,
+        'landing_kind': 'claim',
     })
 
 
@@ -134,6 +137,7 @@ def claim_fixed_landing(request, token):
     app_store_url = f"https://apps.apple.com/app/id{app_store_id}" if app_store_id else "#"
     play_store_id = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
     play_store_url = f"https://play.google.com/store/apps/details?id={play_store_id}"
+    android_package = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
     return render(request, 'claim_landing.html', {
         'token': token,
         'page_url': page_url,
@@ -142,6 +146,8 @@ def claim_fixed_landing(request, token):
         'app_store_id': app_store_id,
         'app_store_url': app_store_url,
         'play_store_url': play_store_url,
+        'android_package': android_package,
+        'landing_kind': 'claim',
     })
 
 
@@ -156,7 +162,7 @@ def collection_landing(request, token):
     """
     share_request = get_object_or_404(CouponShareRequest, token=token)
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
-    page_url = f"{api_base_url}/collection/{token}"
+    page_url = f"{api_base_url}/collection/{token}/"
     coupon_name = share_request.coupon.coupon_name or "優惠券"
     title = f"CouPro － {coupon_name} 分享"
     description = f"有人透過 CouPro 與您分享「{coupon_name}」。開啟 App 即可領取。"
@@ -165,6 +171,7 @@ def collection_landing(request, token):
     app_store_url = f"https://apps.apple.com/app/id{app_store_id}" if app_store_id else "#"
     play_store_id = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
     play_store_url = f"https://play.google.com/store/apps/details?id={play_store_id}"
+    android_package = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
 
     return render(request, 'collection_landing.html', {
         'token': token,
@@ -174,6 +181,8 @@ def collection_landing(request, token):
         'app_store_id': app_store_id,
         'app_store_url': app_store_url,
         'play_store_url': play_store_url,
+        'android_package': android_package,
+        'landing_kind': 'collection',
     })
 
 
@@ -186,7 +195,7 @@ def voucher_landing(request, token):
     from api.models import PlatformVoucherShareRequest
     share_request = get_object_or_404(PlatformVoucherShareRequest, token=token)
     api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.coupro.pro').rstrip('/')
-    page_url = f"{api_base_url}/voucher/{token}"
+    page_url = f"{api_base_url}/voucher/{token}/"
     face_value = share_request.voucher.face_value
     face_int = display_face_value(face_value)
     currency = share_request.voucher.currency_code or 'NT$'
@@ -198,6 +207,7 @@ def voucher_landing(request, token):
     app_store_url = f"https://apps.apple.com/app/id{app_store_id}" if app_store_id else "#"
     play_store_id = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
     play_store_url = f"https://play.google.com/store/apps/details?id={play_store_id}"
+    android_package = getattr(settings, 'COUPRO_PLAY_STORE_ID', 'com.cokayne.MobileFrontend')
 
     return render(request, 'voucher_landing.html', {
         'token': token,
@@ -207,6 +217,8 @@ def voucher_landing(request, token):
         'app_store_id': app_store_id,
         'app_store_url': app_store_url,
         'play_store_url': play_store_url,
+        'android_package': android_package,
+        'landing_kind': 'voucher',
     })
 
 
@@ -408,11 +420,20 @@ def accept_share_request(request, token):
                 developer_message="This coupon has already been redeemed."
             )
 
-        # For public shares, verify coupon still has no current_holder
-        if share_request.is_public and coupon.current_holder is not None:
-            raise ShareAlreadyClaimed(
-                developer_message="This coupon has already been claimed."
-            )
+        # Verify coupon is still available to be claimed.
+        # - Public share: current_holder is None while pending; non-None means someone claimed.
+        # - Private share: current_holder stays as from_user while pending; anything else
+        #   means a sibling private share already transferred the coupon away.
+        if share_request.is_public:
+            if coupon.current_holder is not None:
+                raise ShareAlreadyClaimed(
+                    developer_message="This coupon has already been claimed."
+                )
+        else:
+            if coupon.current_holder_id != share_request.from_user_id:
+                raise ShareAlreadyClaimed(
+                    developer_message="This coupon has already been claimed by another recipient."
+                )
 
         # Transfer coupon
         coupon.current_holder = request.user
@@ -429,6 +450,18 @@ def accept_share_request(request, token):
         share_request.responded_at = timezone.now()
         share_request.save()
 
+        # Invalidate sibling pending private share requests for the same coupon
+        # so other recipients see an "already claimed" state instead of a
+        # dangling pending invitation.
+        sibling_cancelled = CouponShareRequest.objects.filter(
+            coupon=coupon,
+            is_public=False,
+            status='pending',
+        ).exclude(pk=share_request.pk).update(
+            status='cancelled',
+            responded_at=timezone.now(),
+        )
+
     logger.info(
         "Coupon accepted",
         extra={
@@ -442,6 +475,7 @@ def accept_share_request(request, token):
             "coupon_type": coupon.coupon_type,
             "store_name": coupon.store.name,
             "acquisition_method": coupon.acquisition_method,
+            "sibling_shares_cancelled": sibling_cancelled,
         }
     )
     return Response({

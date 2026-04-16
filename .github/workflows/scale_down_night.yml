@@ -1,0 +1,22 @@
+name: 'FinOps: Scale Down (Starter)'
+
+on:
+  schedule:
+    # 00:00 Asia/Taipei (UTC+8) — night mode
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+
+jobs:
+  render-scale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request plan change to Starter
+        run: |
+          curl --fail --silent --show-error --request PATCH \
+            --url "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
+            --header "Authorization: Bearer ${RENDER_API_KEY}" \
+            --header 'Content-Type: application/json' \
+            --data '{"serviceDetails": {"plan": "starter"}}'
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}

@@ -81,7 +81,7 @@ from api.views.web_v1.points import points_lookup
 import logging
 
 from django.http import HttpResponse, JsonResponse
-from django.db import connection
+from django.db import OperationalError, connection
 from django.urls import re_path
 
 logger = logging.getLogger(__name__)
@@ -99,8 +99,12 @@ def health_check(request):
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
         return JsonResponse({"status": "ok", "db": "ok"})
+    except OperationalError as e:
+        # Expected when DB is unreachable; avoid error+exc_info so Sentry is not flooded from probes.
+        logger.warning("Health check database query failed: %s", e)
+        return JsonResponse({"status": "error", "db": str(e)}, status=503)
     except Exception as e:
-        logger.error("Health check database query failed: %s", e, exc_info=True)
+        logger.error("Health check failed unexpectedly: %s", e, exc_info=True)
         return JsonResponse({"status": "error", "db": str(e)}, status=503)
 
 

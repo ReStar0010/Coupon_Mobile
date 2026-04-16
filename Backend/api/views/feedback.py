@@ -13,6 +13,7 @@ import logging
 
 import resend
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils.html import escape
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -35,17 +36,24 @@ def submit_feedback(request):
     details = serializer.validated_data["details"].strip()
 
     user_email = getattr(request.user, "email", "") or ""
+    user_phone = ""
+    try:
+        user_phone = (request.user.student_profile.phone_number or "").strip()
+    except ObjectDoesNotExist:
+        pass
 
     type_zh = "Bug 回報" if feedback_type == "bug" else "功能建議"
 
-    subject = f"[CouPro] {type_zh} - {user_email or 'unknown'}"
+    contact_hint = user_email or user_phone or "unknown"
+    subject = f"[CouPro] {type_zh} - {contact_hint}"
 
     # Avoid breaking HTML with user-controlled content.
     html_content = f"""
     <h2>CouPro 使用者回饋</h2>
     <ul>
       <li><strong>類型：</strong>{escape(type_zh)}</li>
-      <li><strong>使用者 Email：</strong>{escape(user_email or 'unknown')}</li>
+      <li><strong>使用者 Email：</strong>{escape(user_email or '—')}</li>
+      <li><strong>使用者電話：</strong>{escape(user_phone or '—')}</li>
     </ul>
     <p><strong>內容：</strong></p>
     <pre style="white-space: pre-wrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">

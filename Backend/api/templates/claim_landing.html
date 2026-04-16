@@ -57,6 +57,7 @@
   </style>
 </head>
 <body>
+  {% include '_landing_open_ext_redirect.html' %}
   <div class="card">
     <h1>CouPro 優惠券</h1>
     <p>{{ description }}</p>
@@ -69,28 +70,6 @@
       <a href="{{ play_store_url }}" id="link-android">從 Google Play 下載</a>
     </div>
   </div>
-  <script>
-    (function() {
-      var token = '{{ token }}';
-      var scheme = 'coupro://claim?token=' + token;
-      var openBtn = document.getElementById('open-app');
-      var fallbackMs = 2500;
-      var timer;
-
-      function goStore() {
-        var ua = navigator.userAgent.toLowerCase();
-        if (/iphone|ipad|ipod/.test(ua) && '{{ app_store_id }}') {
-          window.location.href = '{{ app_store_url }}';
-        } else {
-          window.location.href = '{{ play_store_url }}';
-        }
-      }
-
-      openBtn.addEventListener('click', function() {
-        window.location.href = scheme;
-        timer = setTimeout(goStore, fallbackMs);
-      });
-    })();
-  </script>
+  {% include '_landing_open_app_script.html' %}
 </body>
 </html>

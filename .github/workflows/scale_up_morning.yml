@@ -1,0 +1,22 @@
+name: 'FinOps: Scale Up (Standard)'
+
+on:
+  schedule:
+    # 08:00 Asia/Taipei (UTC+8) — day mode
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  render-scale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request plan change to Standard
+        run: |
+          curl --fail --silent --show-error --request PATCH \
+            --url "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
+            --header "Authorization: Bearer ${RENDER_API_KEY}" \
+            --header 'Content-Type: application/json' \
+            --data '{"serviceDetails": {"plan": "standard"}}'
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}

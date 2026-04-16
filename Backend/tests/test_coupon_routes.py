@@ -12,7 +12,7 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from api.models import Store, CouponTemplate, Coupon, CouponRedemption
+from api.models import Store, CouponTemplate, Coupon, CouponRedemption, CouponShareRequest
 
 
 class CouponRoutesTest(TestCase):
@@ -72,6 +72,35 @@ class CouponRoutesTest(TestCase):
         """GET api/exclusive-coupons/ returns 200 or 401 if auth required."""
         response = self.client.get('/api/exclusive-coupons/')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_401_UNAUTHORIZED))
+
+    def test_exclusive_coupons_has_pending_private_share_true(self):
+        """GET api/exclusive-coupons/ sets has_pending_private_share when a private share link is pending."""
+        self.coupon.current_holder = self.user
+        self.coupon.save(update_fields=['current_holder'])
+        CouponShareRequest.objects.create(
+            coupon=self.coupon,
+            from_user=self.user,
+            token='private-share-token-test',
+            is_public=False,
+            status='pending',
+        )
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get('/api/exclusive-coupons/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        rows = [r for r in response.data if r['id'] == self.coupon.id]
+        self.assertEqual(len(rows), 1)
+        self.assertTrue(rows[0].get('has_pending_private_share'))
+
+    def test_exclusive_coupons_has_pending_private_share_false(self):
+        """GET api/exclusive-coupons/ has has_pending_private_share false without pending private share."""
+        self.coupon.current_holder = self.user
+        self.coupon.save(update_fields=['current_holder'])
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get('/api/exclusive-coupons/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        rows = [r for r in response.data if r['id'] == self.coupon.id]
+        self.assertEqual(len(rows), 1)
+        self.assertIs(rows[0].get('has_pending_private_share'), False)
 
     def test_coupon_detail_get(self):
         """GET api/coupons/<id>/ returns 200 for valid id or 403 if auth required."""

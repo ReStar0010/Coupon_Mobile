@@ -221,6 +221,12 @@ def get_exclusive_coupons(request):
     redeemed_subquery = Exists(
         CouponRedemption.objects.filter(coupon=OuterRef('pk'))
     )
+    private_pending_exists = CouponShareRequest.objects.filter(
+        coupon_id=OuterRef('pk'),
+        from_user=request.user,
+        is_public=False,
+        status='pending',
+    )
     exclusive_coupons = Coupon.objects.filter(
         coupon_type='exclusive',
         expiry_date__gt=now,
@@ -228,6 +234,7 @@ def get_exclusive_coupons(request):
         current_holder=request.user,  # 當前持有者是請求的用戶
     ).annotate(
         _is_redeemed=redeemed_subquery,
+        _has_pending_private_share=Exists(private_pending_exists),
     ).filter(
         _is_redeemed=False,
     ).select_related('store', 'store__owner', 'template', 'original_owner', 'last_holder').prefetch_related('tags')
@@ -263,6 +270,7 @@ def get_exclusive_coupons(request):
             "estimated_savings": c.estimated_savings,
             "tags": [tag.display_name for tag in c.tags.all()],  # 返回標籤的顯示名稱
             "merchant_deleted": c.store.owner is None,
+            "has_pending_private_share": c._has_pending_private_share,
         })
     
     return Response(data)

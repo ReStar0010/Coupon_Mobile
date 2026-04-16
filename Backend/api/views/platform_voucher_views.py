@@ -156,7 +156,7 @@ def share_platform_voucher(request, voucher_id):
     return Response({
         "token": token,
         "share_link": f"coupro://platform-voucher?token={token}",
-        "share_link_web": f"{api_base}/voucher/{token}",
+        "share_link_web": f"{api_base}/voucher/{token}/?open_ext=1",
     }, status=status.HTTP_200_OK)
 
 
