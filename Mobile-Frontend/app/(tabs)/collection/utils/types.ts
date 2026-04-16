@@ -16,6 +16,8 @@ export type CouponType = {
   acquisitionMethod?: string; // 取得方式 (draw, consolidate, transfer, public_pool, qr_claim)
   storeId?: number; // 店家ID，用於判斷商家是否已刪除
   merchantDeleted?: boolean; // 商家是否已刪除帳號
+  /** True when GET /exclusive-coupons/ reports a pending private (non–public-pool) share for this coupon */
+  hasPendingPrivateShare?: boolean;
 };
 
 // 接口以匹配後端 API 回應
@@ -39,6 +41,8 @@ export interface ApiCoupon {
   tags?: string[]; // 標籤，用於分類搜尋（例如：["飲料", "咖啡"]）
   acquisition_method?: string; // 取得方式 (draw, consolidate, transfer, public_pool, qr_claim)
   merchant_deleted?: boolean; // 商家是否已刪除帳號
+  /** From backend: pending CouponShareRequest with is_public=false */
+  has_pending_private_share?: boolean;
 }
 
 // Interface for shared coupons

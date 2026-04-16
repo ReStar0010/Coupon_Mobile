@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, BORDER_RADIUS, SPACING } from '@/app/constants/theme';
 import type { CouponType } from '@/app/(tabs)/collection/utils/types';
 import type { PublicShare } from '@/app/(tabs)/collection/hooks/useMyPublicShares';
-import { getAcquisitionMethodLabel } from '../utils/couponUtils';
+import { getAcquisitionMethodLabel, getSharePendingIndicatorLabel } from '../utils/couponUtils';
 
 interface CouponProps extends Partial<CouponType> {
   className?: string;
@@ -56,12 +56,17 @@ const Coupon: React.FC<CouponProps> = ({
   onMerchantDeleted,
   shareIdInPool,
   publicShareStatus,
+  hasPendingPrivateShare,
   onWithdrawFromPool,
   inPoolLabel = '交換池中',
 }) => {
   const router = useRouter();
   const isInPool =
     shareIdInPool != null && publicShareStatus === 'pending';
+  const sharePendingLabel = getSharePendingIndicatorLabel({
+    isInPool,
+    hasPendingPrivateShare,
+  });
 
   const handleCouponPress = useCallback(() => {
     if (isInPool) return; // In-pool cards only act via withdraw button
@@ -128,7 +133,7 @@ const Coupon: React.FC<CouponProps> = ({
             {couponName}
           </Text>
 
-          {isInPool && (
+          {sharePendingLabel != null && (
             <XStack gap={8} flexWrap="wrap" style={{ marginTop: 2 }}>
               <View
                 style={{
@@ -139,7 +144,7 @@ const Coupon: React.FC<CouponProps> = ({
                 }}
               >
                 <Text fontSize={12} color="#D97706" fontWeight="500">
-                  等待對方回覆
+                  {sharePendingLabel}
                 </Text>
               </View>
             </XStack>
@@ -199,6 +204,7 @@ export default React.memo(Coupon, (prevProps, nextProps) => {
     prevProps.storeId === nextProps.storeId &&
     prevProps.merchantDeleted === nextProps.merchantDeleted &&
     prevProps.shareIdInPool === nextProps.shareIdInPool &&
-    prevProps.publicShareStatus === nextProps.publicShareStatus
+    prevProps.publicShareStatus === nextProps.publicShareStatus &&
+    prevProps.hasPendingPrivateShare === nextProps.hasPendingPrivateShare
   );
 });

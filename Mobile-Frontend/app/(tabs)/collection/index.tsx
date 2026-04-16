@@ -67,6 +67,7 @@ const CouponItem: React.FC<CouponItemProps> = React.memo(
       onMerchantDeleted={onMerchantDeleted}
       shareIdInPool={item.shareIdInPool}
       publicShareStatus={item.publicShareStatus}
+      hasPendingPrivateShare={item.hasPendingPrivateShare}
       onWithdrawFromPool={onWithdrawFromPool}
       inPoolLabel="交換池中"
     />
