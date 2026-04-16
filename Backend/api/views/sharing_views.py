@@ -408,11 +408,20 @@ def accept_share_request(request, token):
                 developer_message="This coupon has already been redeemed."
             )
 
-        # For public shares, verify coupon still has no current_holder
-        if share_request.is_public and coupon.current_holder is not None:
-            raise ShareAlreadyClaimed(
-                developer_message="This coupon has already been claimed."
-            )
+        # Verify coupon is still available to be claimed.
+        # - Public share: current_holder is None while pending; non-None means someone claimed.
+        # - Private share: current_holder stays as from_user while pending; anything else
+        #   means a sibling private share already transferred the coupon away.
+        if share_request.is_public:
+            if coupon.current_holder is not None:
+                raise ShareAlreadyClaimed(
+                    developer_message="This coupon has already been claimed."
+                )
+        else:
+            if coupon.current_holder_id != share_request.from_user_id:
+                raise ShareAlreadyClaimed(
+                    developer_message="This coupon has already been claimed by another recipient."
+                )
 
         # Transfer coupon
         coupon.current_holder = request.user
@@ -429,6 +438,18 @@ def accept_share_request(request, token):
         share_request.responded_at = timezone.now()
         share_request.save()
 
+        # Invalidate sibling pending private share requests for the same coupon
+        # so other recipients see an "already claimed" state instead of a
+        # dangling pending invitation.
+        sibling_cancelled = CouponShareRequest.objects.filter(
+            coupon=coupon,
+            is_public=False,
+            status='pending',
+        ).exclude(pk=share_request.pk).update(
+            status='cancelled',
+            responded_at=timezone.now(),
+        )
+
     logger.info(
         "Coupon accepted",
         extra={
@@ -442,6 +463,7 @@ def accept_share_request(request, token):
             "coupon_type": coupon.coupon_type,
             "store_name": coupon.store.name,
             "acquisition_method": coupon.acquisition_method,
+            "sibling_shares_cancelled": sibling_cancelled,
         }
     )
     return Response({

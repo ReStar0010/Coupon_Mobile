@@ -20,6 +20,8 @@ def share_detail(request, share_token):
         'expiry_date': coupon.expiry_date,
         'estimated_savings': str(coupon.estimated_savings) if coupon.estimated_savings else None,
         'template_id': template.id if template else None,
+        'status': share.status,
+        'is_public': share.is_public,
         'store': {
             'id': coupon.store.id,
             'name': coupon.store.name,
