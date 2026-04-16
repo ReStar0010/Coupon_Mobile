@@ -49,6 +49,7 @@ class PlatformVoucherSharingTest(TestCase):
         self.assertIn("token", resp.data)
         self.assertIn("share_link", resp.data)
         self.assertIn("share_link_web", resp.data)
+        self.assertIn("open_ext=1", resp.data.get("share_link_web", ""))
         self.assertTrue(PlatformVoucherShareRequest.objects.filter(voucher=self.voucher, is_public=False).exists())
 
     def test_get_share_by_token_returns_info(self):

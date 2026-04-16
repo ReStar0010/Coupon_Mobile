@@ -1,0 +1,65 @@
+{# Smart "open app": custom scheme / Android intent + store fallback when the app does not open (in-app browsers). #}
+<script>
+(function () {
+  var token = '{{ token|escapejs }}';
+  var androidPackage = '{{ android_package|escapejs }}';
+  var appStoreUrl = '{{ app_store_url|escapejs }}';
+  var playStoreUrl = '{{ play_store_url|escapejs }}';
+  var kind = '{{ landing_kind|escapejs }}';
+
+  var schemePath;
+  if (kind === 'voucher') {
+    schemePath = 'platform-voucher?token=' + encodeURIComponent(token);
+  } else if (kind === 'claim') {
+    schemePath = 'claim?token=' + encodeURIComponent(token);
+  } else {
+    schemePath = 'collection?token=' + encodeURIComponent(token);
+  }
+
+  var schemeUrl = 'coupro://' + schemePath;
+
+  function buildIntentUrl() {
+    var fb = encodeURIComponent(playStoreUrl);
+    return (
+      'intent://' +
+      schemePath +
+      '#Intent;scheme=coupro;package=' +
+      androidPackage +
+      ';S.browser_fallback_url=' +
+      fb +
+      ';end'
+    );
+  }
+
+  function goStore() {
+    var ua = (navigator.userAgent || '').toLowerCase();
+    if (/iphone|ipad|ipod/.test(ua) && '{{ app_store_id|escapejs }}') {
+      window.location.href = appStoreUrl;
+    } else {
+      window.location.href = playStoreUrl;
+    }
+  }
+
+  var openBtn = document.getElementById('open-app');
+  if (!openBtn) return;
+
+  openBtn.addEventListener('click', function () {
+    var fallbackMs = 1800;
+    var timer = setTimeout(goStore, fallbackMs);
+    function onVis() {
+      if (document.visibilityState === 'hidden' || document.hidden) {
+        clearTimeout(timer);
+        document.removeEventListener('visibilitychange', onVis);
+      }
+    }
+    document.addEventListener('visibilitychange', onVis);
+
+    var ua = navigator.userAgent || '';
+    if (/Android/i.test(ua)) {
+      window.location.href = buildIntentUrl();
+    } else {
+      window.location.href = schemeUrl;
+    }
+  });
+})();
+</script>
