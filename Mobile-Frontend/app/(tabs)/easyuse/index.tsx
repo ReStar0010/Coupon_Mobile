@@ -820,14 +820,11 @@ const CouPro = () => {
     return (
       <YStack gap={13} style={{ paddingTop: 6 }}>
         <YStack gap={6}>
-          <Text fontSize={12} color="#9ca3af" fontWeight="700" letterSpacing={0.6}>
-            探索
-          </Text>
           <Text fontSize={20} fontWeight="800" color="#111827">
-            附近店家與公開交換池
+            附近合作商家與 CouBox
           </Text>
           <Text fontSize={13} color="#6b7280" lineHeight={18}>
-            地圖標示可兌換店家；此列表包含您的優惠與他人分享至公開池的禮物。
+            CouBox : 你用不到的可能是他人剛好需要的。分享閒置優惠券，讓折扣在彼此間流通。幫助他人還能同時累積點數：集滿 3 點 CouPro 即送你 10 元現金券，將可至所有合作店家使用！
           </Text>
         </YStack>
 

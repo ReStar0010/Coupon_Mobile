@@ -213,7 +213,7 @@ export default function PlatformVoucherDetailScreen() {
               disabled={isSharing}
             >
               <Text style={styles.secondaryButtonText}>
-                {isSharing ? '分享中...' : '分享到 CouPro'}
+                {isSharing ? '分享中...' : '分享到 CouBox'}
               </Text>
             </TouchableOpacity>
 
