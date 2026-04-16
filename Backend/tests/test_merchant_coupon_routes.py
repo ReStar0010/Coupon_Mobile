@@ -97,17 +97,22 @@ class MerchantCouponRoutesTest(TestCase):
         response = self.client.delete(f'/api/merchant/coupon-templates/{self.template.id}/delete/')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_204_NO_CONTENT, status.HTTP_400_BAD_REQUEST))
 
-    def test_coupon_template_delete_conflict_when_web_redemption_exists(self):
-        """DELETE template returns 409 when WebRedemption still references it (PROTECT)."""
-        WebRedemption.objects.create(
+    def test_coupon_template_delete_succeeds_when_web_redemption_exists_preserves_legacy(self):
+        """DELETE template clears FK on WebRedemption but keeps legacy template identity (SET_NULL + snapshot)."""
+        wr = WebRedemption.objects.create(
             template=self.template,
-            session_token='sess-test-delete-block',
+            session_token='sess-test-delete-legacy',
         )
+        tid = self.template.id
+        tname = self.template.coupon_name
         self.client.force_authenticate(user=self.merchant)
-        response = self.client.delete(f'/api/merchant/coupon-templates/{self.template.id}/delete/')
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(response.data.get('error_code'), 'COUPON_TEMPLATE_REFERENCED_BY_WEB_REDEMPTIONS')
-        self.assertTrue(CouponTemplate.objects.filter(id=self.template.id).exists())
+        response = self.client.delete(f'/api/merchant/coupon-templates/{tid}/delete/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(CouponTemplate.objects.filter(id=tid).exists())
+        wr.refresh_from_db()
+        self.assertIsNone(wr.template_id)
+        self.assertEqual(wr.legacy_template_id, tid)
+        self.assertEqual(wr.legacy_template_coupon_name, tname)
 
     def test_consolidate_coupon_requires_merchant(self):
         """POST api/merchant/consolidate-coupon/ without merchant returns 401/403."""

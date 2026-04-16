@@ -8,8 +8,6 @@ from rest_framework.exceptions import ValidationError as DRFValidationError, Err
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
-from django.db.models.deletion import ProtectedError
-
 logger = logging.getLogger(__name__)
 
 from api.exceptions import (
@@ -18,7 +16,6 @@ from api.exceptions import (
     CouponTemplateNotFound,
     CouponTemplateNotOwned,
     CouponTemplateOutOfStock,
-    CouponTemplateReferencedByWebRedemptions,
     TemplateQuantityDecreaseNotAllowed,
     CouponAlreadyRedeemed,
     EulaNotAccepted,
@@ -35,17 +32,7 @@ from api.exceptions import (
 )
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from ..models import (
-    Coupon,
-    CouponRedemption,
-    CouponShareRequest,
-    CouponTemplate,
-    Log,
-    Store,
-    StudentProfile,
-    Tag,
-    WebRedemption,
-)
+from ..models import Coupon, CouponShareRequest, Log, StudentProfile, CouponTemplate, Store, Tag, CouponRedemption
 from ..serializers import ConsolidateCouponSerializer, RefreshRedeemCodeSerializer, CouponTemplateSerializer, MerchantRedeemSerializer, UnifiedRedemptionCodeSerializer
 from ..utils import generate_unified_redemption_code, get_store_today, get_store_currency_code, save_uploaded_image
 from django.db.models import Count, F, Q, Sum, Value
@@ -631,17 +618,8 @@ def delete_coupon_template(request, id):
                         context={"storage_key": storage_key},
                     )
         
-        # Delete the template
-        try:
-            template.delete()
-        except ProtectedError as e:
-            if any(isinstance(o, WebRedemption) for o in e.protected_objects):
-                raise CouponTemplateReferencedByWebRedemptions(
-                    developer_message=(
-                        "Template has existing web redemption records and cannot be deleted."
-                    ),
-                )
-            raise
+        # Delete the template (WebRedemption rows use SET_NULL + legacy_* snapshot fields)
+        template.delete()
         return Response({
             'message': 'Coupon template deleted successfully'
         }, status=status.HTTP_200_OK)

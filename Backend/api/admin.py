@@ -1749,17 +1749,28 @@ class WebRedemptionAdmin(admin.ModelAdmin):
         'phone_number',
         'template__coupon_name',
         'template__store__name',
+        'legacy_template_coupon_name',
     ]
     readonly_fields = ['redeemed_at']
     date_hierarchy = 'redeemed_at'
 
     def store_name(self, obj):
-        return obj.template.store.name
+        if obj.template_id:
+            return obj.template.store.name
+        return '—'
     store_name.short_description = '店家'
     store_name.admin_order_field = 'template__store__name'
 
     def template_name(self, obj):
-        return obj.template.coupon_name
+        if obj.template_id:
+            return obj.template.coupon_name
+        if obj.legacy_template_coupon_name:
+            return format_html(
+                '<span title="範本已刪除，legacy id {}">{}（範本已刪除）</span>',
+                obj.legacy_template_id or '—',
+                obj.legacy_template_coupon_name,
+            )
+        return f'—（legacy #{obj.legacy_template_id}）' if obj.legacy_template_id else '—'
     template_name.short_description = '優惠券範本'
     template_name.admin_order_field = 'template__coupon_name'
 
