@@ -82,6 +82,7 @@ function ScannerContent() {
   const fixedSession = searchParams.get('fixedSession') ?? '';
   const selectedTemplateRaw = searchParams.get('template') ?? '';
   const selectedTemplateId = Number(selectedTemplateRaw);
+  const mode = searchParams.get('mode') ?? '';
   const expectedSessionToken = fixedSession || preloadedSession;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -125,12 +126,15 @@ function ScannerContent() {
         params.set('session', sessionToken);
         params.set('couponName', redemption.coupon_name);
         params.set('redeemedAt', redemption.redeemed_at);
+        if (mode) params.set('mode', mode);
         router.push(`/w/redemption-success?${params.toString()}`);
       } catch (err: unknown) {
         handledRef.current = false;
         const status = (err as { status?: number }).status;
         if (status === 409) {
-          router.push(`/w/redemption-success?session=${sessionToken}&already=1`);
+          const already409Params = new URLSearchParams({ session: sessionToken, already: '1' });
+          if (mode) already409Params.set('mode', mode);
+          router.push(`/w/redemption-success?${already409Params.toString()}`);
           return;
         }
         const n = ++apiFailCountRef.current;
@@ -142,7 +146,7 @@ function ScannerContent() {
         }
       }
     },
-    [fixedSession, router, selectedTemplateId, stopScanner],
+    [fixedSession, mode, router, selectedTemplateId, stopScanner],
   );
 
   const handleWrongEntryToken = useCallback((message: string) => {

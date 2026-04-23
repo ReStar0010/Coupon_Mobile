@@ -82,12 +82,25 @@ function CouponDetailContent({ params }: { params: { templateId: string } }) {
         )}
       </div>
 
-      <button
-        onClick={() => router.push(`/w/scanner${sessionParam}`)}
-        className="mt-auto py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg hover:brightness-[0.96] active:brightness-[0.92]"
-      >
-        核銷優惠券
-      </button>
+      <div className="mt-auto flex flex-col gap-3">
+        <button
+          onClick={() => router.push(`/w/scanner${sessionParam}`)}
+          className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg hover:brightness-[0.96] active:brightness-[0.92]"
+        >
+          核銷優惠券
+        </button>
+        <button
+          onClick={() => {
+            const donateParam = sessionParam.includes('?')
+              ? `${sessionParam}&mode=donate`
+              : `${sessionParam}?mode=donate`;
+            router.push(`/w/scanner${donateParam}`);
+          }}
+          className="w-full py-4 rounded-2xl border-2 border-act-yellow text-act-yellow font-bold text-lg hover:bg-act-yellow/10 active:bg-act-yellow/20"
+        >
+          捐贈
+        </button>
+      </div>
     </div>
   );
 }

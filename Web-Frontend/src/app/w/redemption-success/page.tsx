@@ -37,6 +37,8 @@ function RedemptionSuccessContent() {
   const couponName = searchParams.get('couponName') ?? '';
   const redeemedAt = searchParams.get('redeemedAt') ?? '';
   const already = searchParams.get('already') === '1';
+  const mode = searchParams.get('mode') ?? '';
+  const isDonate = mode === 'donate';
 
   const onAccumulatePoints = () => {
     const params = new URLSearchParams();
@@ -50,6 +52,15 @@ function RedemptionSuccessContent() {
     } else {
       router.push('/w/soft-sell');
     }
+  };
+
+  const onSelectCharity = () => {
+    const params = new URLSearchParams();
+    if (session) params.set('session', session);
+    if (couponName) params.set('couponName', couponName);
+    if (redeemedAt) params.set('redeemedAt', redeemedAt);
+    const query = params.toString();
+    router.push(`/w/charity-select${query ? `?${query}` : ''}`);
   };
 
   return (
@@ -78,12 +89,21 @@ function RedemptionSuccessContent() {
           )}
         </div>
       )}
-      <button
-        onClick={onAccumulatePoints}
-        className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg hover:brightness-[0.96] active:brightness-[0.92]"
-      >
-        累積點數
-      </button>
+      {isDonate ? (
+        <button
+          onClick={onSelectCharity}
+          className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg hover:brightness-[0.96] active:brightness-[0.92]"
+        >
+          選擇捐贈機構
+        </button>
+      ) : (
+        <button
+          onClick={onAccumulatePoints}
+          className="w-full py-4 rounded-2xl bg-act-yellow text-sec-black font-bold text-lg hover:brightness-[0.96] active:brightness-[0.92]"
+        >
+          累積點數
+        </button>
+      )}
     </div>
   );
 }
