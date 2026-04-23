@@ -2,7 +2,8 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { webGet } from '../../utils/webAPI';
+// TODO: restore real API call — temporarily stubbed for Vercel preview (CORS)
+// import { webGet } from '../../utils/webAPI';
 
 interface CouponDetailResponse {
   id: number;
@@ -25,9 +26,16 @@ function CouponDetailContent({ params }: { params: { templateId: string } }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    webGet<CouponDetailResponse>(`/api/web/v1/coupons/${params.templateId}/`)
-      .then(setData)
-      .catch(() => setError('無法載入優惠券資訊，請稍後再試。'));
+    // TODO: restore — temporarily stubbed for Vercel preview (CORS)
+    setData({
+      id: Number(params.templateId) || 1,
+      coupon_name: '買一送一咖啡優惠券',
+      coupon_detail: '憑此券至門市點購任一中杯以上飲品，即可享買一送一優惠。\n每桌限用一張，不得與其他優惠合併使用。',
+      important_notes: '本券不可兌換現金，最終解釋權歸本店所有。',
+      expiry_date: '2026-12-31',
+      estimated_savings: '150',
+      store: { id: 1, name: '測試咖啡門市（Placeholder）' },
+    });
   }, [params.templateId]);
 
   if (error) {

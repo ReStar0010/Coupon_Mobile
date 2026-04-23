@@ -3,7 +3,8 @@ import { useEffect, useRef, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
-import { webPost } from '../utils/webAPI';
+// TODO: restore real import — temporarily stubbed for Vercel preview (CORS)
+// import { webPost } from '../utils/webAPI';
 
 type ScanState = 'scanning' | 'processing' | 'error_retry' | 'error_fatal' | 'denied';
 
@@ -118,10 +119,14 @@ function ScannerContent() {
       setScanState('processing');
       stopScanner();
       try {
-        const redemption = await webPost<RedemptionResponse>('/api/web/v1/redemptions/', {
-          ...(fixedSession ? { fixed_session_token: sessionToken } : { session_token: sessionToken }),
-          template_id: selectedTemplateId,
-        });
+        // TODO: restore real API call — temporarily stubbed for Vercel preview (CORS)
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const redemption: RedemptionResponse = {
+          redemption_id: 1,
+          coupon_name: '買一送一咖啡優惠券',
+          store_name: '測試咖啡門市（Placeholder）',
+          redeemed_at: new Date().toISOString(),
+        };
         const params = new URLSearchParams();
         params.set('session', sessionToken);
         params.set('couponName', redemption.coupon_name);
