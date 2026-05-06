@@ -29,6 +29,8 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
 // ---------- Response interceptor ----------
 // Single in-flight refresh promise to prevent race conditions.
 let refreshPromise: Promise<{ access: string; refresh: string }> | null = null;
+// Guard against multiple router.replace calls when concurrent 401 waiters all fail.
+let redirecting = false;
 
 interface RetryConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -46,7 +48,7 @@ apiClient.interceptors.response.use(
     // Second 401 after retry — give up, clear session, navigate to login
     if (originalRequest._retry) {
       await clearTokens();
-      router.replace('/(auth)/login' as never);
+      if (!redirecting) { redirecting = true; router.replace('/(auth)/login' as never); }
       return Promise.reject(normalizeError(error));
     }
 
@@ -67,7 +69,7 @@ apiClient.interceptors.response.use(
           const storedRefresh = await getRefreshToken();
           if (!storedRefresh) {
             await clearTokens();
-            router.replace('/(auth)/login' as never);
+            if (!redirecting) { redirecting = true; router.replace('/(auth)/login' as never); }
             throw normalizeError(error);
           }
           return refreshFn(storedRefresh);
@@ -77,6 +79,7 @@ apiClient.interceptors.response.use(
       }
 
       const tokens = await refreshPromise;
+      redirecting = false;
       await setTokens(tokens.access, tokens.refresh);
 
       const newToken = await getAccessToken();
@@ -87,7 +90,7 @@ apiClient.interceptors.response.use(
       return apiClient.request(originalRequest);
     } catch {
       await clearTokens();
-      router.replace('/(auth)/login' as never);
+      if (!redirecting) { redirecting = true; router.replace('/(auth)/login' as never); }
       return Promise.reject(normalizeError(error));
     }
   },

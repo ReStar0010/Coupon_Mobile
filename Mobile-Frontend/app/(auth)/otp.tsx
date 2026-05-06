@@ -71,7 +71,7 @@ export default function OtpScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center' },
   inner: { padding: spacing.lg },
-  title: { fontFamily: 'SpaceGrotesk_800ExtraBold', fontSize: 26, color: colors.fg, marginBottom: spacing.xs },
+  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 26, color: colors.fg, marginBottom: spacing.xs },
   sub: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, color: colors.muted, marginBottom: spacing.lg },
   input: {
     borderWidth: 3, borderColor: colors.border, borderRadius: 8, padding: 16,

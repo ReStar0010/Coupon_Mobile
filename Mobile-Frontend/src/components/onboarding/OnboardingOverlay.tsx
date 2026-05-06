@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   btnText: {
-    fontFamily: 'SpaceGrotesk_800ExtraBold',
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 13,
     color: colors.fg,
   },

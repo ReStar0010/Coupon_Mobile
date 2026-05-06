@@ -103,14 +103,14 @@ const styles = StyleSheet.create({
     borderWidth: 2.5, borderColor: colors.border, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center',
   },
-  brand: { fontFamily: 'SpaceGrotesk_800ExtraBold', fontSize: 28, color: '#fff' },
+  brand: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, color: '#fff' },
   card: {
     backgroundColor: colors.bg, borderWidth: 3, borderColor: colors.border,
     borderRadius: 12, padding: spacing.lg,
     shadowColor: colors.yellow, shadowOffset: { width: 6, height: 6 }, shadowOpacity: 1, shadowRadius: 0,
     elevation: 8,
   },
-  title: { fontFamily: 'SpaceGrotesk_800ExtraBold', fontSize: 24, color: colors.fg, marginBottom: spacing.md },
+  title: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 24, color: colors.fg, marginBottom: spacing.md },
   label: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 12, color: colors.muted, marginBottom: 5, marginTop: spacing.sm, letterSpacing: 0.5, textTransform: 'uppercase' },
   input: {
     borderWidth: 2, borderColor: colors.border, borderRadius: 6,

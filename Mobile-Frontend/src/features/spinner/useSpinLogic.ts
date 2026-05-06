@@ -32,7 +32,16 @@ export function useSpinLogic({
   const [result, setResult] = useState<SpinResult | null>(null);
   const [gemShake, setGemShake] = useState(false);
   const prevGemsRef = useRef(gems);
+  const spinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const innerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const floor = getFloor(gems, players);
+
+  useEffect(() => {
+    return () => {
+      if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
+      if (innerTimerRef.current) clearTimeout(innerTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (gems > prevGemsRef.current) {
@@ -75,16 +84,14 @@ export function useSpinLogic({
     const target = 360 * 8 - centerDeg + (Math.random() * 8 - 4);
     setSpin((s) => s + target);
 
-    const t = setTimeout(() => {
+    spinTimerRef.current = setTimeout(() => {
       setSpinning(false);
-      setTimeout(() => {
+      innerTimerRef.current = setTimeout(() => {
         const earnedPts = gemsUsed * chosen.v;
         setResult({ mult: chosen.v, points: earnedPts, color: chosen.color });
         setCouPoints((p) => p + earnedPts);
       }, 350);
     }, 4800);
-
-    return () => clearTimeout(t);
   };
 
   const dismissResult = () => setResult(null);
