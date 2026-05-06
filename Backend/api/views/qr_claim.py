@@ -33,17 +33,7 @@ from ..exceptions import (
     QRSessionUnauthorized,
     QRSessionExpired,
 )
-
-
-def get_merchant_store(user):
-    """Get the store owned by the merchant user."""
-    try:
-        return Store.objects.get(owner=user)
-    except Store.DoesNotExist:
-        return None
-    except Store.MultipleObjectsReturned:
-        # If multiple stores, return the first one
-        return Store.objects.filter(owner=user).first()
+from ..utils import get_merchant_store
 
 
 @swagger_auto_schema(

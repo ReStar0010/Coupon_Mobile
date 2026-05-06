@@ -8,23 +8,13 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from ..models import MerchantProfile, Store, CouponTemplate, Coupon, CouponRedemption, Log
 from ..serializers import MerchantProfileSerializer, StoreSerializer
-from ..utils import get_store_today, get_store_currency_code
+from ..utils import get_merchant_store, get_store_today, get_store_currency_code
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.db.models import Value
 from django.db.models import DecimalField
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-
-
-def get_merchant_store(user):
-    """Get the store owned by the merchant user."""
-    try:
-        return Store.objects.get(owner=user)
-    except Store.DoesNotExist:
-        return None
-    except Store.MultipleObjectsReturned:
-        return Store.objects.filter(owner=user).first()
 
 
 @swagger_auto_schema(

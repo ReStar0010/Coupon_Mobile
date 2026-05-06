@@ -490,12 +490,15 @@ def redeem_coupon(request, id):
 
     # 更新用戶統計資料
     try:
+        from django.db.models import F as _F
         student_profile = request.user.student_profile
         student_profile.update_monthly_savings()
-        student_profile.coupons_used_count += 1
-        student_profile.total_savings += savings_amount
-        student_profile.monthly_savings += savings_amount
-        student_profile.save()
+        StudentProfile.objects.filter(pk=student_profile.pk).update(
+            coupons_used_count=_F('coupons_used_count') + 1,
+            total_savings=_F('total_savings') + savings_amount,
+            monthly_savings=_F('monthly_savings') + savings_amount,
+        )
+        student_profile.refresh_from_db()
     except (StudentProfile.DoesNotExist, AttributeError):
         pass
 
