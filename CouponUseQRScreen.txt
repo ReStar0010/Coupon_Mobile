@@ -1,0 +1,92 @@
+const CouponUseQRScreen = ({nav, params={}, couPoints, setCouPoints}) => {
+  const [torch,   setTorch]   = React.useState(false);
+  const [success, setSuccess] = React.useState(false);
+  const store  = params.store  || '阿明早餐店';
+  const amount = params.amount || 25;
+
+  const handleScan = () => {
+    setSuccess(true);
+    setCouPoints(p => p + amount);
+    setTimeout(()=>nav('home'), 2600);
+  };
+
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',background:'#0a0a0a',color:'#fff'}}>
+      <StatusBar/>
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'2px 16px 10px',position:'relative',zIndex:5}}>
+        <button onClick={()=>nav('coupon-detail',params)} style={{width:36,height:36,
+          background:'rgba(255,255,255,0.08)',border:'2px solid rgba(255,255,255,0.3)',
+          boxShadow:'3px 3px 0 rgba(255,255,255,0.08)',borderRadius:4,fontSize:20,
+          display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}>←</button>
+        <span style={{fontWeight:800,fontSize:18,flex:1,letterSpacing:'-0.02em'}}>掃描店家 QR</span>
+      </div>
+      <div style={{margin:'0 16px 14px',padding:'10px 14px',
+        background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:sh(2),borderRadius:6,
+        display:'flex',alignItems:'center',gap:12,position:'relative',zIndex:5}}>
+        <div style={{fontWeight:900,fontSize:26,fontFamily:"'JetBrains Mono',monospace",color:C.fg}}>${amount}</div>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:14,color:C.fg}}>{store}</div>
+          <div style={{fontSize:11,color:'rgba(51,51,51,0.65)'}}>現金折抵券 · 到期 {params.expires||'11/08'}</div>
+        </div>
+        <div style={{padding:'3px 8px',background:C.fg,border:`1.5px solid ${C.border}`,
+          borderRadius:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,color:C.yellow}}>⚡ 7天</div>
+      </div>
+      <div style={{flex:1,position:'relative',overflow:'hidden',margin:'0 16px',borderRadius:8,
+        border:`2.5px solid ${C.border}`,boxShadow:sh(3),background:torch?'#1a1208':'#0d0d0d'}}>
+        <div style={{position:'absolute',inset:0,
+          background:'radial-gradient(ellipse at 50% 40%, rgba(255,173,49,0.04) 0%, transparent 70%)'}}/>
+        {/* Corner brackets */}
+        {[['top','left'],['top','right'],['bottom','left'],['bottom','right']].map(([v,h],i)=>(
+          <div key={i} style={{position:'absolute',[v]:18,[h]:18,width:30,height:30,pointerEvents:'none'}}>
+            <div style={{position:'absolute',[v]:0,[h]:0,width:30,height:3,background:C.yellow,borderRadius:1}}/>
+            <div style={{position:'absolute',[v]:0,[h]:0,width:3,height:30,background:C.yellow,borderRadius:1}}/>
+          </div>
+        ))}
+        <div style={{position:'absolute',left:28,right:28,height:2,
+          background:C.yellow,boxShadow:`0 0 10px ${C.yellow}, 0 0 4px ${C.yellow}`,
+          animation:'nbQRScan 2s linear infinite',zIndex:5,borderRadius:1}}/>
+        <button onClick={()=>setTorch(t=>!t)} style={{position:'absolute',top:14,right:14,width:34,height:34,
+          background:torch?C.yellow:'rgba(255,255,255,0.08)',
+          border:`2px solid ${torch?C.border:'rgba(255,255,255,0.3)'}`,
+          borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',zIndex:6}}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke={torch?C.fg:'rgba(255,255,255,0.7)'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 2l-1 6H5l6 14 1-8h3L9 2z"/>
+          </svg>
+        </button>
+        <div style={{position:'absolute',bottom:16,left:0,right:0,textAlign:'center',
+          fontFamily:"'JetBrains Mono',monospace",fontSize:11,letterSpacing:'0.04em',
+          color:'rgba(255,255,255,0.55)'}}>將店家 QR Code 對準框內</div>
+        {/* Success overlay */}
+        {success && (
+          <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.82)',display:'flex',
+            flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:20}}>
+            <div style={{width:80,height:80,borderRadius:8,background:C.green,
+              border:`3px solid #fff`,boxShadow:`6px 6px 0 #000`,
+              display:'flex',alignItems:'center',justifyContent:'center',marginBottom:16,
+              animation:'nbSuccessPop 0.6s cubic-bezier(.34,1.56,.64,1)'}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17L4 12"/>
+              </svg>
+            </div>
+            <div style={{fontWeight:800,fontSize:20,letterSpacing:'-0.02em'}}>使用成功！</div>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.55)',marginTop:6}}>+{amount} pt 已入帳</div>
+            <div style={{marginTop:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:'rgba(255,255,255,0.35)'}}>返回首頁中…</div>
+          </div>
+        )}
+      </div>
+      <div style={{padding:'12px 16px 14px',position:'relative',zIndex:5}}>
+        <button onClick={handleScan} disabled={success} style={{width:'100%',padding:'14px',
+          background:success?'rgba(255,255,255,0.08)':C.yellow,
+          border:`2.5px solid ${success?'rgba(255,255,255,0.2)':C.border}`,
+          boxShadow:success?'none':sh(3),borderRadius:6,
+          fontWeight:800,fontSize:15,color:success?'rgba(255,255,255,0.3)':C.fg,
+          fontFamily:"'JetBrains Mono',monospace",letterSpacing:'0.02em'}}>
+          {success?'掃描成功 ✓':'模擬掃描成功 ▶'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Coupon Share Screen ────────────────────────────────────────────────────────

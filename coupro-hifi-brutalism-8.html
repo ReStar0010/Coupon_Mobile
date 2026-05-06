@@ -1,0 +1,2358 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <title>CouPro · v5 Interactive</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #1A1A1A; font-family: 'Space Grotesk', system-ui, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    input, textarea { font-family: inherit; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+    @keyframes nbGemPulse {
+      0%,100% { box-shadow: 5px 5px 0 #333333, 0 0 0 0 rgba(107,79,255,0.5); }
+      50%      { box-shadow: 5px 5px 0 #333333, 0 0 0 10px rgba(107,79,255,0); }
+    }
+    @keyframes nbShareJiggle {
+      0%,100% { transform: rotate(0deg); }
+      25%      { transform: rotate(-6deg); }
+      75%      { transform: rotate(6deg); }
+    }
+    @keyframes nbPinPulse {
+      0%,100% { transform: translateX(-50%) scale(1); opacity: 0.4; }
+      50%      { transform: translateX(-50%) scale(1.4); opacity: 0.05; }
+    }
+    @keyframes nbBreath {
+      0%,100% { opacity: 0.25; }
+      50%      { opacity: 0.6; }
+    }
+    @keyframes nbWashSpin {
+      0%   { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes nbAshFall {
+      0%   { transform: translateY(0) translateX(0); opacity: 0.55; }
+      50%  { transform: translateY(50vh) translateX(8px); }
+      100% { transform: translateY(110vh) translateX(-8px); opacity: 0; }
+    }
+    @keyframes nbBioRise {
+      0%   { transform: translateY(0); opacity: 0; }
+      20%  { opacity: 1; }
+      100% { transform: translateY(-110vh); opacity: 0; }
+    }
+    @keyframes nbFirefly {
+      0%,100% { opacity: 0.2; transform: translateY(0); }
+      50%      { opacity: 1;   transform: translateY(-6px); }
+    }
+    @keyframes nbTwinkle {
+      0%,100% { opacity: 0.3; }
+      50%      { opacity: 1; }
+    }
+    @keyframes nbShakeXs {
+      0%,100%{ transform:translateX(0); }
+      25%    { transform:translateX(-1.5px); }
+      50%    { transform:translateX(1.5px); }
+      75%    { transform:translateX(-1px); }
+    }
+    @keyframes nbGemLoad {
+      0%     { transform:translateX(0) scale(1); }
+      15%    { transform:translateX(-5px) scale(1.02); }
+      30%    { transform:translateX(5px) scale(1.02); }
+      45%    { transform:translateX(-4px); }
+      60%    { transform:translateX(4px); }
+      75%    { transform:translateX(-2px) scale(1.01); }
+      90%    { transform:translateX(2px); }
+      100%   { transform:translateX(0) scale(1); }
+    }
+    @keyframes nbShakeSm {
+      0%,100%{ transform:translateX(0); }
+      20%    { transform:translateX(-3px); }
+      40%    { transform:translateX(3px); }
+      60%    { transform:translateX(-2px); }
+      80%    { transform:translateX(2px); }
+    }
+    @keyframes nbShakeMd {
+      0%,100%{ transform:translateX(0) rotate(0deg); }
+      15%    { transform:translateX(-7px) rotate(-1deg); }
+      30%    { transform:translateX(7px) rotate(1deg); }
+      45%    { transform:translateX(-5px) rotate(-0.5deg); }
+      60%    { transform:translateX(5px) rotate(0.5deg); }
+      75%    { transform:translateX(-3px); }
+      90%    { transform:translateX(3px); }
+    }
+    @keyframes nbShakeLg {
+      0%,100%{ transform:translateX(0) rotate(0deg); }
+      10%    { transform:translateX(-14px) rotate(-2deg); }
+      20%    { transform:translateX(14px) rotate(2deg); }
+      30%    { transform:translateX(-10px) rotate(-1.5deg); }
+      40%    { transform:translateX(10px) rotate(1.5deg); }
+      50%    { transform:translateX(-7px) rotate(-1deg); }
+      60%    { transform:translateX(7px) rotate(1deg); }
+      75%    { transform:translateX(-4px); }
+      88%    { transform:translateX(4px); }
+    }
+    @keyframes nbShakeXl {
+      0%,100%{ transform:translateX(0) translateY(0) rotate(0deg); }
+      8%     { transform:translateX(-20px) translateY(-4px) rotate(-3deg); }
+      16%    { transform:translateX(20px) translateY(4px) rotate(3deg); }
+      24%    { transform:translateX(-16px) translateY(-3px) rotate(-2deg); }
+      32%    { transform:translateX(16px) translateY(3px) rotate(2deg); }
+      42%    { transform:translateX(-10px) translateY(-2px) rotate(-1deg); }
+      52%    { transform:translateX(10px) translateY(2px) rotate(1deg); }
+      62%    { transform:translateX(-6px); }
+      72%    { transform:translateX(6px); }
+      82%    { transform:translateX(-3px); }
+      92%    { transform:translateX(3px); }
+    }
+    @keyframes nbEmberRise {
+      0%   { transform: translateY(0) translateX(0); opacity: 0; }
+      15%  { opacity: 1; }
+      100% { transform: translateY(-100vh) translateX(12px); opacity: 0; }
+    }
+    @keyframes nbLavaPulse {
+      0%,100% { opacity: 0.7; }
+      50%      { opacity: 1; }
+    }
+    @keyframes nbNebula {
+      0%,100% { opacity: 0.7; }
+      50%      { opacity: 1; }
+    }
+    @keyframes nbShoot {
+      0%   { transform: translate(0,0) rotate(15deg); opacity: 0; }
+      10%  { opacity: 1; }
+      80%  { opacity: 1; }
+      100% { transform: translate(140vw,30vh) rotate(15deg); opacity: 0; }
+    }
+    @keyframes nbChargeGlow {
+      0%,100% { transform: translate(-50%,0) scale(1);    opacity: 0.7; }
+      50%      { transform: translate(-50%,0) scale(1.08); opacity: 1; }
+    }
+    @keyframes nbLightning {
+      0%,88%,100% { opacity: 0; }
+      90%,96%     { opacity: 1; }
+    }
+    @keyframes nbChargeParticle {
+      0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+      15%  { opacity: 1; }
+      100% { transform: translateY(-260px) scale(0.2); opacity: 0; }
+    }
+    @keyframes nbWheelVibrate {
+      0%,100% { transform: translate(0,0); }
+      25%      { transform: translate(-1px,1px); }
+      50%      { transform: translate(1px,-1px); }
+      75%      { transform: translate(-1px,-1px); }
+    }
+    @keyframes nbGemDrop {
+      0%   { transform: translateY(-12px) scale(0.6); opacity: 0; }
+      60%  { transform: translateY(2px) scale(1.1);   opacity: 1; }
+      100% { transform: translateY(0) scale(1);       opacity: 1; }
+    }
+    @keyframes nbResultPop {
+      0%   { transform: translate(-50%,-50%) scale(0.6); opacity: 0; }
+      100% { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+    }
+    @keyframes nbBillDrop {
+      0%   { transform: translateY(-8px); opacity: 0; }
+      100% { transform: translateY(0);    opacity: 1; }
+    }
+    @keyframes nbFlash {
+      0%   { opacity: 0; }
+      30%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes nbConfetti {
+      0%   { transform: translateY(-30px) rotate(0);     opacity: 1; }
+      100% { transform: translateY(60px) rotate(360deg); opacity: 0; }
+    }
+    @keyframes nbPulseBtn {
+      0%,100% { transform: scale(1); }
+      50%      { transform: scale(1.025); }
+    }
+    @keyframes nbPulseOrbit {
+      0%,100% { box-shadow: 0 3px 0 #333333, 0 0 0 0 rgba(255,173,49,0.6); }
+      50%      { box-shadow: 0 3px 0 #333333, 0 0 0 8px rgba(255,173,49,0); }
+    }
+    @keyframes nbQRScan {
+      0%   { top: 15%; }
+      50%  { top: 78%; }
+      100% { top: 15%; }
+    }
+    @keyframes nbSuccessPop {
+      0%   { transform: translate(-50%,-50%) scale(0.4) rotate(-12deg); opacity: 0; }
+      60%  { transform: translate(-50%,-50%) scale(1.06) rotate(2deg);  opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(1) rotate(0deg);     opacity: 1; }
+    }
+    @keyframes nbChargePulse {
+      0%,100% { opacity: 0.7; }
+      50%      { opacity: 1; }
+    }
+    @keyframes nbChargeBlockGlow {
+      0%,100% { filter: brightness(1); }
+      50%      { filter: brightness(1.35); }
+    }
+    @keyframes nbPixelPop {
+      0%   { opacity:0; transform:scale(0.6); }
+      40%  { opacity:1; transform:scale(1.15); }
+      100% { opacity:0; transform:scale(1.6); }
+    }
+    @keyframes nbUpgradeFlash {
+      0%,100% { opacity:0; }
+      20%,60% { opacity:1; }
+    }
+    @keyframes nbModalIn {
+      0%   { transform: translateY(40px); opacity:0; }
+      100% { transform: translateY(0);    opacity:1; }
+    }
+    @keyframes nbDrawSpin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(720deg); }
+    }
+    @keyframes nbPixelTwinkle {
+      0%,100% { opacity:0.15; }
+      50%     { opacity:0.85; }
+    }
+    @keyframes nbSpeedStreak {
+      0%   { opacity:0; transform:scaleY(0.3) rotate(var(--sa)); }
+      20%  { opacity:0.9; }
+      80%  { opacity:0.7; }
+      100% { opacity:0; transform:scaleY(1.6) rotate(var(--sa)); }
+    }
+    @keyframes nbWheelLand {
+      0%   { transform:scale(1) rotate(var(--ld)); }
+      18%  { transform:scale(1.04) rotate(var(--ld)); }
+      36%  { transform:scale(0.97) rotate(var(--ld)); }
+      54%  { transform:scale(1.015) rotate(var(--ld)); }
+      72%  { transform:scale(0.995) rotate(var(--ld)); }
+      100% { transform:scale(1) rotate(var(--ld)); }
+    }
+    @keyframes nbSpinBlur {
+      0%,100% { filter:blur(0px); }
+      35%     { filter:blur(2.5px) brightness(1.3); }
+      65%     { filter:blur(1px) brightness(1.1); }
+    }
+    @keyframes nbGemCharge {
+      0%   { transform: translateX(-50%) translateY(0) scale(1);    opacity: 1; }
+      55%  { transform: translateX(-50%) translateY(-170px) scale(1.3); opacity: 1; }
+      80%  { transform: translateX(-50%) translateY(-220px) scale(0.5); opacity: 0.7; }
+      100% { transform: translateX(-50%) translateY(-250px) scale(0);   opacity: 0; }
+    }
+    @keyframes nbWheelAbsorb {
+      0%   { opacity: 0; }
+      25%  { opacity: 0.85; }
+      100% { opacity: 0; }
+    }
+  </style>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"
+    integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
+    crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
+    integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
+    crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
+    integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
+    crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const C = {
+  bg:'#FAFAF8', card:'#FFFFFF', fg:'#333333', muted:'#888888', subtle:'#DDDDDD',
+  canvas:'#1A1A1A', yellow:'#FFAD31', yellowLight:'#FFF4DE',
+  purple:'#6B4FFF', purpleLight:'#DDD6FF', green:'#00C896', red:'#EE3355', border:'#333333',
+};
+const sh  = (n=4) => `${n}px ${n}px 0 ${C.border}`;
+const shW = (n=4) => `${n}px ${n}px 0 rgba(255,255,255,0.15)`;
+
+const MULTS = [
+  {v:0,color:'#2E2E2E',label:'x0'},{v:1,color:'#555555',label:'x1'},
+  {v:2,color:'#888888',label:'x2'},{v:3,color:C.yellow, label:'x3'},
+  {v:4,color:'#CC8800',label:'x4'},{v:5,color:C.purple, label:'x5'},
+];
+const getFloor  = (g,p) => p>=3?3:p>=2?2:g>=3?1:0;
+const getCharge = g => {
+  if (g<=1) return {glow:true,lightning:0,particles:0, vignette:0,   vibrate:false,intensity:0.18};
+  if (g===2) return {glow:true,lightning:0,particles:0, vignette:0.2, vibrate:false,intensity:0.40};
+  if (g===3) return {glow:true,lightning:4,particles:6, vignette:0.45,vibrate:false,intensity:0.62};
+  if (g===4) return {glow:true,lightning:6,particles:12,vignette:0.65,vibrate:true, intensity:0.82};
+  return              {glow:true,lightning:9,particles:22,vignette:0.85,vibrate:true, intensity:1.0};
+};
+
+// ── Data ───────────────────────────────────────────────────────────────────────
+const VOUCHERS = [
+  {amt:5,  cost:20}, {amt:10,cost:38},
+  {amt:15, cost:55}, {amt:20,cost:70}, {amt:25,cost:88},
+];
+const COUPON_POOL = [
+  {store:'阿明早餐店',detail:'$5 現金折抵', prob:0.45,expires:'12/20',amount:5},
+  {store:'手沖小巷',  detail:'$10 現金折抵',prob:0.28,expires:'12/15',amount:10},
+  {store:'夜市攤三杯',detail:'$15 現金折抵',prob:0.14,expires:'12/10',amount:15},
+  {store:'市場食堂',  detail:'$25 現金折抵',prob:0.08,expires:'12/05',amount:25},
+  {store:'',          detail:'',              prob:0.05,expires:'',      amount:0},
+];
+const SHARED_COUPONS = [
+  {store:'阿明早餐店',amount:5, label:'折抵',  msg:'我用不到了，希望你喜歡 ☕',  sharer:'小美',gems:2},
+  {store:'阿明早餐店',amount:10,label:'兌換',  msg:'真的很好吃，推薦你試試！',     sharer:'阿強',gems:3},
+];
+const ONBOARDING = {
+  home:[
+    {text:'歡迎使用 CouPro！這是你的優惠券錢包。',         spot:{top:108,left:14,width:362,height:178}},
+    {text:'這裡顯示你的 CouPoint 餘額，累積可換現金券。', spot:{top:118,left:18,width:200,height:116}},
+    {text:'點「兌換 →」，用 CouPoints 選擇面額換現金券。',spot:{top:118,left:242,width:126,height:50}},
+    {text:'有寶石嗎？點這裡去 Spinner 用寶石抽積分！',    spot:{top:288,left:14,width:362,height:62}},
+    {text:'點✈送出優惠券分享給別人，或點券本身查看詳情。',spot:{top:512,left:300,width:66,height:58}},
+  ],
+  map:[
+    {text:'CouMap 顯示附近有共享優惠券的店家。',          spot:{top:54,left:14,width:362,height:62}},
+    {text:'黃色圖釘表示有可領取的優惠券，點擊查看！',     spot:{top:100,left:42,width:72,height:68,radius:12}},
+    {text:'「我的優惠券」可以在此店直接使用。',           spot:{top:392,left:14,width:362,height:112}},
+    {text:'「CouMap 上的優惠券」是別人分享的，可以免費領取。',spot:{top:514,left:14,width:362,height:92}},
+    {text:'按「領取」掃描店家 QR Code 取得實體優惠券。',  spot:{top:696,left:14,width:362,height:52}},
+  ],
+  spinner:[
+    {text:'歡迎來到抽獎桌！用寶石來抽 CouPoints。',       spot:{top:102,left:78,width:234,height:252}},
+    {text:'調整寶石數量，越多寶石 = 更高的最低倍率 (FLOOR)。',spot:{top:384,left:16,width:354,height:42}},
+    {text:'揪友加入！人數越多，FLOOR 也會提升。',         spot:{top:616,left:14,width:156,height:48}},
+    {text:'點 + 讓朋友加入後才能開始，圓圈變綠就準備好了。',spot:{top:616,left:200,width:156,height:48}},
+    {text:'一切就緒後按 SPIN! 開始旋轉！',               spot:{top:684,left:14,width:362,height:56}},
+  ],
+  'coupon-detail':[
+    {text:'這是你的優惠券詳情。',                        spot:{top:104,left:14,width:362,height:244}},
+    {text:'按「立即使用」前往掃描店家 QR Code。',         spot:{top:762,left:182,width:192,height:56}},
+    {text:'按「分享賺寶石」把券讓給別人，有人領用後可賺寶石。',spot:{top:762,left:14,width:192,height:56}},
+  ],
+  settings:[
+    {text:'這裡是設定頁，可以調整你的帳號與通知偏好。',   spot:{top:104,left:14,width:362,height:126}},
+    {text:'開啟「推播通知」不錯過任何限時優惠券。',       spot:{top:248,left:14,width:362,height:56}},
+    {text:'「隱私模式」開啟後，其他人無法在 CouMap 看到你的位置。',spot:{top:374,left:14,width:362,height:56}},
+  ],
+  'coupon-share':[
+    {text:'分享優惠券給別人用，有人領走後你可以賺寶石！', spot:{top:106,left:14,width:362,height:82}},
+    {text:'這是你準備分享的優惠券。',                    spot:{top:192,left:14,width:362,height:52}},
+    {text:'可以附上一句話給領券的人，讓分享更有溫度。',   spot:{top:248,left:14,width:362,height:112}},
+    {text:'選擇「CouMap」釋出給附近的人，或「連結」傳給特定朋友。', spot:{top:370,left:14,width:362,height:130}},
+    {text:'選好後按這裡確認分享，寶石馬上入帳！',         spot:{top:508,left:14,width:362,height:52}},
+  ],
+};
+// ── Icons ──────────────────────────────────────────────────────────────────────
+const LogoIcon = ({size=36}) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" style={{display:'block',flexShrink:0}}>
+    <path d="M 46 8 A 24 24 0 1 0 8 44" fill="none" stroke="#FFAD31" strokeWidth="17" strokeLinecap="round"/>
+    <line x1="76" y1="14" x2="24" y2="86" stroke="#333333" strokeWidth="16" strokeLinecap="round"/>
+    <circle cx="70" cy="70" r="22" fill="#333333"/>
+    <circle cx="70" cy="70" r="10" fill="#FFAD31"/>
+  </svg>
+);
+const GemIcon = ({size=18,color=C.purple,glow=false}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0,filter:glow?`drop-shadow(0 0 4px ${color})`:'none'}}>
+    <path d="M6 3 L18 3 L22 9 L12 22 L2 9 Z" fill={color} stroke={C.border} strokeWidth="1.8" strokeLinejoin="round"/>
+    <path d="M6 3 L9 9 L2 9 M18 3 L15 9 L22 9 M9 9 L15 9 L12 22" stroke={C.border} strokeWidth="1" fill="none"/>
+    <path d="M9 9 L12 3 L15 9 Z" fill="rgba(255,255,255,.32)"/>
+  </svg>
+);
+const CoinIcon = ({size=18}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0}}>
+    <circle cx="12" cy="12" r="10" fill={C.yellow} stroke={C.border} strokeWidth="2"/>
+    <circle cx="12" cy="12" r="7"  fill="none" stroke={C.border} strokeWidth="1" strokeDasharray="2 2"/>
+    <text x="12" y="16.5" textAnchor="middle" fontFamily="Space Grotesk,system-ui" fontSize="10" fontWeight="800" fill={C.border}>P</text>
+  </svg>
+);
+const TicketIcon = ({size=18,color=C.fg}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0}}>
+    <path d="M3 8V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4V12a2 2 0 0 0 0-4Z" fill={C.yellow} stroke={color} strokeWidth="2" strokeLinejoin="round"/>
+    <path d="M12 5v14" stroke={color} strokeWidth="1.5" strokeDasharray="2 2"/>
+  </svg>
+);
+const SettingsIcon = ({size=18}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={C.fg} strokeWidth="2" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0}}>
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3 1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8 1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+  </svg>
+);
+
+// ── Shared layout ──────────────────────────────────────────────────────────────
+const StatusBar = ({light=false}) => (
+  <div style={{height:54,display:'flex',justifyContent:'space-between',alignItems:'flex-end',
+    padding:'0 26px 8px',flexShrink:0,fontFamily:"'JetBrains Mono',monospace",fontSize:13,
+    fontWeight:600,color:light?'rgba(255,255,255,0.85)':C.fg,zIndex:10,position:'relative'}}>
+    <span>9:41</span><span style={{letterSpacing:3}}>▪▪▪</span>
+  </div>
+);
+
+const TabBar = ({active, nav, dark=false, flow=false}) => {
+  const ic = dark?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.45)';
+  const bg = dark?'#1E1E1E':C.fg;
+  const badgeBg = active==='home'?C.yellow:(dark?'#2C2C2C':'#F0F0EB');
+  return (
+    <div style={flow
+      ? {flexShrink:0,height:80,background:bg,borderTop:`2.5px solid ${dark?'rgba(255,255,255,0.12)':C.border}`,position:'relative',zIndex:50}
+      : {position:'absolute',bottom:0,left:0,right:0,zIndex:50,height:80,background:bg,borderTop:`2.5px solid ${dark?'rgba(255,255,255,0.12)':C.border}`}}>
+      <div onClick={()=>nav('map')} style={{position:'absolute',left:0,top:0,width:'calc(50% - 44px)',height:'100%',
+        display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,cursor:'pointer',
+        borderRight:`1.5px solid ${dark?'rgba(255,255,255,0.07)':'rgba(255,255,255,0.09)'}`}}>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+            fill={active==='map'?C.yellow:'none'} stroke={active==='map'?C.yellow:ic} strokeWidth="2"/>
+          <circle cx="12" cy="9" r="2.5" fill={active==='map'?C.fg:ic}/>
+        </svg>
+        <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:active==='map'?700:500,
+          letterSpacing:'0.02em',color:active==='map'?C.yellow:ic}}>CouMap</span>
+      </div>
+      <div onClick={()=>nav('home')} style={{position:'absolute',left:'50%',transform:'translateX(-50%)',
+        top:-22,zIndex:52,display:'flex',flexDirection:'column',alignItems:'center',gap:4,cursor:'pointer',width:88}}>
+        <div style={{width:58,height:58,background:badgeBg,border:`2.5px solid ${C.border}`,
+          boxShadow:`5px 5px 0 ${C.border}`,borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <LogoIcon size={36}/>
+        </div>
+        <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:800,letterSpacing:'0.01em',
+          color:active==='home'?C.yellow:(dark?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.55)'),
+          background:bg,paddingBottom:2}}>CouPro</span>
+      </div>
+      <div onClick={()=>nav('spinner')} style={{position:'absolute',right:0,top:0,width:'calc(50% - 44px)',height:'100%',
+        display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,cursor:'pointer',
+        borderLeft:`1.5px solid ${dark?'rgba(255,255,255,0.07)':'rgba(255,255,255,0.09)'}`}}>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="8" stroke={active==='spinner'?C.yellow:ic} strokeWidth="2"/>
+          <circle cx="12" cy="12" r="3" fill={active==='spinner'?C.yellow:ic}/>
+          <line x1="12" y1="2" x2="12" y2="5.5" stroke={active==='spinner'?C.yellow:ic} strokeWidth="2.5" strokeLinecap="round"/>
+        </svg>
+        <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:active==='spinner'?700:500,
+          letterSpacing:'0.02em',color:active==='spinner'?C.yellow:ic}}>Spinner</span>
+      </div>
+    </div>
+  );
+};
+
+const PaperPlaneIcon = ({size=15,color=C.fg}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{display:'block'}}>
+    <path d="M22 2L11 13" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M22 2L15 22L11 13L2 9L22 2Z" fill={color} stroke={color} strokeWidth="2.5" strokeLinejoin="round"/>
+  </svg>
+);
+
+const CouponRow = ({store,detail,expires,gems,urgency,onClick,onShare}) => {
+  const urColor = urgency==='expiring'?C.red:urgency==='new'?C.green:null;
+  const urLabel = urgency==='expiring'?'⚡ 7天到期':urgency==='new'?'✦ 新到手':null;
+  return (
+    <div onClick={onClick} style={{background:C.card,border:`2.5px solid ${C.border}`,boxShadow:sh(2),
+      borderRadius:6,padding:'10px 12px',display:'flex',alignItems:'stretch',gap:12,marginBottom:8,cursor:'pointer'}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontWeight:700,fontSize:14,letterSpacing:'-0.01em',marginBottom:2}}>{store}</div>
+        <div style={{fontSize:12,color:C.muted}}>{detail}</div>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:5}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:C.muted}}>到期 {expires}</span>
+          {urLabel && <span style={{padding:'1px 6px',fontSize:10,fontWeight:700,letterSpacing:'0.02em',
+            background:urColor,color:'#fff',border:`1.5px solid ${C.border}`,borderRadius:2}}>{urLabel}</span>}
+        </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'space-between',
+        borderLeft:`2px dashed ${C.subtle}`,paddingLeft:10,minWidth:50}}>
+        <button onClick={e=>{e.stopPropagation();onShare&&onShare();}} style={{width:32,height:32,background:C.yellow,border:`2px solid ${C.border}`,boxShadow:sh(2),
+          borderRadius:4,display:'flex',alignItems:'center',
+          justifyContent:'center',animation:'nbShareJiggle 3s ease-in-out infinite'}}>
+          <PaperPlaneIcon size={15} color={C.fg}/>
+        </button>
+        <div style={{display:'flex',gap:1,marginTop:4}}>
+          {Array.from({length:Math.min(gems,3)}).map((_,i)=><GemIcon key={i} size={11}/>)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Help button (?) ────────────────────────────────────────────────────────────
+const HelpBtn = ({onClick}) => (
+  <button onClick={onClick} style={{width:32,height:32,borderRadius:'50%',
+    background:C.card,border:`2px solid ${C.border}`,boxShadow:`2px 2px 0 ${C.border}`,
+    display:'flex',alignItems:'center',justifyContent:'center',
+    fontWeight:800,fontSize:14,color:C.fg,fontFamily:"'JetBrains Mono',monospace",
+    cursor:'pointer',letterSpacing:0}}>?</button>
+);
+
+// ── Onboarding overlay ─────────────────────────────────────────────────────────
+const OnboardingOverlay = ({screenKey, step, onNext, onDone}) => {
+  const steps = ONBOARDING[screenKey] || [];
+  if (!steps.length || step >= steps.length) return null;
+  const isLast = step === steps.length - 1;
+  const current = steps[step];
+  const text = typeof current === 'string' ? current : current.text;
+  const spot = typeof current === 'object' && current.spot ? current.spot : null;
+
+  // Position tooltip above spotlight if in bottom half, otherwise below
+  const above = spot && spot.top > 440;
+  const tooltipPos = above
+    ? { bottom: Math.max(90, 844 - spot.top + 10) }
+    : { top: spot ? Math.min(spot.top + spot.height + 14, 650) : 200 };
+
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:200,pointerEvents:'all'}} onClick={isLast?onDone:onNext}>
+      {spot ? (
+        // Spotlight: transparent hole punched through a 9999px box-shadow overlay
+        <div style={{
+          position:'absolute', top:spot.top, left:spot.left,
+          width:spot.width, height:spot.height,
+          boxShadow:`0 0 0 9999px rgba(0,0,0,0.72)`,
+          borderRadius:spot.radius||8,
+          border:`2px solid ${C.yellow}`,
+          zIndex:201, pointerEvents:'none',
+        }}/>
+      ) : (
+        <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.72)',zIndex:201,pointerEvents:'none'}}/>
+      )}
+      <div onClick={e=>e.stopPropagation()} style={{
+        position:'absolute', left:16, right:16, ...tooltipPos,
+        background:C.fg, border:`3px solid ${C.yellow}`,
+        boxShadow:`6px 6px 0 ${C.yellow}`,
+        borderRadius:8, padding:'18px 16px',
+        animation:'nbModalIn 0.25s ease-out', zIndex:202,
+      }}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <div style={{display:'flex',gap:4}}>
+            {steps.map((_,i)=>(
+              <div key={i} style={{width:i===step?18:6,height:6,borderRadius:3,
+                background:i<=step?C.yellow:'rgba(255,255,255,0.2)',transition:'width 0.2s'}}/>
+            ))}
+          </div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:'rgba(255,255,255,0.4)'}}>
+            {step+1}/{steps.length}
+          </div>
+        </div>
+        <div style={{fontWeight:700,fontSize:15,color:'#fff',lineHeight:1.55}}>{text}</div>
+        <button onClick={isLast?onDone:onNext} style={{marginTop:14,width:'100%',padding:'11px',
+          background:C.yellow,border:`2px solid ${C.border}`,boxShadow:`3px 3px 0 ${C.border}`,
+          borderRadius:4,fontWeight:800,fontSize:13,color:C.fg,cursor:'pointer'}}>
+          {isLast?'開始使用！':'下一步 →'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Redeem Modal ───────────────────────────────────────────────────────────────
+const RedeemModal = ({couPoints, onRedeem, onClose}) => {
+  const [sel, setSel] = React.useState(null);
+  const v = sel!=null?VOUCHERS[sel]:null;
+  const ok = v && couPoints >= v.cost;
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:150,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.yellow}`}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 16px'}}/>
+        <div style={{fontWeight:800,fontSize:18,letterSpacing:'-0.02em',marginBottom:4}}>兌換現金券</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:16}}>
+          餘額 <b style={{color:C.fg}}>{couPoints} pt</b> · 選擇面額
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:16}}>
+          {VOUCHERS.map((v,i)=>{
+            const canAfford = couPoints >= v.cost;
+            const active = sel===i;
+            return (
+              <div key={i} onClick={()=>canAfford&&setSel(i)} style={{
+                borderRadius:6,border:`2.5px solid ${active?C.fg:canAfford?C.yellow:C.subtle}`,
+                background:active?C.yellow:canAfford?C.yellowLight:'#f5f5f5',
+                boxShadow:active?sh(2):'none',padding:'10px 0',textAlign:'center',
+                cursor:canAfford?'pointer':'not-allowed',opacity:canAfford?1:0.45}}>
+                <div style={{fontWeight:900,fontSize:15,fontFamily:"'JetBrains Mono',monospace",color:C.fg}}>${v.amt}</div>
+                <div style={{fontSize:9,color:C.muted,marginTop:2,fontFamily:"'JetBrains Mono',monospace"}}>{v.cost}pt</div>
+              </div>
+            );
+          })}
+        </div>
+        <button disabled={!ok} onClick={()=>{onRedeem(v);onClose();}} style={{
+          width:'100%',padding:'15px',
+          background:ok?C.fg:'#ccc',border:`2.5px solid ${ok?C.border:C.subtle}`,
+          boxShadow:ok?sh(3):'none',borderRadius:6,
+          fontWeight:800,fontSize:15,color:ok?C.yellow:'#aaa',
+          cursor:ok?'pointer':'not-allowed'}}>
+          {ok?`兌換 $${v.amt} 現金券 (−${v.cost} pt)`:'選擇面額'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Draw Modal ─────────────────────────────────────────────────────────────────
+const DrawModal = ({onDraw, onClose}) => {
+  const [drawing, setDrawing] = React.useState(false);
+  const [result,  setResult]  = React.useState(null);
+
+  const doDraw = () => {
+    setDrawing(true);
+    setTimeout(()=>{
+      let r=Math.random(), acc=0, picked=COUPON_POOL[COUPON_POOL.length-1];
+      for (const c of COUPON_POOL) { acc+=c.prob; if(r<acc){picked=c;break;} }
+      setResult(picked);
+      setDrawing(false);
+    }, 1400);
+  };
+
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:150,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={!drawing&&!result?onClose:undefined}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.yellow}`}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 16px'}}/>
+        {!result ? (
+          <>
+            <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>抽券</div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:20}}>每次抽券消耗 <b>20 pt</b> · 機率如下</div>
+            <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:20}}>
+              {COUPON_POOL.map((c,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',
+                  background:C.card,border:`2px solid ${C.border}`,boxShadow:sh(1),borderRadius:5}}>
+                  <div style={{width:36,fontFamily:"'JetBrains Mono',monospace",fontWeight:800,fontSize:13,color:c.amount?C.fg:C.muted}}>
+                    {c.amount?`$${c.amount}`:'空'}
+                  </div>
+                  <div style={{flex:1,fontSize:12,color:c.amount?C.fg:C.muted}}>{c.amount?c.store:'沒抽到'}</div>
+                  <div style={{width:48,height:8,background:C.subtle,borderRadius:2,overflow:'hidden'}}>
+                    <div style={{width:`${c.prob*100}%`,height:'100%',background:c.amount?C.yellow:C.subtle}}/>
+                  </div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:C.muted,width:30,textAlign:'right'}}>
+                    {Math.round(c.prob*100)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={doDraw} disabled={drawing} style={{
+              width:'100%',padding:'15px',
+              background:drawing?C.subtle:C.yellow,
+              border:`2.5px solid ${drawing?C.subtle:C.border}`,
+              boxShadow:drawing?'none':sh(3),borderRadius:6,
+              fontWeight:800,fontSize:16,color:drawing?C.muted:C.fg,cursor:drawing?'wait':'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
+              {drawing?(
+                <svg width="20" height="20" viewBox="0 0 24 24" style={{animation:'nbDrawSpin 0.9s linear infinite'}}>
+                  <circle cx="12" cy="12" r="9" fill="none" stroke={C.muted} strokeWidth="2.5" strokeDasharray="30 10"/>
+                </svg>
+              ):null}
+              {drawing?'抽券中…':'立即抽券 (−20 pt)'}
+            </button>
+          </>
+        ) : (
+          <>
+            {result.amount>0 ? (
+              <>
+                <div style={{textAlign:'center',marginBottom:12}}>
+                  <div style={{width:64,height:64,background:C.yellow,border:`3px solid ${C.border}`,
+                    boxShadow:sh(4),borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',
+                    margin:'0 auto 10px',animation:'nbSuccessPop 0.5s cubic-bezier(.34,1.56,.64,1)'}}>
+                    <TicketIcon size={36}/>
+                  </div>
+                  <div style={{fontWeight:800,fontSize:20,color:C.fg}}>抽中了！</div>
+                  <div style={{fontSize:12,color:C.muted,marginTop:4}}>{result.store}</div>
+                </div>
+                <div style={{background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:sh(3),
+                  borderRadius:8,padding:'16px',textAlign:'center',marginBottom:16}}>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,fontSize:36,color:C.fg}}>${result.amount}</div>
+                  <div style={{fontSize:12,color:C.fg,marginTop:2}}>{result.detail} · 到期 {result.expires}</div>
+                </div>
+              </>
+            ) : (
+              <div style={{textAlign:'center',padding:'24px 0',marginBottom:16}}>
+                <div style={{fontSize:48,marginBottom:10}}>😔</div>
+                <div style={{fontWeight:800,fontSize:20}}>沒抽到</div>
+                <div style={{fontSize:12,color:C.muted,marginTop:4}}>這次運氣不好，再試一次吧！</div>
+              </div>
+            )}
+            <button onClick={()=>{onDraw(result);onClose();}} style={{
+              width:'100%',padding:'15px',background:C.fg,
+              border:`2.5px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+              fontWeight:800,fontSize:15,color:'#fff',cursor:'pointer'}}>
+              {result.amount>0?'收下 →':'關閉'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Shared Coupon Modal ────────────────────────────────────────────────────────
+const SharedCouponModal = ({coupon, onClaim, onClose}) => {
+  if (!coupon) return null;
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.55)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.yellow}`}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 14px'}}/>
+        <div style={{fontWeight:800,fontSize:17,marginBottom:12}}>有人分享了一張券給你</div>
+        <div style={{background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:sh(3),
+          borderRadius:8,padding:'16px 18px',marginBottom:12,position:'relative'}}>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,letterSpacing:'0.1em',
+            textTransform:'uppercase',color:'rgba(51,51,51,0.6)',marginBottom:6}}>{coupon.store}</div>
+          <div style={{display:'flex',alignItems:'baseline',gap:4,marginBottom:4}}>
+            <span style={{fontSize:22,fontWeight:900,color:C.fg}}>$</span>
+            <span style={{fontSize:52,fontWeight:900,letterSpacing:'-0.04em',color:C.fg,lineHeight:1}}>{coupon.amount}</span>
+          </div>
+          <div style={{fontWeight:600,fontSize:13,color:C.fg}}>現金折抵券</div>
+          <div style={{position:'absolute',top:12,right:12,display:'flex',gap:2}}>
+            {Array.from({length:coupon.gems}).map((_,i)=><GemIcon key={i} size={14} color={C.purple}/>)}
+          </div>
+        </div>
+        <div style={{background:C.card,border:`2px solid ${C.border}`,boxShadow:sh(1),
+          borderRadius:6,padding:'10px 12px',marginBottom:16,display:'flex',gap:10,alignItems:'flex-start'}}>
+          <div style={{width:32,height:32,borderRadius:'50%',background:C.fg,
+            display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>💬</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:10,color:C.muted,marginBottom:3}}>來自 {coupon.sharer}</div>
+            <div style={{fontSize:13,color:C.fg,lineHeight:1.5}}>「{coupon.msg}」</div>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose} style={{flex:1,padding:'13px',background:C.card,
+            border:`2px solid ${C.border}`,boxShadow:sh(1),borderRadius:6,
+            fontWeight:700,fontSize:14,color:C.muted,cursor:'pointer'}}>略過</button>
+          <button onClick={onClaim} style={{flex:2,padding:'13px',background:C.yellow,
+            border:`2.5px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+            fontWeight:800,fontSize:15,color:C.fg,cursor:'pointer'}}>確認領取 →</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── CHARGE level bar (neo-brutalist 5-block bar) ───────────────────────────────
+const GemPips = ({gems}) => {
+  const cols = ['#555','#555',C.yellow,'#CC8800','#FF6135',C.purple];
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+      <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,letterSpacing:'0.08em',
+        textTransform:'uppercase',color:'rgba(255,255,255,0.35)',flexShrink:0}}>CHARGE</span>
+      <div style={{display:'flex',gap:5,justifyContent:'center',flex:1}}>
+        {Array.from({length:5}).map((_,i) => {
+          const active = i < gems;
+          const col = cols[Math.min(i+1, cols.length-1)];
+          return (
+            <div key={i} style={{
+              width:14,height:14,transform:'rotate(45deg)',
+              background: active ? col : 'rgba(255,255,255,0.07)',
+              border: `2px solid ${active ? col : 'rgba(255,255,255,0.18)'}`,
+              boxShadow: active ? `2px 2px 0 #000` : 'none',
+            }}/>
+          );
+        })}
+      </div>
+      <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:gems>=5?C.yellow:'rgba(255,255,255,0.3)',flexShrink:0}}>
+        {gems>=5?'MAX':'LV'+gems}
+      </span>
+    </div>
+  );
+};
+
+// ── Home ───────────────────────────────────────────────────────────────────────
+const HomeScreen = ({nav, couPoints, gems}) => {
+  const [showRedeem, setShowRedeem] = React.useState(false);
+  const [showDraw,   setShowDraw]   = React.useState(false);
+  const [obStep,     setObStep]     = React.useState(0);
+  const [obActive,   setObActive]   = React.useState(true);
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',position:'relative',overflow:'hidden'}}>
+    <div style={{flex:1,overflowY:'auto'}}>
+      <StatusBar/>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'2px 20px 14px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:38,height:38,background:C.yellow,border:`2.5px solid ${C.border}`,
+            boxShadow:sh(2),borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <LogoIcon size={26}/>
+          </div>
+          <span style={{fontSize:22,fontWeight:800,letterSpacing:'-0.035em'}}>CouPro</span>
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',
+            background:C.yellowLight,border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:4}}>
+            <CoinIcon size={14}/>
+            <span style={{fontWeight:700,fontSize:14,fontFamily:"'JetBrains Mono',monospace"}}>{couPoints}</span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',
+            background:C.fg,border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:4}}>
+            <GemIcon size={14} color={C.purpleLight}/>
+            <span style={{fontWeight:700,fontSize:14,color:'#fff',fontFamily:"'JetBrains Mono',monospace"}}>{gems}</span>
+          </div>
+          <button onClick={()=>nav('settings')} style={{width:34,height:34,background:C.card,border:`2px solid ${C.border}`,
+            boxShadow:sh(2),borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <SettingsIcon size={16}/>
+          </button>
+          <HelpBtn onClick={()=>{setObStep(0);setObActive(true);}}/>
+        </div>
+      </div>
+
+      <div style={{padding:'0 16px 12px'}}>
+        <div style={{background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:sh(5),borderRadius:8,padding:'18px 18px 16px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+            <div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,letterSpacing:'0.12em',
+                textTransform:'uppercase',color:'rgba(51,51,51,0.65)',marginBottom:5}}>CouPoint 餘額</div>
+              <div style={{display:'flex',alignItems:'baseline',gap:6}}>
+                <span style={{fontSize:58,fontWeight:900,lineHeight:1,letterSpacing:'-0.04em',color:C.fg}}>{couPoints}</span>
+                <span style={{fontSize:16,fontWeight:600,color:'rgba(51,51,51,0.65)',marginBottom:4}}>pt</span>
+              </div>
+              <div style={{fontSize:12,color:C.fg,marginTop:3}}>再 2 pt 即可兌換 $25 折抵券</div>
+            </div>
+            <button onClick={()=>setShowRedeem(true)} style={{padding:'11px 16px',background:C.fg,border:`2px solid ${C.border}`,
+              boxShadow:'3px 3px 0 rgba(0,0,0,0.3)',borderRadius:5,color:C.yellow,
+              fontWeight:700,fontSize:14,letterSpacing:'-0.01em'}}>兌換 →</button>
+          </div>
+          <div style={{marginTop:14}}>
+            <div style={{height:10,background:'rgba(51,51,51,0.18)',border:`2px solid rgba(51,51,51,0.2)`,
+              borderRadius:2,overflow:'hidden'}}>
+              <div style={{width:`${Math.min(100,Math.round(couPoints/130*100))}%`,height:'100%',background:C.fg}}/>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:5,
+              fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:'rgba(51,51,51,0.55)'}}>
+              <span>0 pt</span><span>$25 →</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{padding:'0 16px 12px'}}>
+        <button onClick={()=>nav('spinner')} style={{width:'100%',padding:'15px 16px',background:C.purple,
+          border:`2.5px solid ${C.border}`,borderRadius:8,
+          display:'flex',alignItems:'center',justifyContent:'space-between',
+          animation:'nbGemPulse 2.6s ease-in-out infinite'}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <GemIcon size={30} color={C.purpleLight}/>
+            <div style={{textAlign:'left'}}>
+              <div style={{fontWeight:800,fontSize:16,color:'#fff',letterSpacing:'-0.01em'}}>
+                <span style={{fontFamily:"'JetBrains Mono',monospace"}}>{gems}</span> 顆寶石 · 可抽獎
+              </div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,0.55)',marginTop:2}}>前往抽獎桌</div>
+            </div>
+          </div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:24,fontWeight:700,color:C.purpleLight}}>→</div>
+        </button>
+      </div>
+
+      <div style={{padding:'0 16px 12px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <TicketIcon size={18}/>
+            <span style={{fontWeight:700,fontSize:15,letterSpacing:'-0.01em'}}>我的券</span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',
+            background:C.card,border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:4}}>
+            <span style={{fontWeight:800,fontSize:17,fontFamily:"'JetBrains Mono',monospace"}}>6</span>
+            <span style={{fontSize:11,color:C.muted}}>張</span>
+          </div>
+        </div>
+        <button onClick={()=>setShowDraw(true)} style={{width:'100%',marginBottom:12,padding:'12px 16px',
+          background:C.yellowLight,border:`2.5px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+          display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <TicketIcon size={20}/>
+            <span style={{fontWeight:700,fontSize:14,color:C.fg}}>可兌換新券</span>
+          </div>
+          <span style={{fontWeight:800,fontSize:14,color:C.fg}}>抽券去 →</span>
+        </button>
+        <div style={{display:'flex',borderBottom:`2.5px solid ${C.border}`,marginBottom:12}}>
+          {['緊迫排序','店家','面額'].map((tab,i)=>(
+            <div key={tab} style={{padding:'7px 12px',fontWeight:i===0?700:500,fontSize:13,
+              color:i===0?C.fg:C.muted,cursor:'pointer',
+              borderBottom:i===0?`3px solid ${C.fg}`:'3px solid transparent',marginBottom:-2.5}}>{tab}</div>
+          ))}
+        </div>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',color:C.muted,marginBottom:6}}>① 即將到期</div>
+        <CouponRow store="阿明早餐店" detail="$25 現金折抵" expires="11/08" gems={3} urgency="expiring"
+          onClick={()=>nav('coupon-detail',{store:'阿明早餐店',detail:'$25 現金折抵',expires:'11/08',amount:25})}
+          onShare={()=>nav('coupon-share',{store:'阿明早餐店',detail:'$25 現金折抵',expires:'11/08',amount:25})}/>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',color:C.muted,marginBottom:6,marginTop:10}}>② 新到手</div>
+        <CouponRow store="手沖小巷" detail="$10 現金折抵" expires="11/30" gems={2} urgency="new"
+          onClick={()=>nav('coupon-detail',{store:'手沖小巷',detail:'$10 現金折抵',expires:'11/30',amount:10})}
+          onShare={()=>nav('coupon-share',{store:'手沖小巷',detail:'$10 現金折抵',expires:'11/30',amount:10})}/>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',color:C.muted,marginBottom:6,marginTop:10}}>③ 其餘未使用</div>
+        <CouponRow store="夜市攤三杯" detail="$5 現金折抵" expires="12/15" gems={1}
+          onClick={()=>nav('coupon-detail',{store:'夜市攤三杯',detail:'$5 現金折抵',expires:'12/15',amount:5})}
+          onShare={()=>nav('coupon-share',{store:'夜市攤三杯',detail:'$5 現金折抵',expires:'12/15',amount:5})}/>
+        <div style={{padding:'10px 4px',fontSize:13,color:C.muted,cursor:'pointer',
+          display:'flex',alignItems:'center',gap:6,borderTop:`1.5px dashed ${C.subtle}`,marginTop:4}}>
+          <span>▾</span><span>已使用 / 已過期 (3)</span>
+        </div>
+      </div>
+    </div>
+      <TabBar active="home" nav={nav} flow={true}/>
+      {showRedeem && <RedeemModal couPoints={couPoints} onRedeem={()=>{}} onClose={()=>setShowRedeem(false)}/>}
+      {showDraw   && <DrawModal   onDraw={()=>{}} onClose={()=>setShowDraw(false)}/>}
+      {obActive && <OnboardingOverlay screenKey="home" step={obStep} onNext={()=>setObStep(s=>s+1)} onDone={()=>setObActive(false)}/>}
+    </div>
+  );
+};
+
+// ── CouMap ─────────────────────────────────────────────────────────────────────
+const NeoBrutMap = () => (
+  <svg width="390" height="580" viewBox="0 0 390 580" style={{display:'block',position:'absolute',inset:0}}>
+    <rect width="390" height="580" fill="#E8E3D8"/>
+    {Array.from({length:20}).map((_,i)=><line key={`h${i}`} x1="0" y1={i*30} x2="390" y2={i*30} stroke="#D4CFC0" strokeWidth="0.4"/>)}
+    {Array.from({length:14}).map((_,i)=><line key={`v${i}`} x1={i*30} y1="0" x2={i*30} y2="580" stroke="#D4CFC0" strokeWidth="0.4"/>)}
+    <rect x="0"   y="96"  width="390" height="24" fill="#F2EDE3" stroke="#C4BEAF" strokeWidth="1"/>
+    <rect x="0"   y="252" width="390" height="30" fill="#F2EDE3" stroke="#C4BEAF" strokeWidth="1"/>
+    <rect x="0"   y="412" width="390" height="22" fill="#F2EDE3" stroke="#C4BEAF" strokeWidth="1"/>
+    <rect x="64"  y="0"   width="22"  height="580" fill="#F2EDE3" stroke="#C4BEAF" strokeWidth="1"/>
+    <rect x="212" y="0"   width="26"  height="580" fill="#F2EDE3" stroke="#C4BEAF" strokeWidth="1"/>
+    <text x="100" y="113" fontFamily="JetBrains Mono,monospace" fontSize="9" fill="#9A9488">忠孝東路</text>
+    <text x="100" y="269" fontFamily="JetBrains Mono,monospace" fontSize="9" fill="#9A9488">信義路</text>
+    <text x="74"  y="45"  fontFamily="JetBrains Mono,monospace" fontSize="8" fill="#9A9488" transform="rotate(90,74,45)">永康街</text>
+    <text x="218" y="45"  fontFamily="JetBrains Mono,monospace" fontSize="8" fill="#9A9488" transform="rotate(90,218,45)">復興南路</text>
+    <rect x="90"  y="132" width="72" height="96" fill="#D8D2C5" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="168" y="140" width="38" height="82" fill="#E2DDCF" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="242" y="134" width="88" height="96" fill="#D8D2C5" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="90"  y="288" width="52" height="98" fill="#D8D2C5" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="152" y="294" width="52" height="88" fill="#E2DDCF" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="238" y="286" width="116" height="92" fill="#D8D2C5" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="8"   y="442" width="52"  height="78" fill="#D8D2C5" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="90"  y="446" width="116" height="70" fill="#D8D2C5" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="238" y="440" width="114" height="74" fill="#E2DDCF" stroke="#BBB5A0" strokeWidth="1.5"/>
+    <rect x="8"   y="132" width="52"  height="96" fill="#C6E8BC" stroke="#9AC890" strokeWidth="1.5"/>
+    <text x="34" y="185" textAnchor="middle" fontFamily="JetBrains Mono,monospace" fontSize="8" fill="#5A8A50">公園</text>
+    <text x="296" y="340" textAnchor="middle" fontFamily="JetBrains Mono,monospace" fontSize="8" fill="#9A9488">市場</text>
+  </svg>
+);
+
+const NeoTeardropPin = ({x,y,count,active=false,big=false,onClick}) => {
+  const sz = big?44:34, h = sz+12;
+  return (
+    <div onClick={onClick} style={{position:'absolute',left:x,top:y,transform:'translate(-50%,-100%)',zIndex:2,cursor:onClick?'pointer':'default'}}>
+      <svg width={sz} height={h} viewBox="0 0 36 48">
+        <path d="M18 46 Q7 30 7 16 A11 11 0 1 1 29 16 Q29 30 18 46 Z"
+          fill={active?C.yellow:'#FFFFFF'} stroke={C.border} strokeWidth={active?2.5:2}/>
+        {active && count!=null &&
+          <text x="18" y="21" textAnchor="middle" fontFamily="JetBrains Mono,monospace"
+            fontSize="12" fontWeight="700" fill={C.fg}>{count}</text>}
+        {active && <circle cx="18" cy="16" r="4" fill="rgba(255,255,255,0.35)"/>}
+      </svg>
+      {active && (
+        <div style={{position:'absolute',left:'50%',top:0,width:sz+14,height:sz+14,borderRadius:'50%',
+          border:`2px solid ${C.yellow}`,animation:'nbPinPulse 1.8s ease-in-out infinite',pointerEvents:'none'}}/>
+      )}
+    </div>
+  );
+};
+
+const FLAG_REASONS = ['資訊不正確','假冒店家','違規優惠','詐騙疑慮','其他'];
+const FlagStoreModal = ({store, onClose}) => {
+  const [sel, setSel] = React.useState(null);
+  const [done, setDone] = React.useState(false);
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.red}`}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 14px'}}/>
+        {done ? (
+          <div style={{textAlign:'center',padding:'12px 0 4px'}}>
+            <div style={{fontSize:32,marginBottom:8}}>✓</div>
+            <div style={{fontWeight:800,fontSize:17,marginBottom:6}}>舉報已送出</div>
+            <div style={{fontSize:13,color:C.muted,marginBottom:20}}>我們會在 3 個工作天內審核「{store}」的舉報。</div>
+            <button onClick={onClose} style={{width:'100%',padding:'13px',background:C.yellow,
+              border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:6,fontWeight:800,fontSize:14,color:C.fg}}>關閉</button>
+          </div>
+        ) : (
+          <>
+            <div style={{fontWeight:800,fontSize:17,marginBottom:4}}>舉報店家</div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:14}}>「{store}」— 請選擇舉報原因</div>
+            {FLAG_REASONS.map(r => (
+              <div key={r} onClick={()=>setSel(r)}
+                style={{padding:'11px 14px',marginBottom:8,background:sel===r?C.yellow:C.card,
+                  border:`2px solid ${sel===r?C.border:C.subtle}`,boxShadow:sel===r?sh(2):'none',
+                  borderRadius:6,fontWeight:sel===r?700:500,fontSize:14,cursor:'pointer',
+                  color:sel===r?C.fg:C.fg,display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:14,height:14,borderRadius:'50%',border:`2px solid ${C.border}`,
+                  background:sel===r?C.fg:'transparent',flexShrink:0}}/>
+                {r}
+              </div>
+            ))}
+            <button onClick={()=>{if(sel)setDone(true);}} style={{width:'100%',padding:'13px',marginTop:4,
+              background:sel?C.red:C.subtle,border:`2.5px solid ${C.border}`,
+              boxShadow:sel?sh(3):'none',borderRadius:6,fontWeight:800,fontSize:14,
+              color:sel?'#fff':C.muted}}>提交舉報</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const BlockStoreModal = ({store, onConfirm, onClose}) => (
+  <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+    <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+    <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+      border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+      animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.border}`}}>
+      <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 16px'}}/>
+      <div style={{fontWeight:800,fontSize:18,marginBottom:6}}>封鎖此店家</div>
+      <div style={{fontSize:13,color:C.muted,marginBottom:6}}>封鎖後，「<span style={{color:C.fg,fontWeight:700}}>{store}</span>」將不會出現在 CouMap 和搜尋結果中。</div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:22}}>你可以隨時在設定 → 封鎖商家 中解除封鎖。</div>
+      <div style={{display:'flex',gap:10}}>
+        <button onClick={onClose} style={{flex:1,padding:'13px',background:C.card,
+          border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:6,fontWeight:700,fontSize:14,color:C.fg}}>取消</button>
+        <button onClick={onConfirm} style={{flex:1,padding:'13px',background:C.fg,
+          border:`2px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,fontWeight:800,fontSize:14,color:C.bg}}>封鎖</button>
+      </div>
+    </div>
+  </div>
+);
+
+const MapScreen = ({nav}) => {
+  const [sharedCoupon,   setSharedCoupon]   = React.useState(null);
+  const [collectSuccess, setCollectSuccess] = React.useState(null);
+  const [showFlag,       setShowFlag]       = React.useState(false);
+  const [showBlock,      setShowBlock]      = React.useState(false);
+  const [blockDone,      setBlockDone]      = React.useState(false);
+  const [obStep,         setObStep]         = React.useState(0);
+  const [obActive,       setObActive]       = React.useState(true);
+
+  const handleClaim = (coupon) => {
+    setSharedCoupon(null);
+    setCollectSuccess(coupon);
+    setTimeout(() => setCollectSuccess(null), 2400);
+  };
+  return (
+    <div style={{flex:1,position:'relative',overflow:'hidden',display:'flex',flexDirection:'column'}}>
+      <div style={{position:'absolute',inset:0,zIndex:0}}>
+        <NeoBrutMap/>
+        <NeoTeardropPin x={80}  y={162} count={3} active big onClick={()=>nav('coupon-detail',{store:'阿明早餐店',detail:'$25 現金折抵',expires:'11/08',amount:25})}/>
+        <NeoTeardropPin x={252} y={172} count={5} active onClick={()=>nav('coupon-detail',{store:'手沖小巷',detail:'$10 現金折抵',expires:'11/30',amount:10})}/>
+        <NeoTeardropPin x={180} y={330} count={1} active onClick={()=>nav('coupon-detail',{store:'夜市攤三杯',detail:'$5 現金折抵',expires:'12/15',amount:5})}/>
+        <NeoTeardropPin x={58}  y={370}/>
+        <NeoTeardropPin x={298} y={318}/>
+        <NeoTeardropPin x={132} y={470} count={8} active big onClick={()=>nav('coupon-detail',{store:'市場食堂',detail:'$15 現金折抵',expires:'12/01',amount:15})}/>
+        <NeoTeardropPin x={280} y={488}/>
+      </div>
+      <div style={{position:'relative',zIndex:10,height:54,display:'flex',justifyContent:'space-between',
+        alignItems:'flex-end',padding:'0 26px 8px',
+        background:'linear-gradient(180deg,rgba(250,250,245,.96),rgba(250,250,245,0))',
+        fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:600}}>
+        <span>9:41</span>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{letterSpacing:3}}>▪▪▪</span>
+          <HelpBtn onClick={()=>{setObStep(0);setObActive(true);}}/>
+        </div>
+      </div>
+      <div style={{position:'absolute',top:58,left:16,right:16,zIndex:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',
+          background:'#fff',border:`2.5px solid ${C.border}`,boxShadow:sh(4),borderRadius:6}}>
+          <div style={{width:34,height:34,background:C.yellow,border:`2px solid ${C.border}`,
+            boxShadow:sh(2),borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <LogoIcon size={22}/>
+          </div>
+          <input placeholder="搜尋店家或優惠…" style={{flex:1,border:'none',outline:'none',
+            fontSize:14,fontWeight:500,color:C.fg,background:'transparent'}}/>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}>
+            <circle cx="11" cy="11" r="7" stroke={C.muted} strokeWidth="2"/>
+            <path d="M16 16 L21 21" stroke={C.muted} strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <button style={{position:'absolute',right:16,bottom:378,zIndex:10,width:48,height:48,
+        borderRadius:'50%',background:'#fff',border:`2.5px solid ${C.border}`,boxShadow:sh(3),
+        display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3" fill={C.yellow}/>
+          <circle cx="12" cy="12" r="7" stroke={C.border} strokeWidth="1.8"/>
+          <path d="M12 1.5V5 M12 19V22.5 M1.5 12H5 M19 12H22.5" stroke={C.border} strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      </button>
+      <div style={{position:'absolute',left:0,right:0,bottom:0,background:C.bg,
+        borderTop:`3px solid ${C.border}`,borderRadius:'18px 18px 0 0',
+        boxShadow:`0 -5px 0 ${C.border}`,zIndex:20,padding:'14px 16px 100px'}}>
+        <div style={{width:48,height:5,background:C.border,borderRadius:2,margin:'0 auto 14px'}}/>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
+          <div style={{width:48,height:48,borderRadius:'50%',background:C.yellow,
+            border:`2.5px solid ${C.border}`,boxShadow:sh(2),
+            display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:22}}>🍱</div>
+          <div style={{flex:1}}>
+            {blockDone
+              ? <div style={{fontWeight:800,fontSize:15,color:C.muted}}>已封鎖此店家</div>
+              : <>
+                  <div style={{fontWeight:800,fontSize:17,letterSpacing:'-0.02em'}}>阿明早餐店</div>
+                  <div style={{fontSize:12,color:C.muted,marginTop:2}}>忠孝東路 3 段 · 0.3 km · ★ 4.6</div>
+                </>
+            }
+          </div>
+          <div style={{display:'flex',gap:6}}>
+            <button onClick={()=>setShowFlag(true)} style={{width:32,height:32,background:C.card,
+              border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:4,
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>⚑</button>
+            <button onClick={()=>setShowBlock(true)} style={{width:32,height:32,
+              background:blockDone?C.subtle:C.card,border:`2px solid ${C.border}`,
+              boxShadow:blockDone?'none':sh(2),borderRadius:4,
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>🚫</button>
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:7}}>
+          <div style={{width:10,height:10,borderRadius:'50%',background:C.fg,flexShrink:0}}/>
+          <span style={{fontWeight:700,fontSize:12}}>我的優惠券</span>
+          <span style={{fontSize:11,color:C.muted}}>· 點擊使用</span>
+        </div>
+        <div style={{display:'flex',gap:8,marginBottom:12}}>
+          {[{label:'折抵',big:'$25'},{label:'買一送一',big:'美式咖啡'}].map((c,i)=>(
+            <div key={i} onClick={()=>nav('coupon-detail',{store:'阿明早餐店',detail:c.big,expires:'11/08',amount:25})}
+              style={{flex:1,background:C.card,border:`2px solid ${C.border}`,boxShadow:sh(2),
+                borderRadius:6,padding:'10px 8px',textAlign:'center',cursor:'pointer'}}>
+              <div style={{fontSize:10,color:C.muted,marginBottom:2}}>{c.label}</div>
+              <div style={{fontWeight:800,fontSize:i===0?22:14,fontFamily:"'JetBrains Mono',monospace"}}>{c.big}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:7}}>
+          <div style={{width:10,height:10,borderRadius:'50%',background:C.yellow,flexShrink:0}}/>
+          <span style={{fontWeight:700,fontSize:12}}>CouMap 上的優惠券</span>
+          <span style={{fontSize:11,color:C.muted}}>· 點擊領取</span>
+        </div>
+        <div style={{display:'flex',gap:8,marginBottom:12}}>
+          {SHARED_COUPONS.map((sc,i)=>(
+            <div key={i} onClick={()=>setSharedCoupon(sc)}
+              style={{flex:1,border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:6,padding:'10px 8px',
+                textAlign:'center',cursor:'pointer',background:C.yellow}}>
+              <div style={{fontSize:10,color:C.fg,opacity:0.6,marginBottom:2}}>{sc.label}</div>
+              <div style={{fontWeight:800,fontSize:20,fontFamily:"'JetBrains Mono',monospace",color:C.fg}}>${sc.amount}</div>
+            </div>
+          )}
+        </div>
+        <div style={{background:C.card,border:`2px solid ${C.border}`,boxShadow:sh(2),
+          borderRadius:6,padding:'10px 12px',display:'flex',alignItems:'flex-start',gap:10,marginBottom:12}}>
+          <div style={{width:34,height:34,borderRadius:'50%',background:C.subtle,border:`2px solid ${C.border}`,
+            display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:16}}>🏪</div>
+          <div style={{flex:1}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
+              <span style={{fontWeight:700,fontSize:12}}>店家近況</span>
+              <span style={{fontSize:10,color:C.muted}}>· 2 小時前</span>
+            </div>
+            <div style={{fontSize:11,color:C.fg,lineHeight:1.5}}>今天有新品 — 起司蛋餅試賣中，歡迎大家來吃看看 🍳</div>
+          </div>
+        </div>
+        <button onClick={()=>nav('coupon-qr',{store:'阿明早餐店',detail:'$25 現金折抵',expires:'11/08',amount:25})}
+          style={{width:'100%',padding:'14px',background:C.yellow,border:`2.5px solid ${C.border}`,
+            boxShadow:sh(3),borderRadius:6,fontWeight:800,fontSize:15,color:C.fg,letterSpacing:'-0.01em'}}>領取</button>
+      </div>
+      <TabBar active="map" nav={nav}/>
+      {sharedCoupon && (
+        <SharedCouponModal
+          coupon={sharedCoupon}
+          onClaim={()=>handleClaim(sharedCoupon)}
+          onClose={()=>setSharedCoupon(null)}/>
+      )}
+      {collectSuccess && (
+        <div style={{position:'absolute',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.55)',padding:24}}>
+          <div style={{background:C.card,border:`3px solid ${C.border}`,boxShadow:`6px 6px 0 ${C.yellow}, 10px 10px 0 ${C.border}`,borderRadius:10,padding:'28px 28px 24px',width:'100%',maxWidth:320,textAlign:'center'}}>
+            <div style={{width:60,height:60,borderRadius:6,background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:`4px 4px 0 ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',fontSize:28}}>✓</div>
+            <div style={{fontWeight:900,fontSize:20,letterSpacing:'-0.03em',marginBottom:6}}>領取成功！</div>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,color:C.muted,marginBottom:16}}>
+              <span style={{color:C.fg,fontWeight:700}}>${collectSuccess.amount}</span> 優惠券已加入你的錢包
+            </div>
+            <div style={{padding:'10px 14px',background:C.yellow,border:`2px solid ${C.border}`,boxShadow:`3px 3px 0 ${C.border}`,borderRadius:5,fontWeight:800,fontSize:13,color:C.fg,fontFamily:"'JetBrains Mono',monospace",letterSpacing:'0.04em'}}>
+              {collectSuccess.store} · {collectSuccess.label}
+            </div>
+          </div>
+        </div>
+      )}
+      {showFlag  && <FlagStoreModal  store="阿明早餐店" onClose={()=>setShowFlag(false)}/>}
+      {showBlock && <BlockStoreModal store="阿明早餐店"
+                      onConfirm={()=>{setBlockDone(true);setShowBlock(false);}}
+                      onClose={()=>setShowBlock(false)}/>}
+      {obActive && <OnboardingOverlay screenKey="map" step={obStep} onNext={()=>setObStep(s=>s+1)} onDone={()=>setObActive(false)}/>}
+    </div>
+  );
+};
+
+// ── Env / FX ───────────────────────────────────────────────────────────────────
+const AshLayer    = () => <>{Array.from({length:14}).map((_,i)=>(
+  <span key={i} style={{position:'absolute',top:-8,left:`${(i*7.3)%100}%`,width:2,height:2,background:'#8a8a8a',borderRadius:'50%',opacity:0.55,animation:`nbAshFall ${6+(i%5)}s linear ${i*0.3}s infinite`}}/>
+))}</>;
+const OceanLayer  = () => <>{Array.from({length:16}).map((_,i)=>(
+  <span key={i} style={{position:'absolute',bottom:-6,left:`${(i*6.4)%100}%`,width:3,height:3,background:'#7adfff',borderRadius:'50%',boxShadow:'0 0 6px #7adfff',animation:`nbBioRise ${5+(i%4)}s linear ${i*0.4}s infinite`}}/>
+))}</>;
+const ForestLayer = () => <>{Array.from({length:12}).map((_,i)=>(
+  <span key={i} style={{position:'absolute',top:`${20+(i*9)%70}%`,left:`${(i*11)%100}%`,width:4,height:4,background:'#caff70',borderRadius:'50%',boxShadow:'0 0 6px #caff70',animation:`nbFirefly ${3+(i%3)}s ease-in-out ${i*0.25}s infinite`}}/>
+))}</>;
+const DesertLayer = () => <>{Array.from({length:18}).map((_,i)=>(
+  <span key={'s'+i} style={{position:'absolute',top:`${(i*7.7)%60}%`,left:`${(i*13.1)%100}%`,width:2,height:2,background:'#fff8d6',borderRadius:'50%',opacity:0.7,animation:`nbTwinkle ${2+(i%4)}s ease-in-out ${i*0.2}s infinite`}}/>
+))}</>;
+const VolcanicLayer = () => (
+  <>
+    <div style={{position:'absolute',left:0,right:0,bottom:0,height:'50%',
+      background:'radial-gradient(ellipse at 50% 110%, rgba(255,90,0,0.6), transparent 60%)',
+      animation:'nbLavaPulse 2.2s ease-in-out infinite'}}/>
+    {Array.from({length:14}).map((_,i)=>(
+      <span key={i} style={{position:'absolute',bottom:-4,left:`${(i*8)%100}%`,width:3,height:3,background:'#ff7a18',borderRadius:'50%',boxShadow:'0 0 8px #ff7a18',animation:`nbEmberRise ${3+(i%3)}s linear ${i*0.2}s infinite`}}/>
+    ))}
+  </>
+);
+const CosmicLayer = ({exploded}) => (
+  <>
+    <div style={{position:'absolute',inset:0,
+      background:'radial-gradient(ellipse at 30% 30%, rgba(180,80,255,0.35), transparent 50%), radial-gradient(ellipse at 70% 70%, rgba(80,160,255,0.25), transparent 55%)',
+      animation:'nbNebula 5s ease-in-out infinite',
+      transform:exploded?'scale(1.4)':'scale(1)',transition:'transform 0.9s cubic-bezier(.34,1.56,.64,1)'}}/>
+    {Array.from({length:30}).map((_,i)=>(
+      <span key={'s'+i} style={{position:'absolute',top:`${(i*3.7)%100}%`,left:`${(i*11.3)%100}%`,
+        width:i%5===0?3:2,height:i%5===0?3:2,background:'#fff',borderRadius:'50%',opacity:0.8,
+        animation:`nbTwinkle ${1.5+(i%4)}s ease-in-out ${i*0.1}s infinite`}}/>
+    ))}
+    {Array.from({length:3}).map((_,i)=>(
+      <span key={'ss'+i} style={{position:'absolute',top:`${10+i*25}%`,left:'-10%',
+        width:60,height:1.5,background:'linear-gradient(90deg,transparent,#fff,transparent)',opacity:0.85,
+        animation:`nbShoot ${3+i}s linear ${i*1.4}s infinite`}}/>
+    ))}
+  </>
+);
+
+const EnvBackground = ({env,washing,exploded}) => {
+  const themes = {
+    0:{bg:'radial-gradient(circle at 50% 50%, #2a2a2a, #050505 70%)'},
+    1:{bg:'radial-gradient(circle at 50% 100%, #1a4d8c, #050a1c 70%)'},
+    2:{bg:'radial-gradient(circle at 50% 80%, #1a3a25, #060c08 70%)'},
+    3:{bg:'radial-gradient(circle at 50% 90%, #5a3a14, #1a0e04 70%)'},
+    4:{bg:'radial-gradient(circle at 50% 110%, #c2410c, #2a0a04 70%)'},
+    5:{bg:'radial-gradient(circle at 50% 50%, #4c1d95, #1a0530 70%)'},
+  };
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:0,overflow:'hidden',
+      background:washing?'conic-gradient(from 0deg, #2E2E2E, #555555, #888888, #FFAD31, #CC8800, #6B4FFF, #2E2E2E)':(themes[env]||themes[0]).bg,
+      filter:washing?'blur(18px) saturate(1.4)':'none',
+      animation:washing?'nbWashSpin 0.8s linear infinite':'none',
+      transition:washing?'none':'background 0.8s ease'}}>
+      {!washing && env===0 && <AshLayer/>}
+      {!washing && env===1 && <OceanLayer/>}
+      {!washing && env===2 && <ForestLayer/>}
+      {!washing && env===3 && <DesertLayer/>}
+      {!washing && env===4 && <VolcanicLayer/>}
+      {!washing && env===5 && <CosmicLayer exploded={exploded}/>}
+    </div>
+  );
+};
+
+
+const AnimNum = ({value}) => {
+  const [shown,setShown] = React.useState(value);
+  const [pop,setPop]     = React.useState(false);
+  React.useEffect(()=>{
+    if (shown===value) return;
+    setPop(true);
+    const step = value>shown?1:-1;
+    const id = setInterval(()=>{setShown(s=>{if(s===value){clearInterval(id);return s;}return s+step;});},40);
+    const t = setTimeout(()=>setPop(false),350);
+    return ()=>{clearInterval(id);clearTimeout(t);};
+  },[value]);
+  return <span style={{display:'inline-block',transform:pop?'scale(1.18)':'scale(1)',transition:'transform 0.18s'}}>{shown}</span>;
+};
+
+const Stepper = ({label,value,min=1,max=5,onChange,accent=false}) => (
+  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,flex:1}}>
+    <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',fontFamily:"'JetBrains Mono',monospace",letterSpacing:'0.04em'}}>{label}</div>
+    <div style={{display:'flex',alignItems:'center',gap:10}}>
+      <button onClick={()=>onChange(Math.max(min,value-1))} disabled={value<=min} style={{
+        width:30,height:30,borderRadius:4,border:`2px solid ${value>min?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.15)'}`,
+        background:value>min?'rgba(255,255,255,0.08)':'transparent',
+        color:value>min?'#fff':'rgba(255,255,255,0.2)',fontSize:18,fontWeight:700,
+        cursor:value>min?'pointer':'not-allowed',padding:0,lineHeight:1,
+        boxShadow:value>min?'2px 2px 0 rgba(255,255,255,0.12)':'none'}}>−</button>
+      <div style={{fontSize:22,fontWeight:800,minWidth:24,textAlign:'center',color:'#fff',
+        fontFamily:"'JetBrains Mono',monospace"}}>{value}</div>
+      <button onClick={()=>onChange(Math.min(max,value+1))} disabled={value>=max} style={{
+        width:30,height:30,borderRadius:4,
+        border:`2px solid ${value<max?(accent?C.purple:C.border):'rgba(255,255,255,0.15)'}`,
+        background:value<max?(accent?C.purple:C.yellow):'rgba(255,255,255,0.06)',
+        color:value<max?(accent?'#fff':C.fg):'rgba(255,255,255,0.2)',fontSize:18,fontWeight:700,
+        cursor:value<max?'pointer':'not-allowed',padding:0,lineHeight:1,
+        boxShadow:value<max?`2px 2px 0 ${accent?C.purple:C.border}`:'none'}}>+</button>
+    </div>
+  </div>
+);
+
+// ── Wheel Dial (new) ──────────────────────────────────────────────────────────
+const WheelDial = ({size=260, floor=0, spin=0, spinning=false, gems=1}) => {
+  const r=size/2-18, cx=size/2, cy=size/2;
+  const available = MULTS.filter(m=>m.v>=floor);
+  const weights   = available.map(m=>1/(m.v+1));
+  const total     = weights.reduce((a,b)=>a+b,0);
+  let acc=-Math.PI/2;
+  const ranges=available.map((m,i)=>{
+    const w=weights[i]/total*Math.PI*2; const a0=acc; acc+=w; return {a0,a1:acc,...m};
+  });
+  const arc=(a0,a1)=>{
+    const x0=cx+r*Math.cos(a0),y0=cy+r*Math.sin(a0),x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1);
+    return `M${cx} ${cy} L${x0} ${y0} A${r} ${r} 0 ${a1-a0>Math.PI?1:0} 1 ${x1} ${y1}Z`;
+  };
+  const lp=(a0,a1)=>{const a=(a0+a1)/2,d=r*0.63;return[cx+d*Math.cos(a),cy+d*Math.sin(a),(a*180/Math.PI)+90];};
+  const rimCol=gems>=5?C.purple:gems>=4?'#FF6135':gems>=3?'#CC8800':gems>=2?C.yellow:'#444444';
+  const rimW=gems>=4?6:gems>=2?4:3;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+      style={{display:'block',overflow:'visible',
+        filter:gems>=3?`drop-shadow(0 0 ${gems*4}px ${rimCol}88)`:'drop-shadow(4px 4px 0 #333)'}}>
+      {/* Hard offset shadow */}
+      <circle cx={cx+8} cy={cy+8} r={r+14} fill="#333"/>
+      {/* Outer rim */}
+      <circle cx={cx} cy={cy} r={r+14} fill="#1a1a1a" stroke={rimCol} strokeWidth={rimW}/>
+      {/* Rim notch marks */}
+      {Array.from({length:24},(_,i)=>{
+        const a=(i/24)*Math.PI*2, notchR=r+8, notchL=i%4===0?10:5;
+        const x0=cx+(notchR)*Math.cos(a), y0=cy+(notchR)*Math.sin(a);
+        const x1=cx+(notchR-notchL)*Math.cos(a), y1=cy+(notchR-notchL)*Math.sin(a);
+        return <line key={i} x1={x0} y1={y0} x2={x1} y2={y1}
+          stroke={i%4===0?C.yellow:'rgba(255,255,255,0.25)'} strokeWidth={i%4===0?2.5:1}/>;
+      })}
+      {/* Spinning sectors */}
+      <g style={{transform:`rotate(${spin}deg)`,transformOrigin:`${cx}px ${cy}px`,
+        transition:spinning?`transform 4.2s cubic-bezier(0.12,0,0.04,1)`:'none'}}>
+        {ranges.map((sec,i)=>{
+          const [lx,ly,aDeg]=lp(sec.a0,sec.a1);
+          return (
+            <g key={i}>
+              <path d={arc(sec.a0,sec.a1)} fill={sec.color} stroke="#333" strokeWidth="4"/>
+              <line x1={cx} y1={cy} x2={cx+(r+14)*Math.cos(sec.a0)} y2={cy+(r+14)*Math.sin(sec.a0)} stroke="#333" strokeWidth="4"/>
+              <text x={lx} y={ly+5} textAnchor="middle" transform={`rotate(${aDeg} ${lx} ${ly})`}
+                fontFamily="JetBrains Mono,monospace" fontSize="15" fontWeight="900"
+                fill="#fff" stroke="#333" strokeWidth="3" paintOrder="stroke">{sec.label}</text>
+            </g>
+          );
+        })}
+      </g>
+      {/* Hub */}
+      <rect x={cx-15} y={cy-15} width={30} height={30} fill={C.yellow} stroke="#333" strokeWidth="3" rx={2}/>
+      <rect x={cx-9}  y={cy-9}  width={18} height={18} fill="#333"/>
+      <rect x={cx-5}  y={cy-5}  width={10} height={10} fill={C.yellow}/>
+      {/* Needle — bold arrow at top */}
+      <polygon points={`${cx-12},${cy-r-3} ${cx+12},${cy-r-3} ${cx},${cy-r+12}`}
+        fill={C.yellow} stroke="#333" strokeWidth="3.5" strokeLinejoin="round"/>
+      <polygon points={`${cx-7},${cy-r-20} ${cx+7},${cy-r-20} ${cx},${cy-r-4}`}
+        fill="#fff" stroke="#333" strokeWidth="2.5" strokeLinejoin="round"/>
+    </svg>
+  );
+};
+
+// ── Spinner Screen ─────────────────────────────────────────────────────────────
+const SpinnerScreen = ({nav, gems, setGems, couPoints, setCouPoints}) => {
+  const [players,       setPlayers]      = React.useState(1);
+  const [filledGuests,  setFilledGuests] = React.useState(0);
+  const [spin,          setSpin]         = React.useState(0);
+  const [spinning,      setSpinning]     = React.useState(false);
+  const [result,        setResult]       = React.useState(null);
+  const [nearMiss,      setNearMiss]     = React.useState(false);
+  const [flash,         setFlash]        = React.useState(null);
+  const [shake,         setShake]        = React.useState(null);
+  const [gemShake,      setGemShake]     = React.useState(false);
+  const prevGemsRef = React.useRef(gems);
+  const [obStep,        setObStep]       = React.useState(0);
+  const [obActive,      setObActive]     = React.useState(true);
+
+  React.useEffect(() => {
+    if (gems > prevGemsRef.current) {
+      setGemShake(true);
+      const dur = 200 + gems * 60;
+      setTimeout(() => setGemShake(false), dur);
+    }
+    prevGemsRef.current = gems;
+  }, [gems]);
+
+  const floor     = getFloor(gems, players);
+  const invited   = players - 1;
+  const allFilled = filledGuests >= invited;
+
+  React.useEffect(()=>{ setFilledGuests(0); }, [players]);
+
+  const handleSpin = () => {
+    if (spinning || !allFilled) return;
+    setSpinning(true); setResult(null); setFlash(null); setNearMiss(false);
+    const available = MULTS.filter(m=>m.v>=floor);
+    const weights   = available.map(m=>1/(m.v+1));
+    const total     = weights.reduce((a,b)=>a+b,0);
+    let pick=Math.random()*total, chosen=available[0];
+    for (let i=0;i<available.length;i++){pick-=weights[i];if(pick<=0){chosen=available[i];break;}}
+    let acc=0, centerDeg=0;
+    for (let i=0;i<available.length;i++){
+      const w=(weights[i]/total)*360;
+      if(available[i].v===chosen.v){centerDeg=acc+w/2;break;}
+      acc+=w;
+    }
+    const target = 360*8 - centerDeg + (Math.random()*8-4);
+    setSpin(s=>s+target);
+    setTimeout(()=>{
+      const hasX5=available.some(m=>m.v===5);
+      if(hasX5 && chosen.v!==5 && Math.random()<0.35){
+        setNearMiss(true);
+        setTimeout(()=>setNearMiss(false), 400);
+      }
+    }, 3400);
+    setTimeout(()=>{
+      setSpinning(false);
+      setTimeout(()=>{
+        const pts = gems * chosen.v;
+        setResult({mult:chosen.v, points:pts, color:chosen.color});
+        if(chosen.v===5){ setFlash('x5'); }
+        else if(chosen.v===0){ setFlash('x0'); }
+        const shakeLevel = chosen.v<=1?null:chosen.v===2?'sm':chosen.v===3?'md':chosen.v===4?'lg':'xl';
+        if(shakeLevel){ setShake(shakeLevel); setTimeout(()=>setShake(null), chosen.v>=5?900:600); }
+        setTimeout(()=>setCouPoints(p=>p+pts), 600);
+        setTimeout(()=>setFlash(null), 1600);
+      }, 350);
+    }, 4800);
+  };
+
+  const slotType = i => i===0?'me':i<=filledGuests?'guest':'empty';
+
+  return (
+    <div style={{flex:1,position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',
+      background:C.bg,color:C.fg,
+      animation:gemShake?`nbGemLoad ${200+gems*60}ms ease-out both`:shake?`nbShake${shake.charAt(0).toUpperCase()+shake.slice(1)} ${shake==='xl'?'0.9s':'0.6s'} cubic-bezier(0.36,0.07,0.19,0.97) both`:spinning?'nbShakeXs 0.22s ease-in-out infinite':'none',
+      transformOrigin:'center center'}}>
+      {nearMiss && (
+        <div style={{position:'absolute',inset:0,zIndex:18,pointerEvents:'none',
+          background:'rgba(107,79,255,0.4)',animation:'nbFlash 0.4s ease-out'}}/>
+      )}
+
+      {/* Header */}
+      <StatusBar/>
+      <div style={{padding:'4px 18px 8px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div style={{fontWeight:800,fontSize:20,letterSpacing:'-0.03em',color:C.fg}}>抽獎桌</div>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <HelpBtn onClick={()=>{setObStep(0);setObActive(true);}}/>
+          <div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',
+            background:C.card,border:`2px solid ${C.border}`,boxShadow:`2px 2px 0 ${C.border}`,borderRadius:4}}>
+            <CoinIcon size={14}/>
+            <span style={{fontWeight:700,fontSize:14,color:C.fg,fontFamily:"'JetBrains Mono',monospace"}}>
+              <AnimNum value={couPoints}/>
+            </span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',
+            background:C.card,border:`2px solid ${C.border}`,boxShadow:`2px 2px 0 ${C.border}`,borderRadius:4}}>
+            <GemIcon size={14} color={C.purple}/>
+            <span style={{fontWeight:700,fontSize:14,color:C.fg,fontFamily:"'JetBrains Mono',monospace"}}>
+              <AnimNum value={gems}/>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Wheel area */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',
+        paddingBottom:196}}>
+
+        {/* Player avatars above the wheel */}
+        <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:14}}>
+          {Array.from({length:players}).map((_,i)=>{
+            const slot=slotType(i);
+            return (
+              <div key={i} onClick={()=>{if(slot==='empty')setFilledGuests(g=>g+1);}} style={{
+                width:42,height:42,borderRadius:'50%',border:`2.5px solid ${C.border}`,
+                background:slot==='me'?C.purple:slot==='guest'?C.green:'#fff',
+                display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:14,
+                color:slot==='empty'?C.fg:'#fff',fontFamily:"'JetBrains Mono',monospace",
+                boxShadow:slot==='empty'?`2px 2px 0 ${C.border}`:`3px 3px 0 ${C.border}`,
+                animation:slot==='empty'?'nbPulseOrbit 1.4s ease-in-out infinite':'none',
+                cursor:slot==='empty'?'pointer':'default',userSelect:'none'}}>
+                {slot==='me'?'我':slot==='guest'?'友':'+'}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{position:'relative',width:300,height:300,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <WheelDial size={260} floor={floor} spin={spin} spinning={spinning} gems={gems}/>
+        </div>
+      </div>
+
+      {/* Controls panel */}
+      <div style={{position:'absolute',left:0,right:0,bottom:76,zIndex:3,padding:'12px 16px 14px',
+        background:'#111',borderTop:`2px solid ${C.border}`}}>
+        <GemPips gems={gems}/>
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
+          <Stepper label="寶石" value={gems} min={1} max={5} onChange={setGems} accent={true}/>
+          <div style={{width:1,alignSelf:'stretch',borderLeft:'1.5px dashed rgba(255,255,255,0.18)'}}/>
+          <Stepper label="揪友" value={players} min={1} max={3} onChange={setPlayers}/>
+        </div>
+        <button onClick={handleSpin} disabled={spinning||!allFilled} style={{
+          width:'100%',padding:'16px',
+          background:!allFilled?'rgba(255,255,255,0.06)':spinning?'rgba(255,255,255,0.04)':C.yellow,
+          border:`2.5px solid ${!allFilled||spinning?'rgba(255,255,255,0.15)':C.border}`,
+          boxShadow:!allFilled||spinning?'none':`6px 6px 0 ${C.border}`,
+          borderRadius:6,fontSize:20,fontWeight:800,letterSpacing:'-0.01em',
+          fontFamily:"'JetBrains Mono',monospace",
+          color:spinning||!allFilled?'rgba(255,255,255,0.25)':C.fg,
+          cursor:spinning||!allFilled?'not-allowed':'pointer',
+          animation:!spinning&&allFilled?'nbPulseBtn 1.4s ease-in-out infinite':'none',
+          display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          {!allFilled && (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2.4">
+              <rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7A4 4 0 0 1 16 7v4"/>
+            </svg>
+          )}
+          {!allFilled?'等待朋友加入':spinning?'轉啊轉…':'SPIN!'}
+        </button>
+        <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',textAlign:'center',marginTop:5,
+          fontFamily:"'JetBrains Mono',monospace"}}>消耗 {gems} 顆寶石 · 結果 = 寶石 × 倍率</div>
+      </div>
+
+      {/* Result overlay — full-screen modal so it's never clipped */}
+      {result && (
+        <div style={{position:'absolute',inset:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',
+          background:'rgba(0,0,0,0.72)'}}>
+          <div style={{background:'#0F0F0F',color:'#fff',
+            border:`3px solid ${result.color}`,borderRadius:10,
+            padding:'24px 32px',textAlign:'center',minWidth:220,
+            boxShadow:`8px 8px 0 ${C.border}, 0 0 40px ${result.color}44`,
+            animation:'nbResultPop 0.45s cubic-bezier(.34,1.56,.64,1)'}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,letterSpacing:'0.12em',
+              textTransform:'uppercase',color:'rgba(255,255,255,0.4)',marginBottom:8}}>결果 · 結果</div>
+            <div style={{fontSize:52,fontWeight:900,color:result.color,lineHeight:1,
+              textShadow:`0 0 30px ${result.color}88`,fontFamily:"'JetBrains Mono',monospace"}}>×{result.mult}</div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginTop:10,
+              animation:'nbBillDrop 0.5s ease-out 0.15s both'}}>
+              <CoinIcon size={22}/>
+              <div style={{fontSize:32,fontWeight:900,color:'#fff',fontFamily:"'JetBrains Mono',monospace"}}>
+                +{result.points}
+              </div>
+            </div>
+            {result.mult===0 && <div style={{fontSize:12,color:'rgba(255,255,255,0.45)',marginTop:8}}>這次沒有…下次再試！</div>}
+            {result.mult===5 && <div style={{fontSize:13,color:C.yellow,marginTop:8,fontWeight:700}}>🎉 大獎！</div>}
+            <button onClick={()=>setResult(null)} style={{marginTop:16,padding:'10px 28px',
+              background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:`3px 3px 0 ${C.border}`,borderRadius:5,
+              fontWeight:800,fontSize:14,color:C.fg,cursor:'pointer',letterSpacing:'-0.01em'}}>繼續</button>
+          </div>
+        </div>
+      )}
+
+      {flash==='x5' && (
+        <div style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:15,animation:'nbFlash 1.4s ease-out'}}>
+          {Array.from({length:20}).map((_,i)=>(
+            <span key={i} style={{position:'absolute',left:`${Math.random()*100}%`,top:`${Math.random()*100}%`,
+              width:8,height:8,borderRadius:2,background:[C.purple,C.yellow,C.green,C.red][i%4],
+              animation:`nbConfetti 1.4s ease-out ${Math.random()*0.3}s both`}}/>
+          ))}
+        </div>
+      )}
+      <TabBar active="spinner" nav={nav} dark={true}/>
+      {obActive && <OnboardingOverlay screenKey="spinner" step={obStep} onNext={()=>setObStep(s=>s+1)} onDone={()=>setObActive(false)}/>}
+    </div>
+  );
+};
+
+// ── Coupon Detail ──────────────────────────────────────────────────────────────
+const CouponDetailScreen = ({nav, params={}}) => {
+  const store   = params.store   || '阿明早餐店';
+  const detail  = params.detail  || '$25 現金折抵';
+  const expires = params.expires || '11/08';
+  const amount  = params.amount  || 25;
+  const [obStep,   setObStep]   = React.useState(0);
+  const [obActive, setObActive] = React.useState(true);
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',paddingBottom:24,overflowY:'auto',position:'relative'}}>
+      <StatusBar/>
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'2px 16px 12px'}}>
+        <button onClick={()=>nav('home')} style={{width:36,height:36,background:C.card,border:`2px solid ${C.border}`,
+          boxShadow:sh(2),borderRadius:4,fontSize:20,display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+        <span style={{fontWeight:800,fontSize:18,flex:1,letterSpacing:'-0.02em'}}>優惠券</span>
+        <HelpBtn onClick={()=>{setObStep(0);setObActive(true);}}/>
+      </div>
+      <div style={{padding:'0 16px 14px'}}>
+        <div style={{background:C.yellow,border:`3px solid ${C.border}`,boxShadow:sh(5),
+          borderRadius:8,padding:'20px 20px 16px',position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',top:12,right:12,background:C.red,border:`2px solid ${C.border}`,
+            borderRadius:4,padding:'2px 8px',fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,color:'#fff'}}>⚡ 7天內到期</div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,letterSpacing:'0.1em',
+            textTransform:'uppercase',color:'rgba(51,51,51,0.65)',marginBottom:8}}>{store}</div>
+          <div style={{display:'flex',alignItems:'flex-start',gap:4,lineHeight:1,marginBottom:6}}>
+            <span style={{fontSize:28,fontWeight:900,color:C.fg,marginTop:10}}>$</span>
+            <span style={{fontSize:72,fontWeight:900,letterSpacing:'-0.05em',color:C.fg}}>{amount}</span>
+          </div>
+          <div style={{fontWeight:700,fontSize:14,color:C.fg}}>現金折抵券</div>
+          <div style={{position:'relative',margin:'16px -20px'}}>
+            <div style={{borderTop:'2.5px dashed rgba(51,51,51,0.25)',marginLeft:20,marginRight:20}}/>
+            <div style={{position:'absolute',left:-8,top:'50%',transform:'translateY(-50%)',
+              width:20,height:20,borderRadius:'50%',background:C.bg,border:`2px solid ${C.border}`}}/>
+            <div style={{position:'absolute',right:-8,top:'50%',transform:'translateY(-50%)',
+              width:20,height:20,borderRadius:'50%',background:C.bg,border:`2px solid ${C.border}`}}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
+            <div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,textTransform:'uppercase',
+                letterSpacing:'0.08em',color:'rgba(51,51,51,0.6)',marginBottom:3}}>到期日</div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,color:C.fg}}>2026 / {expires}</div>
+            </div>
+            <div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,textTransform:'uppercase',
+                letterSpacing:'0.08em',color:'rgba(51,51,51,0.6)',marginBottom:3}}>分享獎勵</div>
+              <div style={{display:'flex',gap:3}}>
+                {[0,1,2].map(i=><GemIcon key={i} size={18} color={C.purpleLight}/>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:'0 16px 12px'}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>使用說明</div>
+        <ul style={{paddingLeft:20,fontSize:12,color:C.fg,lineHeight:1.8}}>
+          <li>結帳時出示 QR Code 給店員掃描</li>
+          <li>不可與其他優惠合併使用</li>
+          <li>店內、外帶皆可使用 · 限本人使用</li>
+        </ul>
+      </div>
+      <div style={{margin:'0 16px 80px',padding:'10px 12px',
+        background:C.purpleLight,border:`2px dashed ${C.purple}`,borderRadius:6,
+        display:'flex',alignItems:'center',gap:10}}>
+        <GemIcon size={22} color={C.purple}/>
+        <div style={{fontSize:12,lineHeight:1.5}}>
+          <b>用不到？分享出去</b><br/>
+          <span style={{color:C.muted}}>有人領用後，你可賺 <b>+3 顆寶石</b></span>
+        </div>
+      </div>
+      <div style={{position:'absolute',left:0,right:0,bottom:0,padding:'10px 16px 18px',
+        background:`linear-gradient(180deg,transparent,${C.bg} 30%)`,display:'flex',gap:10}}>
+        <button onClick={()=>nav('coupon-share',{store,detail,expires,amount})} style={{flex:1,padding:'14px 10px',background:C.yellow,
+          border:`2.5px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+          fontWeight:800,fontSize:13,color:C.fg,display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 3L11 13"/><path d="M21 3L14 21L11 13L3 10Z"/>
+          </svg>
+          分享賺寶石
+        </button>
+        <button onClick={()=>nav('coupon-qr',{store,detail,expires,amount})} style={{flex:1,padding:'14px 10px',background:C.fg,
+          border:`2.5px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+          fontWeight:800,fontSize:13,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <path d="M14 14h3v3h-3zM18 14h3M14 18v3" strokeLinecap="round"/>
+          </svg>
+          立即使用
+        </button>
+      </div>
+      {obActive && <OnboardingOverlay screenKey="coupon-detail" step={obStep} onNext={()=>setObStep(s=>s+1)} onDone={()=>setObActive(false)}/>}
+    </div>
+  );
+};
+
+// ── Coupon QR Screen ───────────────────────────────────────────────────────────
+const CouponUseQRScreen = ({nav, params={}, couPoints, setCouPoints}) => {
+  const [torch,   setTorch]   = React.useState(false);
+  const [success, setSuccess] = React.useState(false);
+  const store  = params.store  || '阿明早餐店';
+  const amount = params.amount || 25;
+
+  const handleScan = () => {
+    setSuccess(true);
+    setCouPoints(p => p + amount);
+    setTimeout(()=>nav('home'), 2600);
+  };
+
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',background:'#0a0a0a',color:'#fff'}}>
+      <StatusBar/>
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'2px 16px 10px',position:'relative',zIndex:5}}>
+        <button onClick={()=>nav('coupon-detail',params)} style={{width:36,height:36,
+          background:'rgba(255,255,255,0.08)',border:'2px solid rgba(255,255,255,0.3)',
+          boxShadow:'3px 3px 0 rgba(255,255,255,0.08)',borderRadius:4,fontSize:20,
+          display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}>←</button>
+        <span style={{fontWeight:800,fontSize:18,flex:1,letterSpacing:'-0.02em'}}>掃描店家 QR</span>
+      </div>
+      <div style={{margin:'0 16px 14px',padding:'10px 14px',
+        background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:sh(2),borderRadius:6,
+        display:'flex',alignItems:'center',gap:12,position:'relative',zIndex:5}}>
+        <div style={{fontWeight:900,fontSize:26,fontFamily:"'JetBrains Mono',monospace",color:C.fg}}>${amount}</div>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:14,color:C.fg}}>{store}</div>
+          <div style={{fontSize:11,color:'rgba(51,51,51,0.65)'}}>現金折抵券 · 到期 {params.expires||'11/08'}</div>
+        </div>
+        <div style={{padding:'3px 8px',background:C.fg,border:`1.5px solid ${C.border}`,
+          borderRadius:4,fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,color:C.yellow}}>⚡ 7天</div>
+      </div>
+      <div style={{flex:1,position:'relative',overflow:'hidden',margin:'0 16px',borderRadius:8,
+        border:`2.5px solid ${C.border}`,boxShadow:sh(3),background:torch?'#1a1208':'#0d0d0d'}}>
+        <div style={{position:'absolute',inset:0,
+          background:'radial-gradient(ellipse at 50% 40%, rgba(255,173,49,0.04) 0%, transparent 70%)'}}/>
+        {/* Corner brackets */}
+        {[['top','left'],['top','right'],['bottom','left'],['bottom','right']].map(([v,h],i)=>(
+          <div key={i} style={{position:'absolute',[v]:18,[h]:18,width:30,height:30,pointerEvents:'none'}}>
+            <div style={{position:'absolute',[v]:0,[h]:0,width:30,height:3,background:C.yellow,borderRadius:1}}/>
+            <div style={{position:'absolute',[v]:0,[h]:0,width:3,height:30,background:C.yellow,borderRadius:1}}/>
+          </div>
+        ))}
+        <div style={{position:'absolute',left:28,right:28,height:2,
+          background:C.yellow,boxShadow:`0 0 10px ${C.yellow}, 0 0 4px ${C.yellow}`,
+          animation:'nbQRScan 2s linear infinite',zIndex:5,borderRadius:1}}/>
+        <button onClick={()=>setTorch(t=>!t)} style={{position:'absolute',top:14,right:14,width:34,height:34,
+          background:torch?C.yellow:'rgba(255,255,255,0.08)',
+          border:`2px solid ${torch?C.border:'rgba(255,255,255,0.3)'}`,
+          borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',zIndex:6}}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke={torch?C.fg:'rgba(255,255,255,0.7)'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 2l-1 6H5l6 14 1-8h3L9 2z"/>
+          </svg>
+        </button>
+        <div style={{position:'absolute',bottom:16,left:0,right:0,textAlign:'center',
+          fontFamily:"'JetBrains Mono',monospace",fontSize:11,letterSpacing:'0.04em',
+          color:'rgba(255,255,255,0.55)'}}>將店家 QR Code 對準框內</div>
+        {/* Success overlay */}
+        {success && (
+          <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.82)',display:'flex',
+            flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:20}}>
+            <div style={{width:80,height:80,borderRadius:8,background:C.green,
+              border:`3px solid #fff`,boxShadow:`6px 6px 0 #000`,
+              display:'flex',alignItems:'center',justifyContent:'center',marginBottom:16,
+              animation:'nbSuccessPop 0.6s cubic-bezier(.34,1.56,.64,1)'}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17L4 12"/>
+              </svg>
+            </div>
+            <div style={{fontWeight:800,fontSize:20,letterSpacing:'-0.02em'}}>使用成功！</div>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.55)',marginTop:6}}>+{amount} pt 已入帳</div>
+            <div style={{marginTop:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:'rgba(255,255,255,0.35)'}}>返回首頁中…</div>
+          </div>
+        )}
+      </div>
+      <div style={{padding:'12px 16px 14px',position:'relative',zIndex:5}}>
+        <button onClick={handleScan} disabled={success} style={{width:'100%',padding:'14px',
+          background:success?'rgba(255,255,255,0.08)':C.yellow,
+          border:`2.5px solid ${success?'rgba(255,255,255,0.2)':C.border}`,
+          boxShadow:success?'none':sh(3),borderRadius:6,
+          fontWeight:800,fontSize:15,color:success?'rgba(255,255,255,0.3)':C.fg,
+          fontFamily:"'JetBrains Mono',monospace",letterSpacing:'0.02em'}}>
+          {success?'掃描成功 ✓':'模擬掃描成功 ▶'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Coupon Share Screen ────────────────────────────────────────────────────────
+const CouponShareScreen = ({nav, params={}, gems, setGems}) => {
+  const [target,  setTarget]  = React.useState(null);
+  const [note,    setNote]    = React.useState('');
+  const [success, setSuccess] = React.useState(false);
+  const [obStep,  setObStep]  = React.useState(0);
+  const [obActive,setObActive]= React.useState(true);
+  const store  = params.store  || '阿明早餐店';
+  const amount = params.amount || 25;
+  const examples = ['我用不到了，希望你會喜歡 ☕','剛吃完真的不錯，推薦你試試！','送給有緣人～有空去逛逛'];
+
+  const handleConfirm = () => {
+    setSuccess(true);
+    setGems(g => g + 1);
+    setTimeout(()=>nav('home'), 2500);
+  };
+
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto',position:'relative'}}>
+      <StatusBar/>
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'2px 16px 10px'}}>
+        <button onClick={()=>nav('coupon-detail',params)} style={{width:36,height:36,background:C.card,
+          border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:4,fontSize:20,
+          display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+        <span style={{fontWeight:800,fontSize:18,flex:1,letterSpacing:'-0.02em'}}>分享優惠券</span>
+        <HelpBtn onClick={()=>{setObStep(0);setObActive(true);}}/>
+      </div>
+      <div style={{margin:'0 16px 12px',padding:'14px',
+        background:C.purpleLight,border:`2.5px solid ${C.purple}`,boxShadow:sh(3),borderRadius:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{width:52,height:52,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <GemIcon size={46} color={C.purple}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:14,lineHeight:1.3}}>分享這張券，有人使用 → 你賺寶石</div>
+            <div style={{fontSize:11,color:C.fg,marginTop:4,lineHeight:1.5}}>
+              每張券回饋 <b style={{color:C.purple}}>1 顆寶石</b>，可在 Spinner 兌換獎品
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{margin:'0 16px 12px',padding:'10px 12px',
+        background:C.card,border:`2.5px solid ${C.border}`,boxShadow:sh(2),borderRadius:6,
+        display:'flex',alignItems:'center',gap:12}}>
+        <div style={{fontWeight:900,fontSize:26,fontFamily:"'JetBrains Mono',monospace",color:C.yellow,minWidth:52}}>${amount}</div>
+        <div style={{flex:1,fontSize:12}}>
+          <div style={{fontWeight:700}}>{store}</div>
+          <div style={{color:C.muted,fontSize:10}}>到期 {params.expires||'11/08'} · 中山店</div>
+        </div>
+        <div style={{fontSize:10,color:C.muted}}>準備分享…</div>
+      </div>
+      <div style={{margin:'0 16px 12px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:6}}>
+          <div style={{fontWeight:700,fontSize:13}}>給領券的人留句話</div>
+          <div style={{fontSize:10,color:C.muted}}>選填</div>
+        </div>
+        <div style={{position:'relative'}}>
+          <textarea value={note} onChange={e=>setNote(e.target.value)}
+            placeholder="例如：我吃過很喜歡，希望你也會喜歡 ☕" maxLength={80}
+            style={{width:'100%',height:70,resize:'none',border:`2px solid ${C.border}`,borderRadius:6,
+              padding:'8px 10px',fontSize:12,lineHeight:1.5,color:C.fg,background:C.bg,outline:'none',boxSizing:'border-box'}}/>
+          <div style={{position:'absolute',bottom:6,right:8,fontSize:9,color:C.muted,
+            fontFamily:"'JetBrains Mono',monospace"}}>{note.length}/80</div>
+        </div>
+        <div style={{display:'flex',gap:6,marginTop:6,flexWrap:'wrap'}}>
+          {examples.map((ex,i)=>(
+            <div key={i} onClick={()=>setNote(ex)}
+              style={{padding:'4px 8px',background:C.yellowLight,border:`1.5px solid ${C.border}`,
+                boxShadow:sh(1),borderRadius:4,fontSize:10,cursor:'pointer',fontWeight:500}}>{ex}</div>
+          ))}
+        </div>
+      </div>
+      <div style={{margin:'0 16px 14px'}}>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>選擇分享方式</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {[
+            {id:'map',icon:(
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path d="M12 22 Q5 14 5 9 A7 7 0 1 1 19 9 Q19 14 12 22 Z" fill={C.yellow} stroke="#fff" strokeWidth="1.4"/>
+                <circle cx="12" cy="9" r="2.6" fill="#fff"/>
+              </svg>
+            ),title:'釋出到 CouMap',sub:'附近的人都看得到 · 適合無特定對象'},
+            {id:'link',icon:(
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/>
+                <path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>
+              </svg>
+            ),title:'連結傳給朋友',sub:'複製連結，傳到 LINE / 訊息給特定的人'},
+          ].map(opt=>(
+            <div key={opt.id} onClick={()=>setTarget(opt.id)}
+              style={{padding:'12px',display:'flex',alignItems:'center',gap:12,cursor:'pointer',
+                background:target===opt.id?C.yellowLight:C.card,
+                border:`${target===opt.id?'2.5':'2'}px solid ${target===opt.id?C.yellow:C.border}`,
+                boxShadow:target===opt.id?sh(2):'none',borderRadius:6}}>
+              <div style={{width:46,height:46,borderRadius:6,background:C.fg,
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{opt.icon}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:14}}>{opt.title}</div>
+                <div style={{fontSize:10,color:C.muted,marginTop:2,lineHeight:1.4}}>{opt.sub}</div>
+              </div>
+              <div style={{width:20,height:20,borderRadius:'50%',
+                border:`2px solid ${target===opt.id?C.fg:C.subtle}`,
+                background:target===opt.id?C.fg:'transparent',
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                {target===opt.id && <div style={{width:8,height:8,borderRadius:'50%',background:'#fff'}}/>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{padding:'0 16px 18px'}}>
+        <button disabled={!target} onClick={handleConfirm} style={{width:'100%',padding:'14px',
+          background:target?C.purple:'#ddd',border:`2.5px solid ${target?C.border:C.subtle}`,
+          boxShadow:target?sh(3):'none',borderRadius:6,
+          fontWeight:800,fontSize:15,color:target?'#fff':C.muted,
+          cursor:target?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',gap:9}}>
+          <GemIcon size={18} color={target?C.purpleLight:C.muted}/>
+          {target==='map'?'釋出到 CouMap':target==='link'?'建立連結':'選一個分享方式'}
+        </button>
+        <div style={{fontSize:10,color:C.muted,textAlign:'center',marginTop:7}}>每張券限分享一次 · 領用後 3 天內可賺寶石</div>
+      </div>
+      {obActive && <OnboardingOverlay screenKey="coupon-share" step={obStep} onNext={()=>setObStep(s=>s+1)} onDone={()=>setObActive(false)}/>}
+      {/* Success overlay */}
+      {success && (
+        <div style={{position:'absolute',inset:0,background:'rgba(250,250,248,0.97)',
+          display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:30}}>
+          <div style={{width:80,height:80,borderRadius:8,background:C.purple,
+            border:`3px solid ${C.border}`,boxShadow:`6px 6px 0 ${C.border}`,
+            display:'flex',alignItems:'center',justifyContent:'center',marginBottom:16,
+            animation:'nbSuccessPop 0.6s cubic-bezier(.34,1.56,.64,1)'}}>
+            <GemIcon size={46} color={C.purpleLight}/>
+          </div>
+          <div style={{fontWeight:800,fontSize:22,letterSpacing:'-0.02em',color:C.fg}}>已分享！</div>
+          <div style={{fontSize:13,color:C.muted,marginTop:6}}>+1 顆寶石 已入帳</div>
+          <div style={{marginTop:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:C.muted}}>返回首頁中…</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Settings ───────────────────────────────────────────────────────────────────
+const ToggleSwitch = ({value, onChange}) => (
+  <div onClick={()=>onChange(!value)} style={{width:44,height:26,borderRadius:13,
+    background:value?C.yellow:C.subtle,border:`2px solid ${C.border}`,
+    boxShadow:sh(2),cursor:'pointer',position:'relative',transition:'background 0.2s',flexShrink:0}}>
+    <div style={{position:'absolute',top:2,left:value?18:2,width:18,height:18,
+      borderRadius:'50%',background:C.fg,transition:'left 0.2s'}}/>
+  </div>
+);
+
+// ── Settings modals ────────────────────────────────────────────────────────────
+const EditProfileModal = ({name, email, phone, onSave, onClose}) => {
+  const [n, setN] = React.useState(name);
+  const [e, setE] = React.useState(email);
+  const [p, setP] = React.useState(phone);
+  const fld = (label, val, setVal, type='text', ph='') => (
+    <div style={{marginBottom:12}}>
+      <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:5,
+        fontFamily:"'JetBrains Mono',monospace",letterSpacing:'0.06em',textTransform:'uppercase'}}>{label}</div>
+      <input value={val} onChange={ev=>setVal(ev.target.value)} type={type} placeholder={ph}
+        style={{width:'100%',padding:'11px 12px',border:`2px solid ${C.border}`,boxShadow:sh(2),
+          borderRadius:5,fontSize:14,fontWeight:600,outline:'none',background:C.card}}/>
+    </div>
+  );
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.yellow}`}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 16px'}}/>
+        <div style={{fontWeight:800,fontSize:18,letterSpacing:'-0.02em',marginBottom:16}}>編輯個人資料</div>
+        {fld('顯示名稱', n, setN)}
+        {fld('電子信箱', e, setE, 'email')}
+        {fld('手機號碼', p, setP, 'tel', '+886 9xx-xxx-xxx')}
+        <button onClick={()=>{onSave(n,e,p,n!==name,e!==email,p!==phone);onClose();}} style={{width:'100%',padding:'14px',
+          background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+          fontWeight:800,fontSize:15,color:C.fg}}>儲存</button>
+      </div>
+    </div>
+  );
+};
+
+const LogoutConfirmModal = ({onLogout, onClose}) => (
+  <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+    <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+    <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+      border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+      animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.red}`}}>
+      <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 16px'}}/>
+      <div style={{fontWeight:800,fontSize:18,marginBottom:6}}>登出帳號</div>
+      <div style={{fontSize:13,color:C.muted,marginBottom:22}}>確定要登出嗎？下次登入還需要驗證身份。</div>
+      <div style={{display:'flex',gap:10}}>
+        <button onClick={onClose} style={{flex:1,padding:'13px',background:C.card,
+          border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:6,
+          fontWeight:700,fontSize:14,color:C.fg}}>取消</button>
+        <button onClick={onLogout} style={{flex:1,padding:'13px',background:C.red,
+          border:`2px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+          fontWeight:800,fontSize:14,color:'#fff'}}>確定登出</button>
+      </div>
+    </div>
+  </div>
+);
+
+const DeleteAccountModal = ({onClose}) => {
+  const [state, setState] = React.useState(null);
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.red}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.red}`}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 16px'}}/>
+        <div style={{fontWeight:800,fontSize:18,marginBottom:4,color:C.red}}>刪除帳號</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:18}}>這個動作無法撤銷。所有資料將永久消失。</div>
+        {state==='confirm' ? (
+          <div style={{marginBottom:14}}>
+            <div style={{background:'#FEE2E2',border:`2px solid ${C.red}`,borderRadius:6,padding:'12px',marginBottom:12}}>
+              <div style={{fontWeight:700,fontSize:13,color:C.red}}>⚠ 最後確認</div>
+              <div style={{fontSize:11,color:C.muted,marginTop:3}}>所有優惠券、寶石和 CouPoints 將無法恢復</div>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setState(null)} style={{flex:1,padding:'11px',background:C.card,
+                border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:5,fontWeight:700,fontSize:13}}>取消</button>
+              <button onClick={()=>setState('done')} style={{flex:1,padding:'11px',background:C.red,
+                border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:5,fontWeight:700,fontSize:13,color:'#fff'}}>確認刪除</button>
+            </div>
+          </div>
+        ) : state==='done' ? (
+          <div style={{textAlign:'center',padding:'12px 0 24px'}}>
+            <div style={{fontSize:36,marginBottom:8}}>👋</div>
+            <div style={{fontWeight:700,fontSize:15}}>帳號已刪除</div>
+            <div style={{fontSize:11,color:C.muted,marginTop:4}}>感謝使用 CouPro，掰掰！</div>
+          </div>
+        ) : (
+          <button onClick={()=>setState('confirm')} style={{width:'100%',padding:'14px',background:C.red,
+            border:`2px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+            fontWeight:800,fontSize:15,color:'#fff',marginBottom:10}}>我確定要刪除帳號</button>
+        )}
+        <button onClick={onClose} style={{width:'100%',padding:'12px',background:C.fg,border:`2px solid ${C.border}`,
+          boxShadow:sh(2),borderRadius:5,fontWeight:700,fontSize:13,color:'#fff',marginTop:4}}>取消</button>
+      </div>
+    </div>
+  );
+};
+
+const FeedbackModal = ({type, onClose}) => {
+  const [text, setText] = React.useState('');
+  const [sent, setSent] = React.useState(false);
+  const isBug = type === 'bug';
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.yellow}`}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 16px'}}/>
+        <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>{isBug ? '🐞 回報問題' : '💡 功能建議'}</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:14}}>
+          {isBug ? '描述你遇到的問題，我們會透過信箱回覆。' : '告訴我們你希望 CouPro 新增什麼功能。'}
+        </div>
+        {sent ? (
+          <div style={{background:C.yellowLight,border:`2px solid ${C.border}`,boxShadow:sh(2),
+            borderRadius:6,padding:'16px',textAlign:'center',marginBottom:14}}>
+            <div style={{fontSize:24,marginBottom:6}}>✓</div>
+            <div style={{fontWeight:700,fontSize:14}}>已送出！謝謝你的回饋</div>
+            <div style={{fontSize:11,color:C.muted,marginTop:3}}>我們會盡快透過 {isBug?'bug':'feature'}@coupro.app 回覆</div>
+          </div>
+        ) : (
+          <>
+            <textarea value={text} onChange={ev=>setText(ev.target.value)}
+              placeholder={isBug ? '例：點擊「抽券」後畫面閃退…' : '例：希望可以掃描條碼直接領取…'}
+              style={{width:'100%',height:110,padding:'11px 12px',border:`2px solid ${C.border}`,
+                boxShadow:sh(2),borderRadius:5,fontSize:13,resize:'none',outline:'none',
+                background:C.card,marginBottom:12}}/>
+            <button onClick={()=>text.trim()&&setSent(true)} style={{width:'100%',padding:'14px',
+              background:text.trim()?C.yellow:'#ddd',border:`2.5px solid ${C.border}`,
+              boxShadow:text.trim()?sh(3):'none',borderRadius:6,fontWeight:800,fontSize:15,
+              color:C.fg,transition:'all 0.15s'}}>
+              送出至 {isBug?'bug':'feature'}@coupro.app
+            </button>
+          </>
+        )}
+        <button onClick={onClose} style={{width:'100%',padding:'11px',background:C.fg,
+          border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:5,
+          fontWeight:700,fontSize:13,color:'#fff',marginTop:8}}>關閉</button>
+      </div>
+    </div>
+  );
+};
+
+const BLOCKED_MERCHANTS_INIT = ['廣告商家 A','煩人推播店 B'];
+const BlockedMerchantsModal = ({onClose}) => {
+  const [list, setList] = React.useState(BLOCKED_MERCHANTS_INIT);
+  const [input, setInput] = React.useState('');
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.yellow}`,maxHeight:'70%',
+        display:'flex',flexDirection:'column'}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 14px'}}/>
+        <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>封鎖商家</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:14}}>封鎖的商家不會出現在你的 CouMap 或優惠通知中。</div>
+        <div style={{flex:1,overflowY:'auto',marginBottom:12}}>
+          {list.length===0 ? (
+            <div style={{textAlign:'center',padding:'20px',color:C.muted,fontSize:13}}>尚未封鎖任何商家</div>
+          ) : list.map((m,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+              padding:'10px 12px',background:C.card,border:`2px solid ${C.border}`,boxShadow:sh(2),
+              borderRadius:6,marginBottom:8}}>
+              <span style={{fontSize:14,fontWeight:600}}>{m}</span>
+              <button onClick={()=>setList(l=>l.filter((_,j)=>j!==i))}
+                style={{padding:'4px 10px',background:C.red,border:`1.5px solid ${C.border}`,
+                  borderRadius:4,color:'#fff',fontWeight:700,fontSize:12}}>解除</button>
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',gap:8,marginBottom:8}}>
+          <input value={input} onChange={ev=>setInput(ev.target.value)} placeholder="輸入商家名稱…"
+            style={{flex:1,padding:'10px 12px',border:`2px solid ${C.border}`,boxShadow:sh(2),
+              borderRadius:5,fontSize:13,outline:'none',background:C.card}}/>
+          <button onClick={()=>{if(input.trim()){setList(l=>[...l,input.trim()]);setInput('');}}}
+            style={{padding:'10px 14px',background:C.yellow,border:`2px solid ${C.border}`,
+              boxShadow:sh(2),borderRadius:5,fontWeight:800,fontSize:14,color:C.fg}}>+</button>
+        </div>
+        <button onClick={onClose} style={{width:'100%',padding:'12px',background:C.fg,border:`2px solid ${C.border}`,
+          boxShadow:sh(2),borderRadius:5,fontWeight:700,fontSize:13,color:'#fff'}}>完成</button>
+      </div>
+    </div>
+  );
+};
+
+const VerifyModal = ({field, currentVal, onClose}) => {
+  const [code, setCode] = React.useState('');
+  const [step, setStep] = React.useState('input');
+  const isEmail = field === 'email';
+  const label = isEmail ? '電子信箱' : '手機號碼';
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 32px',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.yellow}`}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 16px'}}/>
+        <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>驗證{label}</div>
+        {step==='sent' ? (
+          <>
+            <div style={{fontSize:12,color:C.muted,marginBottom:14}}>
+              驗證碼已發送至 <strong>{currentVal}</strong>
+            </div>
+            <div style={{display:'flex',gap:6,marginBottom:14}}>
+              {[0,1,2,3,4,5].map(i=>(
+                <div key={i} style={{flex:1,height:52,background:C.card,border:`2.5px solid ${i<code.length?C.yellow:C.border}`,
+                  boxShadow:i<code.length?sh(2):'none',borderRadius:6,display:'flex',alignItems:'center',
+                  justifyContent:'center',fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:22}}>
+                  {code[i]||''}
+                </div>
+              ))}
+            </div>
+            <input value={code} onChange={ev=>setCode(ev.target.value.slice(0,6).replace(/\D/g,''))}
+              placeholder="輸入 6 位數驗證碼" type="tel" maxLength={6}
+              style={{width:'100%',padding:'11px 12px',border:`2px solid ${C.border}`,boxShadow:sh(2),
+                borderRadius:5,fontSize:16,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,
+                letterSpacing:'0.15em',outline:'none',background:C.card,marginBottom:12,textAlign:'center'}}/>
+            <button onClick={()=>code.length===6&&setStep('done')} style={{width:'100%',padding:'14px',
+              background:code.length===6?C.yellow:'#ddd',border:`2.5px solid ${C.border}`,
+              boxShadow:code.length===6?sh(3):'none',borderRadius:6,fontWeight:800,fontSize:15,
+              color:C.fg,transition:'all 0.15s'}}>確認驗證</button>
+          </>
+        ) : step==='done' ? (
+          <div style={{textAlign:'center',padding:'12px 0 12px'}}>
+            <div style={{width:56,height:56,borderRadius:'50%',background:C.green,border:`2.5px solid ${C.border}`,
+              boxShadow:sh(3),display:'flex',alignItems:'center',justifyContent:'center',
+              fontSize:26,color:'#fff',fontWeight:700,margin:'0 auto 12px'}}>✓</div>
+            <div style={{fontWeight:800,fontSize:16,color:C.green}}>{label}驗證成功！</div>
+          </div>
+        ) : (
+          <>
+            <div style={{fontSize:12,color:C.muted,marginBottom:14}}>
+              點擊後，驗證{isEmail?'碼':'碼'}將發送至：<br/>
+              <strong>{currentVal||'（尚未設定）'}</strong>
+            </div>
+            <button onClick={()=>currentVal&&setStep('sent')} style={{width:'100%',padding:'14px',
+              background:currentVal?C.yellow:'#ddd',border:`2.5px solid ${C.border}`,
+              boxShadow:currentVal?sh(3):'none',borderRadius:6,fontWeight:800,fontSize:15,color:C.fg,marginBottom:10}}>
+              發送驗證碼
+            </button>
+          </>
+        )}
+        <button onClick={onClose} style={{width:'100%',padding:'11px',background:C.fg,
+          border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:5,
+          fontWeight:700,fontSize:13,color:'#fff',marginTop:step==='input'?0:8}}>關閉</button>
+      </div>
+    </div>
+  );
+};
+
+const LegalTextModal = ({title, onClose}) => {
+  const texts = {
+    '服務條款': '本服務條款（「條款」）規定了您使用 CouPro 應用程式的條件。\n\n1. 使用資格\n您必須年滿 13 歲才能使用本服務。\n\n2. 帳號責任\n您負責維護帳號安全，並對帳號下的所有活動負責。\n\n3. 優惠券使用\n優惠券有效期限內方可使用，逾期失效恕不補發。分享或轉讓優惠券需遵守本服務規定。\n\n4. 服務變更\n我們保留隨時修改或中止服務的權利，將提前通知用戶。\n\n5. 免責聲明\n本服務「按現狀」提供，不提供任何明示或暗示的保證。\n\n如有疑問請聯繫 support@coupro.app',
+    '隱私政策': '本隱私政策說明 CouPro 如何收集、使用及保護您的個人資料。\n\n1. 資料收集\n我們收集您提供的資訊（如姓名、電子信箱）及使用服務時產生的資料（如優惠券記錄、位置資料）。\n\n2. 資料使用\n• 提供和改善服務\n• 發送優惠通知\n• 防範欺詐行為\n\n3. 隱私模式\n開啟隱私模式後，您的位置將不會顯示在 CouMap 上。\n\n4. 資料分享\n我們不會出售您的個人資料。僅在法律要求或獲得您同意的情況下分享資料。\n\n5. 資料保留\n您可以隨時申請刪除帳號及相關資料。\n\n如有疑問請聯繫 privacy@coupro.app',
+  };
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:160,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.5)'}} onClick={onClose}/>
+      <div style={{position:'relative',background:C.bg,borderRadius:'16px 16px 0 0',
+        border:`3px solid ${C.border}`,borderBottom:'none',padding:'20px 16px 0',
+        animation:'nbModalIn 0.28s ease-out',boxShadow:`0 -6px 0 ${C.yellow}`,
+        height:'72%',display:'flex',flexDirection:'column'}}>
+        <div style={{width:40,height:5,background:C.border,borderRadius:2,margin:'0 auto 14px'}}/>
+        <div style={{fontWeight:800,fontSize:18,marginBottom:14}}>{title}</div>
+        <div style={{flex:1,overflowY:'auto',marginBottom:0}}>
+          <div style={{fontSize:12,lineHeight:1.75,color:C.fg,whiteSpace:'pre-line',paddingBottom:24}}>
+            {texts[title]||'（內容即將更新）'}
+          </div>
+        </div>
+        <div style={{padding:'14px 0 32px',background:C.bg}}>
+          <button onClick={onClose} style={{width:'100%',padding:'12px',background:C.fg,border:`2px solid ${C.border}`,
+            boxShadow:sh(2),borderRadius:5,fontWeight:700,fontSize:13,color:'#fff'}}>關閉</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SettingsScreen = ({nav, gems, couPoints}) => {
+  const [obStep,       setObStep]       = React.useState(0);
+  const [obActive,     setObActive]     = React.useState(false);
+  const [profileName,  setProfileName]  = React.useState('CoKayne');
+  const [profileEmail, setProfileEmail] = React.useState('duankayne@gmail.com');
+  const [profilePhone, setProfilePhone] = React.useState('+886 912-345-678');
+  const [emailVerified,setEmailVerified]= React.useState(true);
+  const [phoneVerified,setPhoneVerified]= React.useState(false);
+  const [showEdit,     setShowEdit]     = React.useState(false);
+  const [showLogout,   setShowLogout]   = React.useState(false);
+  const [showDelete,   setShowDelete]   = React.useState(false);
+  const [showTerms,    setShowTerms]    = React.useState(false);
+  const [showPrivacy,  setShowPrivacy]  = React.useState(false);
+  const [feedbackType, setFeedbackType] = React.useState(null);
+  const [showBlocked,  setShowBlocked]  = React.useState(false);
+  const [verifyField,  setVerifyField]  = React.useState(null);
+
+  const sec = (label) => (
+    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,letterSpacing:'0.1em',
+      textTransform:'uppercase',color:C.muted,marginBottom:8,marginTop:4}}>{label}</div>
+  );
+  const Row = ({label, sub, right, onClick}) => (
+    <div onClick={onClick} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+      padding:'13px 14px',background:C.card,border:`2px solid ${C.border}`,
+      boxShadow:sh(2),borderRadius:6,marginBottom:8,cursor:onClick?'pointer':'default'}}>
+      <div>
+        <div style={{fontWeight:600,fontSize:14,letterSpacing:'-0.01em'}}>{label}</div>
+        {sub && <div style={{fontSize:11,color:C.muted,marginTop:2}}>{sub}</div>}
+      </div>
+      {right}
+    </div>
+  );
+  const VerifiedBadge = ({ok}) => (
+    <span style={{padding:'3px 8px',background:ok?C.green:C.subtle,border:`1.5px solid ${C.border}`,
+      borderRadius:3,fontSize:10,fontWeight:700,color:ok?'#fff':C.muted,
+      fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>
+      {ok ? '✓ 已驗證' : '未驗證'}
+    </span>
+  );
+
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',position:'relative',overflow:'hidden'}}>
+      <div style={{flex:1,overflowY:'auto',paddingBottom:16}}>
+        <StatusBar/>
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'2px 20px 14px'}}>
+          <button onClick={()=>nav('home')} style={{width:34,height:34,background:C.card,
+            border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:4,
+            display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:700}}>←</button>
+          <span style={{fontSize:20,fontWeight:800,letterSpacing:'-0.03em'}}>設定</span>
+          <div style={{marginLeft:'auto'}}>
+            <HelpBtn onClick={()=>{setObStep(0);setObActive(true);}}/>
+          </div>
+        </div>
+
+        {/* Profile card — no avatar */}
+        <div style={{padding:'0 16px 16px'}}>
+          <div style={{background:C.yellow,border:`2.5px solid ${C.border}`,boxShadow:sh(5),borderRadius:8,padding:'18px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+              <div style={{minWidth:0}}>
+                <div style={{fontWeight:900,fontSize:20,letterSpacing:'-0.03em',color:C.fg}}>{profileName}</div>
+                <div style={{fontSize:12,color:'rgba(51,51,51,0.65)',marginTop:2}}>{profileEmail}</div>
+                <div style={{fontSize:12,color:'rgba(51,51,51,0.65)',marginTop:1}}>{profilePhone}</div>
+              </div>
+              <button onClick={()=>setShowEdit(true)} style={{padding:'8px 12px',background:C.fg,
+                border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:4,
+                color:C.yellow,fontWeight:700,fontSize:12,flexShrink:0,marginLeft:10}}>編輯</button>
+            </div>
+            <div style={{display:'flex',gap:6}}>
+              <span style={{padding:'2px 8px',background:C.fg,color:C.yellow,border:`1.5px solid ${C.border}`,
+                borderRadius:3,fontSize:10,fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>
+                {couPoints} pt
+              </span>
+              <span style={{padding:'2px 8px',background:C.purpleLight,color:C.fg,border:`1.5px solid ${C.border}`,
+                borderRadius:3,fontSize:10,fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>
+                {gems} 💎
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Verification section */}
+        <div style={{padding:'0 16px 8px'}}>
+          {sec('帳號驗證')}
+          <Row label="電子信箱驗證" sub={profileEmail}
+            right={<div style={{display:'flex',alignItems:'center',gap:8}}>
+              <VerifiedBadge ok={emailVerified}/>
+              {!emailVerified&&<button onClick={()=>setVerifyField('email')} style={{padding:'4px 8px',
+                background:C.yellow,border:`1.5px solid ${C.border}`,borderRadius:3,
+                fontSize:11,fontWeight:700,color:C.fg}}>驗證</button>}
+            </div>}
+            onClick={emailVerified?undefined:()=>setVerifyField('email')}/>
+          <Row label="手機號碼驗證" sub={profilePhone}
+            right={<div style={{display:'flex',alignItems:'center',gap:8}}>
+              <VerifiedBadge ok={phoneVerified}/>
+              {!phoneVerified&&<button onClick={()=>setVerifyField('phone')} style={{padding:'4px 8px',
+                background:C.yellow,border:`1.5px solid ${C.border}`,borderRadius:3,
+                fontSize:11,fontWeight:700,color:C.fg}}>驗證</button>}
+            </div>}
+            onClick={phoneVerified?undefined:()=>setVerifyField('phone')}/>
+        </div>
+
+        {/* Feedback section */}
+        <div style={{padding:'0 16px 8px'}}>
+          {sec('回饋')}
+          <Row label="🐞 回報問題" sub="透過信箱告訴我們你遇到的 Bug"
+            right={<span style={{fontSize:16,color:C.muted}}>›</span>}
+            onClick={()=>setFeedbackType('bug')}/>
+          <Row label="💡 功能建議" sub="建議你希望看到的新功能"
+            right={<span style={{fontSize:16,color:C.muted}}>›</span>}
+            onClick={()=>setFeedbackType('feature')}/>
+        </div>
+
+        {/* Privacy / Data section */}
+        <div style={{padding:'0 16px 8px'}}>
+          {sec('隱私與資料')}
+          <Row label="封鎖商家" sub="管理不想看到的商家"
+            right={<span style={{fontSize:16,color:C.muted}}>›</span>}
+            onClick={()=>setShowBlocked(true)}/>
+          <Row label="刪除帳號" sub="永久刪除所有資料"
+            right={<span style={{fontSize:16,color:C.red}}>›</span>}
+            onClick={()=>setShowDelete(true)}/>
+        </div>
+
+        {/* About section */}
+        <div style={{padding:'0 16px 16px'}}>
+          {sec('關於')}
+          <div style={{background:C.card,border:`2px solid ${C.border}`,boxShadow:sh(2),
+            borderRadius:6,overflow:'hidden',marginBottom:8}}>
+            {[['版本','v1.0.0-beta',null],['服務條款','閱讀',()=>setShowTerms(true)],['隱私政策','閱讀',()=>setShowPrivacy(true)]].map(([k,v,action],i,arr)=>(
+              <div key={k} onClick={action||undefined} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                padding:'12px 14px',borderBottom:i<arr.length-1?`1.5px solid ${C.subtle}`:'none',cursor:action?'pointer':'default'}}>
+                <span style={{fontSize:13,fontWeight:500}}>{k}</span>
+                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,
+                  color:action?C.purple:C.muted,fontWeight:action?700:400}}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={()=>setShowLogout(true)} style={{width:'100%',padding:'12px',background:C.red,
+            border:`2px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+            color:'#fff',fontWeight:800,fontSize:14,letterSpacing:'-0.01em'}}>登出帳號</button>
+        </div>
+      </div>
+      {obActive      && <OnboardingOverlay screenKey="settings" step={obStep} onNext={()=>setObStep(s=>s+1)} onDone={()=>setObActive(false)}/>}
+      {showEdit      && <EditProfileModal  name={profileName} email={profileEmail} phone={profilePhone}
+                          onSave={(n,e,p,nameChg,emailChg,phoneChg)=>{
+                            setProfileName(n);setProfileEmail(e);setProfilePhone(p);
+                            if(emailChg){setEmailVerified(false);setVerifyField('email');}
+                            else if(phoneChg){setPhoneVerified(false);setVerifyField('phone');}
+                          }}
+                          onClose={()=>setShowEdit(false)}/>}
+      {showLogout    && <LogoutConfirmModal onLogout={()=>{setShowLogout(false);nav('home');}} onClose={()=>setShowLogout(false)}/>}
+      {showDelete    && <DeleteAccountModal onClose={()=>setShowDelete(false)}/>}
+      {showTerms     && <LegalTextModal title="服務條款" onClose={()=>setShowTerms(false)}/>}
+      {showPrivacy   && <LegalTextModal title="隱私政策" onClose={()=>setShowPrivacy(false)}/>}
+      {feedbackType  && <FeedbackModal type={feedbackType} onClose={()=>setFeedbackType(null)}/>}
+      {showBlocked   && <BlockedMerchantsModal onClose={()=>setShowBlocked(false)}/>}
+      {verifyField   && <VerifyModal field={verifyField}
+                          currentVal={verifyField==='email'?profileEmail:profilePhone}
+                          onClose={()=>{if(verifyField==='email')setEmailVerified(true);else setPhoneVerified(true);setVerifyField(null);}}/>}
+    </div>
+  );
+};
+
+// ── App ────────────────────────────────────────────────────────────────────────
+function App() {
+  const [screen,    setScreen]    = React.useState('home');
+  const [params,    setParams]    = React.useState({});
+  const [gems,      setGems]      = React.useState(3);
+  const [couPoints, setCouPoints] = React.useState(128);
+
+  const nav = (s, p={}) => { setScreen(s); setParams(p); window.scrollTo&&window.scrollTo(0,0); };
+  const sp  = {nav, gems, setGems, couPoints, setCouPoints};
+
+  const screens = {
+    home:          <HomeScreen         {...sp}/>,
+    map:           <MapScreen          {...sp}/>,
+    spinner:       <SpinnerScreen      {...sp}/>,
+    settings:      <SettingsScreen     {...sp}/>,
+    'coupon-detail':<CouponDetailScreen {...sp} params={params}/>,
+    'coupon-qr':   <CouponUseQRScreen  {...sp} params={params}/>,
+    'coupon-share':<CouponShareScreen  {...sp} params={params}/>,
+  };
+
+  return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',
+      minHeight:'100vh',background:'#1A1A1A',fontFamily:"'Space Grotesk', system-ui, sans-serif"}}>
+      <div style={{width:390,height:844,background:C.bg,
+        border:`3px solid ${C.border}`,borderRadius:50,overflow:'hidden',
+        position:'relative',display:'flex',flexDirection:'column',
+        boxShadow:`10px 10px 0 ${C.yellow}, 18px 18px 0 ${C.border}`}}>
+        <div style={{position:'absolute',top:12,left:'50%',transform:'translateX(-50%)',
+          width:124,height:36,background:C.fg,borderRadius:22,zIndex:100,pointerEvents:'none'}}/>
+        {screens[screen] || screens.home}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
