@@ -5,7 +5,7 @@ from rest_framework import status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Exists, F, OuterRef, Prefetch
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q
 import logging
 import re
 from urllib.parse import unquote
@@ -515,9 +515,10 @@ def redeem_coupon(request, id):
 
         # Metric 3 — first-ever exclusive redemption triggers referral reward for original owner.
         try:
-            exclusive_count = CouponRedemption.objects.filter(
-                user=request.user, coupon_type='exclusive'
-            ).count()
+            _redemption_agg = CouponRedemption.objects.filter(user=request.user).aggregate(
+                exclusive_count=Count('id', filter=Q(coupon_type='exclusive')),
+            )
+            exclusive_count = _redemption_agg['exclusive_count']
             voucher_count = PlatformVoucherRedemption.objects.filter(
                 user=request.user
             ).count()

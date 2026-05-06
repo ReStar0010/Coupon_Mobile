@@ -372,7 +372,9 @@ def get_share_request(request, token):
     Get info about a share request (for displaying accept/decline UI).
     """
     try:
-        share_request = CouponShareRequest.objects.get(token=token)
+        share_request = CouponShareRequest.objects.select_related(
+            'coupon', 'from_user'
+        ).get(token=token)
     except CouponShareRequest.DoesNotExist:
         raise ShareRequestNotFound(developer_message="Share request not found or expired.")
     data = {

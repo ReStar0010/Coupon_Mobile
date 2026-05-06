@@ -35,7 +35,7 @@ def get_daily_draw_templates(request):
         remaining_quantity__gt=0,
         start_date__lte=now,
         expiry_date__gt=now
-    )
+    ).select_related('store')
     
     result = []
     for template in active_templates:
