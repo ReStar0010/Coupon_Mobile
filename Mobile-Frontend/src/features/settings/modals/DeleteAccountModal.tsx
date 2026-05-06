@@ -1,0 +1,286 @@
+import React, { useState } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
+import { colors } from '@/src/theme/colors';
+import { fontFamilies } from '@/src/theme/typography';
+
+type DeleteStep = null | 'confirm' | 'done';
+
+interface DeleteAccountModalProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+export default function DeleteAccountModal({
+  visible,
+  onClose,
+}: DeleteAccountModalProps): React.JSX.Element {
+  const [step, setStep] = useState<DeleteStep>(null);
+
+  function handleClose() {
+    setStep(null);
+    onClose();
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+        <View style={styles.sheet}>
+          <View style={styles.accentStrip} />
+          <View style={styles.dragHandle} />
+          <Text style={styles.title}>刪除帳號</Text>
+          <Text style={styles.subtitle}>這個動作無法撤銷。所有資料將永久消失。</Text>
+
+          {step === 'confirm' && (
+            <View testID="confirm-warning-box" style={styles.warningBox}>
+              <Text style={styles.warningTitle}>⚠ 最後確認</Text>
+              <Text style={styles.warningBody}>
+                所有優惠券、寶石和 CouPoints 將無法恢復
+              </Text>
+              <View style={styles.confirmRow}>
+                <View style={styles.halfWrapper}>
+                  <View style={styles.halfShadow} />
+                  <Pressable
+                    style={styles.cancelBtn}
+                    onPress={() => setStep(null)}
+                  >
+                    <Text style={styles.cancelText}>取消</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.halfWrapper}>
+                  <View style={[styles.halfShadow, { backgroundColor: colors.border }]} />
+                  <Pressable
+                    testID="btn-confirm-delete"
+                    style={styles.confirmDeleteBtn}
+                    onPress={() => setStep('done')}
+                  >
+                    <Text style={styles.confirmDeleteText}>確認刪除</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {step === 'done' && (
+            <View testID="done-message" style={styles.doneBox}>
+              <Text style={styles.doneEmoji}>👋</Text>
+              <Text style={styles.doneTitle}>帳號已刪除</Text>
+              <Text style={styles.doneSub}>感謝使用 CouPro，掰掰！</Text>
+            </View>
+          )}
+
+          {step === null && (
+            <View style={styles.deleteBtnWrapper}>
+              <View style={styles.deleteBtnShadow} />
+              <Pressable
+                testID="btn-initial-delete"
+                style={styles.deleteBtn}
+                onPress={() => setStep('confirm')}
+              >
+                <Text style={styles.deleteBtnText}>我確定要刪除帳號</Text>
+              </Pressable>
+            </View>
+          )}
+
+          <View style={styles.closeBtnWrapper}>
+            <View style={styles.closeBtnShadow} />
+            <Pressable style={styles.closeBtn} onPress={handleClose}>
+              <Text style={styles.closeBtnText}>取消</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 3,
+    borderBottomWidth: 0,
+    borderColor: colors.red,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+    overflow: 'hidden',
+  },
+  accentStrip: {
+    height: 6,
+    backgroundColor: colors.red,
+    marginHorizontal: -16,
+  },
+  dragHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  title: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 18,
+    color: colors.red,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 12,
+    color: colors.muted,
+    marginBottom: 18,
+  },
+  warningBox: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 2,
+    borderColor: colors.red,
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 14,
+  },
+  warningTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: colors.red,
+  },
+  warningBody: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 3,
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  halfWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  halfShadow: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    width: '100%',
+    height: '100%',
+    borderRadius: 5,
+    backgroundColor: colors.border,
+  },
+  cancelBtn: {
+    paddingVertical: 11,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: colors.fg,
+  },
+  confirmDeleteBtn: {
+    paddingVertical: 11,
+    backgroundColor: colors.red,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  confirmDeleteText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: '#fff',
+  },
+  doneBox: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingBottom: 24,
+  },
+  doneEmoji: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  doneTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 15,
+    color: colors.fg,
+  },
+  doneSub: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 4,
+  },
+  deleteBtnWrapper: {
+    position: 'relative',
+    marginBottom: 10,
+  },
+  deleteBtnShadow: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    width: '100%',
+    height: '100%',
+    borderRadius: 6,
+    backgroundColor: colors.border,
+  },
+  deleteBtn: {
+    backgroundColor: colors.red,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 6,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 15,
+    color: '#fff',
+  },
+  closeBtnWrapper: {
+    position: 'relative',
+    marginTop: 4,
+  },
+  closeBtnShadow: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    width: '100%',
+    height: '100%',
+    borderRadius: 5,
+    backgroundColor: colors.border,
+  },
+  closeBtn: {
+    backgroundColor: colors.fg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 5,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: '#fff',
+  },
+});
