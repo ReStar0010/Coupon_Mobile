@@ -93,7 +93,11 @@ DATABASES['default']['CONN_MAX_AGE'] = 600  # reuse connections for 10 min inste
 # -----------------------------------------------------------------------------
 # Observability – production overrides
 # -----------------------------------------------------------------------------
-# Sentry is initialized in settings.py via SENTRY_DSN env var
+# Sentry is initialized in settings.py via SENTRY_DSN env var.
+# Lower sampling rates for production cost control — set these in your production .env:
+#   SENTRY_TRACES_SAMPLE_RATE=0.1
+#   SENTRY_PROFILES_SAMPLE_RATE=0.1
+# settings.py reads these env vars at startup (defaults to 1.0 when unset).
 
 # -----------------------------------------------------------------------------
 # SMS (Twilio) – production

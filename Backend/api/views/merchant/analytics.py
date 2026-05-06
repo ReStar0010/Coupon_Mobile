@@ -23,6 +23,7 @@ from ...exceptions import (
     DateRangeFuture,
     DateRangeTooLong,
 )
+from ...services.analytics_service import get_template_redemption_trend, get_template_view_trend
 from .helpers import get_merchant_store
 
 logger = logging.getLogger(__name__)
@@ -138,35 +139,25 @@ def get_template_analytics(request, id):
         ).count()
         conversion_rate = total_redemptions / exposure_count if exposure_count > 0 else 0
 
-        # Calculate trends (daily data)
+        # Calculate trends (daily data) — use service for DB-aggregated queries (zero per-day hits)
         exposure_trend_data = []
         conversion_trend_data = []
         current_date = start_date_for_loop
         end_date = end_date_for_loop
-        tz_name = getattr(store, 'timezone', None) or 'Asia/Taipei'
-        try:
-            _store_zone = ZoneInfo(tz_name)
-        except Exception:
-            _store_zone = ZoneInfo('Asia/Taipei')
+
+        redemption_by_date = {
+            row['date']: row['count']
+            for row in get_template_redemption_trend(template.id, start_date_for_loop, end_date_for_loop)
+        }
+        view_by_date = {
+            row['date']: row['count']
+            for row in get_template_view_trend(template.id, start_date_for_loop, end_date_for_loop)
+        }
 
         while current_date <= end_date:
-            day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()), _store_zone)
-            day_end = day_start + timedelta(days=1)
-
-            # Daily exposures (template_view_logs already filtered by template; filter by day)
-            day_exposures = template_view_logs.filter(
-                timestamp__gte=day_start,
-                timestamp__lt=day_end
-            )
-            day_exposure_count = day_exposures.count()
-
-            # Daily redemptions
-            day_redemptions = CouponRedemption.objects.filter(
-                coupon__template=template,
-                coupon__coupon_type='store',
-                redeemed_at__gte=day_start,
-                redeemed_at__lt=day_end
-            ).count()
+            day_date = current_date.date() if hasattr(current_date, 'date') else current_date
+            day_exposure_count = view_by_date.get(day_date, 0)
+            day_redemptions = redemption_by_date.get(day_date, 0)
 
             # Daily conversion rate
             day_conversion_rate = day_redemptions / day_exposure_count if day_exposure_count > 0 else 0
@@ -257,13 +248,20 @@ def get_template_analytics(request, id):
     redemption_rate = exclusive_redemptions_count / total_coupons if total_coupons > 0 else 0
 
     # Calculate trend data for all metrics (daily data)
+    # Use service for DB-aggregated redemption/view queries (zero per-day hits).
+    # Rate metrics that depend on per-day sub-filtering (retention, stranger, circulation)
+    # still derive from the pre-fetched daily redemption total — no extra DB queries.
     current_date = start_date_for_loop
     end_date = end_date_for_loop
-    _tz_name = getattr(store, 'timezone', None) or 'Asia/Taipei'
-    try:
-        _excl_zone = ZoneInfo(_tz_name)
-    except Exception:
-        _excl_zone = ZoneInfo('Asia/Taipei')
+
+    excl_redemption_by_date = {
+        row['date']: row['count']
+        for row in get_template_redemption_trend(template.id, start_date_for_loop, end_date_for_loop)
+    }
+    excl_view_by_date = {
+        row['date']: row['count']
+        for row in get_template_view_trend(template.id, start_date_for_loop, end_date_for_loop)
+    }
 
     # Initialize trend data structures
     exposure_trend_data = []
@@ -275,46 +273,48 @@ def get_template_analytics(request, id):
     redemption_trend_data = []
 
     while current_date <= end_date:
-        day_start = timezone.make_aware(datetime.combine(current_date, datetime.min.time()), _excl_zone)
-        day_end = day_start + timedelta(days=1)
-
-        # Daily exposures
-        day_exposures = template_view_logs.filter(
-            timestamp__gte=day_start,
-            timestamp__lt=day_end
-        )
-        day_exposure_count = day_exposures.count()
-
-        # Daily exclusive redemptions
-        day_exclusive_redemptions = exclusive_redemptions.filter(
-            redeemed_at__gte=day_start,
-            redeemed_at__lt=day_end
-        )
-        day_exclusive_count = day_exclusive_redemptions.count()
+        day_date = current_date.date() if hasattr(current_date, 'date') else current_date
+        day_exposure_count = excl_view_by_date.get(day_date, 0)
+        day_exclusive_count = excl_redemption_by_date.get(day_date, 0)
 
         # Daily conversion rate
         day_conversion_rate = day_exclusive_count / day_exposure_count if day_exposure_count > 0 else 0
 
-        # Daily retention rate
-        day_retention_redemptions = day_exclusive_redemptions.filter(
-            coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS
+        # Daily retention/stranger/circulation rates reuse aggregate denominators;
+        # per-day numerators require sub-filtering which stays in the exclusive_redemptions QS.
+        # Build a tz-aware window for the sub-queries below (still needed for rate breakdowns).
+        _tz_name = getattr(store, 'timezone', None) or 'Asia/Taipei'
+        try:
+            _excl_zone = ZoneInfo(_tz_name)
+        except Exception:
+            _excl_zone = ZoneInfo('Asia/Taipei')
+        day_start = timezone.make_aware(datetime.combine(day_date, datetime.min.time()), _excl_zone)
+        day_end = day_start + timedelta(days=1)
+
+        day_exclusive_redemptions = exclusive_redemptions.filter(
+            redeemed_at__gte=day_start,
+            redeemed_at__lt=day_end
         )
-        day_retention_redemption_count = day_retention_redemptions.count()
+
+        # Daily retention rate
+        day_retention_redemption_count = day_exclusive_redemptions.filter(
+            coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS
+        ).count()
         day_retention_rate = day_retention_redemption_count / retention_issued_count if retention_issued_count > 0 else 0
 
         # Daily stranger acquisition rate
-        day_non_retention_redemptions = day_exclusive_redemptions.exclude(
+        day_non_retention_count = day_exclusive_redemptions.exclude(
             coupon__acquisition_method__in=RETENTION_ACQUISITION_METHODS
-        )
-        day_non_retention_count = day_non_retention_redemptions.count()
+        ).count()
         day_stranger_rate = day_non_retention_count / day_exclusive_count if day_exclusive_count > 0 else 0
 
-        # Daily circulation rate (transfer + public_pool / total)
+        # Daily circulation rate (constant denominator; no per-day DB query needed)
         day_circulation_rate = transfer_count / total_coupons if total_coupons > 0 else 0
 
         # Daily circulation redemption rate
-        day_transfer_redemptions = day_exclusive_redemptions.filter(coupon__acquisition_method__in=['transfer', 'public_pool'])
-        day_transfer_redemption_count = day_transfer_redemptions.count()
+        day_transfer_redemption_count = day_exclusive_redemptions.filter(
+            coupon__acquisition_method__in=['transfer', 'public_pool']
+        ).count()
         day_circulation_redemption_rate = day_transfer_redemption_count / transfer_count if transfer_count > 0 else 0
 
         # Daily redemption rate

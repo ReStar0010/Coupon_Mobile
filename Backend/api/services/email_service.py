@@ -7,7 +7,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-FROM_EMAIL = "noreply@coupro.pro"
+FROM_EMAIL = getattr(settings, 'FROM_EMAIL', 'noreply@coupro.pro')
 
 
 def _init_resend() -> None:

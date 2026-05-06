@@ -297,6 +297,7 @@ class CouponTemplate(models.Model):
             coupon.tags.set(tpl.tags.all())
 
             # Decrease remaining quantity
+            # safe: row lock held via select_for_update() above
             tpl.remaining_quantity -= 1
             if tpl.remaining_quantity <= 0:
                 tpl.is_active = False

@@ -3,18 +3,7 @@ Shared helper functions for merchant views.
 """
 import math
 
-from ...models import Store
-
-
-def get_merchant_store(user):
-    """Get the store owned by the merchant user."""
-    try:
-        return Store.objects.get(owner=user)
-    except Store.DoesNotExist:
-        return None
-    except Store.MultipleObjectsReturned:
-        # If multiple stores, return the first one
-        return Store.objects.filter(owner=user).first()
+from api.utils import get_merchant_store  # canonical implementation lives in utils
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):

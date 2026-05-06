@@ -1,3 +1,4 @@
+from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import path
 from api.views.content_moderation import (
     ReportContentView, ReportStatusView, UserReportsView,
@@ -31,10 +32,11 @@ urlpatterns = [
     path('terms/', TermsOfServiceView.as_view(), name='terms_of_service'),
 
     # Admin moderation dashboard (UGC Compliance - User Story 4)
-    path('admin/moderation/queue/', ModerationQueueView.as_view(), name='moderation_queue'),
-    path('admin/moderation/reports/<int:report_id>/', ReportDetailView.as_view(), name='report_detail'),
-    path('admin/moderation/reports/<int:report_id>/action/', ModerationActionView.as_view(), name='moderation_action'),
-    path('admin/moderation/escalations/', EscalatedReportsView.as_view(), name='escalated_reports'),
-    path('admin/moderation/merchants/<int:merchant_id>/violations/', MerchantViolationsView.as_view(), name='merchant_violations'),
-    path('admin/moderation/stats/', ModerationStatsView.as_view(), name='moderation_stats'),
+    # Defense-in-depth: staff_member_required at URL level + IsAdminUser in the view.
+    path('admin/moderation/queue/', staff_member_required(ModerationQueueView.as_view()), name='moderation_queue'),
+    path('admin/moderation/reports/<int:report_id>/', staff_member_required(ReportDetailView.as_view()), name='report_detail'),
+    path('admin/moderation/reports/<int:report_id>/action/', staff_member_required(ModerationActionView.as_view()), name='moderation_action'),
+    path('admin/moderation/escalations/', staff_member_required(EscalatedReportsView.as_view()), name='escalated_reports'),
+    path('admin/moderation/merchants/<int:merchant_id>/violations/', staff_member_required(MerchantViolationsView.as_view()), name='merchant_violations'),
+    path('admin/moderation/stats/', staff_member_required(ModerationStatsView.as_view()), name='moderation_stats'),
 ]

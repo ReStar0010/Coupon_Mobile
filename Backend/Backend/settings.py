@@ -21,12 +21,10 @@ sentry_sdk.init(
     send_default_pii=False,
     # Enable sending logs to Sentry
     enable_logs=True,
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=1.0,
-    # Set profile_session_sample_rate to 1.0 to profile 100%
-    # of profile sessions.
-    profile_session_sample_rate=1.0,
+    # Sampling rates read from env so production_settings.py can lower them via .env.
+    # Defaults to 1.0 (100%) in dev; production should set these to ~0.1 via env vars.
+    traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+    profile_session_sample_rate=float(os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "1.0")),
     # Set profile_lifecycle to "trace" to automatically
     # run the profiler on when there is an active transaction
     profile_lifecycle="trace",
@@ -52,6 +50,7 @@ WEB_CONSUMER_FLOW_ENABLED = os.getenv('WEB_CONSUMER_FLOW_ENABLED', 'false').lowe
 # Email
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
+FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@coupro.pro')
 
 # Admin & support
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'duankayne@gmail.com')
