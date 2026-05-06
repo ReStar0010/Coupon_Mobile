@@ -1,4 +1,76 @@
+import re
+
 from rest_framework import serializers
+
+from .models import CouponTemplate, Store, MerchantProfile, Tag
+
+
+# ---------------------------------------------------------------------------
+# Model-based serializers
+# ---------------------------------------------------------------------------
+
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ['id', 'name', 'display_name']
+
+
+class CouponTemplateSerializer(serializers.ModelSerializer):
+    tags = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True,
+        write_only=True,
+        help_text="List of tag IDs",
+    )
+    tags_detail = TagSerializer(source='tags', many=True, read_only=True)
+    store_name = serializers.CharField(source='store.name', read_only=True)
+    store = serializers.PrimaryKeyRelatedField(
+        queryset=Store.objects.all(), required=False, allow_null=True
+    )
+
+    class Meta:
+        model = CouponTemplate
+        fields = [
+            'id', 'store', 'store_name', 'coupon_name', 'coupon_detail',
+            'important_notes', 'image_url', 'estimated_savings',
+            'template_redeem_code', 'tags', 'tags_detail', 'total_quantity',
+            'remaining_quantity', 'start_date', 'expiry_date',
+            'draw_probability', 'show_in_desk_qrcode', 'created_at', 'is_active',
+        ]
+        read_only_fields = ['id', 'created_at', 'remaining_quantity']
+
+
+class StoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Store
+        fields = [
+            'id', 'name', 'lat', 'lng', 'address', 'business_hours',
+            'image_url', 'store_type', 'average_order_value',
+            'unified_redeem_code', 'timezone', 'currency_code',
+            'accepts_platform_vouchers',
+        ]
+        read_only_fields = ['id']
+
+
+class MerchantProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MerchantProfile
+        fields = [
+            'id', 'phone', 'contact_person', 'contact_info',
+            'application_status', 'application_submitted_at',
+            'verified',
+        ]
+        read_only_fields = [
+            'id', 'phone', 'contact_person', 'contact_info',
+            'application_status', 'application_submitted_at',
+            'verified',
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Input-only serializers (no model mapping — stay as plain Serializer)
+# ---------------------------------------------------------------------------
 
 class ConsolidateCouponSerializer(serializers.Serializer):
     """
@@ -51,7 +123,6 @@ class RegistrationOTPSendSerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         """Validate Taiwan mobile phone number format."""
-        import re
         # Remove any formatting (dashes, spaces)
         normalized = re.sub(r'[-\s()]', '', value)
 
@@ -76,8 +147,6 @@ class RegistrationPhoneLookupSerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         """Same Taiwan mobile validation as RegistrationOTPSendSerializer."""
-        import re
-
         normalized = re.sub(r"[-\s()]", "", value)
         if not re.match(r"^09\d{8}$", normalized):
             raise serializers.ValidationError(
@@ -107,7 +176,6 @@ class RegistrationOTPVerifySerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         """Validate Taiwan mobile phone number format."""
-        import re
         normalized = re.sub(r'[-\s()]', '', value)
         if not re.match(r'^09\d{8}$', normalized):
             raise serializers.ValidationError(
@@ -117,7 +185,6 @@ class RegistrationOTPVerifySerializer(serializers.Serializer):
 
     def validate_otp_code(self, value):
         """Validate OTP code format."""
-        import re
         if not re.match(r'^\d{6}$', value):
             raise serializers.ValidationError(
                 "驗證碼必須為6位數字"
@@ -166,7 +233,6 @@ class PhoneLoginSerializer(serializers.Serializer):
     def validate_phone_number(self, value):
         """Validate Taiwan mobile phone number format if provided."""
         if value:
-            import re
             normalized = re.sub(r'[-\s()]', '', value)
             if not re.match(r'^09\d{8}$', normalized):
                 raise serializers.ValidationError(
@@ -187,7 +253,6 @@ class PhoneForgotPasswordSerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         """Validate Taiwan mobile phone number format."""
-        import re
         normalized = re.sub(r'[-\s()]', '', value)
         if not re.match(r'^09\d{8}$', normalized):
             raise serializers.ValidationError(
@@ -216,7 +281,6 @@ class PhoneResetPasswordSerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         """Validate Taiwan mobile phone number format."""
-        import re
         normalized = re.sub(r'[-\s()]', '', value)
         if not re.match(r'^09\d{8}$', normalized):
             raise serializers.ValidationError(
@@ -226,7 +290,6 @@ class PhoneResetPasswordSerializer(serializers.Serializer):
 
     def validate_otp_code(self, value):
         """Validate OTP code format."""
-        import re
         if not re.match(r'^\d{6}$', value):
             raise serializers.ValidationError(
                 "驗證碼必須為6位數字"
@@ -271,61 +334,12 @@ class MerchantRegisterSerializer(serializers.Serializer):
     store_lng = serializers.FloatField(required=False, allow_null=True, default=None, help_text="Store longitude")
     business_hours = serializers.CharField(required=False, allow_blank=True, allow_null=True, help_text="Business hours")
 
-class CouponTemplateSerializer(serializers.Serializer):
-    """
-    Serializer for coupon template CRUD operations.
-    """
-    id = serializers.IntegerField(read_only=True)
-    store_id = serializers.IntegerField(required=False, help_text="Store ID (auto-set from authenticated merchant)")
-    coupon_name = serializers.CharField(max_length=100, help_text="Coupon name")
-    coupon_detail = serializers.CharField(help_text="Coupon detail/description")
-    important_notes = serializers.CharField(required=False, allow_blank=True, help_text="Important notes")
-    image_url = serializers.CharField(max_length=255, required=False, allow_blank=True, help_text="Image URL")
-    estimated_savings = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True, help_text="Estimated savings amount")
-    template_redeem_code = serializers.CharField(max_length=6, required=False, allow_blank=True, allow_null=True, help_text="Template redeem code")
-    total_quantity = serializers.IntegerField(help_text="Total quantity of coupons")
-    remaining_quantity = serializers.IntegerField(read_only=True, help_text="Remaining quantity")
-    start_date = serializers.DateTimeField(help_text="Start date")
-    expiry_date = serializers.DateTimeField(help_text="Expiry date")
-    draw_probability = serializers.FloatField(required=False, default=0.5, help_text="Draw probability (0-1)")
-    is_active = serializers.BooleanField(required=False, default=True, help_text="Is template active")
-    show_in_desk_qrcode = serializers.BooleanField(
-        required=False,
-        default=True,
-        help_text="Show this template on desk QR web page",
-    )
-    created_at = serializers.DateTimeField(read_only=True)
-    tags = serializers.ListField(
-        child=serializers.IntegerField(),
-        required=False,
-        allow_empty=True,
-        help_text="List of tag IDs"
-    )
-
 class MerchantRedeemSerializer(serializers.Serializer):
     """
     Serializer for merchant coupon redemption using phone number and template ID.
     """
     template_id = serializers.IntegerField(required=True, help_text="ID of the coupon template")
     phone_number = serializers.CharField(max_length=15, required=True, help_text="User's phone number")
-
-class MerchantProfileSerializer(serializers.Serializer):
-    """
-    Serializer for merchant profile.
-    """
-    phone = serializers.CharField(max_length=20, required=False)
-    contact_person = serializers.CharField(max_length=100, required=False)
-    contact_info = serializers.CharField(max_length=100, required=False, allow_blank=True)
-
-class StoreSerializer(serializers.Serializer):
-    """
-    Serializer for store information.
-    """
-    name = serializers.CharField(max_length=100, required=False)
-    address = serializers.CharField(max_length=200, required=False)
-    lat = serializers.FloatField(required=False)
-    lng = serializers.FloatField(required=False)
-    business_hours = serializers.CharField(required=False, allow_blank=True)
 
 class SendOTPSerializer(serializers.Serializer):
     """
@@ -338,7 +352,6 @@ class SendOTPSerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         """Validate Taiwan mobile phone number format."""
-        import re
         # Remove any formatting (dashes, spaces)
         normalized = re.sub(r'[-\s()]', '', value)
 
@@ -366,7 +379,6 @@ class VerifyOTPSerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         """Validate Taiwan mobile phone number format."""
-        import re
         normalized = re.sub(r'[-\s()]', '', value)
         if not re.match(r'^09\d{8}$', normalized):
             raise serializers.ValidationError(
@@ -376,7 +388,6 @@ class VerifyOTPSerializer(serializers.Serializer):
 
     def validate_otp_code(self, value):
         """Validate OTP code format."""
-        import re
         if not re.match(r'^\d{6}$', value):
             raise serializers.ValidationError(
                 "驗證碼必須為6位數字"

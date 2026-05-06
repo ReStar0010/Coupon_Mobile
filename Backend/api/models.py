@@ -450,11 +450,12 @@ class WebRedemption(models.Model):
     def save(self, *args, **kwargs):
         if self.template_id:
             self.legacy_template_id = self.template_id
-            try:
-                tpl = CouponTemplate.objects.get(pk=self.template_id)
-                self.legacy_template_coupon_name = tpl.coupon_name
-            except CouponTemplate.DoesNotExist:
-                pass
+            if not self.legacy_template_coupon_name:
+                try:
+                    tpl = CouponTemplate.objects.only('coupon_name').get(pk=self.template_id)
+                    self.legacy_template_coupon_name = tpl.coupon_name
+                except CouponTemplate.DoesNotExist:
+                    pass
         super().save(*args, **kwargs)
 
     def __str__(self):

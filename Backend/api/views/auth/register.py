@@ -132,6 +132,13 @@ def register(request):
         }, status=status.HTTP_201_CREATED)
     else:
         # Student registration (existing logic)
+        password = request.data.get('password', '')
+        if len(password) < 8:
+            return Response(
+                {'error': '密碼長度至少需要8個字元'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Create user
         user = User(email=email, username=email)
         user.set_password(password)
