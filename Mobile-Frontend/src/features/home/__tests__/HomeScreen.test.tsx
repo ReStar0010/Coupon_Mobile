@@ -13,8 +13,9 @@ const makeProps = (overrides = {}) => ({
 
 describe('HomeScreen', () => {
   it('renders header with logo and title', () => {
-    const { getByText } = render(<HomeScreen {...makeProps()} />);
-    expect(getByText('CouPro')).toBeTruthy();
+    const { getAllByText } = render(<HomeScreen {...makeProps()} />);
+    // 'CouPro' appears in header title and TabBar label
+    expect(getAllByText('CouPro').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders CouPoints balance', () => {
