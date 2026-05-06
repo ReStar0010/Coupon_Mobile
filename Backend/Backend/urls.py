@@ -80,6 +80,7 @@ from api.views.web_v1.points import points_lookup
 
 import logging
 
+from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponse, JsonResponse
 from django.db import OperationalError, connection
 from django.urls import re_path
@@ -110,12 +111,12 @@ def health_check(request):
 
 schema_view = get_schema_view(
    openapi.Info(
-      title="Snippets API",
+      title="CouBox API",
       default_version='v1',
-      description="Test description",
-      terms_of_service="https://www.google.com/policies/terms/",
-      contact=openapi.Contact(email="contact@snippets.local"),
-      license=openapi.License(name="BSD License"),
+      description="CouBox mobile coupon platform API",
+      terms_of_service="https://coupro-terms.vercel.app/terms.html",
+      contact=openapi.Contact(email="coupro707@gmail.com"),
+      license=openapi.License(name="Proprietary"),
    ),
    public=True,
    permission_classes=(permissions.AllowAny,),
@@ -129,8 +130,8 @@ urlpatterns = [
     re_path(r'^swagger/$',schema_view.with_ui('swagger', cache_timeout=0),name='schema-swagger-ui'),
     re_path(r'^redoc/$',schema_view.with_ui('redoc', cache_timeout=0),name='schema-redoc'),
 
-    # test sentry error
-    path('api/test-sentry/', trigger_sentry_error, name='trigger_sentry_error'),
+    # test sentry error (staff only)
+    path('api/test-sentry/', staff_member_required(trigger_sentry_error), name='trigger_sentry_error'),
 
     # Coupon endpoints
     path('api/store-coupons/', get_store_coupons),  # Type A (store) coupons - 隨取及用
@@ -273,8 +274,8 @@ urlpatterns = [
 
     # Health check endpoint for Render zero-downtime deploys
     path('api/health/', health_check, name='health_check'),
-    path('api/load-test/verify-consistency/', load_test_verify_consistency),
-    path('api/load-test/reset/', load_test_reset),
+    path('api/load-test/verify-consistency/', staff_member_required(load_test_verify_consistency)),
+    path('api/load-test/reset/', staff_member_required(load_test_reset)),
 
     # Web consumer flow (web-based-users feature)
     path('api/web/v1/merchants/<int:store_id>/coupons/', merchant_coupons, name='web_merchant_coupons'),

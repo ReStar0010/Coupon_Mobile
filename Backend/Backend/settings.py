@@ -12,15 +12,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 # BASE_DIR is set below; load Backend/.env after paths are available (see end of Paths section)
-import logging
 
 import sentry_sdk
 
 sentry_sdk.init(
-    dsn="https://c256c1e583795630acf160062b48dc0c@o4510952144961536.ingest.us.sentry.io/4510952203026432",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-    send_default_pii=True,
+    dsn=os.environ.get("SENTRY_DSN", ""),
+    # PII disabled: JWTs and phone numbers flow through requests.
+    send_default_pii=False,
     # Enable sending logs to Sentry
     enable_logs=True,
     # Set traces_sample_rate to 1.0 to capture 100%
@@ -143,29 +141,8 @@ TEMPLATES = [
 # -----------------------------------------------------------------------------
 # Database
 # -----------------------------------------------------------------------------
-# Use Postgres when DATABASE_URL is set and reachable; otherwise SQLite.
-def _postgres_available():
-    """Return True if DATABASE_URL points to a reachable PostgreSQL instance."""
-    if not os.environ.get('DATABASE_URL'):
-        return False
-    try:
-        import psycopg2
-        conn = psycopg2.connect(
-            os.environ.get('DATABASE_URL'),
-            connect_timeout=5,
-        )
-        conn.close()
-        return True
-    except Exception as e:
-        logging.getLogger(__name__).warning(
-            'PostgreSQL unreachable: %s (DATABASE_URL=%s); will use SQLite if configured.',
-            e,
-            os.environ.get('DATABASE_URL', '')[:50] + '...' if len(os.environ.get('DATABASE_URL', '')) > 50 else os.environ.get('DATABASE_URL', ''),
-        )
-        return False
-
-
-if _postgres_available():
+# Use Postgres when DATABASE_URL env var is set; otherwise fall back to SQLite.
+if os.environ.get('DATABASE_URL'):
     DATABASES = {
         'default': dj_database_url.config(
             default=os.environ.get('DATABASE_URL'),
@@ -174,10 +151,6 @@ if _postgres_available():
     }
     DATABASES['default'].setdefault('DISABLE_SERVER_SIDE_CURSORS', True)
 else:
-    if os.environ.get('DATABASE_URL'):
-        logging.getLogger(__name__).info(
-            'PostgreSQL unreachable (DATABASE_URL set); using SQLite.'
-        )
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -302,10 +275,19 @@ REST_FRAMEWORK = {
         'api.auth.CookieJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
-    'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
     'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/hour',
+        'user': '1000/hour',
         'phone_registration_lookup': '20/hour',
     },
+    'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
 }
 
 SIMPLE_JWT = {

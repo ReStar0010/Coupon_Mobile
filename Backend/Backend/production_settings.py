@@ -93,22 +93,7 @@ DATABASES['default']['CONN_MAX_AGE'] = 600  # reuse connections for 10 min inste
 # -----------------------------------------------------------------------------
 # Observability – production overrides
 # -----------------------------------------------------------------------------
-# Base settings initialises Sentry with traces_sample_rate=1.0 and
-# profile_session_sample_rate=1.0, which is too expensive on 0.5 CPU / 512 MB.
-# Override here to 50 % so tracing remains useful without saturating the CPU.
-import sentry_sdk  # noqa: E402
-
-sentry_sdk.init(
-    dsn=os.environ.get(
-        "SENTRY_DSN",
-        "https://c256c1e583795630acf160062b48dc0c@o4510952144961536.ingest.us.sentry.io/4510952203026432",
-    ),
-    send_default_pii=True,
-    enable_logs=True,
-    traces_sample_rate=0.5,
-    profile_session_sample_rate=0.5,
-    profile_lifecycle="trace",
-)
+# Sentry is initialized in settings.py via SENTRY_DSN env var
 
 # -----------------------------------------------------------------------------
 # SMS (Twilio) – production
