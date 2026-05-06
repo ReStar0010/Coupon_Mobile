@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { FontProvider } from '@/src/theme/FontProvider';
+import FontProvider from '@/src/theme/FontProvider';
 import { AuthProvider } from '@/src/state/AuthContext';
 import { WalletProvider } from '@/src/state/WalletContext';
 

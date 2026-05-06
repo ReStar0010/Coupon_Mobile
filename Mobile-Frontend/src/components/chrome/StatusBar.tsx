@@ -5,14 +5,14 @@ import { fontFamilies } from '../../theme/typography';
 import { GemBadge, CouPointBadge } from '../ui/Badges';
 
 interface StatusBarProps {
-  gems: number;
-  couPoints: number;
+  gems?: number;
+  couPoints?: number;
   light?: boolean;
 }
 
 export default function StatusBar({
-  gems,
-  couPoints,
+  gems = 0,
+  couPoints = 0,
   light = false,
 }: StatusBarProps): React.JSX.Element {
   return (

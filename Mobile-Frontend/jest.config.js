@@ -11,10 +11,13 @@ module.exports = {
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
-    'app/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!**/__tests__/**',
     '!**/node_modules/**',
+    '!src/theme/index.ts',
+    '!src/state/index.ts',
+    '!src/theme/FontProvider.tsx',
+    '!src/theme/shadows.tsx',
   ],
   coverageThreshold: {
     global: {

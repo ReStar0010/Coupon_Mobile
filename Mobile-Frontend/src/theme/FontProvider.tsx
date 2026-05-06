@@ -4,7 +4,6 @@ import {
   SpaceGrotesk_500Medium,
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
-  SpaceGrotesk_800ExtraBold,
   useFonts as useSpaceGrotesk,
 } from '@expo-google-fonts/space-grotesk';
 import {
@@ -26,7 +25,6 @@ export default function FontProvider({ children }: FontProviderProps): React.JSX
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
-    SpaceGrotesk_800ExtraBold,
   });
 
   const [jbLoaded] = useJetBrainsMono({

@@ -3,7 +3,6 @@ import { View, StyleSheet } from 'react-native';
 import { Slot, usePathname, useRouter } from 'expo-router';
 import TabBar from '@/src/components/chrome/TabBar';
 import { colors } from '@/src/theme/colors';
-import { useWallet } from '@/src/state/WalletContext';
 
 type Tab = 'home' | 'map' | 'spinner' | 'settings';
 
@@ -17,8 +16,6 @@ const PATH_TO_TAB: Record<string, Tab> = {
 export default function TabsLayout() {
   const pathname = usePathname();
   const router = useRouter();
-  const { gems, couPoints } = useWallet();
-
   const activeTab: Tab = PATH_TO_TAB[pathname] ?? 'home';
 
   const handleTabPress = (tab: Tab) => {
@@ -31,8 +28,6 @@ export default function TabsLayout() {
       <TabBar
         activeTab={activeTab}
         onTabPress={handleTabPress}
-        gems={gems}
-        couPoints={couPoints}
       />
     </View>
   );

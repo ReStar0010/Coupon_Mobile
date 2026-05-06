@@ -3,7 +3,7 @@ export const fontFamilies = {
   medium: 'SpaceGrotesk_500Medium',
   semiBold: 'SpaceGrotesk_600SemiBold',
   bold: 'SpaceGrotesk_700Bold',
-  extraBold: 'SpaceGrotesk_800ExtraBold',
+  extraBold: 'SpaceGrotesk_700Bold',
   monoRegular: 'JetBrainsMono_400Regular',
   monoSemiBold: 'JetBrainsMono_600SemiBold',
 } as const;
