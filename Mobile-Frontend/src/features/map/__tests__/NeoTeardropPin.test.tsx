@@ -3,33 +3,44 @@ import { render } from '@testing-library/react-native';
 import NeoTeardropPin from '../NeoTeardropPin';
 
 jest.mock('react-native-maps', () => {
+  const React = require('react');
   const { View } = require('react-native');
-  const Marker = ({ children }: { children?: React.ReactNode }) => <View testID="map-marker">{children}</View>;
-  return { Marker };
+  const MapView = ({ children }: { children?: React.ReactNode }) => React.createElement(View, { testID: 'map-view' }, children);
+  const Marker = ({ children }: { children?: React.ReactNode }) => React.createElement(View, { testID: 'map-marker' }, children);
+  MapView.default = MapView;
+  return { __esModule: true, default: MapView, Marker };
 });
 
 jest.mock('react-native-svg', () => {
+  const React = require('react');
   const { View, Text } = require('react-native');
   return {
-    Svg: ({ children }: { children?: React.ReactNode }) => <View>{children}</View>,
+    __esModule: true,
+    default: ({ children }: { children?: React.ReactNode }) => React.createElement(View, null, children),
+    Svg: ({ children }: { children?: React.ReactNode }) => React.createElement(View, null, children),
     Path: () => null,
     Circle: () => null,
-    Text: ({ children }: { children?: React.ReactNode }) => <Text>{children}</Text>,
+    Text: ({ children }: { children?: React.ReactNode }) => React.createElement(Text, null, children),
   };
 });
 
 jest.mock('react-native-reanimated', () => {
+  const React = require('react');
   const { View } = require('react-native');
-  const Animated = {
-    View,
-    createAnimatedComponent: (C: React.ComponentType) => C,
+  const AnimatedView = ({ children, style }: { children?: React.ReactNode; style?: object }) =>
+    React.createElement(View, { style }, children);
+  return {
+    __esModule: true,
+    default: {
+      View: AnimatedView,
+      createAnimatedComponent: (C: React.ComponentType) => C,
+    },
     useSharedValue: (v: number) => ({ value: v }),
     useAnimatedStyle: (fn: () => object) => fn(),
     withRepeat: (v: unknown) => v,
     withSequence: (...args: unknown[]) => args[0],
     withTiming: (v: unknown) => v,
   };
-  return { default: Animated, ...Animated };
 });
 
 const coord = { latitude: 25.0478, longitude: 121.5318 };
