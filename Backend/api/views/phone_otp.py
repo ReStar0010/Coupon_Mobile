@@ -213,24 +213,25 @@ def check_registration_phone(request):
 def send_registration_otp(request):
     """
     Send OTP to phone number for registration (unauthenticated).
-    
+
     Validates:
     - Phone number format (Taiwan 09XXXXXXXX)
     - Phone is not already registered
     - Rate limits (3 per hour, 60 second cooldown)
-    
-    Returns 200 on success, 400 for validation errors, 409 if phone exists, 429 for rate limits.
+
+    Returns 200 on success, 400 for validation errors, 429 for rate limits.
+
+    Security: always returns HTTP 200 with an identical response body regardless of
+    whether the phone number is already registered, to prevent phone enumeration.
+    The OTP is simply not sent (and no record created) for already-registered numbers.
     """
     serializer = RegistrationOTPSendSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     phone_number = serializer.validated_data['phone_number']
 
-    existing_profile = StudentProfile.objects.filter(phone_number=phone_number).first()
-    if existing_profile:
-        raise PhoneAlreadyRegistered(
-            developer_message="Phone number already registered."
-        )
+    already_registered = StudentProfile.objects.filter(phone_number=phone_number).exists()
 
+    # Apply rate limiting before any DB work regardless of registration status.
     can_send, _error_message, retry_after = PhoneOTPRecord.can_send_otp(
         phone_number,
         purpose='registration',
@@ -240,6 +241,18 @@ def send_registration_otp(request):
             developer_message="Registration OTP rate limit exceeded.",
             context={"retry_after_seconds": retry_after or 60},
         )
+
+    masked_phone = mask_phone_number(phone_number)
+    # Return identical response regardless of registration status to prevent enumeration.
+    response_data = {
+        'message': f'若此號碼尚未註冊，驗證碼將發送至 {masked_phone}',
+        'cooldown_seconds': 60,
+        'expires_in_seconds': 600,
+    }
+
+    if already_registered:
+        # Do not create an OTP record or send an SMS; silently succeed.
+        return Response(response_data, status=status.HTTP_200_OK)
 
     otp_record = PhoneOTPRecord.create_otp(
         user=None,
@@ -253,13 +266,6 @@ def send_registration_otp(request):
         raise SmsSendFailed(
             developer_message=result.get('error', "SMS delivery failed.")
         )
-
-    masked_phone = mask_phone_number(phone_number)
-    response_data = {
-        'message': f'註冊驗證碼已發送至 {masked_phone}',
-        'cooldown_seconds': 60,
-        'expires_in_seconds': 600
-    }
 
     # Include dev mode info for testing
     if result.get('dev_mode'):
@@ -375,23 +381,24 @@ def verify_registration_otp(request):
 def send_password_reset_otp(request):
     """
     Send password reset OTP to registered phone number (unauthenticated).
-    
+
     Validates:
-    - Phone number is registered
+    - Phone number format
     - Rate limits
-    
-    Returns 200 on success, 400 for validation errors, 404 if phone not found, 429 for rate limits.
+
+    Returns 200 on success, 400 for validation errors, 429 for rate limits.
+
+    Security: always returns HTTP 200 with an identical response body regardless of
+    whether the phone number is registered, to prevent phone enumeration.
+    The OTP is simply not sent (and no record created) for unregistered numbers.
     """
     serializer = PhoneForgotPasswordSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     phone_number = serializer.validated_data['phone_number']
 
     profile = StudentProfile.objects.filter(phone_number=phone_number).first()
-    if not profile:
-        raise PhoneNotRegistered(
-            developer_message="Phone number not registered."
-        )
 
+    # Apply rate limiting before any DB work regardless of registration status.
     can_send, _error_message, retry_after = PhoneOTPRecord.can_send_otp(
         phone_number,
         purpose='password_reset',
@@ -401,6 +408,18 @@ def send_password_reset_otp(request):
             developer_message="Password reset OTP rate limit exceeded.",
             context={"retry_after_seconds": retry_after or 60},
         )
+
+    masked_phone = mask_phone_number(phone_number)
+    # Return identical response regardless of registration status to prevent enumeration.
+    response_data = {
+        'message': f'若此號碼已註冊，重設密碼驗證碼將發送至 {masked_phone}',
+        'cooldown_seconds': 60,
+        'expires_in_seconds': 600,
+    }
+
+    if not profile:
+        # Do not create an OTP record or send an SMS; silently succeed.
+        return Response(response_data, status=status.HTTP_200_OK)
 
     otp_record = PhoneOTPRecord.create_otp(
         user=profile.user,
@@ -414,13 +433,6 @@ def send_password_reset_otp(request):
         raise SmsSendFailed(
             developer_message=result.get('error', "SMS delivery failed.")
         )
-
-    masked_phone = mask_phone_number(phone_number)
-    response_data = {
-        'message': f'重設密碼驗證碼已發送至 {masked_phone}',
-        'cooldown_seconds': 60,
-        'expires_in_seconds': 600
-    }
 
     # Include dev mode info for testing
     if result.get('dev_mode'):

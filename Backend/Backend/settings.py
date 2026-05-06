@@ -103,6 +103,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'storages',
     'api',
 ]
@@ -285,6 +286,7 @@ REST_FRAMEWORK = {
         'anon': '60/hour',
         'user': '1000/hour',
         'phone_registration_lookup': '20/hour',
+        'redemption': '30/hour',
     },
     'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',

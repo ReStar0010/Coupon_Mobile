@@ -302,12 +302,14 @@ def validate_uploaded_image_file(image_file) -> tuple[str, str]:
 def save_uploaded_image(image_file) -> str:
     """
     Save an uploaded image file to default storage and return its URL.
+
+    The filename stored on disk is fully random (32-character hex string + validated
+    extension).  The original user-supplied filename is intentionally discarded to
+    prevent path traversal attacks and to avoid leaking business information.
     """
-    file_name, file_extension = validate_uploaded_image_file(image_file)
-    timestamp = int(datetime.now().timestamp())
-    random_str = secrets.token_hex(4)
-    original_filename = Path(file_name).stem
-    unique_filename = f"{timestamp}_{random_str}_{original_filename}{file_extension}"
+    _file_name, file_extension = validate_uploaded_image_file(image_file)
+    # Use a cryptographically random name — never include any user-supplied path component.
+    unique_filename = f"{secrets.token_hex(16)}{file_extension}"
     path = default_storage.save(unique_filename, image_file)
     return default_storage.url(path)
 

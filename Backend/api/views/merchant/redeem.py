@@ -1,7 +1,8 @@
 import logging
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
+from ...throttles import RedemptionThrottle
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError, ErrorDetail
@@ -220,6 +221,7 @@ def refresh_redeem_code(request):
 )
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([RedemptionThrottle])
 def merchant_redeem(request):
     """
     Merchant redeem a coupon using phone number and template ID.

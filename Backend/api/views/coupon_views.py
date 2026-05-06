@@ -1,5 +1,6 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from api.throttles import RedemptionThrottle
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
@@ -400,6 +401,7 @@ def get_coupon_detail(request, id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([RedemptionThrottle])
 @transaction.atomic
 def redeem_coupon(request, id):
     coupon = get_object_or_404(
@@ -540,6 +542,7 @@ def redeem_coupon(request, id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([RedemptionThrottle])
 def validate_unified_redemption_code(request, code):
     """
     Validate unified redemption code and return store info + consumer's available coupons.
