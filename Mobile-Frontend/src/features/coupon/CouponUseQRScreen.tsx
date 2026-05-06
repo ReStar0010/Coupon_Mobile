@@ -11,8 +11,6 @@ import AppStatusBar from '@/src/components/chrome/StatusBar';
 interface NavParams { store?: string; detail?: string; expires?: string; amount?: number; }
 interface CouponScreenProps {
   onNavigate: (screen: string, params?: NavParams) => void;
-  gems: number;
-  setGems: (fn: (prev: number) => number) => void;
   couPoints: number;
   setCouPoints: (fn: (prev: number) => number) => void;
   params: NavParams;

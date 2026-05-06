@@ -22,6 +22,8 @@ interface WalletActions {
   refreshWallet: () => Promise<void>;
   spendGems: (n: number) => void;
   addPoints: (n: number) => void;
+  setGemsLocal: (fn: (prev: number) => number) => void;
+  setCouPointsLocal: (fn: (prev: number) => number) => void;
 }
 
 type WalletContextValue = WalletState & WalletActions;
@@ -78,6 +80,14 @@ export function WalletProvider({ children }: WalletProviderProps): React.JSX.Ele
     setCouPoints((prev) => prev + n);
   }, []);
 
+  const setGemsLocal = useCallback((fn: (prev: number) => number): void => {
+    setGems(fn);
+  }, []);
+
+  const setCouPointsLocal = useCallback((fn: (prev: number) => number): void => {
+    setCouPoints(fn);
+  }, []);
+
   const value = useMemo<WalletContextValue>(
     () => ({
       gems,
@@ -87,8 +97,10 @@ export function WalletProvider({ children }: WalletProviderProps): React.JSX.Ele
       refreshWallet,
       spendGems,
       addPoints,
+      setGemsLocal,
+      setCouPointsLocal,
     }),
-    [gems, couPoints, coupons, isLoading, refreshWallet, spendGems, addPoints],
+    [gems, couPoints, coupons, isLoading, refreshWallet, spendGems, addPoints, setGemsLocal, setCouPointsLocal],
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
