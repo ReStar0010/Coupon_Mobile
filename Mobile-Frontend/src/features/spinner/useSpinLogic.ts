@@ -50,6 +50,7 @@ export function useSpinLogic({
 
     setSpinning(true);
     setResult(null);
+    const gemsUsed = gems;
     setGems((prev) => prev - 1);
 
     const available = MULTS.filter((m) => m.v >= floor);
@@ -77,8 +78,7 @@ export function useSpinLogic({
     const t = setTimeout(() => {
       setSpinning(false);
       setTimeout(() => {
-        const pts = (gems - 1) * chosen.v;
-        const earnedPts = Math.max(0, pts);
+        const earnedPts = gemsUsed * chosen.v;
         setResult({ mult: chosen.v, points: earnedPts, color: chosen.color });
         setCouPoints((p) => p + earnedPts);
       }, 350);
