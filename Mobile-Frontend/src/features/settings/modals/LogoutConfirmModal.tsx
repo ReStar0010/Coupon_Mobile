@@ -29,7 +29,7 @@ export default function LogoutConfirmModal({
     >
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.sheet}>
+        <View testID="logout-modal" style={styles.sheet}>
           <View style={styles.accentStrip} />
           <View style={styles.dragHandle} />
           <Text style={styles.title}>登出帳號</Text>

@@ -14,11 +14,13 @@ type DeleteStep = null | 'confirm' | 'done';
 interface DeleteAccountModalProps {
   visible: boolean;
   onClose: () => void;
+  testID?: string;
 }
 
 export default function DeleteAccountModal({
   visible,
   onClose,
+  testID,
 }: DeleteAccountModalProps): React.JSX.Element {
   const [step, setStep] = useState<DeleteStep>(null);
 
@@ -36,7 +38,7 @@ export default function DeleteAccountModal({
     >
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <View style={styles.sheet}>
+        <View testID={testID ?? 'delete-modal'} style={styles.sheet}>
           <View style={styles.accentStrip} />
           <View style={styles.dragHandle} />
           <Text style={styles.title}>刪除帳號</Text>
