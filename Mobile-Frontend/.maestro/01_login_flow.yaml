@@ -1,0 +1,12 @@
+appId: com.coupro.app
+---
+- launchApp:
+    clearState: true
+- assertVisible: "登入"
+- tapOn: "電子郵件"
+- inputText: "test@coupro.com"
+- tapOn: "密碼"
+- inputText: "testpassword123"
+- tapOn:
+    text: "登入"
+- assertVisible: "我的券"

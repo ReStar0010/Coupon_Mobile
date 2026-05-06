@@ -1,0 +1,16 @@
+appId: com.coupro.app
+---
+- launchApp
+- assertVisible: "我的券"
+- tapOn:
+    id: "tab-map"
+- assertVisible: "CouMap"
+- tapOn:
+    id: "tab-spinner"
+- assertVisible: "Spinner"
+- tapOn:
+    id: "tab-settings"
+- assertVisible: "Settings"
+- tapOn:
+    id: "tab-home"
+- assertVisible: "我的券"
