@@ -1,6 +1,7 @@
 """Tests for POST /api/web/v1/points/lookup/ (phone normalization and totals)."""
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from api.models import Store, CouponTemplate, WebRedemption, StudentProfile, CouponRedemption, Coupon
@@ -10,6 +11,7 @@ User = get_user_model()
 
 class WebPointsLookupTest(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(username="ptuser", email="pt@example.com", password="x")
         self.profile = StudentProfile.objects.create(

@@ -4,6 +4,7 @@ Covers share create, get_share by token, accept_share (race-safe), share_public,
 """
 from django.test import TestCase
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.test import APIClient
@@ -17,6 +18,7 @@ class PlatformVoucherSharingTest(TestCase):
     """Share create, get by token, accept (race-safe), share-public, my_public_shares."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(
             username="holder@test.com",

@@ -8,6 +8,7 @@ api/email-settings/send-verification/ (009 optional email).
 from unittest.mock import patch
 from django.test import TestCase
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework import status
 
@@ -18,6 +19,7 @@ class UserProfileRoutesTest(TestCase):
     """Coverage for user profile and statistics endpoints."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(
             username='user@test.com',
@@ -114,7 +116,7 @@ class UserProfileRoutesTest(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @patch('api.views.authentication.send_verification_email')
+    @patch('api.views.auth.email_verification.send_verification_email')
     def test_email_settings_send_verification_success(self, mock_send):
         """POST api/email-settings/send-verification/ with auth sends email and returns 200."""
         self.client.force_authenticate(user=self.user)

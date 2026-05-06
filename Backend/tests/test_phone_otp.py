@@ -4,6 +4,7 @@ Feature: 002-phone-otp-verification
 """
 from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework import status
 from datetime import timedelta
@@ -18,6 +19,7 @@ class PhoneOTPTestBase(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         # Create test user
         self.user = User.objects.create_user(
             username='testuser@example.com',
@@ -518,6 +520,7 @@ class RegistrationPhoneLookupTests(TestCase):
     """Tests for POST /api/register/check-phone/ (lookup only, no SMS)."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.free_phone = "0912345678"
         self.registered_phone = "0911111111"
@@ -618,6 +621,7 @@ class RegistrationOTPSendTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
 
@@ -710,6 +714,7 @@ class RegistrationOTPVerifyTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
         self.test_password = 'testpass123'
@@ -808,6 +813,7 @@ class RegistrationIntegrationTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
         self.test_password = 'testpass123'
@@ -1002,10 +1008,11 @@ class PhoneLoginTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
         self.test_password = 'testpass123'
-        
+
         # Create a phone-registered user
         self.user = User.objects.create_user(
             username=self.test_phone,
@@ -1138,11 +1145,12 @@ class PasswordResetPhoneTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
         self.test_password = 'oldpass123'
         self.new_password = 'newpass456'
-        
+
         # Create a phone-registered user
         self.user = User.objects.create_user(
             username=self.test_phone,

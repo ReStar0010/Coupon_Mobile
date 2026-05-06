@@ -6,6 +6,7 @@ collection/<token>/, c/<token>/, claim/<token>/, cl/<token>/
 """
 from django.test import TestCase
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.test import APIClient
@@ -18,6 +19,7 @@ class SharingRoutesTest(TestCase):
     """Coverage for coupon sharing and claim/collection landing endpoints."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(
             username='user@test.com',
@@ -177,6 +179,7 @@ class ConsumerFlowFlagScopeTest(TestCase):
     """
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(
             username='flagtest@test.com',

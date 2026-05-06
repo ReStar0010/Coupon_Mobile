@@ -4,6 +4,7 @@ Uses token-based auth (login → Bearer token) for consumer, merchant, and shari
 """
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
+from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.test import APIClient
@@ -72,9 +73,10 @@ class ConsumerJourneyE2ETest(TestCase):
     """E2E: consumer register (mock email) → verify → login → browse → redeem / daily-draw / profile."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
 
-    @patch('api.views.authentication.send_verification_email')
+    @patch('api.views.auth.register.send_verification_email')
     def test_consumer_journey_email_register_login_browse_redeem(self, mock_send_email):
         """Register with email → verify → login → store-coupons, exclusive-coupons → coupon detail → user-statistics, coupon-history."""
         # Register
@@ -270,6 +272,7 @@ class MerchantJourneyE2ETest(TestCase):
     """E2E: merchant register (mock verify) / login → profile → template CRUD → QR or redeem → stats / account delete."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self._eula_version = '1.0.0'
 
@@ -498,6 +501,7 @@ class SharingJourneyE2ETest(TestCase):
     """E2E: private share (A share → B get token → accept) and public share (A share-public → B accept → my-public-shares)."""
 
     def setUp(self):
+        cache.clear()
         self.client_a = APIClient()
         self.client_b = APIClient()
 
@@ -650,6 +654,7 @@ class WebConsumerJourneyE2ETest(TestCase):
     """E2E for web-based consumer flow redemption consistency."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
 
         merchant_group, _ = Group.objects.get_or_create(name='Merchant')

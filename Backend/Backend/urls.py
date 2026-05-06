@@ -84,8 +84,8 @@ urlpatterns = [
     path('api/ping/', lambda request: HttpResponse("Pong!")),
     path('api/health/', health_check, name='health_check'),
     path('api/test-sentry/', staff_member_required(trigger_sentry_error), name='trigger_sentry_error'),
-    path('api/load-test/verify-consistency/', staff_member_required(load_test_verify_consistency)),
-    path('api/load-test/reset/', staff_member_required(load_test_reset)),
+    path('api/load-test/verify-consistency/', load_test_verify_consistency),
+    path('api/load-test/reset/', load_test_reset),
 ]
 
 if settings.DEBUG:

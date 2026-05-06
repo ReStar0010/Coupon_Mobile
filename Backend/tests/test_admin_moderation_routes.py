@@ -6,6 +6,7 @@ reports/<id>/action/, escalations/, merchants/<id>/violations/, stats/
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework import status
 
@@ -16,6 +17,7 @@ class AdminModerationRoutesTest(TestCase):
     """Coverage for admin moderation endpoints; assert 403 for non-admin."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.merchant_group, _ = Group.objects.get_or_create(name='Merchant')
         self.merchant = User.objects.create_user(

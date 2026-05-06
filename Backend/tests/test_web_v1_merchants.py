@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
@@ -11,6 +12,7 @@ from api.models import CouponTemplate, Store
 
 class WebV1MerchantCouponsVisibilityTest(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         owner = User.objects.create_user(
             username='merchant_web_v1@test.com',
