@@ -2,54 +2,58 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
+import CoinIcon from '@/src/components/icons/CoinIcon';
 
 interface CouPointsCardProps {
   couPoints: number;
-  onRedeem: () => void;
+  onUse: () => void;
+  onHistory?: () => void;
 }
 
-const REDEEM_THRESHOLD = 130;
-const REDEEM_VALUE = 25;
+const VOUCHER_TIERS = [
+  { amt: 5, cost: 26 },
+  { amt: 10, cost: 52 },
+  { amt: 15, cost: 78 },
+  { amt: 20, cost: 104 },
+  { amt: 25, cost: 130 },
+];
 
 export default function CouPointsCard({
   couPoints,
-  onRedeem,
+  onUse,
+  onHistory,
 }: CouPointsCardProps): React.JSX.Element {
-  const progress = Math.min(100, Math.round((couPoints / REDEEM_THRESHOLD) * 100));
-  const remaining = Math.max(0, REDEEM_THRESHOLD - couPoints);
+  const nextTier =
+    VOUCHER_TIERS.find((t) => t.cost > couPoints) ?? VOUCHER_TIERS[VOUCHER_TIERS.length - 1];
+  const progress = Math.min(100, Math.round((couPoints / nextTier.cost) * 100));
+  const remaining = Math.max(0, nextTier.cost - couPoints);
 
   return (
     <View style={styles.wrapper}>
       <View style={styles.shadow} />
       <View style={styles.card}>
-        <View style={styles.top}>
-          <View>
-            <Text style={styles.label}>CouPoint 餘額</Text>
-            <View style={styles.balanceRow}>
-              <Text
-                testID="coupoints-balance"
-                style={styles.balanceNum}
-              >
-                {couPoints}
-              </Text>
-              <Text style={styles.balanceUnit}>pt</Text>
-            </View>
-            {remaining > 0 && (
-              <Text style={styles.hint}>再 {remaining} pt 即可兌換 ${REDEEM_VALUE} 折抵券</Text>
-            )}
-          </View>
-          <View style={styles.redeemBtnWrapper}>
-            <Pressable onPress={onRedeem} style={styles.redeemBtn}>
-              <Text style={styles.redeemBtnText}>兌換 →</Text>
-            </Pressable>
-          </View>
+        <Text style={styles.label}>CouPoint 餘額</Text>
+        <View style={styles.balanceRow}>
+          <CoinIcon size={40} />
+          <Text testID="coupoints-balance" style={styles.balanceNum}>
+            {couPoints}
+          </Text>
         </View>
+        {remaining > 0 && (
+          <Text style={styles.hint}>
+            再 {remaining} 點可兌換 ${nextTier.amt} 級距
+          </Text>
+        )}
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress}%` as `${number}%` }]} />
         </View>
-        <View style={styles.progressLabels}>
-          <Text style={styles.progressLabel}>0 pt</Text>
-          <Text style={styles.progressLabel}>${REDEEM_VALUE} →</Text>
+        <View style={styles.btnRow}>
+          <Pressable onPress={onUse} style={styles.redeemBtn}>
+            <Text style={styles.redeemBtnText}>掃碼使用</Text>
+          </Pressable>
+          <Pressable onPress={onHistory} style={styles.historyBtn}>
+            <Text style={styles.historyBtnText}>歷史紀錄</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -72,88 +76,82 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   card: {
-    backgroundColor: colors.yellow,
+    backgroundColor: '#18181C',
     borderWidth: 2.5,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: 18,
+    paddingTop: 18,
+    paddingHorizontal: 18,
     paddingBottom: 16,
-  },
-  top: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 14,
   },
   label: {
     fontFamily: fontFamilies.monoRegular,
     fontSize: 10,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    color: 'rgba(51,51,51,0.65)',
+    color: 'rgba(255,255,255,0.5)',
     marginBottom: 5,
   },
   balanceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
+    gap: 8,
+    marginBottom: 2,
   },
   balanceNum: {
     fontFamily: fontFamilies.extraBold,
     fontSize: 58,
     lineHeight: 58,
     letterSpacing: -2.32,
-    color: colors.fg,
-  },
-  balanceUnit: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 16,
-    color: 'rgba(51,51,51,0.65)',
-    marginBottom: 4,
+    color: '#fff',
   },
   hint: {
     fontFamily: fontFamilies.regular,
     fontSize: 12,
-    color: colors.fg,
-    marginTop: 3,
-  },
-  redeemBtnWrapper: {
-    marginTop: 8,
-  },
-  redeemBtn: {
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    backgroundColor: colors.fg,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 5,
-  },
-  redeemBtnText: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 14,
-    letterSpacing: -0.14,
-    color: colors.yellow,
+    color: 'rgba(255,255,255,0.45)',
+    marginBottom: 10,
   },
   progressTrack: {
-    height: 10,
-    backgroundColor: 'rgba(51,51,51,0.18)',
-    borderWidth: 2,
-    borderColor: 'rgba(51,51,51,0.2)',
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 3,
     overflow: 'hidden',
+    marginBottom: 14,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.fg,
+    backgroundColor: colors.yellow,
+    borderRadius: 3,
   },
-  progressLabels: {
+  btnRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 5,
+    gap: 8,
   },
-  progressLabel: {
-    fontFamily: fontFamilies.monoRegular,
-    fontSize: 10,
-    color: 'rgba(51,51,51,0.55)',
+  redeemBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: colors.yellow,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  redeemBtnText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    letterSpacing: -0.13,
+    color: colors.fg,
+  },
+  historyBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  historyBtnText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
   },
 });

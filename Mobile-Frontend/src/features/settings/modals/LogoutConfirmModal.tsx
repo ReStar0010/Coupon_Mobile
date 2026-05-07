@@ -1,11 +1,6 @@
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 
@@ -21,15 +16,8 @@ export default function LogoutConfirmModal({
   onClose,
 }: LogoutConfirmModalProps): React.JSX.Element {
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View testID="logout-modal" style={styles.sheet}>
+    <BottomSheet visible={visible} onClose={onClose}>
+      <View testID="logout-modal" style={styles.sheet}>
           <View style={styles.accentStrip} />
           <View style={styles.dragHandle} />
           <Text style={styles.title}>登出帳號</Text>
@@ -51,17 +39,11 @@ export default function LogoutConfirmModal({
             </View>
           </View>
         </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
   sheet: {
     backgroundColor: colors.bg,
     borderTopLeftRadius: 16,

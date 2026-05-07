@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-} from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 
@@ -39,15 +31,8 @@ export default function BlockedMerchantsModal({
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View testID="blocked-modal" style={[styles.sheet, { maxHeight: SCREEN_HEIGHT * 0.7 }]}>
+    <BottomSheet visible={visible} onClose={onClose}>
+      <View testID="blocked-modal" style={[styles.sheet, { maxHeight: SCREEN_HEIGHT * 0.7 }]}>
           <View style={styles.accentStrip} />
           <View style={styles.dragHandle} />
           <Text style={styles.title}>封鎖商家</Text>
@@ -99,17 +84,11 @@ export default function BlockedMerchantsModal({
             </Pressable>
           </View>
         </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
   sheet: {
     backgroundColor: colors.bg,
     borderTopLeftRadius: 16,

@@ -4,14 +4,14 @@ import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
 import LogoIcon from '../icons/LogoIcon';
-import SettingsIcon from '../icons/SettingsIcon';
 
-type TabName = 'home' | 'map' | 'spinner' | 'settings';
+type TabName = 'home' | 'map' | 'spinner';
 
 interface TabBarProps {
   activeTab: TabName;
   onTabPress: (tab: TabName) => void;
   dark?: boolean;
+  bottomInset?: number;
 }
 
 interface TabConfig {
@@ -23,7 +23,6 @@ const TABS: TabConfig[] = [
   { id: 'map', label: 'CouMap' },
   { id: 'home', label: 'CouPro' },
   { id: 'spinner', label: 'Spinner' },
-  { id: 'settings', label: 'Settings' },
 ];
 
 function MapIcon({ active, iconColor }: { active: boolean; iconColor: string }) {
@@ -57,13 +56,14 @@ export default function TabBar({
   activeTab,
   onTabPress,
   dark = false,
+  bottomInset = 0,
 }: TabBarProps): React.JSX.Element {
   const iconColor = dark ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.45)';
   const bg = dark ? '#1E1E1E' : colors.fg;
   const homeBgActive = activeTab === 'home' ? colors.yellow : dark ? '#2C2C2C' : '#F0F0EB';
 
   return (
-    <View style={[styles.container, { backgroundColor: bg }]}>
+    <View style={[styles.container, { backgroundColor: bg, paddingBottom: bottomInset }]}>
       {/* Map tab — left */}
       <Pressable
         testID={activeTab === 'map' ? 'tab-map-active' : 'tab-map'}
@@ -134,23 +134,6 @@ export default function TabBar({
         </Text>
       </Pressable>
 
-      {/* Settings tab — far right */}
-      <Pressable
-        testID={activeTab === 'settings' ? 'tab-settings-active' : 'tab-settings'}
-        onPress={() => onTabPress('settings')}
-        style={styles.sideTab}
-      >
-        <SettingsIcon size={19} color={activeTab === 'settings' ? colors.yellow : iconColor} />
-        <Text
-          style={[
-            styles.tabLabel,
-            { color: activeTab === 'settings' ? colors.yellow : iconColor },
-            activeTab === 'settings' && styles.tabLabelActive,
-          ]}
-        >
-          Settings
-        </Text>
-      </Pressable>
     </View>
   );
 }

@@ -1,13 +1,6 @@
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 
@@ -74,15 +67,8 @@ export default function LegalTextModal({
   const { title, body } = LEGAL_CONTENT[type];
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheet, { height: SCREEN_HEIGHT * 0.72 }]}>
+    <BottomSheet visible={visible} onClose={onClose}>
+      <View style={[styles.sheet, { height: SCREEN_HEIGHT * 0.72 }]}>
           <View style={styles.accentStrip} />
           <View style={styles.dragHandle} />
           <Text style={styles.title}>{title}</Text>
@@ -98,17 +84,11 @@ export default function LegalTextModal({
             </View>
           </View>
         </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
   sheet: {
     backgroundColor: colors.bg,
     borderTopLeftRadius: 16,

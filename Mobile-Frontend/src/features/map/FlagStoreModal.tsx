@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import {
-  View, Text, Pressable, StyleSheet, Modal, TouchableWithoutFeedback,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
 
@@ -26,10 +25,7 @@ export default function FlagStoreModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.backdrop} />
-      </TouchableWithoutFeedback>
+    <BottomSheet visible={visible} onClose={handleClose}>
       <View style={styles.sheet}>
         <View style={styles.handle} />
         {done ? (
@@ -64,14 +60,12 @@ export default function FlagStoreModal({
           </>
         )}
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: colors.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16,
     borderWidth: 3, borderBottomWidth: 0, borderColor: colors.border,
     padding: 20, paddingBottom: 36,

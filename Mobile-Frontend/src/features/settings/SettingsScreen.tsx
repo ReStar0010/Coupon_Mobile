@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
-import AppStatusBar from '@/src/components/chrome/StatusBar';
-import TabBar from '@/src/components/chrome/TabBar';
 import ToggleSwitch from '@/src/components/ui/ToggleSwitch';
 import EditProfileModal from './modals/EditProfileModal';
 import LogoutConfirmModal from './modals/LogoutConfirmModal';
@@ -59,11 +51,7 @@ function SettingsRow({
   return (
     <View style={styles.rowWrapper}>
       <View style={styles.rowShadow} />
-      <Pressable
-        testID={testID}
-        style={styles.row}
-        onPress={onPress}
-      >
+      <Pressable testID={testID} style={styles.row} onPress={onPress}>
         <View style={styles.rowLeft}>
           <Text style={styles.rowLabel}>{label}</Text>
           {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
@@ -76,12 +64,7 @@ function SettingsRow({
 
 function VerifiedBadge({ ok }: { ok: boolean }) {
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: ok ? colors.green : colors.subtle },
-      ]}
-    >
+    <View style={[styles.badge, { backgroundColor: ok ? colors.green : colors.subtle }]}>
       <Text style={[styles.badgeText, { color: ok ? '#fff' : colors.muted }]}>
         {ok ? '✓ 已驗證' : '未驗證'}
       </Text>
@@ -126,7 +109,6 @@ export default function SettingsScreen({
 
   return (
     <View style={styles.screen}>
-      <AppStatusBar gems={gems} couPoints={couPoints} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
@@ -160,10 +142,7 @@ export default function SettingsScreen({
               </View>
               <View style={styles.editBtnWrapper}>
                 <View style={styles.editBtnShadow} />
-                <Pressable
-                  style={styles.editBtn}
-                  onPress={() => setModal('edit-profile')}
-                >
+                <Pressable style={styles.editBtn} onPress={() => setModal('edit-profile')}>
                   <Text style={styles.editBtnText}>編輯</Text>
                 </Pressable>
               </View>
@@ -181,10 +160,7 @@ export default function SettingsScreen({
               <View style={styles.verifyRight}>
                 <VerifiedBadge ok={emailVerified} />
                 {!emailVerified && (
-                  <Pressable
-                    style={styles.verifyBtn}
-                    onPress={() => setModal('verify-email')}
-                  >
+                  <Pressable style={styles.verifyBtn} onPress={() => setModal('verify-email')}>
                     <Text style={styles.verifyBtnText}>驗證</Text>
                   </Pressable>
                 )}
@@ -199,10 +175,7 @@ export default function SettingsScreen({
               <View style={styles.verifyRight}>
                 <VerifiedBadge ok={phoneVerified} />
                 {!phoneVerified && (
-                  <Pressable
-                    style={styles.verifyBtn}
-                    onPress={() => setModal('verify-phone')}
-                  >
+                  <Pressable style={styles.verifyBtn} onPress={() => setModal('verify-phone')}>
                     <Text style={styles.verifyBtnText}>驗證</Text>
                   </Pressable>
                 )}
@@ -220,10 +193,7 @@ export default function SettingsScreen({
             sub="新優惠券與到期提醒"
             right={
               <View testID="toggle-push">
-                <ToggleSwitch
-                  value={pushEnabled}
-                  onToggle={setPushEnabled}
-                />
+                <ToggleSwitch value={pushEnabled} onToggle={setPushEnabled} />
               </View>
             }
           />
@@ -232,10 +202,7 @@ export default function SettingsScreen({
             sub="每週優惠摘要"
             right={
               <View testID="toggle-email">
-                <ToggleSwitch
-                  value={emailNotif}
-                  onToggle={setEmailNotif}
-                />
+                <ToggleSwitch value={emailNotif} onToggle={setEmailNotif} />
               </View>
             }
           />
@@ -318,11 +285,6 @@ export default function SettingsScreen({
         </View>
       </ScrollView>
 
-      <TabBar
-        activeTab="settings"
-        onTabPress={onNavigate as (tab: 'home' | 'map' | 'spinner' | 'settings') => void}
-      />
-
       {/* Modals */}
       <EditProfileModal
         visible={modal === 'edit-profile'}
@@ -334,7 +296,10 @@ export default function SettingsScreen({
       />
       <LogoutConfirmModal
         visible={modal === 'logout'}
-        onLogout={() => { setModal(null); onNavigate('home'); }}
+        onLogout={() => {
+          setModal(null);
+          onNavigate('home');
+        }}
         onClose={() => setModal(null)}
       />
       <DeleteAccountModal
@@ -347,28 +312,15 @@ export default function SettingsScreen({
         type={modal === 'feedback-feature' ? 'feature' : 'bug'}
         onClose={() => setModal(null)}
       />
-      <BlockedMerchantsModal
-        visible={modal === 'blocked'}
-        onClose={() => setModal(null)}
-      />
+      <BlockedMerchantsModal visible={modal === 'blocked'} onClose={() => setModal(null)} />
       <VerifyModal
         visible={modal === 'verify-email' || modal === 'verify-phone'}
         field={modal === 'verify-phone' ? 'phone' : 'email'}
         currentVal={modal === 'verify-phone' ? profilePhone : profileEmail}
-        onClose={() =>
-          handleVerifyClose(modal === 'verify-phone' ? 'phone' : 'email')
-        }
+        onClose={() => handleVerifyClose(modal === 'verify-phone' ? 'phone' : 'email')}
       />
-      <LegalTextModal
-        visible={modal === 'terms'}
-        type="terms"
-        onClose={() => setModal(null)}
-      />
-      <LegalTextModal
-        visible={modal === 'privacy'}
-        type="privacy"
-        onClose={() => setModal(null)}
-      />
+      <LegalTextModal visible={modal === 'terms'} type="terms" onClose={() => setModal(null)} />
+      <LegalTextModal visible={modal === 'privacy'} type="privacy" onClose={() => setModal(null)} />
     </View>
   );
 }

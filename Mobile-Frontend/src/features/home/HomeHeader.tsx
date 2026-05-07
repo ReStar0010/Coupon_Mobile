@@ -4,19 +4,12 @@ import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import LogoIcon from '@/src/components/icons/LogoIcon';
 import SettingsIcon from '@/src/components/icons/SettingsIcon';
-import { GemBadge, CouPointBadge } from '@/src/components/ui/Badges';
 
 interface HomeHeaderProps {
-  gems: number;
-  couPoints: number;
   onSettings: () => void;
 }
 
-export default function HomeHeader({
-  gems,
-  couPoints,
-  onSettings,
-}: HomeHeaderProps): React.JSX.Element {
+export default function HomeHeader({ onSettings }: HomeHeaderProps): React.JSX.Element {
   return (
     <View style={styles.row}>
       <View style={styles.brand}>
@@ -29,8 +22,6 @@ export default function HomeHeader({
         <Text style={styles.title}>CouPro</Text>
       </View>
       <View style={styles.actions}>
-        <CouPointBadge count={couPoints} />
-        <GemBadge count={gems} />
         <View style={styles.settingsBtnWrapper}>
           <View style={styles.settingsBtnShadow} />
           <Pressable

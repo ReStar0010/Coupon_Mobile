@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 
@@ -30,15 +25,8 @@ export default function DeleteAccountModal({
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <View testID={testID ?? 'delete-modal'} style={styles.sheet}>
+    <BottomSheet visible={visible} onClose={handleClose}>
+      <View testID={testID ?? 'delete-modal'} style={styles.sheet}>
           <View style={styles.accentStrip} />
           <View style={styles.dragHandle} />
           <Text style={styles.title}>刪除帳號</Text>
@@ -102,17 +90,11 @@ export default function DeleteAccountModal({
             </Pressable>
           </View>
         </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
   sheet: {
     backgroundColor: colors.bg,
     borderTopLeftRadius: 16,

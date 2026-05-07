@@ -1,9 +1,21 @@
 import React from 'react';
 import Svg, { Path, Circle, Line, Text as SvgText, G, Polygon, Rect } from 'react-native-svg';
-import Animated, { useSharedValue, withTiming, useAnimatedStyle, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  withTiming,
+  useAnimatedStyle,
+  useAnimatedProps,
+  Easing,
+  withRepeat,
+  withSequence,
+  cancelAnimation,
+} from 'react-native-reanimated';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 import { View, StyleSheet } from 'react-native';
 import { MULTS } from './constants';
 import { colors } from '../../theme/colors';
+import type { SpinPhase } from './useSpinLogic';
 
 interface WheelDialProps {
   size?: number;
@@ -11,6 +23,8 @@ interface WheelDialProps {
   spin: number;
   spinning: boolean;
   gems: number;
+  phase?: SpinPhase;
+  upcomingColor?: string | null;
 }
 
 function buildRanges(floor: number) {
@@ -35,7 +49,13 @@ function arcPath(a0: number, a1: number, cx: number, cy: number, r: number): str
   return `M${cx} ${cy} L${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}Z`;
 }
 
-function labelPos(a0: number, a1: number, cx: number, cy: number, r: number): [number, number, number] {
+function labelPos(
+  a0: number,
+  a1: number,
+  cx: number,
+  cy: number,
+  r: number,
+): [number, number, number] {
   const a = (a0 + a1) / 2;
   const d = r * 0.63;
   return [cx + d * Math.cos(a), cy + d * Math.sin(a), (a * 180) / Math.PI + 90];
@@ -55,6 +75,8 @@ export default function WheelDial({
   spin,
   spinning,
   gems,
+  phase,
+  upcomingColor,
 }: WheelDialProps): React.JSX.Element {
   const r = size / 2 - 18;
   const cx = size / 2;
@@ -63,8 +85,8 @@ export default function WheelDial({
   const rc = rimColor(gems);
   const rimW = gems >= 4 ? 6 : gems >= 2 ? 4 : 3;
 
+  // Sector spin rotation
   const rotation = useSharedValue(0);
-
   React.useEffect(() => {
     if (spinning) {
       rotation.value = withTiming(spin, {
@@ -76,8 +98,85 @@ export default function WheelDial({
     }
   }, [spin, spinning]);
 
+  // Idle decoration rotation (outer rim notches)
+  const idleDecor = useSharedValue(0);
+  React.useEffect(() => {
+    if (!spinning) {
+      const start = idleDecor.value;
+      idleDecor.value = withRepeat(
+        withTiming(start + 360, { duration: 8000, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    } else {
+      cancelAnimation(idleDecor);
+    }
+  }, [spinning]);
+
+  // Glow ring pulse — intensity scales with gem count
+  const glowOpacity = useSharedValue(0);
+  React.useEffect(() => {
+    cancelAnimation(glowOpacity);
+    if (gems >= 1) {
+      const peak = Math.min(0.35 + gems * 0.13, 0.95);
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(peak, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.08, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      glowOpacity.value = withTiming(0, { duration: 300 });
+    }
+  }, [gems]);
+
+  // Needle glow when upcoming result is known (pre-reveal hint)
+  const needleGlowOp = useSharedValue(0);
+  React.useEffect(() => {
+    if (upcomingColor) {
+      needleGlowOp.value = withRepeat(
+        withSequence(
+          withTiming(0.75, { duration: 200, easing: Easing.out(Easing.sin) }),
+          withTiming(0.25, { duration: 320, easing: Easing.in(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      cancelAnimation(needleGlowOp);
+      needleGlowOp.value = withTiming(0, { duration: 150 });
+    }
+  }, [upcomingColor]);
+
+  const needleGlowProps = useAnimatedProps(() => ({ opacity: needleGlowOp.value }));
+
+  // Needle wobble during pre-reveal pause
+  const needleWobble = useSharedValue(0);
+  React.useEffect(() => {
+    if (phase === 'pause') {
+      needleWobble.value = withSequence(
+        withTiming(-4, { duration: 80 }),
+        withRepeat(
+          withSequence(withTiming(4, { duration: 90 }), withTiming(-4, { duration: 90 })),
+          3,
+          false,
+        ),
+        withTiming(0, { duration: 80 }),
+      );
+    }
+  }, [phase]);
+
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+  const idleStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${idleDecor.value}deg` }],
+  }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glowOpacity.value }));
+  const needleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: needleWobble.value }],
   }));
 
   const notches = Array.from({ length: 24 }, (_, i) => {
@@ -93,56 +192,126 @@ export default function WheelDial({
     };
   });
 
+  const vb = `0 0 ${size} ${size}`;
+
   return (
     <View style={styles.container}>
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={styles.svg}>
-        {/* Hard offset shadow backing circle */}
+      {/* Layer 1: Static background — shadow + solid rim */}
+      <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
         <Circle cx={cx + 8} cy={cy + 8} r={r + 14} fill="#333" />
-        {/* Outer rim */}
         <Circle cx={cx} cy={cy} r={r + 14} fill="#1a1a1a" stroke={rc} strokeWidth={rimW} />
-        {/* Rim notch marks */}
-        {notches.map((n, i) => (
-          <Line
-            key={i}
-            x1={n.x0} y1={n.y0} x2={n.x1} y2={n.y1}
-            stroke={n.major ? colors.yellow : 'rgba(255,255,255,0.25)'}
-            strokeWidth={n.major ? 2.5 : 1}
-          />
-        ))}
-        {/* Needle — bold arrow at top, static */}
-        <Polygon
-          points={`${cx - 12},${cy - r - 3} ${cx + 12},${cy - r - 3} ${cx},${cy - r + 12}`}
-          fill={colors.yellow} stroke="#333" strokeWidth={3.5}
-        />
-        <Polygon
-          points={`${cx - 7},${cy - r - 20} ${cx + 7},${cy - r - 20} ${cx},${cy - r - 4}`}
-          fill="#fff" stroke="#333" strokeWidth={2.5}
-        />
       </Svg>
-      {/* Spinning sectors overlay */}
+
+      {/* Layer 2: Pulsing glow ring */}
+      <Animated.View
+        style={[styles.overlay, { width: size, height: size }, glowStyle]}
+        pointerEvents="none"
+      >
+        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+          <Circle cx={cx} cy={cy} r={r + 18} fill="none" stroke={rc} strokeWidth={16} />
+        </Svg>
+      </Animated.View>
+
+      {/* Layer 3: Idle-rotating notch marks */}
+      <Animated.View
+        style={[styles.overlay, { width: size, height: size }, idleStyle]}
+        pointerEvents="none"
+      >
+        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+          {notches.map((n, i) => (
+            <Line
+              key={i}
+              x1={n.x0}
+              y1={n.y0}
+              x2={n.x1}
+              y2={n.y1}
+              stroke={n.major ? colors.yellow : 'rgba(255,255,255,0.25)'}
+              strokeWidth={n.major ? 2.5 : 1}
+            />
+          ))}
+        </Svg>
+      </Animated.View>
+
+      {/* Layer 4: Spinning sectors + hub */}
       <Animated.View style={[styles.overlay, { width: size, height: size }, animStyle]}>
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={styles.svg}>
+        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
           {ranges.map((sec, i) => {
             const [lx, ly, aDeg] = labelPos(sec.a0, sec.a1, cx, cy, r);
             return (
               <G key={i} testID="wheel-sector">
-                <Path d={arcPath(sec.a0, sec.a1, cx, cy, r)} fill={sec.color} stroke="#333" strokeWidth={4} />
-                <Line x1={cx} y1={cy} x2={cx + (r + 14) * Math.cos(sec.a0)} y2={cy + (r + 14) * Math.sin(sec.a0)} stroke="#333" strokeWidth={4} />
+                <Path
+                  d={arcPath(sec.a0, sec.a1, cx, cy, r)}
+                  fill={sec.color}
+                  stroke="#333"
+                  strokeWidth={4}
+                />
+                <Line
+                  x1={cx}
+                  y1={cy}
+                  x2={cx + (r + 14) * Math.cos(sec.a0)}
+                  y2={cy + (r + 14) * Math.sin(sec.a0)}
+                  stroke="#333"
+                  strokeWidth={4}
+                />
                 <SvgText
-                  x={lx} y={ly + 5} textAnchor="middle"
-                  rotation={aDeg} originX={lx} originY={ly}
-                  fontFamily="JetBrainsMono_600SemiBold" fontSize={15} fontWeight="900"
-                  fill="#fff" stroke="#333" strokeWidth={3}
+                  x={lx}
+                  y={ly + 5}
+                  textAnchor="middle"
+                  rotation={aDeg}
+                  originX={lx}
+                  originY={ly}
+                  fontFamily="JetBrainsMono_600SemiBold"
+                  fontSize={14}
+                  fontWeight="600"
+                  fill="#fff"
+                  stroke="none"
                 >
                   {sec.label}
                 </SvgText>
               </G>
             );
           })}
-          {/* Hub */}
-          <Rect x={cx - 15} y={cy - 15} width={30} height={30} fill={colors.yellow} stroke="#333" strokeWidth={3} rx={2} />
+          <Rect
+            x={cx - 15}
+            y={cy - 15}
+            width={30}
+            height={30}
+            fill={colors.yellow}
+            stroke="#333"
+            strokeWidth={3}
+            rx={2}
+          />
           <Rect x={cx - 9} y={cy - 9} width={18} height={18} fill="#333" />
           <Rect x={cx - 5} y={cy - 5} width={10} height={10} fill={colors.yellow} />
+        </Svg>
+      </Animated.View>
+
+      {/* Layer 5: Static needle — topmost, wobbles on pause */}
+      <Animated.View
+        style={[styles.overlay, { width: size, height: size }, needleStyle]}
+        pointerEvents="none"
+      >
+        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+          {/* Pre-reveal glow halo on needle tip */}
+          <AnimatedCircle
+            cx={cx}
+            cy={cy - r - 12}
+            r={22}
+            fill={upcomingColor ?? 'transparent'}
+            animatedProps={needleGlowProps}
+          />
+          <Polygon
+            points={`${cx - 12},${cy - r - 3} ${cx + 12},${cy - r - 3} ${cx},${cy - r + 12}`}
+            fill={colors.yellow}
+            stroke="#333"
+            strokeWidth={3.5}
+          />
+          <Polygon
+            points={`${cx - 7},${cy - r - 20} ${cx + 7},${cy - r - 20} ${cx},${cy - r - 4}`}
+            fill="#fff"
+            stroke="#333"
+            strokeWidth={2.5}
+          />
         </Svg>
       </Animated.View>
     </View>
@@ -152,6 +321,7 @@ export default function WheelDial({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
+    overflow: 'visible',
   },
   svg: {
     overflow: 'visible',
@@ -160,5 +330,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
+    overflow: 'visible',
   },
 });

@@ -30,8 +30,7 @@ jest.mock('@/src/components/chrome/StatusBar', () => 'AppStatusBar');
 // ── Default props factory ────────────────────────────────────────────────────
 const makeProps = (overrides: Partial<React.ComponentProps<typeof CouponUseQRScreen>> = {}) => ({
   onNavigate: jest.fn(),
-  couPoints: 100,
-  setCouPoints: jest.fn(),
+  setGems: jest.fn(),
   params: {
     store: '阿明早餐店',
     detail: '$25 現金折抵',
@@ -68,16 +67,15 @@ describe('CouponUseQRScreen', () => {
     expect(getByText('模擬掃描成功 ▶')).toBeTruthy();
   });
 
-  it('sim scan button calls setCouPoints with the coupon amount', () => {
-    const setCouPoints = jest.fn();
-    const { getByText } = render(<CouponUseQRScreen {...makeProps({ setCouPoints })} />);
+  it('sim scan button calls setGems with +1', () => {
+    const setGems = jest.fn();
+    const { getByText } = render(<CouponUseQRScreen {...makeProps({ setGems })} />);
 
     fireEvent.press(getByText('模擬掃描成功 ▶'));
 
-    expect(setCouPoints).toHaveBeenCalledTimes(1);
-    // setCouPoints receives a function — call it with a mock prev to verify the increment
-    const updaterFn = setCouPoints.mock.calls[0][0];
-    expect(updaterFn(0)).toBe(25);
+    expect(setGems).toHaveBeenCalledTimes(1);
+    const updaterFn = setGems.mock.calls[0][0];
+    expect(updaterFn(3)).toBe(4);
   });
 
   it('sim scan button shows success text after scan', () => {
@@ -108,14 +106,14 @@ describe('CouponUseQRScreen', () => {
     expect(disabled).toBe(true);
   });
 
-  it('pressing sim scan a second time does not call setCouPoints again', () => {
-    const setCouPoints = jest.fn();
-    const { getByText } = render(<CouponUseQRScreen {...makeProps({ setCouPoints })} />);
+  it('pressing sim scan a second time does not call setGems again', () => {
+    const setGems = jest.fn();
+    const { getByText } = render(<CouponUseQRScreen {...makeProps({ setGems })} />);
 
     fireEvent.press(getByText('模擬掃描成功 ▶'));
     // Button text has changed to '掃描成功 ✓' and is disabled — pressing it again
     // should be a no-op because disabled blocks the handler
-    expect(setCouPoints).toHaveBeenCalledTimes(1);
+    expect(setGems).toHaveBeenCalledTimes(1);
   });
 
   it('shows success overlay with success text after scan', () => {
@@ -124,7 +122,7 @@ describe('CouponUseQRScreen', () => {
     fireEvent.press(getByText('模擬掃描成功 ▶'));
 
     expect(getByText('使用成功！')).toBeTruthy();
-    expect(getByText('+25 pt 已入帳')).toBeTruthy();
+    expect(getByText('+1 顆寶石')).toBeTruthy();
   });
 
   it('navigates to home after 2600 ms post-scan', () => {
@@ -133,7 +131,9 @@ describe('CouponUseQRScreen', () => {
 
     fireEvent.press(getByText('模擬掃描成功 ▶'));
 
-    act(() => { jest.advanceTimersByTime(2600); });
+    act(() => {
+      jest.advanceTimersByTime(2600);
+    });
 
     expect(onNavigate).toHaveBeenCalledWith('home');
   });
@@ -141,9 +141,7 @@ describe('CouponUseQRScreen', () => {
   it('back button navigates to coupon-detail with params', () => {
     const onNavigate = jest.fn();
     const params = { store: '阿明早餐店', expires: '11/08', amount: 25 };
-    const { getByText } = render(
-      <CouponUseQRScreen {...makeProps({ onNavigate, params })} />,
-    );
+    const { getByText } = render(<CouponUseQRScreen {...makeProps({ onNavigate, params })} />);
 
     fireEvent.press(getByText('←'));
 

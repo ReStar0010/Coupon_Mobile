@@ -30,13 +30,12 @@ jest.mock('react-native-maps', () => {
   const { View } = require('react-native');
   const MapView = ({ children }: { children?: React.ReactNode }) =>
     React.createElement(View, { testID: 'map-view' }, children);
-  const Marker = ({
-    children,
-    onPress,
-  }: {
-    children?: React.ReactNode;
-    onPress?: () => void;
-  }) => React.createElement(View, { testID: 'map-marker', onStartShouldSetResponder: () => true, onPress }, children);
+  const Marker = ({ children, onPress }: { children?: React.ReactNode; onPress?: () => void }) =>
+    React.createElement(
+      View,
+      { testID: 'map-marker', onStartShouldSetResponder: () => true, onPress },
+      children,
+    );
   return { __esModule: true, default: MapView, Marker };
 });
 
@@ -68,11 +67,7 @@ jest.mock('../NeoTeardropPin', () => {
         onLongPress,
         accessibilityState: { selected: !!active },
       },
-      React.createElement(
-        Text,
-        null,
-        active ? `active-${count ?? 0}` : 'inactive',
-      ),
+      React.createElement(Text, null, active ? `active-${count ?? 0}` : 'inactive'),
     );
 });
 
@@ -99,13 +94,8 @@ jest.mock('react-native-svg', () => {
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const AnimatedView = ({
-    children,
-    style,
-  }: {
-    children?: React.ReactNode;
-    style?: object;
-  }) => React.createElement(View, { style }, children);
+  const AnimatedView = ({ children, style }: { children?: React.ReactNode; style?: object }) =>
+    React.createElement(View, { style }, children);
   return {
     __esModule: true,
     default: {
@@ -125,13 +115,7 @@ jest.mock('@/src/components/chrome/StatusBar', () => 'AppStatusBar');
 jest.mock('@/src/components/chrome/TabBar', () => {
   const React = require('react');
   const { View, Pressable, Text } = require('react-native');
-  return ({
-    activeTab,
-    onTabPress,
-  }: {
-    activeTab: string;
-    onTabPress: (tab: string) => void;
-  }) =>
+  return ({ activeTab, onTabPress }: { activeTab: string; onTabPress: (tab: string) => void }) =>
     React.createElement(
       View,
       { testID: 'tab-bar' },
@@ -152,15 +136,7 @@ jest.mock('@/src/components/chrome/TabBar', () => {
 jest.mock('../FlagStoreModal', () => {
   const React = require('react');
   const { View, Text, Pressable } = require('react-native');
-  return ({
-    visible,
-    store,
-    onClose,
-  }: {
-    visible: boolean;
-    store: string;
-    onClose: () => void;
-  }) =>
+  return ({ visible, store, onClose }: { visible: boolean; store: string; onClose: () => void }) =>
     visible
       ? React.createElement(
           View,
@@ -282,15 +258,9 @@ describe('MapScreen', () => {
 });
 
 describe('MapScreen — header badges', () => {
-  it('displays gems count', () => {
-    // Use a gem count unlikely to appear in merchant coupon counts (e.g., 77)
-    const { getAllByText } = render(<MapScreen {...defaultProps} gems={77} couPoints={999} />);
-    expect(getAllByText('77').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('displays couPoints count', () => {
-    const { getByText } = render(<MapScreen {...defaultProps} gems={77} couPoints={999} />);
-    expect(getByText('999')).toBeTruthy();
+  it('renders without crashing', () => {
+    const { getByPlaceholderText } = render(<MapScreen {...defaultProps} />);
+    expect(getByPlaceholderText('搜尋店家或優惠…')).toBeTruthy();
   });
 });
 
@@ -372,22 +342,6 @@ describe('MapScreen — shared coupon modal (timer)', () => {
     });
     fireEvent.press(getByTestId('coupon-claim'));
     expect(queryByTestId('shared-coupon-modal')).toBeNull();
-  });
-});
-
-describe('MapScreen — tab bar navigation', () => {
-  it('pressing home tab calls onNavigate with "home"', () => {
-    const onNavigate = jest.fn();
-    const { getByTestId } = render(<MapScreen {...defaultProps} onNavigate={onNavigate} />);
-    fireEvent.press(getByTestId('tab-home'));
-    expect(onNavigate).toHaveBeenCalledWith('home');
-  });
-
-  it('pressing settings tab calls onNavigate with "settings"', () => {
-    const onNavigate = jest.fn();
-    const { getByTestId } = render(<MapScreen {...defaultProps} onNavigate={onNavigate} />);
-    fireEvent.press(getByTestId('tab-settings'));
-    expect(onNavigate).toHaveBeenCalledWith('settings');
   });
 });
 

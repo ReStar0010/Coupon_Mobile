@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  Modal,
-  TouchableWithoutFeedback,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
+import CoinIcon from '@/src/components/icons/CoinIcon';
+import BottomSheet from '@/src/components/ui/BottomSheet';
 
 interface Voucher {
   amt: number;
@@ -48,16 +43,19 @@ export default function RedeemModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose} accessible={false}>
-        <View style={styles.backdrop} />
-      </TouchableWithoutFeedback>
+    <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.sheet}>
         <View style={styles.handle} />
         <Text style={styles.title}>兌換現金券</Text>
-        <Text style={styles.subtitle}>
-          餘額 <Text style={styles.bold}>{couPoints} pt</Text> · 選擇面額
-        </Text>
+
+        {/* Balance subtitle */}
+        <View style={styles.subtitleRow}>
+          <Text style={styles.subtitle}>餘額 </Text>
+          <CoinIcon size={13} />
+          <Text style={[styles.subtitle, styles.bold]}> {couPoints}</Text>
+          <Text style={styles.subtitle}> · 選擇面額</Text>
+        </View>
+
         <View style={styles.grid}>
           {VOUCHERS.map((voucher, i) => {
             const canAfford = couPoints >= voucher.cost;
@@ -76,13 +74,18 @@ export default function RedeemModal({
                 <Text style={[styles.voucherAmt, !canAfford && styles.textMuted]}>
                   ${voucher.amt}
                 </Text>
-                <Text style={[styles.voucherCost, !canAfford && styles.textMuted]}>
-                  {voucher.cost}pt
-                </Text>
+                <View style={styles.voucherCostRow}>
+                  <CoinIcon size={10} />
+                  <Text style={[styles.voucherCost, !canAfford && styles.textMuted]}>
+                    {' '}
+                    {voucher.cost}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}
         </View>
+
         <View style={styles.confirmWrapper}>
           {ok && <View style={styles.confirmShadow} />}
           <Pressable
@@ -90,26 +93,24 @@ export default function RedeemModal({
             onPress={handleConfirm}
             style={[styles.confirmBtn, !ok && styles.confirmBtnDisabled]}
           >
-            <Text style={[styles.confirmText, !ok && styles.confirmTextDisabled]}>
-              {ok && v ? `兌換 $${v.amt} 現金券 (−${v.cost} pt)` : '選擇面額'}
-            </Text>
+            {ok && v ? (
+              <View style={styles.confirmInner}>
+                <Text style={styles.confirmText}>兌換 ${v.amt} 現金券 (−</Text>
+                <CoinIcon size={14} />
+                <Text style={styles.confirmText}>{v.cost})</Text>
+              </View>
+            ) : (
+              <Text style={[styles.confirmText, styles.confirmTextDisabled]}>選擇面額</Text>
+            )}
           </Pressable>
         </View>
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
   sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: colors.bg,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
@@ -138,11 +139,15 @@ const styles = StyleSheet.create({
     color: colors.fg,
     marginBottom: 4,
   },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   subtitle: {
     fontFamily: fontFamilies.regular,
     fontSize: 12,
     color: colors.muted,
-    marginBottom: 16,
   },
   bold: {
     fontFamily: fontFamilies.bold,
@@ -179,11 +184,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.fg,
   },
+  voucherCostRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   voucherCost: {
     fontFamily: fontFamilies.monoRegular,
     fontSize: 9,
     color: colors.muted,
-    marginTop: 2,
   },
   textMuted: {
     color: colors.muted,
@@ -211,6 +220,10 @@ const styles = StyleSheet.create({
   confirmBtnDisabled: {
     backgroundColor: '#ccc',
     borderColor: colors.subtle,
+  },
+  confirmInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   confirmText: {
     fontFamily: fontFamilies.extraBold,

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
 
@@ -12,38 +12,122 @@ export interface SpinResult {
 interface ResultModalProps {
   result: SpinResult | null;
   onDismiss: () => void;
+  canDismiss?: boolean;
 }
 
-export default function ResultModal({ result, onDismiss }: ResultModalProps): React.JSX.Element | null {
+const TIER_LABELS: Record<number, string> = {
+  0: '沒中…下次再試！',
+  1: '',
+  2: '',
+  3: '好運！',
+  4: '超棒！',
+  5: '大獎！🎉',
+};
+
+const TIER_OVERLAY: Record<number, string> = {
+  0: 'rgba(0,0,0,0.55)',
+  1: 'rgba(0,20,60,0.5)',
+  2: 'rgba(0,40,10,0.5)',
+  3: 'rgba(80,55,0,0.5)',
+  4: 'rgba(100,35,0,0.52)',
+  5: 'rgba(40,10,120,0.6)',
+};
+
+export default function ResultModal({
+  result,
+  onDismiss,
+  canDismiss = true,
+}: ResultModalProps): React.JSX.Element | null {
+  const cardScale = useRef(new Animated.Value(0.82)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const multScale = useRef(new Animated.Value(1.5)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (result) {
+      const isJackpot = result.mult >= 5;
+      cardScale.setValue(isJackpot ? 0.65 : 0.82);
+      cardOpacity.setValue(0);
+      multScale.setValue(1.5);
+      overlayOpacity.setValue(0);
+
+      Animated.parallel([
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.spring(cardScale, {
+          toValue: 1,
+          tension: isJackpot ? 38 : 58,
+          friction: isJackpot ? 5 : 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+
+      Animated.spring(multScale, {
+        toValue: 1.0,
+        tension: 45,
+        friction: 7,
+        delay: 180,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    }
+  }, [result]);
+
   if (!result) return null;
 
+  const tierLabel = TIER_LABELS[result.mult] ?? '';
+  const overlayBg = TIER_OVERLAY[result.mult] ?? 'rgba(0,0,0,0.72)';
+
   return (
-    <View style={styles.overlay}>
-      <View style={[styles.card, { borderColor: result.color }]}>
+    <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: overlayBg }]}
+        pointerEvents="none"
+      />
+
+      <Animated.View
+        style={[
+          styles.card,
+          { borderColor: result.color, shadowColor: result.color },
+          { opacity: cardOpacity, transform: [{ scale: cardScale }] },
+        ]}
+      >
         <Text style={styles.label}>結果</Text>
-        <Text style={[styles.mult, { color: result.color }]}>
-          ×{result.mult}
-        </Text>
-        <View style={styles.pointsRow}>
-          <Text style={styles.plus}>+</Text>
-          <Text style={styles.points}>{result.points}</Text>
-          <Text style={styles.pts}>pts</Text>
-        </View>
-        {result.mult === 0 && (
-          <Text style={styles.missText}>這次沒有…下次再試！</Text>
-        )}
-        {result.mult === 5 && (
-          <Text style={styles.jackpotText}>大獎！</Text>
-        )}
-        <Pressable
-          testID="result-continue-btn"
-          onPress={onDismiss}
-          style={[styles.continueBtn, { shadowColor: colors.border }]}
+
+        <Animated.Text
+          style={[styles.mult, { color: result.color, transform: [{ scale: multScale }] }]}
         >
-          <Text style={styles.continueBtnText}>繼續</Text>
-        </Pressable>
-      </View>
-    </View>
+          ×{result.mult}
+        </Animated.Text>
+
+        {result.points > 0 && (
+          <View style={styles.pointsRow}>
+            <Text style={styles.plus}>+</Text>
+            <Text style={styles.points}>{result.points}</Text>
+            <Text style={styles.pts}>pts</Text>
+          </View>
+        )}
+
+        {tierLabel.length > 0 && (
+          <Text style={[styles.tierText, result.mult >= 5 && styles.tierTextJackpot]}>
+            {tierLabel}
+          </Text>
+        )}
+
+        {canDismiss ? (
+          <Pressable
+            testID="result-continue-btn"
+            onPress={onDismiss}
+            style={[styles.continueBtn, { borderColor: colors.border, shadowColor: result.color }]}
+          >
+            <Text style={styles.continueBtnText}>繼續</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.meltdownHint}>🔥 MELTDOWN 啟動中…</Text>
+        )}
+      </Animated.View>
+    </Animated.View>
   );
 }
 
@@ -53,7 +137,6 @@ const styles = StyleSheet.create({
     zIndex: 100,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.72)',
   },
   card: {
     backgroundColor: '#0F0F0F',
@@ -64,9 +147,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 220,
     shadowOffset: { width: 8, height: 8 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.9,
     shadowRadius: 0,
-    elevation: 8,
+    elevation: 10,
   },
   label: {
     fontFamily: fontFamilies.monoRegular,
@@ -107,26 +190,23 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     paddingBottom: 4,
   },
-  missText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
+  tierText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
     marginTop: 8,
     fontFamily: fontFamilies.regular,
   },
-  jackpotText: {
-    fontSize: 13,
+  tierTextJackpot: {
     color: colors.yellow,
-    marginTop: 8,
-    fontWeight: '700',
     fontFamily: fontFamilies.bold,
+    fontSize: 15,
   },
   continueBtn: {
-    marginTop: 16,
+    marginTop: 18,
     paddingHorizontal: 28,
     paddingVertical: 10,
     backgroundColor: colors.yellow,
     borderWidth: 2.5,
-    borderColor: colors.border,
     borderRadius: 5,
     shadowOffset: { width: 3, height: 3 },
     shadowOpacity: 1,
@@ -137,5 +217,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: colors.fg,
+  },
+  meltdownHint: {
+    marginTop: 18,
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: '#6B4FFF',
+    letterSpacing: 0.5,
   },
 });

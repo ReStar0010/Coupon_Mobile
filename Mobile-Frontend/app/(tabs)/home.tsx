@@ -14,6 +14,9 @@ export default function HomeRoute() {
         else if (screen === 'map') router.push('/(tabs)/map');
         else if (screen === 'spinner') router.push('/(tabs)/spinner');
         else if (screen === 'coupon-detail') router.push({ pathname: '/coupon/[id]', params: { id: params?.store ?? 'detail', ...params } } as any);
+        else if (screen === 'coupon-share') router.push({ pathname: '/coupon/share', params } as any);
+        else if (screen === 'coupoint-use') router.push('/coupoint/use' as any);
+        else if (screen === 'coupoint-history') router.push('/coupoint/history' as any);
         else router.push(`/(tabs)/${screen}` as any);
       }}
       gems={gems}

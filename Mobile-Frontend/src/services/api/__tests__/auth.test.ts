@@ -54,10 +54,11 @@ describe('auth API', () => {
 
       const result = await login('test@example.com', undefined, 'password123');
 
-      expect(mockPost).toHaveBeenCalledWith(
-        '/api/auth/login/',
-        { email: 'test@example.com', phone: undefined, password: 'password123' },
-      );
+      expect(mockPost).toHaveBeenCalledWith('/api/auth/login/', {
+        email: 'test@example.com',
+        phone: undefined,
+        password: 'password123',
+      });
       expect(result).toEqual(responseData);
     });
   });
@@ -87,10 +88,9 @@ describe('auth API', () => {
 
       const result = await refreshToken('old-refresh-token');
 
-      expect(mockPost).toHaveBeenCalledWith(
-        '/api/auth/token/refresh/',
-        { refresh: 'old-refresh-token' },
-      );
+      expect(mockPost).toHaveBeenCalledWith('/api/auth/token/refresh/', {
+        refresh: 'old-refresh-token',
+      });
       expect(result).toEqual(responseData);
     });
   });
