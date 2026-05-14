@@ -1,44 +1,50 @@
-import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
-import { HISTORY_DATA } from './historyData';
+import {
+  HistoryEntryDetail,
+  getTransaction,
+} from '@/src/services/api/transactions';
 
 interface HistoryDetailScreenProps {
   id: string;
   onBack: () => void;
 }
 
+type LoadState =
+  | { status: 'loading' }
+  | { status: 'success'; entry: HistoryEntryDetail }
+  | { status: 'error'; message: string };
+
 export default function HistoryDetailScreen({
   id,
   onBack,
 }: HistoryDetailScreenProps): React.JSX.Element {
-  const entry = HISTORY_DATA.find((e) => e.id === id);
+  const [state, setState] = useState<LoadState>({ status: 'loading' });
 
-  if (!entry) {
-    return (
-      <View style={styles.screen}>
-        <View style={styles.header}>
-          <Pressable onPress={onBack} style={styles.backBtn}>
-            <Text style={styles.backArrow}>←</Text>
-          </Pressable>
-          <Text style={styles.title}>紀錄詳情</Text>
-          <View style={styles.backBtn} />
-        </View>
-        <View style={styles.notFound}>
-          <Text style={styles.notFoundText}>找不到此筆紀錄</Text>
-        </View>
-      </View>
-    );
-  }
-
-  const isCoupoint = entry.type === 'coupoint';
-  const [date, time] = entry.usedAt.split(' ');
-  const accentColor = isCoupoint ? colors.purple : colors.yellow;
+  useEffect(() => {
+    let cancelled = false;
+    setState({ status: 'loading' });
+    void (async () => {
+      try {
+        const entry = await getTransaction(id);
+        if (!cancelled) {
+          setState({ status: 'success', entry });
+        }
+      } catch (e) {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : '載入失敗';
+        setState({ status: 'error', message });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   return (
     <View style={styles.screen}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable testID="detail-back" onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
@@ -47,68 +53,91 @@ export default function HistoryDetailScreen({
         <View style={styles.backBtn} />
       </View>
 
-      <View style={styles.content}>
-        {/* Main card */}
-        <View style={styles.cardWrapper}>
-          <View style={[styles.cardShadow, { backgroundColor: colors.border }]} />
-          <View style={[styles.card, { borderColor: colors.border }]}>
-            <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
+      {state.status === 'loading' ? (
+        <View style={styles.notFound} testID="detail-loading">
+          <ActivityIndicator color={colors.fg} />
+        </View>
+      ) : state.status === 'error' ? (
+        <View style={styles.notFound} testID="detail-error">
+          <Text style={styles.notFoundText}>{state.message || '找不到此筆紀錄'}</Text>
+        </View>
+      ) : (
+        <DetailBody entry={state.entry} />
+      )}
+    </View>
+  );
+}
 
-            <View style={styles.cardBody}>
-              {/* Type pill */}
-              <View
-                style={[
-                  styles.typePill,
-                  { backgroundColor: accentColor, borderColor: colors.border },
-                ]}
-              >
-                <Text style={[styles.typeText, { color: isCoupoint ? '#fff' : colors.fg }]}>
-                  {isCoupoint ? 'CouPoint 兌換' : '優惠券使用'}
+function DetailBody({ entry }: { entry: HistoryEntryDetail }): React.JSX.Element {
+  const isCoupoint = entry.type === 'coupoint';
+  const [date, time] = entry.usedAt.split(' ');
+  const accentColor = isCoupoint ? colors.purple : colors.yellow;
+  const storeLabel = entry.store ?? entry.coupon?.name ?? '—';
+
+  return (
+    <View style={styles.content}>
+      <View style={styles.cardWrapper}>
+        <View style={[styles.cardShadow, { backgroundColor: colors.border }]} />
+        <View style={[styles.card, { borderColor: colors.border }]}>
+          <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
+
+          <View style={styles.cardBody} testID="history-card-body">
+            <View
+              style={[
+                styles.typePill,
+                { backgroundColor: accentColor, borderColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.typeText, { color: isCoupoint ? '#fff' : colors.fg }]}>
+                {isCoupoint ? 'CouPoint 兌換' : '優惠券使用'}
+              </Text>
+            </View>
+
+            <Text style={styles.storeName}>{storeLabel}</Text>
+            <Text style={styles.detail}>{entry.detail}</Text>
+
+            <View style={styles.amountRow}>
+              <Text style={styles.amountLabel}>折抵金額</Text>
+              <View style={styles.amountValueRow}>
+                <Text style={styles.amountDollar}>$</Text>
+                <Text style={styles.amountNum}>{entry.amount}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.metaRow}>
+              <Text style={styles.metaKey}>使用日期</Text>
+              <Text style={styles.metaVal}>{date}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaKey}>使用時間</Text>
+              <Text style={styles.metaVal}>{time}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaKey}>紀錄編號</Text>
+              <Text style={styles.metaVal}># {entry.id.padStart(6, '0')}</Text>
+            </View>
+            {entry.coupon ? (
+              <View style={styles.metaRow}>
+                <Text style={styles.metaKey}>優惠券</Text>
+                <Text style={styles.metaVal} testID="detail-coupon">
+                  {entry.coupon.name}
                 </Text>
               </View>
-
-              {/* Store name */}
-              <Text style={styles.storeName}>{entry.store}</Text>
-              <Text style={styles.detail}>{entry.detail}</Text>
-
-              {/* Amount */}
-              <View style={styles.amountRow}>
-                <Text style={styles.amountLabel}>折抵金額</Text>
-                <View style={styles.amountValueRow}>
-                  <Text style={styles.amountDollar}>$</Text>
-                  <Text style={styles.amountNum}>{entry.amount}</Text>
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              {/* Meta rows */}
-              <View style={styles.metaRow}>
-                <Text style={styles.metaKey}>使用日期</Text>
-                <Text style={styles.metaVal}>{date}</Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaKey}>使用時間</Text>
-                <Text style={styles.metaVal}>{time}</Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaKey}>紀錄編號</Text>
-                <Text style={styles.metaVal}># {entry.id.padStart(6, '0')}</Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaKey}>狀態</Text>
-                <View style={styles.statusPill}>
-                  <Text style={styles.statusText}>已使用</Text>
-                </View>
+            ) : null}
+            <View style={styles.metaRow}>
+              <Text style={styles.metaKey}>狀態</Text>
+              <View style={styles.statusPill}>
+                <Text style={styles.statusText}>已使用</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Used stamp */}
-        <View style={styles.stampWrapper}>
-          <View style={[styles.stamp, { borderColor: colors.muted }]}>
-            <Text style={[styles.stampText, { color: colors.muted }]}>USED</Text>
+        <View pointerEvents="none" style={styles.stampWrapper}>
+          <View style={styles.stamp} testID="used-stamp">
+            <Text style={styles.stampText}>USED</Text>
           </View>
         </View>
       </View>
@@ -152,11 +181,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
   },
   notFoundText: {
     fontFamily: fontFamilies.regular,
     fontSize: 14,
     color: colors.muted,
+    textAlign: 'center',
   },
   content: {
     flex: 1,
@@ -164,6 +195,7 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     position: 'relative',
+    overflow: 'visible',
   },
   cardShadow: {
     position: 'absolute',
@@ -274,20 +306,25 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   stampWrapper: {
-    alignItems: 'flex-end',
-    marginTop: 24,
-    paddingRight: 8,
+    position: 'absolute',
+    top: 70,
+    right: -8,
+    zIndex: 10,
+    elevation: 10,
+    transform: [{ rotate: '-14deg' }],
   },
   stamp: {
-    borderWidth: 3,
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    transform: [{ rotate: '-12deg' }],
+    borderWidth: 3.5,
+    borderColor: colors.red,
+    borderRadius: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   stampText: {
     fontFamily: fontFamilies.extraBold,
-    fontSize: 22,
-    letterSpacing: 4,
+    fontSize: 26,
+    letterSpacing: 5,
+    color: colors.red,
   },
 });

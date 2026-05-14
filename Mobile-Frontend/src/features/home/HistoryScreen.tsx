@@ -1,16 +1,43 @@
-import React from 'react';
-import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
-import { HISTORY_DATA, HistoryEntry } from './historyData';
+import {
+  HistoryEntry,
+  HistoryType,
+  listTransactions,
+} from '@/src/services/api/transactions';
 
 interface HistoryScreenProps {
   onBack: () => void;
   onSelect: (id: string) => void;
 }
 
-function HistoryItem({ item, onSelect }: { item: HistoryEntry; onSelect: (id: string) => void }) {
+const FILTERS: ReadonlyArray<{ key: HistoryType; label: string }> = [
+  { key: 'all', label: '全部' },
+  { key: 'coupon', label: '優惠券' },
+  { key: 'coupoint', label: 'CouPoint' },
+];
+
+const PAGE_SIZE = 25;
+
+function HistoryItem({
+  item,
+  onSelect,
+}: {
+  item: HistoryEntry;
+  onSelect: (id: string) => void;
+}): React.JSX.Element {
   const isCoupoint = item.type === 'coupoint';
+  const storeLabel = item.store ?? '—';
   return (
     <View style={styles.itemWrapper}>
       <View style={styles.itemShadow} />
@@ -19,7 +46,9 @@ function HistoryItem({ item, onSelect }: { item: HistoryEntry; onSelect: (id: st
         onPress={() => onSelect(item.id)}
         style={({ pressed }) => [styles.itemCard, pressed && styles.itemCardPressed]}
       >
-        <View style={[styles.typePill, isCoupoint ? styles.typePillPoint : styles.typePillCoupon]}>
+        <View
+          style={[styles.typePill, isCoupoint ? styles.typePillPoint : styles.typePillCoupon]}
+        >
           <Text
             style={[styles.typeText, isCoupoint ? styles.typeTextPoint : styles.typeTextCoupon]}
           >
@@ -27,7 +56,7 @@ function HistoryItem({ item, onSelect }: { item: HistoryEntry; onSelect: (id: st
           </Text>
         </View>
         <View style={styles.itemMain}>
-          <Text style={styles.storeName}>{item.store}</Text>
+          <Text style={styles.storeName}>{storeLabel}</Text>
           <Text style={styles.itemDetail}>{item.detail}</Text>
         </View>
         <View style={styles.itemRight}>
@@ -40,8 +69,80 @@ function HistoryItem({ item, onSelect }: { item: HistoryEntry; onSelect: (id: st
   );
 }
 
-export default function HistoryScreen({ onBack, onSelect }: HistoryScreenProps): React.JSX.Element {
-  const totalSaved = HISTORY_DATA.reduce((sum, e) => sum + e.amount, 0);
+export default function HistoryScreen({
+  onBack,
+  onSelect,
+}: HistoryScreenProps): React.JSX.Element {
+  const [filter, setFilter] = useState<HistoryType>('all');
+  const [items, setItems] = useState<HistoryEntry[]>([]);
+  const [cursor, setCursor] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Guard against late responses overwriting a newer filter selection.
+  const requestIdRef = useRef(0);
+
+  const fetchPage = useCallback(
+    async (nextFilter: HistoryType, mode: 'initial' | 'refresh' | 'append') => {
+      const requestId = ++requestIdRef.current;
+      if (mode === 'initial') {
+        setLoading(true);
+      } else if (mode === 'refresh') {
+        setRefreshing(true);
+      } else {
+        setLoadingMore(true);
+      }
+      try {
+        const cursorForRequest = mode === 'append' ? cursor ?? undefined : undefined;
+        const page = await listTransactions(nextFilter, PAGE_SIZE, cursorForRequest);
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        setError(null);
+        setItems((prev) => (mode === 'append' ? [...prev, ...page.items] : page.items));
+        setCursor(page.nextCursor);
+      } catch (e) {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+        const message = e instanceof Error ? e.message : '載入失敗';
+        setError(message);
+        if (mode !== 'append') {
+          setItems([]);
+          setCursor(null);
+        }
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+          setLoadingMore(false);
+        }
+      }
+    },
+    [cursor],
+  );
+
+  useEffect(() => {
+    void fetchPage(filter, 'initial');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  const handleRefresh = useCallback(() => {
+    void fetchPage(filter, 'refresh');
+  }, [fetchPage, filter]);
+
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || refreshing || loading) return;
+    if (cursor === null) return;
+    void fetchPage(filter, 'append');
+  }, [cursor, fetchPage, filter, loading, loadingMore, refreshing]);
+
+  const totalSaved = useMemo(
+    () => items.reduce((sum, e) => sum + e.amount, 0),
+    [items],
+  );
 
   return (
     <View style={styles.screen}>
@@ -61,19 +162,67 @@ export default function HistoryScreen({ onBack, onSelect }: HistoryScreenProps):
             <Text style={styles.summaryDollar}>$</Text>
             <Text style={styles.summaryAmt}>{totalSaved}</Text>
           </View>
-          <Text style={styles.summaryCount}>共 {HISTORY_DATA.length} 筆兌換紀錄</Text>
+          <Text style={styles.summaryCount}>共 {items.length} 筆兌換紀錄</Text>
         </View>
+      </View>
+
+      <View style={styles.filterRow} testID="history-filters">
+        {FILTERS.map((f) => {
+          const active = filter === f.key;
+          return (
+            <Pressable
+              key={f.key}
+              testID={`history-filter-${f.key}`}
+              onPress={() => setFilter(f.key)}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+            >
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                {f.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Text style={styles.sectionLabel}>兌換明細</Text>
 
-      <FlatList
-        data={HISTORY_DATA}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <HistoryItem item={item} onSelect={onSelect} />}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.centerState} testID="history-loading">
+          <ActivityIndicator color={colors.fg} />
+        </View>
+      ) : error && items.length === 0 ? (
+        <View style={styles.centerState} testID="history-error">
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : items.length === 0 ? (
+        <View style={styles.centerState} testID="history-empty">
+          <Text style={styles.emptyText}>尚無紀錄</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <HistoryItem item={item} onSelect={onSelect} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.fg}
+            />
+          }
+          onEndReachedThreshold={0.4}
+          onEndReached={handleLoadMore}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoading} testID="history-loading-more">
+                <ActivityIndicator color={colors.fg} />
+              </View>
+            ) : null
+          }
+        />
+      )}
     </View>
   );
 }
@@ -163,6 +312,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(51,51,51,0.6)',
     marginTop: 2,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 4,
+    backgroundColor: colors.card,
+  },
+  filterChipActive: {
+    backgroundColor: colors.yellow,
+  },
+  filterText: {
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 11,
+    color: colors.muted,
+  },
+  filterTextActive: {
+    color: colors.fg,
   },
   sectionLabel: {
     fontFamily: fontFamilies.monoRegular,
@@ -259,5 +433,26 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.muted,
     marginLeft: 2,
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  emptyText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 14,
+    color: colors.muted,
+  },
+  errorText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 14,
+    color: colors.red,
+    textAlign: 'center',
+  },
+  footerLoading: {
+    paddingVertical: 12,
+    alignItems: 'center',
   },
 });

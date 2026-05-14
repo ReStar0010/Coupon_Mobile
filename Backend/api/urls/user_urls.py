@@ -6,7 +6,7 @@ from api.views.user_profile import (
 )
 from api.views.consumer_account_deletion import consumer_pre_delete_check, consumer_delete_account
 from api.views.feedback import submit_feedback
-from api.views.wallet_views import get_wallet
+from api.views.wallet_views import get_transaction, get_wallet, list_transactions
 from api.views.profile_views import profile
 from api.views.spinner_views import get_spinner_state, post_spinner_draw
 from api.views.coupoint_views import use_coupoints
@@ -45,6 +45,10 @@ urlpatterns = [
 
     # Wallet read (Phase 1) — single-source-of-truth gem + couPoint balance
     path('wallet/', get_wallet, name='get_wallet'),
+
+    # Wallet ledger (Phase 8) — paginated transaction history + single-row detail
+    path('wallet/transactions/', list_transactions, name='list_wallet_transactions'),
+    path('wallet/transactions/<int:id>/', get_transaction, name='get_wallet_transaction'),
 
     # Consumer profile (Phase 1) — FE-contract-shaped projection of User+StudentProfile
     path('profile/', profile, name='profile'),
