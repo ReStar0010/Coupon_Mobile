@@ -766,3 +766,42 @@ class FeedbackSubmitSerializer(serializers.Serializer):
         allow_blank=False,
         required=True,
     )
+
+
+class ProfileUpdateSerializer(serializers.Serializer):
+    """
+    Serializer for PATCH /api/profile/.
+
+    All fields optional — the view applies whichever subset is present.
+    Phone is rejected at the view layer with a 409 pointing to the OTP flow;
+    declaring it here lets us surface a clean error rather than silently
+    ignoring it.
+    """
+
+    displayName = serializers.CharField(
+        max_length=80,
+        required=False,
+        allow_blank=True,
+        help_text="Consumer display name (max 80 chars)",
+    )
+    avatarUrl = serializers.URLField(
+        max_length=255,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="HTTPS URL to consumer avatar image",
+    )
+    phone = serializers.CharField(
+        max_length=20,
+        required=False,
+        help_text="Phone changes are not allowed here; use the OTP flow.",
+    )
+
+    def validate_avatarUrl(self, value):
+        """Enforce HTTPS — avoids mixed-content rendering on iOS ATS and
+        denies an HTTP-only attacker from later SSRF-seeding the field."""
+        if value in (None, ''):
+            return value
+        if not value.startswith('https://'):
+            raise serializers.ValidationError("avatarUrl must use HTTPS.")
+        return value

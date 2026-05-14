@@ -21,6 +21,8 @@ from api.exceptions import (
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
 from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, QRCodeSession, StoreFixedSession
+from ..spinner_coop.models import WalletTransaction
+from ..spinner_coop.wallet_service import WalletService
 from ..utils import apply_referral_reward, display_face_value, increment_sharing_progress_for_redeemer
 
 logger = logging.getLogger(__name__)
@@ -502,6 +504,31 @@ def redeem_coupon(request, id):
         student_profile.refresh_from_db()
     except (StudentProfile.DoesNotExist, AttributeError):
         pass
+
+    # Phase 2: +1 CouGem for redeeming a coupon. This replaces the FE-side
+    # client mutation in CouponUseQRScreen. Wallet is lazily created so the
+    # mutate() below never raises WalletNotFoundError. Failures are logged
+    # but do NOT roll back the redemption — gems are an incentive, not a
+    # gate on the customer-merchant transaction.
+    try:
+        WalletService.ensure_wallet(request.user.id, initial_gems=0)
+        WalletService.mutate(
+            request.user.id,
+            delta_gems=+1,
+            kind=WalletTransaction.Kind.COUPON_REDEEM,
+            related_coupon_id=coupon.id,
+            related_store_id=coupon.store_id,
+            note=f"Redeemed at {coupon.store.name}",
+        )
+    except Exception as wallet_exc:  # noqa: BLE001 — log + continue
+        logger.warning(
+            "coupon_redeem.gem_credit_failed",
+            extra={
+                "user_id": request.user.id,
+                "coupon_id": coupon.id,
+                "error": str(wallet_exc),
+            },
+        )
 
     # === Progress Tracker updates (011-progress-tracker) ===
     if coupon.coupon_type == 'exclusive':

@@ -5,6 +5,10 @@ from api.views.merchant_coupon import (
     update_coupon_template, delete_coupon_template, merchant_redeem, upload_image,
     get_template_analytics, generate_unified_redemption_code_view,
 )
+from api.views.merchant_discovery_views import (
+    merchant_news_collection,
+    merchant_news_detail,
+)
 from api.views.merchant_profile import (
     get_merchant_profile, update_merchant_profile, get_merchant_statistics,
 )
@@ -56,4 +60,8 @@ urlpatterns = [
     path('merchant/eula/status/', EULAStatusView.as_view(), name='eula_status'),
     path('merchant/eula/accept/', EULAAcceptView.as_view(), name='eula_accept'),
     path('merchant/eula/content/', EULAContentView.as_view(), name='eula_content'),
+
+    # Phase 4: Merchant-side StoreNews CRUD
+    path('merchant/news/', merchant_news_collection, name='merchant_news_collection'),
+    path('merchant/news/<int:id>/', merchant_news_detail, name='merchant_news_detail'),
 ]

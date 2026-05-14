@@ -93,6 +93,9 @@ CSRF_TRUSTED_ORIGINS = [
 # Django core
 # -----------------------------------------------------------------------------
 INSTALLED_APPS = [
+    # Channels first so its app config is loaded before Django's native ASGI
+    'daphne',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -107,6 +110,15 @@ INSTALLED_APPS = [
     'storages',
     'api',
 ]
+
+# ── Channels (spinner co-op WS) ─────────────────────────────────────────────
+ASGI_APPLICATION = 'Backend.asgi.application'
+# In-memory channel layer for dev/test. Production uses Redis (separate config).
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -311,6 +323,16 @@ SIMPLE_JWT = {
 # -----------------------------------------------------------------------------
 # True in dev: log OTP to console instead of sending SMS
 SMS_DEV_MODE = True
+
+# -----------------------------------------------------------------------------
+# Wallet / Spinner economy
+# -----------------------------------------------------------------------------
+# Starter gems granted on first /api/wallet/ read (writes a WalletTransaction
+# of kind='seed' so it shows up in user history).
+STARTER_GEMS = int(os.getenv('STARTER_GEMS', '3'))
+
+# Solo spinner rate limit — minimum seconds between draws per user.
+SOLO_SPINNER_RATE_LIMIT_SECONDS = int(os.getenv('SOLO_SPINNER_RATE_LIMIT_SECONDS', '2'))
 
 # -----------------------------------------------------------------------------
 # UGC compliance (Apple Guideline 1.2)

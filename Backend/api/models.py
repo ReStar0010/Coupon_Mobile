@@ -58,6 +58,10 @@ class StudentProfile(models.Model):
     # Phone verification (for phone-based registration)
     phone_verified = models.BooleanField(default=False, help_text="True if phone was verified via OTP")
 
+    # Profile presentation (consumer-facing display)
+    display_name = models.CharField(max_length=80, null=True, blank=True, help_text="Consumer display name")
+    avatar_url = models.CharField(max_length=255, null=True, blank=True, help_text="URL to consumer avatar image")
+
     # Statistics tracking fields
     coupons_used_count = models.IntegerField(default=0)
     total_savings = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # type: ignore
@@ -192,6 +196,7 @@ class MerchantProfile(models.Model):
     def __str__(self):
         return f"{self.user.email} - Merchant Profile"
 
+
 class Store(models.Model):
     STORE_TYPE_CHOICES = [
         ('restaurant', '餐飲'),
@@ -225,6 +230,37 @@ class Store(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class StoreNews(models.Model):
+    """Per-store broadcast feed for the CouMap merchant bottom-sheet.
+
+    Short-form updates a merchant pushes to consumers viewing the merchant
+    bottom-sheet on CouMap. The MerchantSheet UI surfaces the latest entry
+    inline and supports an expand-to-see-all flow via the lens icon.
+
+    v1 lifecycle: merchant can create / list / delete their own news; no
+    editing (delete + repost is the supported pattern).
+    """
+
+    store = models.ForeignKey(
+        Store,
+        on_delete=models.CASCADE,
+        related_name='news',
+    )
+    body = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'store_news'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['store', '-created_at'], name='store_news_store_recent_idx'),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover (display only)
+        return f"StoreNews(store={self.store_id}, {self.body[:30]!r})"
+
 
 # ADD: Tags Model for Coupon
 class Tag(models.Model):
@@ -1154,3 +1190,9 @@ class ViolationRecord(models.Model):
 
     def __str__(self) -> str:
         return f"Violation #{self.id} - {self.merchant.username}"
+
+
+# ── Spinner Co-op (deliverable 3b) ──────────────────────────────────────────
+# Re-export so Django picks them up via app config.
+from api.spinner_coop.models import Wallet, SpinnerRound, WalletTransaction  # noqa: E402, F401
+

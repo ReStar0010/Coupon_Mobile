@@ -6,6 +6,17 @@ from api.views.user_profile import (
 )
 from api.views.consumer_account_deletion import consumer_pre_delete_check, consumer_delete_account
 from api.views.feedback import submit_feedback
+from api.views.wallet_views import get_wallet
+from api.views.profile_views import profile
+from api.views.spinner_views import get_spinner_state, post_spinner_draw
+from api.views.coupoint_views import use_coupoints
+from api.views.merchant_discovery_views import (
+    list_nearby_merchants,
+    get_merchant_detail,
+    list_blocked_merchants,
+    flag_merchant,
+    block_unblock_merchant,
+)
 
 app_name = 'users'
 
@@ -31,4 +42,24 @@ urlpatterns = [
     # Consumer account deletion (App Store compliance)
     path('account/pre-delete-check/', consumer_pre_delete_check, name='consumer_pre_delete_check'),
     path('account/delete/', consumer_delete_account, name='consumer_delete_account'),
+
+    # Wallet read (Phase 1) — single-source-of-truth gem + couPoint balance
+    path('wallet/', get_wallet, name='get_wallet'),
+
+    # Consumer profile (Phase 1) — FE-contract-shaped projection of User+StudentProfile
+    path('profile/', profile, name='profile'),
+
+    # Solo spinner (Phase 2) — server-authoritative draw + state
+    path('spinner/', get_spinner_state, name='get_spinner_state'),
+    path('spinner/draw/', post_spinner_draw, name='post_spinner_draw'),
+
+    # CouPoint spend (Phase 2)
+    path('coupoints/use/', use_coupoints, name='use_coupoints'),
+
+    # Phase 4: Merchant discovery + sheet data (FE-shaped)
+    path('merchants/nearby/', list_nearby_merchants, name='list_nearby_merchants'),
+    path('merchants/blocked/', list_blocked_merchants, name='list_blocked_merchants'),
+    path('merchants/<int:id>/', get_merchant_detail, name='get_merchant_detail'),
+    path('merchants/<int:id>/flag/', flag_merchant, name='flag_merchant'),
+    path('merchants/<int:id>/block/', block_unblock_merchant, name='block_merchant_alias'),
 ]

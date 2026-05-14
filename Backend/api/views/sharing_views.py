@@ -24,6 +24,8 @@ from api.exceptions import (
     SelfClaimNotAllowed,
 )
 from api.models import Coupon, CouponShareRequest, QRCodeSession
+from api.spinner_coop.models import WalletTransaction
+from api.spinner_coop.wallet_service import WalletService
 from api.utils import display_face_value
 
 logger = logging.getLogger(__name__)
@@ -480,6 +482,36 @@ def accept_share_request(request, token):
             "sibling_shares_cancelled": sibling_cancelled,
         }
     )
+
+    # Phase 2: +1 CouGem to the SHARER (original from_user) when their coupon
+    # is accepted. This replaces the FE-side local mutation in
+    # CouponShareScreen, where the gem was previously granted on share *creation*
+    # rather than on acceptance. Sharer == sharer; recipient receives the
+    # coupon, sharer receives the gem. Wallet-credit failures are logged but
+    # do NOT block the transfer.
+    sharer = share_request.from_user
+    if sharer and sharer != request.user:
+        try:
+            WalletService.ensure_wallet(sharer.id, initial_gems=0)
+            WalletService.mutate(
+                sharer.id,
+                delta_gems=+1,
+                kind=WalletTransaction.Kind.SHARE_REWARD,
+                related_coupon_id=coupon.id,
+                related_store_id=coupon.store_id,
+                note=f"{request.user.username} accepted your shared coupon",
+            )
+        except Exception as wallet_exc:  # noqa: BLE001 — log + continue
+            logger.warning(
+                "share_accept.gem_credit_failed",
+                extra={
+                    "sharer_id": sharer.id,
+                    "accepter_id": request.user.id,
+                    "coupon_id": coupon.id,
+                    "error": str(wallet_exc),
+                },
+            )
+
     return Response({
         'message': 'Coupon transferred successfully.',
         'coupon_id': coupon.id,
