@@ -6,7 +6,7 @@ import Svg, { Path } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import CoinIcon from '@/src/components/icons/CoinIcon';
-import { useCouPoints } from '@/src/services/api/coupoint';
+import { submitCouPointSpend } from '@/src/services/api/coupoint';
 import { useWallet } from '@/src/state/WalletContext';
 
 interface Props {
@@ -106,7 +106,7 @@ export default function CouPointUseScreen({
     setSubmitting(true);
     setError(null);
     try {
-      const resp = await useCouPoints(scannedToken, amount);
+      const resp = await submitCouPointSpend(scannedToken, amount);
       setStoreName(resp.store.name);
       await refreshWallet();
       setPhase('success');

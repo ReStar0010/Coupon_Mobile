@@ -150,6 +150,25 @@ class WalletTransaction(models.Model):
             models.Index(fields=['user', '-created_at'], name='wallet_tx_user_recent_idx'),
             models.Index(fields=['kind', '-created_at'], name='wallet_tx_kind_recent_idx'),
         ]
+        constraints = [
+            # Defence in depth against retry-driven double-credit on the +1
+            # gem hooks. The primary events (redeem, share-accept, qr-claim)
+            # are already idempotent at the model layer (CouponRedemption
+            # unique constraint, share status guard, QRCodeClaim key), but
+            # if a future caller bypasses those guards a partial unique on
+            # (user, kind, related_coupon_id) blocks a duplicate ledger row
+            # for the same coupon × kind. The constraint is partial so it
+            # doesn't apply to spinner/seed kinds that don't carry a
+            # related_coupon_id.
+            models.UniqueConstraint(
+                fields=['user', 'kind', 'related_coupon_id'],
+                condition=models.Q(
+                    kind__in=['coupon_redeem', 'share_reward', 'qr_claim'],
+                    related_coupon_id__isnull=False,
+                ),
+                name='wallet_tx_unique_coupon_event',
+            ),
+        ]
 
     def __str__(self) -> str:  # pragma: no cover (display only)
         return (

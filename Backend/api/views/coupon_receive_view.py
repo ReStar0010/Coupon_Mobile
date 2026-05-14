@@ -50,6 +50,15 @@ def receive_coupon(request):
             developer_message="POST /api/coupon/receive/ requires qrToken as a non-empty string.",
         )
 
+    # QRCodeClaim.idempotency_key column is max_length=64. Cap the client
+    # input so a too-long value produces a clean 400 rather than crashing
+    # the DB write with an IntegrityError 500.
+    if isinstance(idempotency_key, str) and len(idempotency_key) > 64:
+        raise QrTokenRequired(
+            developer_message="idempotencyKey must be ≤64 characters.",
+            context={'maxLength': 64, 'received': len(idempotency_key)},
+        )
+
     payload, http_status = claim_coupon_for_user(
         user=request.user,
         claim_token=qr_token.strip(),

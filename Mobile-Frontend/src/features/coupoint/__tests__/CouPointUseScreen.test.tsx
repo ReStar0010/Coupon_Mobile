@@ -3,9 +3,9 @@ import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 import CouPointUseScreen from '../CouPointUseScreen';
 
 // ── coupoint service mock ────────────────────────────────────────────────────
-const mockUseCouPoints = jest.fn();
+const mockSubmitCouPointSpend = jest.fn();
 jest.mock('../../../services/api/coupoint', () => ({
-  useCouPoints: (...args: unknown[]) => mockUseCouPoints(...args),
+  submitCouPointSpend: (...args: unknown[]) => mockSubmitCouPointSpend(...args),
 }));
 
 // ── WalletContext mock ───────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof CouPointUseScr
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
-  mockUseCouPoints.mockResolvedValue({
+  mockSubmitCouPointSpend.mockResolvedValue({
     couPoints: 95,
     store: { id: 1, name: '測試店家', address: 'addr' },
     transactionId: 42,
@@ -78,13 +78,13 @@ describe('CouPointUseScreen', () => {
     expect(getByTestId('confirm-btn')).toBeTruthy();
   });
 
-  it('calls useCouPoints with token and amount on confirm', async () => {
+  it('calls submitCouPointSpend with token and amount on confirm', async () => {
     const { getByTestId } = render(<CouPointUseScreen {...makeProps()} />);
     fireEvent.press(getByTestId('sim-scan-btn'));
     await act(async () => {
       fireEvent.press(getByTestId('confirm-btn'));
     });
-    expect(mockUseCouPoints).toHaveBeenCalledWith('SIMULATED', 5);
+    expect(mockSubmitCouPointSpend).toHaveBeenCalledWith('SIMULATED', 5);
   });
 
   it('refreshes wallet on successful confirm', async () => {
@@ -106,7 +106,7 @@ describe('CouPointUseScreen', () => {
   });
 
   it('surfaces an error message and does NOT refresh wallet on failure', async () => {
-    mockUseCouPoints.mockRejectedValueOnce(new Error('餘額不足'));
+    mockSubmitCouPointSpend.mockRejectedValueOnce(new Error('餘額不足'));
     const { getByTestId } = render(<CouPointUseScreen {...makeProps()} />);
     fireEvent.press(getByTestId('sim-scan-btn'));
     await act(async () => {

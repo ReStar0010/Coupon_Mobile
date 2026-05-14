@@ -46,7 +46,7 @@ interface WalletActions {
   setGemsLocal: (fn: (prev: number) => number) => void;
   /**
    * @deprecated Wallet mutations now happen on the server. After the
-   * mutating API call (e.g. `useCouPoints`), call `refreshWallet()` to
+   * mutating API call (e.g. `submitCouPointSpend`), call `refreshWallet()` to
    * pull the canonical balance. This no-op exists so existing screens
    * that still pass it through props continue to type-check; it will
    * be removed in a future cleanup.
@@ -61,7 +61,7 @@ interface WalletActions {
  *
  * Wallet mutations are server-authoritative. They happen through
  * service-module API calls — `redeemCoupon`, `acceptShare`, `claimQr`,
- * `drawSpinner`, `useCouPoints`, etc. After such a call resolves,
+ * `drawSpinner`, `submitCouPointSpend`, etc. After such a call resolves,
  * callers should invoke `refreshWallet()` to pull the canonical
  * balance from the server. The legacy mutator actions on this context
  * (`spendGems`, `addPoints`, `setGemsLocal`, `setCouPointsLocal`) are

@@ -16,8 +16,11 @@ export interface CouPointSpendResponse {
 /**
  * Spend CouPoints at a merchant by scanning their QR code.
  * `amount` must be a positive multiple of 5.
+ *
+ * Named without the `use` prefix so ESLint's react-hooks rule doesn't
+ * mistake this for a custom React hook.
  */
-export async function useCouPoints(
+export async function submitCouPointSpend(
   qrToken: string,
   amount: number,
 ): Promise<CouPointSpendResponse> {
