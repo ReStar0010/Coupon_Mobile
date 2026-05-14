@@ -88,6 +88,63 @@ export async function shareCouponPublic(id: string, msg?: string): Promise<Share
   }
 }
 
+/** Daily-draw template (returned by GET /api/daily-draw-templates/). */
+export interface DailyDrawTemplate {
+  id: number;
+  store_id: number;
+  store_name: string;
+  coupon_name: string;
+  image_url: string | null;
+  estimated_savings: number | null;
+  expiry_date: string;
+  remaining_quantity: number;
+}
+
+/** Normalized daily-draw result. */
+export interface DailyDrawResult {
+  success: boolean;
+  /** Present only when success === true. */
+  coupon?: {
+    id: number;
+    name: string;
+    detail: string;
+    important_notes: string | null;
+    image_url: string | null;
+    store_name: string;
+    expiry_date: string;
+    redeem_code: string | null;
+    estimated_savings: number | null;
+  };
+  message: string;
+}
+
+/** List the templates currently available for the daily draw. */
+export async function listDailyDrawTemplates(): Promise<DailyDrawTemplate[]> {
+  try {
+    const response = await apiClient.get<{ active_templates?: DailyDrawTemplate[] }>(
+      '/api/daily-draw-templates/',
+    );
+    return response.data.active_templates ?? [];
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+/**
+ * Roll the daily draw for a specific template. The BE owns the RNG and
+ * the success probability per template.
+ */
+export async function dailyDraw(templateId: number): Promise<DailyDrawResult> {
+  try {
+    const response = await apiClient.post<DailyDrawResult>('/api/coupon/daily-draw/', {
+      template_id: templateId,
+    });
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
 /** Scan-to-receive: claim a coupon by scanning a merchant table QR. */
 export async function receiveCoupon(
   qrToken: string,

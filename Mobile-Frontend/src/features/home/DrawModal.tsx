@@ -1,66 +1,130 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import TicketIcon from '@/src/components/icons/TicketIcon';
+import {
+  listDailyDrawTemplates,
+  dailyDraw,
+  type DailyDrawTemplate,
+} from '@/src/services/api/coupons';
+import { useWallet } from '@/src/state/WalletContext';
 
-interface CouponItem {
+/** UI projection of a daily-draw outcome (win or miss). */
+interface DrawOutcome {
+  success: boolean;
+  /** Display store name (empty for a miss). */
   store: string;
+  /** Display detail (empty for a miss). */
   detail: string;
+  /** Display expiry in MM/DD (empty for a miss). */
   expires: string;
+  /** Display amount (0 for a miss). */
   amount: number;
-  prob: number;
+  /** Friendly message from the BE. */
+  message: string;
 }
-
-const COUPON_POOL: CouponItem[] = [
-  { store: '阿明早餐店', detail: '$25 現金折抵', expires: '12/31', amount: 25, prob: 0.15 },
-  { store: '鼎泰豐', detail: '$50 現金折抵', expires: '12/31', amount: 50, prob: 0.08 },
-  { store: '85度C', detail: '$10 現金折抵', expires: '12/31', amount: 10, prob: 0.25 },
-  { store: '全聯福利中心', detail: '$20 現金折抵', expires: '12/31', amount: 20, prob: 0.12 },
-  { store: '', detail: '', expires: '', amount: 0, prob: 0.40 },
-];
 
 interface DrawModalProps {
   visible: boolean;
   onClose: () => void;
-  onDraw: (item: CouponItem) => void;
+  /**
+   * Optional callback fired with the BE-projected outcome when the user
+   * dismisses the result. The parent may use this to navigate to the new
+   * coupon's detail screen on success.
+   */
+  onDraw?: (outcome: DrawOutcome) => void;
 }
 
-export default function DrawModal({
-  visible,
-  onClose,
-  onDraw,
-}: DrawModalProps): React.JSX.Element {
-  const [drawing, setDrawing] = useState(false);
-  const [result, setResult] = useState<CouponItem | null>(null);
+function formatExpiry(iso: string): string {
+  // Avoid Date parsing differences by extracting MM/DD directly when the
+  // string is ISO-8601. Fall back to empty if shape doesn't match.
+  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[1]}/${m[2]}` : '';
+}
 
-  const doDraw = () => {
+export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps): React.JSX.Element {
+  const [templates, setTemplates] = useState<DailyDrawTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const [result, setResult] = useState<DrawOutcome | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { refreshWallet } = useWallet();
+
+  // Fetch templates each time the sheet opens.
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    setError(null);
+    setLoadingTemplates(true);
+    listDailyDrawTemplates()
+      .then((rows) => {
+        if (!cancelled) setTemplates(rows);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError((err as Error).message || '無法載入抽券資訊');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingTemplates(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
+
+  const doDraw = async (): Promise<void> => {
+    if (templates.length === 0 || drawing) return;
     setDrawing(true);
-    setTimeout(() => {
-      let r = Math.random();
-      let acc = 0;
-      let picked = COUPON_POOL[COUPON_POOL.length - 1];
-      for (const c of COUPON_POOL) {
-        acc += c.prob;
-        if (r < acc) { picked = c; break; }
+    setError(null);
+    try {
+      // Pick a random template from the pool so each press has a chance
+      // at any of the listed stores — not always the same first one.
+      // The BE then rolls success against that template's draw_probability.
+      const target = templates[Math.floor(Math.random() * templates.length)];
+      const response = await dailyDraw(target.id);
+      if (response.success && response.coupon) {
+        setResult({
+          success: true,
+          store: response.coupon.store_name,
+          detail: response.coupon.detail,
+          expires: formatExpiry(response.coupon.expiry_date),
+          amount: Number(response.coupon.estimated_savings ?? 0),
+          message: response.message,
+        });
+        // A new coupon now belongs to the user — pull the canonical list.
+        // Fire-and-forget: if the refresh fails (network blip after the
+        // BE-side success), don't overwrite the win UI with a misleading
+        // "抽券失敗" error message.
+        void refreshWallet().catch((refreshErr: unknown) => {
+          // eslint-disable-next-line no-console
+          console.warn('refreshWallet after draw failed', refreshErr);
+        });
+      } else {
+        setResult({
+          success: false,
+          store: '',
+          detail: '',
+          expires: '',
+          amount: 0,
+          message: response.message,
+        });
       }
-      setResult(picked);
+    } catch (err: unknown) {
+      setError((err as Error).message || '抽券失敗，請稍後再試');
+    } finally {
       setDrawing(false);
-    }, 1400);
+    }
   };
 
-  const handleClose = () => {
+  const handleClose = (): void => {
     setResult(null);
     setDrawing(false);
+    setError(null);
     onClose();
   };
+
+  const canDraw = !drawing && !loadingTemplates && templates.length > 0;
 
   return (
     <BottomSheet visible={visible} onClose={handleClose}>
@@ -69,48 +133,54 @@ export default function DrawModal({
         {!result ? (
           <>
             <Text style={styles.title}>抽券</Text>
-            <Text style={styles.subtitle}>每次抽券消耗 <Text style={styles.bold}>20 pt</Text> · 機率如下</Text>
-            <View style={styles.poolList}>
-              {COUPON_POOL.map((c, i) => (
-                <View key={i} style={styles.poolRow}>
-                  <Text style={[styles.poolAmt, !c.amount && styles.textMuted]}>
-                    {c.amount ? `$${c.amount}` : '空'}
-                  </Text>
-                  <Text style={[styles.poolStore, !c.amount && styles.textMuted]}>
-                    {c.amount ? c.store : '沒抽到'}
-                  </Text>
-                  <View style={styles.probBar}>
-                    <View
-                      style={[
-                        styles.probFill,
-                        { width: `${c.prob * 100}%` as `${number}%` },
-                        !c.amount && styles.probFillEmpty,
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.probText}>{Math.round(c.prob * 100)}%</Text>
+            <Text style={styles.subtitle}>
+              {loadingTemplates ? '載入中…' : '免費抽券 · 從以下店家中隨機抽取'}
+            </Text>
+            {error ? (
+              <Text style={styles.errorText} testID="draw-error">
+                {error}
+              </Text>
+            ) : null}
+            <View style={styles.poolList} testID="draw-pool">
+              {loadingTemplates ? (
+                <View style={styles.poolEmpty}>
+                  <ActivityIndicator color={colors.muted} />
                 </View>
-              ))}
+              ) : templates.length === 0 ? (
+                <View style={styles.poolEmpty}>
+                  <Text style={styles.poolEmptyText}>目前沒有可抽的優惠券</Text>
+                </View>
+              ) : (
+                templates.slice(0, 5).map((t) => (
+                  <View key={t.id} style={styles.poolRow} testID={`draw-row-${t.id}`}>
+                    <Text style={styles.poolAmt}>
+                      {t.estimated_savings ? `$${Math.floor(Number(t.estimated_savings))}` : '—'}
+                    </Text>
+                    <Text style={styles.poolStore}>{t.store_name}</Text>
+                    <Text style={styles.poolDetail}>{t.coupon_name}</Text>
+                    <Text style={styles.probText}>{t.remaining_quantity} 張</Text>
+                  </View>
+                ))
+              )}
             </View>
             <View style={styles.drawBtnWrapper}>
-              {!drawing && <View style={styles.drawBtnShadow} />}
+              {canDraw && <View style={styles.drawBtnShadow} />}
               <Pressable
                 onPress={doDraw}
-                disabled={drawing}
-                style={[styles.drawBtn, drawing && styles.drawBtnDisabled]}
+                disabled={!canDraw}
+                testID="draw-now-btn"
+                style={[styles.drawBtn, !canDraw && styles.drawBtnDisabled]}
               >
-                {drawing
-                  ? <ActivityIndicator color={colors.muted} />
-                  : null}
-                <Text style={[styles.drawBtnText, drawing && styles.drawBtnTextDisabled]}>
-                  {drawing ? '抽券中…' : '立即抽券 (−20 pt)'}
+                {drawing ? <ActivityIndicator color={colors.muted} /> : null}
+                <Text style={[styles.drawBtnText, !canDraw && styles.drawBtnTextDisabled]}>
+                  {drawing ? '抽券中…' : '立即抽券'}
                 </Text>
               </Pressable>
             </View>
           </>
         ) : (
           <>
-            {result.amount > 0 ? (
+            {result.success && result.amount > 0 ? (
               <>
                 <View style={styles.resultIconWrapper}>
                   <View style={styles.resultIconShadow} />
@@ -140,11 +210,15 @@ export default function DrawModal({
             <View style={styles.closeBtnWrapper}>
               <View style={styles.closeBtnShadow} />
               <Pressable
-                onPress={() => { onDraw(result); handleClose(); }}
+                testID="draw-result-close"
+                onPress={() => {
+                  onDraw?.(result);
+                  handleClose();
+                }}
                 style={styles.closeBtn}
               >
                 <Text style={styles.closeBtnText}>
-                  {result.amount > 0 ? '收下 →' : '關閉'}
+                  {result.success && result.amount > 0 ? '收下 →' : '關閉'}
                 </Text>
               </Pressable>
             </View>
@@ -190,10 +264,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginBottom: 20,
   },
-  bold: {
-    fontFamily: fontFamilies.bold,
-    color: colors.fg,
-  },
   poolList: {
     gap: 6,
     marginBottom: 20,
@@ -220,29 +290,36 @@ const styles = StyleSheet.create({
     color: colors.fg,
     flex: 1,
   },
+  poolDetail: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    color: colors.muted,
+    flex: 1,
+  },
   textMuted: {
     color: colors.muted,
   },
-  probBar: {
-    width: 48,
-    height: 8,
-    backgroundColor: colors.subtle,
-    borderRadius: 2,
-    overflow: 'hidden',
+  poolEmpty: {
+    paddingVertical: 24,
+    alignItems: 'center',
   },
-  probFill: {
-    height: '100%',
-    backgroundColor: colors.yellow,
-  },
-  probFillEmpty: {
-    backgroundColor: colors.subtle,
+  poolEmptyText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 13,
+    color: colors.muted,
   },
   probText: {
     fontFamily: fontFamilies.monoRegular,
     fontSize: 10,
     color: colors.muted,
-    width: 30,
+    width: 36,
     textAlign: 'right',
+  },
+  errorText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 12,
+    color: colors.red,
+    marginBottom: 10,
   },
   drawBtnWrapper: {
     position: 'relative',

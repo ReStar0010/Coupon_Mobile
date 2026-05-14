@@ -8,6 +8,16 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+// ── expo-location mock — used by the bottom-right locate button ────────────
+const mockRequestPermission = jest.fn();
+const mockGetCurrentPosition = jest.fn();
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: () => mockRequestPermission(),
+  getCurrentPositionAsync: (opts: unknown) => mockGetCurrentPosition(opts),
+  Accuracy: { Balanced: 3, High: 4, Highest: 6 },
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
+}));
+
 // ── merchants service mock ──────────────────────────────────────────────────
 // Module under test fetches `listNearby` on mount and `getMerchant` on pin tap.
 // The fixtures mirror the previous hard-coded SAMPLE_MERCHANTS so existing
@@ -386,6 +396,13 @@ beforeEach(() => {
   );
   mockFlagMerchant.mockResolvedValue(undefined);
   mockBlockMerchant.mockResolvedValue(undefined);
+  // Default: permission granted, device near a known LAT/LNG that should
+  // trigger a fresh listNearby() call.
+  mockRequestPermission.mockResolvedValue({ status: 'granted', granted: true });
+  mockGetCurrentPosition.mockResolvedValue({
+    coords: { latitude: 25.0333, longitude: 121.5654, accuracy: 10 },
+    timestamp: Date.now(),
+  });
 });
 
 /** Render MapScreen and wait for the listNearby fetch to commit pins. */
@@ -433,6 +450,68 @@ describe('MapScreen — header badges', () => {
   it('renders search input', async () => {
     const { getByPlaceholderText } = await renderMap();
     expect(getByPlaceholderText('搜尋店家或優惠…')).toBeTruthy();
+  });
+});
+
+describe('MapScreen — locate button', () => {
+  it('renders the locate button', async () => {
+    const utils = await renderMap();
+    expect(utils.getByTestId('locate-btn')).toBeTruthy();
+  });
+
+  it('requests permission, reads position, and re-fetches nearby with the new coords', async () => {
+    const utils = await renderMap();
+    mockListNearby.mockClear();
+    await act(async () => {
+      fireEvent.press(utils.getByTestId('locate-btn'));
+    });
+    await waitFor(() => {
+      expect(mockRequestPermission).toHaveBeenCalled();
+      expect(mockGetCurrentPosition).toHaveBeenCalled();
+      expect(mockListNearby).toHaveBeenCalledWith(25.0333, 121.5654, 2);
+    });
+  });
+
+  it('does NOT re-fetch when permission is denied', async () => {
+    mockRequestPermission.mockResolvedValueOnce({ status: 'denied', granted: false });
+    const utils = await renderMap();
+    mockListNearby.mockClear();
+    mockGetCurrentPosition.mockClear();
+    await act(async () => {
+      fireEvent.press(utils.getByTestId('locate-btn'));
+    });
+    await waitFor(() => {
+      expect(mockRequestPermission).toHaveBeenCalled();
+    });
+    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
+    expect(mockListNearby).not.toHaveBeenCalled();
+  });
+
+  it('disables the button while locating to prevent double-fires', async () => {
+    let resolvePosition: (v: { coords: { latitude: number; longitude: number; accuracy: number }; timestamp: number }) => void = () => undefined;
+    mockGetCurrentPosition.mockImplementationOnce(
+      () =>
+        new Promise((res) => {
+          resolvePosition = res;
+        }),
+    );
+    const utils = await renderMap();
+    mockListNearby.mockClear();
+    await act(async () => {
+      fireEvent.press(utils.getByTestId('locate-btn'));
+    });
+    // Second press while the first is in-flight should be a no-op.
+    await act(async () => {
+      fireEvent.press(utils.getByTestId('locate-btn'));
+    });
+    expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
+    // Resolve to clean up.
+    await act(async () => {
+      resolvePosition({
+        coords: { latitude: 1, longitude: 2, accuracy: 1 },
+        timestamp: Date.now(),
+      });
+    });
   });
 });
 

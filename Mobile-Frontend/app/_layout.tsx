@@ -23,7 +23,20 @@ function RootLayout() {
         <FontProvider>
           <AuthProvider>
             <WalletProvider>
-              <Stack screenOptions={{ headerShown: false }} />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'none',
+                  // Enable swipe-back globally so a user can never get
+                  // stuck on a screen whose own back affordance is hidden
+                  // or unresponsive. Individual screens with mid-transaction
+                  // state (e.g. CouponUseQRScreen during the scan→success
+                  // window) can opt out by setting `gestureEnabled: false`
+                  // on their own <Stack.Screen> options.
+                  gestureEnabled: true,
+                  fullScreenGestureEnabled: true,
+                }}
+              />
             </WalletProvider>
           </AuthProvider>
         </FontProvider>

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
+import * as Location from 'expo-location';
 import { colors } from '../../theme/colors';
 import LogoIcon from '../../components/icons/LogoIcon';
 import { fontFamilies } from '../../theme/typography';
@@ -54,7 +55,23 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [locating, setLocating] = useState<boolean>(false);
+  // Ref-based in-flight guard. Using state in the callback's deps would
+  // re-memoise on every transition (and the rapid-press guard would be
+  // ordering-dependent on the disabled prop arriving before the next
+  // press). A ref is the canonical "do not re-render on flip" pattern.
+  const locatingRef = useRef<boolean>(false);
   const insets = useSafeAreaInsets();
+
+  const fetchNearby = useCallback(async (lat: number, lng: number): Promise<void> => {
+    try {
+      const result = await listNearby(lat, lng, NEARBY_RADIUS_KM);
+      setMerchants(result.map(toMapMerchant));
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('listNearby failed', err);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +95,37 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
       cancelled = true;
     };
   }, []);
+
+  /**
+   * Bottom-right locate button:
+   *   1. Ask for foreground location permission (no-op if previously granted)
+   *   2. Read the current device position
+   *   3. Recentre + re-fetch /api/merchants/nearby/ with those coords
+   * Silently no-ops when permission is denied or the device can't return
+   * a fix; the existing FALLBACK_LAT/LNG centre stays in place.
+   */
+  const handleLocatePress = useCallback(async (): Promise<void> => {
+    if (locatingRef.current) return;
+    locatingRef.current = true;
+    setLocating(true);
+    try {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (!perm.granted) {
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = position.coords;
+      await fetchNearby(latitude, longitude);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('locate failed', err);
+    } finally {
+      locatingRef.current = false;
+      setLocating(false);
+    }
+  }, [fetchNearby]);
 
   const filteredMerchants =
     searchText.trim().length > 0
@@ -232,18 +280,30 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
           </View>
         )}
 
-        {/* Location button */}
-        <Pressable style={styles.locationBtn}>
-          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-            <Circle cx={12} cy={12} r={3} fill={colors.yellow} />
-            <Circle cx={12} cy={12} r={7} stroke={colors.border} strokeWidth={1.8} />
-            <Path
-              d="M12 1.5V5 M12 19V22.5 M1.5 12H5 M19 12H22.5"
-              stroke={colors.border}
-              strokeWidth={1.8}
-              strokeLinecap="round"
-            />
-          </Svg>
+        {/* Location button — request permission, re-centre on current device fix */}
+        <Pressable
+          testID="locate-btn"
+          accessibilityRole="button"
+          accessibilityLabel="定位我的位置"
+          accessibilityState={{ disabled: locating }}
+          onPress={handleLocatePress}
+          disabled={locating}
+          style={[styles.locationBtn, locating && styles.locationBtnLoading]}
+        >
+          {locating ? (
+            <ActivityIndicator size="small" color={colors.fg} />
+          ) : (
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+              <Circle cx={12} cy={12} r={3} fill={colors.yellow} />
+              <Circle cx={12} cy={12} r={7} stroke={colors.border} strokeWidth={1.8} />
+              <Path
+                d="M12 1.5V5 M12 19V22.5 M1.5 12H5 M19 12H22.5"
+                stroke={colors.border}
+                strokeWidth={1.8}
+                strokeLinecap="round"
+              />
+            </Svg>
+          )}
         </Pressable>
       </View>
 
@@ -334,6 +394,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 3 },
     shadowOpacity: 1,
     shadowRadius: 0,
+  },
+  locationBtnLoading: {
+    opacity: 0.7,
   },
   dropdown: {
     position: 'absolute',
