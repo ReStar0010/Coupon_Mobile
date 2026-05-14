@@ -9,11 +9,40 @@ export interface Merchant {
   lng: number;
   address: string;
   verified: boolean;
-  logoUrl?: string;
+  logoUrl: string | null;
+  /** distance in km from the query lat/lng (only present on /nearby/ results) */
+  distanceKm?: number;
 }
 
-export interface FlagReason {
-  reason: string;
+export interface MerchantCoupon {
+  id: string;
+  label: string;
+  detail: string;
+  expires: string;
+  amount: number;
+}
+
+export interface SharedCouponSummary {
+  store: string;
+  amount: number;
+  sharer: string;
+  msg: string;
+  label: string;
+}
+
+export interface MerchantNewsItem {
+  id: number;
+  author: string;
+  agoText: string;
+  body: string;
+  createdAt: string;
+}
+
+/** Bottom-sheet data shape — Merchant + the 3 list sections. */
+export interface MerchantDetail extends Merchant {
+  myCoupons: MerchantCoupon[];
+  sharedCoupons: SharedCouponSummary[];
+  news: MerchantNewsItem[];
 }
 
 export async function listNearby(
@@ -33,18 +62,19 @@ export async function listNearby(
   }
 }
 
-export async function getMerchant(id: string): Promise<Merchant> {
+export async function getMerchant(id: string): Promise<MerchantDetail> {
   try {
-    const response = await apiClient.get<Merchant>(`/api/merchants/${id}/`);
+    const response = await apiClient.get<MerchantDetail>(`/api/merchants/${id}/`);
     return response.data;
   } catch (error) {
     throw normalizeError(error);
   }
 }
 
-export async function flagMerchant(id: string, reason: string): Promise<void> {
+/** UGC compliance: report a store. `reason` ∈ {inappropriate, misleading, illegal, spam, other}. */
+export async function flagMerchant(id: string, reason: string, details = ''): Promise<void> {
   try {
-    await apiClient.post(`/api/merchants/${id}/flag/`, { reason });
+    await apiClient.post(`/api/merchants/${id}/flag/`, { reason, details });
   } catch (error) {
     throw normalizeError(error);
   }

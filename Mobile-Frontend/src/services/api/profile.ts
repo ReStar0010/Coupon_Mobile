@@ -4,21 +4,27 @@ import { normalizeError } from './errors';
 export interface UserProfile {
   id: string;
   email: string;
-  phone?: string;
-  displayName?: string;
-  avatarUrl?: string;
+  phone: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
   phoneVerified: boolean;
 }
 
 export interface UpdateProfileData {
   displayName?: string;
   avatarUrl?: string;
-  phone?: string;
 }
 
-export interface FeedbackData {
-  message: string;
-  rating?: number;
+export interface DeleteAccountData {
+  password: string;
+  acknowledgments: string[];
+}
+
+export type FeedbackType = 'bug' | 'feature';
+
+export interface FeedbackPayload {
+  feedback_type: FeedbackType;
+  details: string;
 }
 
 export interface WalletData {
@@ -44,20 +50,22 @@ export async function updateProfile(data: UpdateProfileData): Promise<UserProfil
   }
 }
 
-export async function deleteAccount(): Promise<void> {
+/**
+ * Delete the authenticated consumer account.
+ * Calls the existing /api/account/delete/ endpoint (password-protected) —
+ * the /api/profile/ endpoint family is GET+PATCH only.
+ */
+export async function deleteAccount(password: string, acknowledgments: string[] = ['DATA_LOSS']): Promise<void> {
   try {
-    await apiClient.delete('/api/profile/');
+    await apiClient.post('/api/account/delete/', { password, acknowledgments });
   } catch (error) {
     throw normalizeError(error);
   }
 }
 
-export async function submitFeedback(message: string, rating?: number): Promise<void> {
+export async function submitFeedback(feedbackType: FeedbackType, details: string): Promise<void> {
   try {
-    const body: FeedbackData = { message };
-    if (rating !== undefined) {
-      body.rating = rating;
-    }
+    const body: FeedbackPayload = { feedback_type: feedbackType, details };
     await apiClient.post('/api/feedback/', body);
   } catch (error) {
     throw normalizeError(error);

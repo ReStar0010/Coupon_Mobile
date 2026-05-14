@@ -14,8 +14,9 @@ export default function Index() {
     );
   }
 
-  // DEV BYPASS: skip auth — revert before commit
-  return <Redirect href="/(tabs)/home" />;
+  return isAuthenticated
+    ? <Redirect href="/(tabs)/home" />
+    : <Redirect href="/(auth)/login" />;
 }
 
 const styles = StyleSheet.create({

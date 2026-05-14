@@ -150,6 +150,7 @@ describe('merchants API', () => {
 
       expect(mockPost).toHaveBeenCalledWith('/api/merchants/merchant-1/flag/', {
         reason: 'Fake deals',
+        details: '',
       });
     });
 

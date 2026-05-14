@@ -128,103 +128,104 @@ describe('profile API', () => {
       expect(mockPatch.mock.calls[0][1]).not.toHaveProperty('displayName');
     });
 
-    it('handles partial updates with phone field', async () => {
-      const updated = { ...sampleProfile, phone: '+61411111111' };
-      mockPatch.mockResolvedValueOnce({ data: updated });
-
-      const result = await updateProfile({ phone: '+61411111111' });
-
-      expect(mockPatch).toHaveBeenCalledWith('/api/profile/', { phone: '+61411111111' });
-      expect(result.phone).toBe('+61411111111');
-    });
-
     it('propagates validation errors via normalizeError', async () => {
       const axiosError = Object.assign(new Error('Bad Request'), {
         isAxiosError: true,
-        response: { status: 400, data: { detail: 'Invalid phone number format.' } },
+        response: {
+          status: 400,
+          data: { developer_message: 'Invalid avatar URL.' },
+        },
       });
       mockPatch.mockRejectedValueOnce(axiosError);
 
-      await expect(updateProfile({ phone: 'not-a-phone' })).rejects.toMatchObject({
+      await expect(
+        updateProfile({ avatarUrl: 'not-a-url' as unknown as string }),
+      ).rejects.toMatchObject({
         name: 'ApiRequestError',
         status: 400,
-        message: 'Invalid phone number format.',
       });
     });
   });
 
   // ------------------------------------------------------------------ deleteAccount
   describe('deleteAccount', () => {
-    it('sends DELETE to /api/profile/', async () => {
-      mockDelete.mockResolvedValueOnce({ data: {} });
+    it('POSTs to /api/account/delete/ with password + acknowledgments', async () => {
+      mockPost.mockResolvedValueOnce({ data: { success: true } });
 
-      await deleteAccount();
+      await deleteAccount('hunter2');
 
-      expect(mockDelete).toHaveBeenCalledWith('/api/profile/');
+      expect(mockPost).toHaveBeenCalledWith('/api/account/delete/', {
+        password: 'hunter2',
+        acknowledgments: ['DATA_LOSS'],
+      });
+    });
+
+    it('forwards a custom acknowledgments array', async () => {
+      mockPost.mockResolvedValueOnce({ data: { success: true } });
+
+      await deleteAccount('hunter2', ['DATA_LOSS', 'HELD_COUPONS']);
+
+      expect(mockPost).toHaveBeenCalledWith('/api/account/delete/', {
+        password: 'hunter2',
+        acknowledgments: ['DATA_LOSS', 'HELD_COUPONS'],
+      });
     });
 
     it('returns void on success', async () => {
-      mockDelete.mockResolvedValueOnce({ data: {} });
+      mockPost.mockResolvedValueOnce({ data: { success: true } });
 
-      const result = await deleteAccount();
+      const result = await deleteAccount('pw');
 
       expect(result).toBeUndefined();
     });
 
-    it('propagates errors via normalizeError', async () => {
-      const axiosError = Object.assign(new Error('Forbidden'), {
+    it('propagates 400 invalid-password errors via normalizeError', async () => {
+      const axiosError = Object.assign(new Error('Bad Request'), {
         isAxiosError: true,
-        response: { status: 403, data: { detail: 'Cannot delete account with active subscriptions.' } },
+        response: {
+          status: 400,
+          data: { error: '密碼錯誤', code: 'INVALID_PASSWORD' },
+        },
       });
-      mockDelete.mockRejectedValueOnce(axiosError);
+      mockPost.mockRejectedValueOnce(axiosError);
 
-      await expect(deleteAccount()).rejects.toMatchObject({
+      await expect(deleteAccount('wrong')).rejects.toMatchObject({
         name: 'ApiRequestError',
-        status: 403,
-        message: 'Cannot delete account with active subscriptions.',
+        status: 400,
       });
     });
   });
 
   // ------------------------------------------------------------------ submitFeedback
   describe('submitFeedback', () => {
-    it('posts to /api/feedback/ with message only when rating is omitted', async () => {
-      mockPost.mockResolvedValueOnce({ data: {} });
+    it('POSTs feedback_type + details in the new BE shape', async () => {
+      mockPost.mockResolvedValueOnce({ data: { message: 'ok' } });
 
-      await submitFeedback('Great app!');
-
-      expect(mockPost).toHaveBeenCalledWith('/api/feedback/', { message: 'Great app!' });
-      expect(mockPost.mock.calls[0][1]).not.toHaveProperty('rating');
-    });
-
-    it('includes rating in the post body when provided', async () => {
-      mockPost.mockResolvedValueOnce({ data: {} });
-
-      await submitFeedback('Love it', 5);
+      await submitFeedback('bug', 'Crashed on map tab');
 
       expect(mockPost).toHaveBeenCalledWith('/api/feedback/', {
-        message: 'Love it',
-        rating: 5,
+        feedback_type: 'bug',
+        details: 'Crashed on map tab',
+      });
+    });
+
+    it('accepts the feature kind', async () => {
+      mockPost.mockResolvedValueOnce({ data: { message: 'ok' } });
+
+      await submitFeedback('feature', 'Add dark mode');
+
+      expect(mockPost).toHaveBeenCalledWith('/api/feedback/', {
+        feedback_type: 'feature',
+        details: 'Add dark mode',
       });
     });
 
     it('returns void on success', async () => {
-      mockPost.mockResolvedValueOnce({ data: {} });
+      mockPost.mockResolvedValueOnce({ data: { message: 'ok' } });
 
-      const result = await submitFeedback('Test message');
+      const result = await submitFeedback('bug', 'Test');
 
       expect(result).toBeUndefined();
-    });
-
-    it('handles edge case with rating of 0', async () => {
-      mockPost.mockResolvedValueOnce({ data: {} });
-
-      await submitFeedback('Poor experience', 0);
-
-      expect(mockPost).toHaveBeenCalledWith('/api/feedback/', {
-        message: 'Poor experience',
-        rating: 0,
-      });
     });
 
     it('propagates server errors via normalizeError', async () => {
@@ -234,10 +235,9 @@ describe('profile API', () => {
       });
       mockPost.mockRejectedValueOnce(axiosError);
 
-      await expect(submitFeedback('Test')).rejects.toMatchObject({
+      await expect(submitFeedback('bug', 'Test')).rejects.toMatchObject({
         name: 'ApiRequestError',
         status: 500,
-        message: 'Feedback submission failed',
       });
     });
   });

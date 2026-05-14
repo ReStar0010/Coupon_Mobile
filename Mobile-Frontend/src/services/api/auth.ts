@@ -68,21 +68,67 @@ export async function refreshToken(refresh: string): Promise<TokenRefreshRespons
   }
 }
 
-export async function requestOtp(phone: string): Promise<OtpResponse> {
+export async function requestOtp(phoneNumber: string): Promise<OtpResponse> {
   try {
-    const response = await apiClient.post<OtpResponse>('/api/auth/otp/send/', { phone });
+    const response = await apiClient.post<OtpResponse>('/api/phone-otp/send/', {
+      phone_number: phoneNumber,
+    });
     return response.data;
   } catch (error) {
     throw normalizeError(error);
   }
 }
 
-export async function verifyOtp(phone: string, code: string): Promise<OtpVerifyResponse> {
+export async function verifyOtp(phoneNumber: string, otpCode: string): Promise<OtpVerifyResponse> {
   try {
-    const response = await apiClient.post<OtpVerifyResponse>('/api/auth/otp/verify/', {
-      phone,
-      code,
+    const response = await apiClient.post<OtpVerifyResponse>('/api/phone-otp/verify/', {
+      phone_number: phoneNumber,
+      otp_code: otpCode,
     });
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export interface ForgotPasswordResponse {
+  detail: string;
+}
+
+export async function forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+  try {
+    const response = await apiClient.post<ForgotPasswordResponse>('/api/auth/forgot-password/', {
+      email,
+    });
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function resetPassword(
+  email: string,
+  token: string,
+  newPassword: string,
+): Promise<ForgotPasswordResponse> {
+  try {
+    const response = await apiClient.post<ForgotPasswordResponse>('/api/auth/reset-password/', {
+      email,
+      token,
+      new_password: newPassword,
+    });
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function requestEmailVerification(email: string): Promise<ForgotPasswordResponse> {
+  try {
+    const response = await apiClient.post<ForgotPasswordResponse>(
+      '/api/auth/email-settings/send-verification/',
+      { email },
+    );
     return response.data;
   } catch (error) {
     throw normalizeError(error);

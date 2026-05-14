@@ -39,10 +39,9 @@ const sampleCoupon: Coupon = {
   id: 'coupon-1',
   store: 'Test Store',
   detail: '10% off',
-  expires: '2026-12-31',
+  expires: '12/31',
   amount: 10,
   status: 'active',
-  tier: 'gold',
 };
 
 describe('coupons API', () => {
@@ -73,29 +72,40 @@ describe('coupons API', () => {
   });
 
   describe('redeemCoupon', () => {
-    it('posts to the correct redeem URL', async () => {
-      const response = { ...sampleCoupon, status: 'redeemed' as const };
-      mockPost.mockResolvedValueOnce({ data: response });
+    it('posts the redeem code to the redeem URL', async () => {
+      mockPost.mockResolvedValueOnce({
+        data: {
+          message: 'ok',
+          coupon_name: 'Test',
+          coupon_detail: '10% off',
+          savings_amount: 10,
+          redeemed_at: '2026-05-14T00:00:00Z',
+          redemption_id: 42,
+        },
+      });
 
-      const result = await redeemCoupon('coupon-1');
+      const result = await redeemCoupon('coupon-1', 'ABCDEF');
 
-      expect(mockPost).toHaveBeenCalledWith('/api/coupons/coupon-1/redeem/');
-      expect(result.status).toBe('redeemed');
+      expect(mockPost).toHaveBeenCalledWith('/api/coupons/coupon-1/redeem/', {
+        redeem_code: 'ABCDEF',
+      });
+      expect(result.redemption_id).toBe(42);
     });
   });
 
   describe('shareCoupon', () => {
-    it('posts recipient phone to the share URL', async () => {
-      const response = { ...sampleCoupon, status: 'shared' as const };
-      mockPost.mockResolvedValueOnce({ data: response });
+    it('posts recipient phone to the share URL with the BE-shaped key', async () => {
+      mockPost.mockResolvedValueOnce({
+        data: { share_link: 'https://example/share/tok', token: 'tok' },
+      });
 
       const result = await shareCoupon('coupon-1', '+61400000000');
 
       expect(mockPost).toHaveBeenCalledWith(
         '/api/coupons/coupon-1/share/',
-        { recipientPhone: '+61400000000' },
+        { to_phone_number: '+61400000000' },
       );
-      expect(result.status).toBe('shared');
+      expect(result.token).toBe('tok');
     });
   });
 });
