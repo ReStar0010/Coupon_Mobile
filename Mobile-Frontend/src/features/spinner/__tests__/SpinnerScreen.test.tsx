@@ -1,6 +1,11 @@
 import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import SpinnerScreen from '../SpinnerScreen';
+import { drawSpinner } from '../../../services/api/spinner';
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 
 jest.mock('react-native-svg', () => {
   const React = require('react');
@@ -29,6 +34,13 @@ jest.mock('react-native-reanimated', () => {
   return Reanimated;
 });
 
+jest.mock('../../../services/api/spinner', () => ({
+  drawSpinner: jest.fn(),
+  getSpinnerState: jest.fn(),
+}));
+
+const mockedDrawSpinner = drawSpinner as jest.MockedFunction<typeof drawSpinner>;
+
 function makeProps(overrides = {}) {
   return {
     onNavigate: jest.fn(),
@@ -36,11 +48,27 @@ function makeProps(overrides = {}) {
     setGems: jest.fn(),
     couPoints: 0,
     setCouPoints: jest.fn(),
+    refreshWallet: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
 
 describe('SpinnerScreen', () => {
+  beforeEach(() => {
+    mockedDrawSpinner.mockReset();
+    mockedDrawSpinner.mockResolvedValue({
+      multiplier: 2,
+      meltdownMultiplier: null,
+      gemsUsed: 1,
+      pointsEarned: 2,
+      gems: 0,
+      couPoints: 2,
+      transactionId: 1,
+      floor: 0,
+      spunAt: new Date().toISOString(),
+    });
+  });
+
   it('renders spin button', () => {
     const { getByTestId } = render(<SpinnerScreen {...makeProps()} />);
     expect(getByTestId('spin-button')).toBeTruthy();
@@ -52,34 +80,42 @@ describe('SpinnerScreen', () => {
     expect(btn.props.accessibilityState?.disabled).toBeFalsy();
   });
 
-  it('spin button disabled when spinning=true (via internal state)', () => {
-    jest.useFakeTimers();
+  it('spin button disabled after press (spinning becomes true)', async () => {
     const props = makeProps({ gems: 2 });
     const { getByTestId } = render(<SpinnerScreen {...props} />);
     const btn = getByTestId('spin-button');
 
-    act(() => {
+    await act(async () => {
       fireEvent.press(btn);
     });
 
-    // After pressing, spinning becomes true — button should be disabled
     expect(getByTestId('spin-button').props.accessibilityState?.disabled).toBe(true);
-    jest.useRealTimers();
   });
 
-  it('spin deducts gem on press by calling setGems', () => {
-    jest.useFakeTimers();
+  it('press calls drawSpinner with current gem count', async () => {
+    const props = makeProps({ gems: 3 });
+    const { getByTestId } = render(<SpinnerScreen {...props} />);
+    const btn = getByTestId('spin-button');
+
+    await act(async () => {
+      fireEvent.press(btn);
+    });
+
+    expect(mockedDrawSpinner).toHaveBeenCalledTimes(1);
+    expect(mockedDrawSpinner).toHaveBeenCalledWith(3);
+  });
+
+  it('does not mutate local gem balance via setGems (server owns the debit)', async () => {
     const setGems = jest.fn();
     const props = makeProps({ gems: 3, setGems });
     const { getByTestId } = render(<SpinnerScreen {...props} />);
     const btn = getByTestId('spin-button');
 
-    act(() => {
+    await act(async () => {
       fireEvent.press(btn);
     });
 
-    expect(setGems).toHaveBeenCalledTimes(1);
-    jest.useRealTimers();
+    expect(setGems).not.toHaveBeenCalled();
   });
 
   it('renders player slot avatars', () => {

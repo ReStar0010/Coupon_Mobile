@@ -1,11 +1,14 @@
-import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import GemIcon from '@/src/components/icons/GemIcon';
+import { getCoupon } from '@/src/services/api/coupons';
+import type { Coupon } from '@/src/services/api/coupons';
 
 interface NavParams {
+  id?: string;
   store?: string;
   detail?: string;
   expires?: string;
@@ -24,11 +27,55 @@ export default function CouponDetailScreen({
   onNavigate,
   params,
 }: CouponScreenProps): React.JSX.Element {
-  const store = params.store ?? '阿明早餐店';
-  const detail = params.detail ?? '$25 現金折抵';
-  const expires = params.expires ?? '11/08';
-  const amount = params.amount ?? 25;
+  const [fetched, setFetched] = useState<Coupon | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(Boolean(params.id));
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!params.id) {
+      return;
+    }
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError(null);
+    getCoupon(params.id)
+      .then((data) => {
+        if (!cancelled) {
+          setFetched(data);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : 'Failed to load coupon';
+          setLoadError(msg);
+          console.warn('[CouponDetailScreen] getCoupon failed:', msg);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
+
+  const store = fetched?.store ?? params.store ?? '阿明早餐店';
+  const detail = fetched?.detail ?? params.detail ?? '$25 現金折抵';
+  const expires = fetched?.expires ?? params.expires ?? '11/08';
+  const amount = fetched?.amount ?? params.amount ?? 25;
   const isCash = amount > 0;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={s.root} testID="coupon-detail-loading">
+        <View style={s.loadingWrap}>
+          <ActivityIndicator size="large" color={colors.fg} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.root}>
@@ -42,6 +89,11 @@ export default function CouponDetailScreen({
         <Text style={s.headerTitle}>優惠券</Text>
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        {loadError ? (
+          <View style={s.errorBanner} testID="coupon-detail-error">
+            <Text style={s.errorText}>{loadError}</Text>
+          </View>
+        ) : null}
         <View style={s.ticketOuter}>
           <View style={s.ticketShadow} />
           <View style={s.ticket}>
@@ -143,6 +195,16 @@ export default function CouponDetailScreen({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorBanner: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.red,
+    borderRadius: 6,
+  },
+  errorText: { fontFamily: fontFamilies.bold, fontSize: 12, color: '#fff' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

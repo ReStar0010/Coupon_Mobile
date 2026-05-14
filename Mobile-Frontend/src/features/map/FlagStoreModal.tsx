@@ -10,10 +10,12 @@ interface FlagStoreModalProps {
   visible: boolean;
   store: string;
   onClose: () => void;
+  /** Optional submit hook — called with the chosen reason when the user confirms. */
+  onSubmit?: (reason: string) => void;
 }
 
 export default function FlagStoreModal({
-  visible, store, onClose,
+  visible, store, onClose, onSubmit,
 }: FlagStoreModalProps): React.JSX.Element {
   const [selected, setSelected] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -22,6 +24,12 @@ export default function FlagStoreModal({
     setSelected(null);
     setDone(false);
     onClose();
+  };
+
+  const handleSubmit = () => {
+    if (!selected) return;
+    if (onSubmit) onSubmit(selected);
+    setDone(true);
   };
 
   return (
@@ -52,7 +60,7 @@ export default function FlagStoreModal({
               </Pressable>
             ))}
             <Pressable
-              onPress={() => { if (selected) setDone(true); }}
+              onPress={handleSubmit}
               style={[styles.submitBtn, !selected && styles.submitBtnDisabled]}
             >
               <Text style={[styles.submitBtnText, !selected && styles.submitBtnTextDisabled]}>提交舉報</Text>

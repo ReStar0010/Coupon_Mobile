@@ -1,6 +1,77 @@
 import React from 'react';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
+import type { Merchant, MerchantDetail } from '@/src/services/api/merchants';
 import MapScreen from '../MapScreen';
+
+// ── safe-area mock ──────────────────────────────────────────────────────────
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
+// ── merchants service mock ──────────────────────────────────────────────────
+// Module under test fetches `listNearby` on mount and `getMerchant` on pin tap.
+// The fixtures mirror the previous hard-coded SAMPLE_MERCHANTS so existing
+// assertions (4 active pins, '阿明早餐店' at lat=25.0478, etc.) keep passing.
+const FIXTURE_MERCHANTS: Merchant[] = [
+  { id: '1', name: '阿明早餐店', category: 'food', lat: 25.0478, lng: 121.5318, address: '忠孝東路 3 段', verified: true, logoUrl: null },
+  { id: '2', name: '鼎泰豐', category: 'food', lat: 25.0490, lng: 121.5340, address: '信義路 2 段', verified: true, logoUrl: null },
+  { id: '3', name: '85度C', category: 'cafe', lat: 25.0460, lng: 121.5302, address: '復興南路 1 段', verified: false, logoUrl: null },
+  { id: '6', name: '全家', category: 'convenience', lat: 25.0468, lng: 121.5375, address: '中山北路 2 段', verified: true, logoUrl: null },
+];
+
+const FIXTURE_DETAILS: Record<string, MerchantDetail> = {
+  '1': {
+    id: '1', name: '阿明早餐店', category: 'food', lat: 25.0478, lng: 121.5318,
+    address: '忠孝東路 3 段', verified: true, logoUrl: null,
+    myCoupons: [
+      { id: 'mc1-1', label: '折抵', detail: '$25 現金折抵', expires: '11/08', amount: 25 },
+      { id: 'mc1-2', label: '買一送一', detail: '美式咖啡', expires: '11/15', amount: 0 },
+    ],
+    sharedCoupons: [
+      { store: '阿明早餐店', amount: 5, sharer: '小明', msg: '大家來吃看看', label: '折抵' },
+    ],
+    news: [{ id: 1, author: '阿明早餐店', agoText: '2 小時前', body: '今天有新品', createdAt: '2026-05-14' }],
+  },
+  '2': {
+    id: '2', name: '鼎泰豐', category: 'food', lat: 25.0490, lng: 121.5340,
+    address: '信義路 2 段', verified: true, logoUrl: null,
+    myCoupons: [
+      { id: 'mc2-1', label: '折抵', detail: '$50 現金折抵', expires: '12/01', amount: 50 },
+    ],
+    sharedCoupons: [
+      { store: '鼎泰豐', amount: 30, sharer: '志明', msg: '小籠包必嚐', label: '折抵' },
+    ],
+    news: [],
+  },
+  '3': {
+    id: '3', name: '85度C', category: 'cafe', lat: 25.0460, lng: 121.5302,
+    address: '復興南路 1 段', verified: false, logoUrl: null,
+    myCoupons: [],
+    sharedCoupons: [],
+    news: [],
+  },
+  '6': {
+    id: '6', name: '全家', category: 'convenience', lat: 25.0468, lng: 121.5375,
+    address: '中山北路 2 段', verified: true, logoUrl: null,
+    myCoupons: [],
+    sharedCoupons: [],
+    news: [],
+  },
+};
+
+const mockListNearby = jest.fn<Promise<Merchant[]>, [number, number, number?]>();
+const mockGetMerchant = jest.fn<Promise<MerchantDetail>, [string]>();
+const mockFlagMerchant = jest.fn<Promise<void>, [string, string, string?]>();
+const mockBlockMerchant = jest.fn<Promise<void>, [string]>();
+
+jest.mock('@/src/services/api/merchants', () => ({
+  __esModule: true,
+  listNearby: (lat: number, lng: number, radius?: number) => mockListNearby(lat, lng, radius),
+  getMerchant: (id: string) => mockGetMerchant(id),
+  flagMerchant: (id: string, reason: string, details?: string) =>
+    mockFlagMerchant(id, reason, details),
+  blockMerchant: (id: string) => mockBlockMerchant(id),
+}));
 
 // ── Icon mocks ──────────────────────────────────────────────────────────────
 jest.mock('@/src/components/icons/LogoIcon', () => {
@@ -217,6 +288,88 @@ jest.mock('../SharedCouponModal', () => {
       : null;
 });
 
+// MerchantSheet mock — exposes scan + first-shared + first-my callbacks
+jest.mock('../MerchantSheet', () => {
+  const React = require('react');
+  const { View, Text, Pressable } = require('react-native');
+  return ({
+    visible,
+    merchant,
+    onClose,
+    onUseCoupon,
+    onClaimSharedCoupon,
+    onScanQR,
+    onFlag,
+    onBlock,
+  }: {
+    visible: boolean;
+    merchant: {
+      name: string;
+      myCoupons?: Array<{ id: string; detail: string; expires: string; amount: number }>;
+      sharedCoupons?: Array<{
+        store: string;
+        amount: number;
+        sharer: string;
+        msg: string;
+        label?: string;
+      }>;
+    } | null;
+    onClose: () => void;
+    onUseCoupon: (c: { id: string; detail: string; expires: string; amount: number }) => void;
+    onClaimSharedCoupon: (c: { store: string; amount: number }) => void;
+    onScanQR: () => void;
+    onFlag?: () => void;
+    onBlock?: () => void;
+  }) => {
+    if (!visible || !merchant) return null;
+    const my = merchant.myCoupons?.[0];
+    const shared = merchant.sharedCoupons?.[0];
+    return React.createElement(
+      View,
+      { testID: 'merchant-sheet' },
+      React.createElement(Text, { testID: 'sheet-store' }, merchant.name),
+      React.createElement(
+        Pressable,
+        { testID: 'sheet-close', onPress: onClose },
+        React.createElement(Text, null, 'close'),
+      ),
+      my
+        ? React.createElement(
+            Pressable,
+            { testID: 'sheet-use-first', onPress: () => onUseCoupon(my) },
+            React.createElement(Text, null, 'use'),
+          )
+        : null,
+      shared
+        ? React.createElement(
+            Pressable,
+            { testID: 'sheet-claim-first', onPress: () => onClaimSharedCoupon(shared) },
+            React.createElement(Text, null, 'claim'),
+          )
+        : null,
+      React.createElement(
+        Pressable,
+        { testID: 'sheet-scan', onPress: onScanQR },
+        React.createElement(Text, null, 'scan'),
+      ),
+      onFlag
+        ? React.createElement(
+            Pressable,
+            { testID: 'sheet-flag', onPress: onFlag },
+            React.createElement(Text, null, 'flag'),
+          )
+        : null,
+      onBlock
+        ? React.createElement(
+            Pressable,
+            { testID: 'sheet-block', onPress: onBlock },
+            React.createElement(Text, null, 'block'),
+          )
+        : null,
+    );
+  };
+});
+
 // ── Default props ───────────────────────────────────────────────────────────
 const defaultProps = {
   onNavigate: jest.fn(),
@@ -226,171 +379,211 @@ const defaultProps = {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 beforeEach(() => {
-  jest.useFakeTimers();
   jest.clearAllMocks();
+  mockListNearby.mockResolvedValue(FIXTURE_MERCHANTS);
+  mockGetMerchant.mockImplementation((id: string) =>
+    Promise.resolve(FIXTURE_DETAILS[id] ?? FIXTURE_DETAILS['1']),
+  );
+  mockFlagMerchant.mockResolvedValue(undefined);
+  mockBlockMerchant.mockResolvedValue(undefined);
 });
 
-afterEach(() => {
-  jest.useRealTimers();
-});
+/** Render MapScreen and wait for the listNearby fetch to commit pins. */
+async function renderMap(props = defaultProps) {
+  const utils = render(<MapScreen {...props} />);
+  await waitFor(() => {
+    expect(utils.getAllByText(/^active-/).length).toBeGreaterThan(0);
+  });
+  return utils;
+}
+
+/** Press a pin and await the getMerchant resolution that opens the sheet. */
+async function openPinSheet(utils: ReturnType<typeof render>, testId: string) {
+  await act(async () => {
+    fireEvent.press(utils.getByTestId(testId));
+  });
+}
 
 // ── Test suites ─────────────────────────────────────────────────────────────
 
 describe('MapScreen', () => {
-  it('renders without crash', () => {
-    const { toJSON } = render(<MapScreen {...defaultProps} />);
-    expect(toJSON()).toBeTruthy();
+  it('renders without crash', async () => {
+    const utils = await renderMap();
+    expect(utils.toJSON()).toBeTruthy();
   });
 
-  it('renders 4 active pins', () => {
-    const { getAllByText } = render(<MapScreen {...defaultProps} />);
-    // SAMPLE_MERCHANTS: 4 active (ids 1,2,3,6)
+  it('renders 4 active pins from listNearby', async () => {
+    const { getAllByText } = await renderMap();
     const activePins = getAllByText(/^active-/);
     expect(activePins.length).toBe(4);
   });
 
-  it('renders 3 inactive pins', () => {
-    const { getAllByText } = render(<MapScreen {...defaultProps} />);
-    // SAMPLE_MERCHANTS: 3 inactive (ids 4,5,7)
-    const inactivePins = getAllByText('inactive');
-    expect(inactivePins.length).toBe(3);
+  it('calls listNearby with fallback coordinates on mount', async () => {
+    await renderMap();
+    expect(mockListNearby).toHaveBeenCalledWith(25.0478, 121.5318, 2);
+  });
+
+  it('does not render inactive pins (none returned by listNearby)', async () => {
+    const { queryAllByText } = await renderMap();
+    expect(queryAllByText('inactive')).toHaveLength(0);
   });
 });
 
 describe('MapScreen — header badges', () => {
-  it('renders without crashing', () => {
-    const { getByPlaceholderText } = render(<MapScreen {...defaultProps} />);
+  it('renders search input', async () => {
+    const { getByPlaceholderText } = await renderMap();
     expect(getByPlaceholderText('搜尋店家或優惠…')).toBeTruthy();
   });
 });
 
-describe('MapScreen — flag button', () => {
-  it('flag button press opens FlagStoreModal', () => {
-    const { getByText, queryByTestId } = render(<MapScreen {...defaultProps} />);
-    expect(queryByTestId('flag-modal')).toBeNull();
-    fireEvent.press(getByText('⚑'));
-    expect(queryByTestId('flag-modal')).toBeTruthy();
+describe('MapScreen — flag flow (via merchant sheet)', () => {
+  it('opens FlagStoreModal when flag button in sheet is pressed', async () => {
+    const utils = await renderMap();
+    expect(utils.queryByTestId('flag-modal')).toBeNull();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-flag'));
+    expect(utils.getByTestId('flag-modal')).toBeTruthy();
   });
 
-  it('FlagStoreModal onClose hides the modal', () => {
-    const { getByText, getByTestId, queryByTestId } = render(<MapScreen {...defaultProps} />);
-    fireEvent.press(getByText('⚑'));
-    expect(getByTestId('flag-modal')).toBeTruthy();
-    fireEvent.press(getByTestId('flag-modal-close'));
-    expect(queryByTestId('flag-modal')).toBeNull();
-  });
-});
-
-describe('MapScreen — block button', () => {
-  it('block button press opens BlockStoreModal', () => {
-    const { getByText, queryByTestId } = render(<MapScreen {...defaultProps} />);
-    expect(queryByTestId('block-modal')).toBeNull();
-    fireEvent.press(getByText('🚫'));
-    expect(queryByTestId('block-modal')).toBeTruthy();
+  it('FlagStoreModal onClose hides the modal', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-flag'));
+    fireEvent.press(utils.getByTestId('flag-modal-close'));
+    expect(utils.queryByTestId('flag-modal')).toBeNull();
   });
 
-  it('BlockStoreModal onClose hides the modal', () => {
-    const { getByText, getByTestId, queryByTestId } = render(<MapScreen {...defaultProps} />);
-    fireEvent.press(getByText('🚫'));
-    fireEvent.press(getByTestId('block-modal-close'));
-    expect(queryByTestId('block-modal')).toBeNull();
-  });
-
-  it('BlockStoreModal onConfirm hides the modal', () => {
-    const { getByText, getByTestId, queryByTestId } = render(<MapScreen {...defaultProps} />);
-    fireEvent.press(getByText('🚫'));
-    fireEvent.press(getByTestId('block-modal-confirm'));
-    expect(queryByTestId('block-modal')).toBeNull();
+  it('opening flag from sheet also closes the sheet', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-flag'));
+    expect(utils.queryByTestId('merchant-sheet')).toBeNull();
   });
 });
 
-describe('MapScreen — shared coupon modal (timer)', () => {
-  it('SharedCouponModal is not shown before timeout', () => {
-    const { queryByTestId } = render(<MapScreen {...defaultProps} />);
-    expect(queryByTestId('shared-coupon-modal')).toBeNull();
+describe('MapScreen — block flow (via merchant sheet)', () => {
+  it('opens BlockStoreModal when block button in sheet is pressed', async () => {
+    const utils = await renderMap();
+    expect(utils.queryByTestId('block-modal')).toBeNull();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-block'));
+    expect(utils.getByTestId('block-modal')).toBeTruthy();
   });
 
-  it('SharedCouponModal appears after 3 seconds', () => {
-    const { queryByTestId } = render(<MapScreen {...defaultProps} />);
-    act(() => {
-      jest.advanceTimersByTime(3000);
-    });
-    expect(queryByTestId('shared-coupon-modal')).toBeTruthy();
+  it('BlockStoreModal onClose hides the modal', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-block'));
+    fireEvent.press(utils.getByTestId('block-modal-close'));
+    expect(utils.queryByTestId('block-modal')).toBeNull();
   });
 
-  it('SharedCouponModal shows the demo store name', () => {
-    const { getByTestId } = render(<MapScreen {...defaultProps} />);
-    act(() => {
-      jest.advanceTimersByTime(3000);
-    });
-    expect(getByTestId('coupon-store').props.children).toBe('阿明早餐店');
-  });
-
-  it('closing SharedCouponModal via onClose hides it', () => {
-    const { getByTestId, queryByTestId } = render(<MapScreen {...defaultProps} />);
-    act(() => {
-      jest.advanceTimersByTime(3000);
-    });
-    fireEvent.press(getByTestId('coupon-close'));
-    expect(queryByTestId('shared-coupon-modal')).toBeNull();
-  });
-
-  it('claiming SharedCouponModal via onClaim hides it', () => {
-    const { getByTestId, queryByTestId } = render(<MapScreen {...defaultProps} />);
-    act(() => {
-      jest.advanceTimersByTime(3000);
-    });
-    fireEvent.press(getByTestId('coupon-claim'));
-    expect(queryByTestId('shared-coupon-modal')).toBeNull();
+  it('BlockStoreModal onConfirm hides the modal and calls blockMerchant', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-block'));
+    fireEvent.press(utils.getByTestId('block-modal-confirm'));
+    expect(utils.queryByTestId('block-modal')).toBeNull();
+    expect(mockBlockMerchant).toHaveBeenCalledWith('1');
   });
 });
 
-describe('MapScreen — flag modal shows selected store', () => {
-  it('flag modal shows the default selected store name', () => {
-    const { getByText, getByTestId } = render(<MapScreen {...defaultProps} />);
-    fireEvent.press(getByText('⚑'));
-    // Default selectedStore is '阿明早餐店'
-    expect(getByTestId('flag-modal')).toBeTruthy();
-    expect(getByText('阿明早餐店')).toBeTruthy();
+describe('MapScreen — shared coupon modal', () => {
+  it('SharedCouponModal is not shown initially (no auto-pop on mount)', async () => {
+    const utils = await renderMap();
+    expect(utils.queryByTestId('shared-coupon-modal')).toBeNull();
+  });
+
+  it('claiming a shared coupon from the merchant sheet opens SharedCouponModal', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-claim-first'));
+    expect(utils.queryByTestId('shared-coupon-modal')).toBeTruthy();
+    expect(utils.getByTestId('coupon-store').props.children).toBe('阿明早餐店');
+  });
+
+  it('SharedCouponModal closes on onClose', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-claim-first'));
+    fireEvent.press(utils.getByTestId('coupon-close'));
+    expect(utils.queryByTestId('shared-coupon-modal')).toBeNull();
+  });
+
+  it('SharedCouponModal closes on onClaim', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-claim-first'));
+    fireEvent.press(utils.getByTestId('coupon-claim'));
+    expect(utils.queryByTestId('shared-coupon-modal')).toBeNull();
   });
 });
 
-describe('MapScreen — pin press interactions', () => {
-  it('pressing active pin calls onNavigate with coupon-detail', () => {
+describe('MapScreen — flag modal shows tapped merchant', () => {
+  it('flag modal shows the merchant whose pin opened the sheet', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-flag'));
+    expect(utils.getByTestId('flag-modal')).toBeTruthy();
+    expect(utils.getByText('阿明早餐店')).toBeTruthy();
+  });
+
+  it('flag modal shows a different merchant when a different pin is opened', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0490');
+    fireEvent.press(utils.getByTestId('sheet-flag'));
+    expect(utils.getByText('鼎泰豐')).toBeTruthy();
+  });
+});
+
+describe('MapScreen — pin press opens MerchantSheet', () => {
+  it('pressing active pin opens the merchant sheet (does NOT navigate immediately)', async () => {
     const onNavigate = jest.fn();
-    // Merchant 1: lat 25.0478, active, name='阿明早餐店', couponCount=3
-    const { getByTestId } = render(<MapScreen {...defaultProps} onNavigate={onNavigate} />);
-    fireEvent.press(getByTestId('pin-active-25.0478'));
+    const utils = await renderMap({ ...defaultProps, onNavigate });
+    await openPinSheet(utils, 'pin-active-25.0478');
+    expect(utils.getByTestId('merchant-sheet')).toBeTruthy();
+    expect(utils.getByTestId('sheet-store').props.children).toBe('阿明早餐店');
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('pressing a second active pin opens the sheet for that merchant', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0490');
+    expect(utils.getByTestId('sheet-store').props.children).toBe('鼎泰豐');
+  });
+
+  it('inactive merchants returned by listNearby would not crash (none in fixture)', async () => {
+    const utils = await renderMap();
+    expect(utils.queryByTestId('pin-inactive-25.0452')).toBeNull();
+  });
+
+  it('sheet "use coupon" callback navigates to coupon-detail with full params', async () => {
+    const onNavigate = jest.fn();
+    const utils = await renderMap({ ...defaultProps, onNavigate });
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-use-first'));
     expect(onNavigate).toHaveBeenCalledWith('coupon-detail', {
       store: '阿明早餐店',
-      couponCount: 3,
+      detail: '$25 現金折抵',
+      expires: '11/08',
+      amount: 25,
     });
+    expect(utils.queryByTestId('merchant-sheet')).toBeNull();
   });
 
-  it('pressing a second active pin calls onNavigate with correct store', () => {
+  it('sheet scan QR callback navigates to coupon-receive', async () => {
     const onNavigate = jest.fn();
-    // Merchant 2: lat 25.049, active, name='鼎泰豐', couponCount=5
-    const { getByTestId } = render(<MapScreen {...defaultProps} onNavigate={onNavigate} />);
-    fireEvent.press(getByTestId('pin-active-25.0490'));
-    expect(onNavigate).toHaveBeenCalledWith('coupon-detail', {
-      store: '鼎泰豐',
-      couponCount: 5,
-    });
+    const utils = await renderMap({ ...defaultProps, onNavigate });
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-scan'));
+    expect(onNavigate).toHaveBeenCalledWith('coupon-receive');
+    expect(utils.queryByTestId('merchant-sheet')).toBeNull();
   });
 
-  it('pressing inactive pin does not call onNavigate', () => {
-    const onNavigate = jest.fn();
-    // Merchant 4: lat 25.0452, inactive
-    const { getByTestId } = render(<MapScreen {...defaultProps} onNavigate={onNavigate} />);
-    fireEvent.press(getByTestId('pin-inactive-25.0452'));
-    expect(onNavigate).not.toHaveBeenCalled();
-  });
-
-  it('pressing another inactive pin does not call onNavigate', () => {
-    const onNavigate = jest.fn();
-    // Merchant 5: lat 25.0485, inactive
-    const { getByTestId } = render(<MapScreen {...defaultProps} onNavigate={onNavigate} />);
-    fireEvent.press(getByTestId('pin-inactive-25.0485'));
-    expect(onNavigate).not.toHaveBeenCalled();
+  it('sheet close button hides the sheet', async () => {
+    const utils = await renderMap();
+    await openPinSheet(utils, 'pin-active-25.0478');
+    fireEvent.press(utils.getByTestId('sheet-close'));
+    expect(utils.queryByTestId('merchant-sheet')).toBeNull();
   });
 });

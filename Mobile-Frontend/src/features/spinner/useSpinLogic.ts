@@ -1,15 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { MULTS, MELT_MULTS, getFloor } from './constants';
 import type { SpinResult } from './ResultModal';
+import { drawSpinner } from '../../services/api/spinner';
+import type { SpinnerDrawResult } from '../../services/api/spinner';
 
 export type SpinPhase = 'idle' | 'launch' | 'peak' | 'decel' | 'pause' | 'reveal' | 'meltdown';
 
 interface SpinLogicOptions {
   gems: number;
-  setGems: (fn: (prev: number) => number) => void;
-  setCouPoints: (fn: (prev: number) => number) => void;
+  /** Kept for backwards-compatible call sites; no longer invoked. Server now owns the gem debit. */
+  setGems?: (fn: (prev: number) => number) => void;
+  /** Kept for backwards-compatible call sites; no longer invoked. Server now owns CouPoint credit. */
+  setCouPoints?: (fn: (prev: number) => number) => void;
   players: number;
   allFilled: boolean;
+  /** Called after the reveal settles so the global wallet picks up the server-authoritative balances. */
+  refreshWallet?: () => Promise<void> | void;
 }
 
 interface SpinLogicReturn {
@@ -29,12 +35,34 @@ interface SpinLogicReturn {
   dismissResult: () => void;
 }
 
+interface SectorMath {
+  centerDeg: number;
+  color: string;
+}
+
+function computeSectorMath(
+  table: ReadonlyArray<{ v: number; color: string }>,
+  multiplier: number,
+): SectorMath {
+  const weights = table.map((m) => 1 / (m.v + 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  for (let i = 0; i < table.length; i++) {
+    const w = (weights[i] / total) * 360;
+    if (table[i].v === multiplier) {
+      return { centerDeg: acc + w / 2, color: table[i].color };
+    }
+    acc += w;
+  }
+  // Fallback: first entry. Should be unreachable when the server returns a valid multiplier.
+  return { centerDeg: 0, color: table[0]?.color ?? '#2E2E2E' };
+}
+
 export function useSpinLogic({
   gems,
-  setGems,
-  setCouPoints,
   players,
   allFilled,
+  refreshWallet,
 }: SpinLogicOptions): SpinLogicReturn {
   const [spin, setSpin] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -47,17 +75,19 @@ export function useSpinLogic({
   const [meltdownResult, setMeltdownResult] = useState<SpinResult | null>(null);
   const [meltdownSpin, setMeltdownSpin] = useState(0);
   const [meltdownSpinning, setMeltdownSpinning] = useState(false);
+  const [serverFloor, setServerFloor] = useState<number | null>(null);
 
   const prevGemsRef = useRef(gems);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const floor = getFloor(gems, players);
+  const localFloor = getFloor(gems, players);
+  const floor = serverFloor ?? localFloor;
 
-  const clearTimers = () => {
+  const clearTimers = (): void => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
   };
 
-  const push = (fn: () => void, ms: number) => {
+  const push = (fn: () => void, ms: number): void => {
     timers.current.push(setTimeout(fn, ms));
   };
 
@@ -74,7 +104,72 @@ export function useSpinLogic({
     return undefined;
   }, [gems]);
 
-  const handleSpin = () => {
+  const startAnimation = (draw: SpinnerDrawResult): void => {
+    const { multiplier, meltdownMultiplier, gemsUsed, pointsEarned } = draw;
+
+    setGemsAtSpin(gemsUsed);
+    setServerFloor(draw.floor);
+
+    const sector = computeSectorMath(MULTS, multiplier);
+    setPendingColor(sector.color);
+
+    setSpin((s) => {
+      const currentMod = ((s % 360) + 360) % 360;
+      const sectorPos = (sector.centerDeg + currentMod) % 360;
+      const adjustment = sectorPos === 0 ? 360 : 360 - sectorPos;
+      // Keep the same 4.7s feel: 7 full rotations + sector-targeted offset + jitter.
+      return s + 360 * 7 + adjustment + (Math.random() * 4 - 2);
+    });
+
+    push(() => setPhase('peak'), 500);
+    push(() => setPhase('decel'), 2000);
+    push(() => setPhase('pause'), 4200);
+    push(() => {
+      setSpinning(false);
+      const miss = multiplier <= 1 && Math.random() < 0.38;
+      setNearMiss(miss);
+      // For x5 + meltdown the points should reveal the meltdown total only after
+      // the meltdown wheel settles. The base reveal shows the wheel-stop tier.
+      const baseRevealPoints =
+        meltdownMultiplier !== null && meltdownMultiplier !== undefined
+          ? gemsUsed * multiplier
+          : pointsEarned;
+      setResult({ mult: multiplier, points: baseRevealPoints, color: sector.color });
+      setPhase('reveal');
+      setPendingColor(null);
+
+      if (multiplier === 5 && meltdownMultiplier !== null && meltdownMultiplier !== undefined) {
+        push(() => {
+          const mSector = computeSectorMath(MELT_MULTS, meltdownMultiplier);
+
+          setMeltdownSpinning(true);
+          setMeltdownSpin((prev) => {
+            const mod = ((prev % 360) + 360) % 360;
+            const pos = (mSector.centerDeg + mod) % 360;
+            const adj = pos === 0 ? 360 : 360 - pos;
+            return prev + 360 * 5 + adj + (Math.random() * 4 - 2);
+          });
+          setPhase('meltdown');
+
+          push(() => {
+            setMeltdownSpinning(false);
+            setMeltdownResult({
+              mult: meltdownMultiplier,
+              points: pointsEarned,
+              color: mSector.color,
+            });
+            if (refreshWallet) {
+              void Promise.resolve(refreshWallet()).catch(() => undefined);
+            }
+          }, 2200);
+        }, 2500);
+      } else if (refreshWallet) {
+        void Promise.resolve(refreshWallet()).catch(() => undefined);
+      }
+    }, 4700);
+  };
+
+  const handleSpin = (): void => {
     if (spinning || !allFilled || gems < 1) return;
 
     clearTimers();
@@ -84,117 +179,33 @@ export function useSpinLogic({
     setNearMiss(false);
     setPhase('launch');
 
-    const gemsUsed = gems;
-    setGemsAtSpin(gemsUsed);
-    setGems((prev) => prev - 1);
+    const gemsSnapshot = gems;
 
-    const available = MULTS.filter((m) => m.v >= floor);
-    const weights = available.map((m) => 1 / (m.v + 1));
-    const total = weights.reduce((a, b) => a + b, 0);
-
-    let pick = Math.random() * total;
-    let chosen = available[0];
-    for (let i = 0; i < available.length; i++) {
-      pick -= weights[i];
-      if (pick <= 0) {
-        chosen = available[i];
-        break;
-      }
-    }
-
-    setPendingColor(chosen.color);
-
-    let acc = 0;
-    let centerDeg = 0;
-    for (let i = 0; i < available.length; i++) {
-      const w = (weights[i] / total) * 360;
-      if (available[i].v === chosen.v) {
-        centerDeg = acc + w / 2;
-        break;
-      }
-      acc += w;
-    }
-
-    setSpin((s) => {
-      const currentMod = ((s % 360) + 360) % 360;
-      const sectorPos = (centerDeg + currentMod) % 360;
-      const adjustment = sectorPos === 0 ? 360 : 360 - sectorPos;
-      return s + 360 * 7 + adjustment + (Math.random() * 4 - 2);
-    });
-
-    push(() => setPhase('peak'), 500);
-    push(() => setPhase('decel'), 2000);
-    push(() => setPhase('pause'), 4200);
-    push(() => {
-      setSpinning(false);
-      const earnedPts = gemsUsed * chosen.v;
-      const miss = chosen.v <= 1 && Math.random() < 0.38;
-      setNearMiss(miss);
-      setResult({ mult: chosen.v, points: earnedPts, color: chosen.color });
-      setCouPoints((p) => p + earnedPts);
-      setPhase('reveal');
-      setPendingColor(null);
-
-      if (chosen.v === 5) {
-        timers.current.push(
-          setTimeout(() => {
-            const rnd = Math.random();
-            let cumProb = 0;
-            let meltChosen = MELT_MULTS[0];
-            for (const m of MELT_MULTS) {
-              cumProb += m.prob;
-              if (rnd <= cumProb) {
-                meltChosen = m;
-                break;
-              }
-            }
-
-            const mWeights = MELT_MULTS.map((m) => 1 / (m.v + 1));
-            const mTotal = mWeights.reduce((a, b) => a + b, 0);
-            let mAcc = 0;
-            let mCenterDeg = 0;
-            for (let i = 0; i < MELT_MULTS.length; i++) {
-              const w = (mWeights[i] / mTotal) * 360;
-              if (MELT_MULTS[i].v === meltChosen.v) {
-                mCenterDeg = mAcc + w / 2;
-                break;
-              }
-              mAcc += w;
-            }
-
-            setMeltdownSpinning(true);
-            setMeltdownSpin((prev) => {
-              const mod = ((prev % 360) + 360) % 360;
-              const pos = (mCenterDeg + mod) % 360;
-              const adj = pos === 0 ? 360 : 360 - pos;
-              return prev + 360 * 5 + adj + (Math.random() * 4 - 2);
-            });
-            setPhase('meltdown');
-
-            timers.current.push(
-              setTimeout(() => {
-                setMeltdownSpinning(false);
-                const bonus = earnedPts * (meltChosen.v - 1);
-                setMeltdownResult({
-                  mult: meltChosen.v,
-                  points: earnedPts * meltChosen.v,
-                  color: meltChosen.color,
-                });
-                setCouPoints((p) => p + bonus);
-              }, 2200),
-            );
-          }, 2500),
-        );
-      }
-    }, 4700);
+    void drawSpinner(gemsSnapshot)
+      .then((draw) => {
+        startAnimation(draw);
+      })
+      .catch((err: unknown) => {
+        clearTimers();
+        setSpinning(false);
+        setPhase('idle');
+        setPendingColor(null);
+        const message = err instanceof Error ? err.message : 'spinner draw failed';
+        // eslint-disable-next-line no-console
+        console.warn('[spinner] draw failed:', message);
+        if (refreshWallet) {
+          void Promise.resolve(refreshWallet()).catch(() => undefined);
+        }
+      });
   };
 
-  const dismissResult = () => {
+  const dismissResult = (): void => {
     setResult(null);
     setMeltdownResult(null);
     setNearMiss(false);
     setPhase('idle');
     setGemsAtSpin(0);
+    setServerFloor(null);
   };
 
   return {

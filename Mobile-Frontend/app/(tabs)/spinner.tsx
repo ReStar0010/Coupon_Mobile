@@ -5,7 +5,7 @@ import SpinnerScreen from '@/src/features/spinner/SpinnerScreen';
 
 export default function SpinnerRoute() {
   const router = useRouter();
-  const { gems, setGemsLocal, couPoints, setCouPointsLocal } = useWallet();
+  const { gems, setGemsLocal, couPoints, setCouPointsLocal, refreshWallet } = useWallet();
 
   return (
     <SpinnerScreen
@@ -14,6 +14,7 @@ export default function SpinnerRoute() {
       setGems={setGemsLocal}
       couPoints={couPoints}
       setCouPoints={setCouPointsLocal}
+      refreshWallet={refreshWallet}
     />
   );
 }

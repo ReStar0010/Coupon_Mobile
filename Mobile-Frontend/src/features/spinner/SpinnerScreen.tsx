@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, Easing as RNEasing } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,6 +14,7 @@ import GemPips from '../../components/ui/GemPips';
 import Stepper from '../../components/ui/Stepper';
 import AnimNum from '../../components/ui/AnimNum';
 import GemIcon from '../../components/icons/GemIcon';
+import CoinIcon from '../../components/icons/CoinIcon';
 import WheelDial from './WheelDial';
 import ResultModal from './ResultModal';
 import MeltdownOverlay from './MeltdownOverlay';
@@ -28,6 +30,8 @@ interface SpinnerScreenProps {
   setGems: (fn: (prev: number) => number) => void;
   couPoints: number;
   setCouPoints: (fn: (prev: number) => number) => void;
+  /** Called after a server-authoritative spin settles so global wallet state syncs. */
+  refreshWallet?: () => Promise<void> | void;
 }
 
 // Background environment per result tier
@@ -58,10 +62,12 @@ export default function SpinnerScreen({
   setGems,
   couPoints,
   setCouPoints,
+  refreshWallet,
 }: SpinnerScreenProps): React.JSX.Element {
   const [players, setPlayers] = useState(1);
   const [filledGuests, setFilledGuests] = useState(0);
   const [pendingSlot, setPendingSlot] = useState<number | null>(null);
+  const insets = useSafeAreaInsets();
 
   const invited = players - 1;
   const allFilled = filledGuests >= invited;
@@ -85,7 +91,7 @@ export default function SpinnerScreen({
     meltdownSpinning,
     handleSpin,
     dismissResult,
-  } = useSpinLogic({ gems, setGems, setCouPoints, players, allFilled });
+  } = useSpinLogic({ gems, setGems, setCouPoints, players, allFilled, refreshWallet });
 
   const canSpin = !spinning && allFilled && gems >= 1;
 
@@ -230,7 +236,8 @@ export default function SpinnerScreen({
   useEffect(() => {
     if (spinning) {
       const charge = getCharge(gems);
-      vigOpacity.value = withTiming(Math.min(charge.vignette * 1.35 + 0.08, 0.88), {
+      // Cap at 0.5 so the wheel stays clearly visible even on max-charge (5-gem) spins.
+      vigOpacity.value = withTiming(Math.min(charge.vignette * 0.55 + 0.05, 0.5), {
         duration: 550,
       });
     } else {
@@ -450,18 +457,19 @@ export default function SpinnerScreen({
       />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.title}>Spinner</Text>
         <View style={styles.badges}>
           <Animated.View
             testID="coupoints-badge"
             style={[styles.badge, { transform: [{ scale: hudPulse }] }]}
           >
-            <AnimNum value={couPoints} color={colors.fg} fontSize={14} />
+            <CoinIcon size={14} />
+            <AnimNum value={couPoints} color="#F5F5F0" fontSize={14} />
           </Animated.View>
           <View testID="gems-badge" style={styles.badge}>
-            <GemIcon size={14} color={colors.purple} />
-            <AnimNum value={gems} color={colors.fg} fontSize={14} />
+            <GemIcon size={14} color={colors.purpleLight} />
+            <AnimNum value={gems} color="#F5F5F0" fontSize={14} />
           </View>
         </View>
       </View>
@@ -674,12 +682,12 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#2A2A2A',
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.35)',
     borderRadius: 4,
   },
   wheelArea: {

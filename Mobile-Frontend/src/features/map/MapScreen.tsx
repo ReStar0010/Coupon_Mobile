@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { colors } from '../../theme/colors';
 import LogoIcon from '../../components/icons/LogoIcon';
@@ -9,84 +10,180 @@ import NeoTeardropPin from './NeoTeardropPin';
 import FlagStoreModal from './FlagStoreModal';
 import BlockStoreModal from './BlockStoreModal';
 import SharedCouponModal, { SharedCoupon } from './SharedCouponModal';
-import { MapMerchant } from './types';
+import MerchantSheet from './MerchantSheet';
+import type { MapMerchant } from './types';
+import {
+  listNearby,
+  getMerchant,
+  flagMerchant,
+  blockMerchant,
+  type Merchant,
+  type MerchantDetail,
+  type MerchantCoupon,
+  type SharedCouponSummary,
+} from '@/src/services/api/merchants';
 
 interface MapScreenProps {
   onNavigate: (screen: string, params?: object) => void;
 }
 
-const DEMO_COUPON: SharedCoupon = {
-  store: '阿明早餐店',
-  amount: 25,
-  sharer: '小明',
-  msg: '推薦你去試試他們的蛋餅！',
-  label: '$25 現金折抵',
-};
+// Fallback centre point if device geolocation is unavailable (Taipei).
+const FALLBACK_LAT = 25.0478;
+const FALLBACK_LNG = 121.5318;
+const NEARBY_RADIUS_KM = 2;
 
-const SAMPLE_MERCHANTS: MapMerchant[] = [
-  {
-    id: '1',
-    name: '阿明早餐店',
-    lat: 25.0478,
-    lng: 121.5318,
-    couponCount: 3,
+/** Convert an API `Merchant` to the marker-level shape used by the map. */
+function toMapMerchant(m: Merchant): MapMerchant {
+  return {
+    id: m.id,
+    name: m.name,
+    lat: m.lat,
+    lng: m.lng,
+    couponCount: 0,
     active: true,
-    big: true,
-  },
-  { id: '2', name: '鼎泰豐', lat: 25.049, lng: 121.534, couponCount: 5, active: true },
-  { id: '3', name: '85度C', lat: 25.046, lng: 121.5302, couponCount: 1, active: true },
-  { id: '4', name: '全聯', lat: 25.0452, lng: 121.5358, couponCount: 0, active: false },
-  { id: '5', name: '7-Eleven', lat: 25.0485, lng: 121.5295, couponCount: 0, active: false },
-  { id: '6', name: '全家', lat: 25.0468, lng: 121.5375, couponCount: 8, active: true, big: true },
-  { id: '7', name: '統一超商', lat: 25.0499, lng: 121.533, couponCount: 0, active: false },
-];
+  };
+}
 
 export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Element {
+  const [merchants, setMerchants] = useState<MapMerchant[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [activeDetail, setActiveDetail] = useState<MerchantDetail | null>(null);
   const [showFlag, setShowFlag] = useState(false);
   const [showBlock, setShowBlock] = useState(false);
   const [sharedCoupon, setSharedCoupon] = useState<SharedCoupon | null>(null);
-  const [selectedStore, setSelectedStore] = useState('阿明早餐店');
+  const [selectedStore, setSelectedStore] = useState('');
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    const t = setTimeout(() => setSharedCoupon(DEMO_COUPON), 3000);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await listNearby(FALLBACK_LAT, FALLBACK_LNG, NEARBY_RADIUS_KM);
+        if (!cancelled) {
+          setMerchants(result.map(toMapMerchant));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          // Surface the failure to telemetry instead of crashing the screen.
+          // eslint-disable-next-line no-console
+          console.warn('listNearby failed', err);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredMerchants =
     searchText.trim().length > 0
-      ? SAMPLE_MERCHANTS.filter((m) => m.name.includes(searchText.trim()))
+      ? merchants.filter((m) => m.name.includes(searchText.trim()))
       : [];
 
-  const handlePinPress = (m: MapMerchant) => {
+  const handlePinPress = async (m: MapMerchant) => {
     if (!m.active) return;
-    onNavigate('coupon-detail', { store: m.name, couponCount: m.couponCount });
+    try {
+      const detail = await getMerchant(m.id);
+      setActiveDetail(detail);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('getMerchant failed', err);
+    }
   };
 
-  const handleLongPress = (m: MapMerchant) => {
-    if (!m.active) return;
-    setSelectedStore(m.name);
+  const handleSheetUseCoupon = (c: MerchantCoupon) => {
+    const m = activeDetail;
+    setActiveDetail(null);
+    if (!m) return;
+    onNavigate('coupon-detail', {
+      store: m.name,
+      detail: c.detail,
+      expires: c.expires,
+      amount: c.amount,
+    });
+  };
+
+  const handleSheetClaimShared = (c: SharedCouponSummary) => {
+    setActiveDetail(null);
+    setSharedCoupon(c);
+  };
+
+  const handleSheetScanQR = () => {
+    setActiveDetail(null);
+    onNavigate('coupon-receive');
+  };
+
+  const handleSheetFlag = () => {
+    if (!activeDetail) return;
+    setSelectedStore(activeDetail.name);
+    setSelectedStoreId(activeDetail.id);
+    setActiveDetail(null);
     setShowFlag(true);
+  };
+
+  const handleSheetBlock = () => {
+    if (!activeDetail) return;
+    setSelectedStore(activeDetail.name);
+    setSelectedStoreId(activeDetail.id);
+    setActiveDetail(null);
+    setShowBlock(true);
+  };
+
+  const handleFlagClose = () => {
+    setShowFlag(false);
+  };
+
+  const handleBlockConfirm = () => {
+    if (selectedStoreId) {
+      blockMerchant(selectedStoreId).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn('blockMerchant failed', err);
+      });
+      // Optimistically drop the blocked merchant from the local marker set.
+      setMerchants((prev) => prev.filter((m) => m.id !== selectedStoreId));
+    }
+    setShowBlock(false);
+  };
+
+  const handleBlockClose = () => {
+    setShowBlock(false);
+  };
+
+  // Fire-and-forget flag submission, invoked when FlagStoreModal completes.
+  // FlagStoreModal owns its own UI state for reason selection; we surface its
+  // close handler and submit when we have a selected store.
+  const submitFlag = (reason: string) => {
+    if (!selectedStoreId) return;
+    flagMerchant(selectedStoreId, reason).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn('flagMerchant failed', err);
+    });
   };
 
   return (
     <View style={styles.root}>
       <View style={styles.mapContainer}>
         <NeoBrutMap>
-          {SAMPLE_MERCHANTS.map((m) => (
-            <NeoTeardropPin
-              key={m.id}
-              coordinate={{ latitude: m.lat, longitude: m.lng }}
-              active={m.active}
-              count={m.active ? m.couponCount : undefined}
-              big={m.big}
-              onPress={() => handlePinPress(m)}
-            />
-          ))}
+          {merchants
+            .filter((m) => m.active)
+            .map((m) => (
+              <NeoTeardropPin
+                key={m.id}
+                coordinate={{ latitude: m.lat, longitude: m.lng }}
+                active
+                count={m.couponCount}
+                hasShared={false}
+                onPress={() => handlePinPress(m)}
+              />
+            ))}
         </NeoBrutMap>
 
-        {/* Search bar */}
-        <View style={styles.searchBar}>
+        {/* Search bar — pushed below the notch */}
+        <View style={[styles.searchBar, { top: insets.top + 8 }]}>
           <View style={styles.searchLogoBox}>
             <LogoIcon size={22} />
           </View>
@@ -103,15 +200,15 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
           </Svg>
         </View>
 
-        {/* Search results dropdown */}
+        {/* Search results dropdown — sits just under the search bar */}
         {filteredMerchants.length > 0 && (
-          <View style={styles.dropdown}>
+          <View style={[styles.dropdown, { top: insets.top + 70 }]}>
             {filteredMerchants.map((m) => (
               <Pressable
                 key={m.id}
                 onPress={() => {
                   setSearchText(m.name);
-                  handlePinPress(m);
+                  void handlePinPress(m);
                 }}
                 style={styles.dropdownItem}
               >
@@ -128,6 +225,13 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
           </View>
         )}
 
+        {/* Loading indicator while nearby merchants are being fetched */}
+        {loading && (
+          <View style={[styles.loadingBox, { top: insets.top + 70 }]} testID="map-loading">
+            <ActivityIndicator size="small" color={colors.fg} />
+          </View>
+        )}
+
         {/* Location button */}
         <Pressable style={styles.locationBtn}>
           <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
@@ -141,30 +245,35 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
             />
           </Svg>
         </Pressable>
-
-        {/* Flag & Block buttons */}
-        <View style={styles.actionBtns}>
-          <Pressable onPress={() => setShowFlag(true)} style={styles.actionBtn}>
-            <Text style={styles.actionBtnIcon}>⚑</Text>
-          </Pressable>
-          <Pressable onPress={() => setShowBlock(true)} style={styles.actionBtn}>
-            <Text style={styles.actionBtnIcon}>🚫</Text>
-          </Pressable>
-        </View>
       </View>
 
-      <FlagStoreModal visible={showFlag} store={selectedStore} onClose={() => setShowFlag(false)} />
+      <FlagStoreModal
+        visible={showFlag}
+        store={selectedStore}
+        onClose={handleFlagClose}
+        onSubmit={submitFlag}
+      />
       <BlockStoreModal
         visible={showBlock}
         store={selectedStore}
-        onConfirm={() => setShowBlock(false)}
-        onClose={() => setShowBlock(false)}
+        onConfirm={handleBlockConfirm}
+        onClose={handleBlockClose}
       />
       <SharedCouponModal
         visible={sharedCoupon !== null}
         coupon={sharedCoupon}
         onClaim={() => setSharedCoupon(null)}
         onClose={() => setSharedCoupon(null)}
+      />
+      <MerchantSheet
+        visible={activeDetail !== null}
+        merchant={activeDetail}
+        onClose={() => setActiveDetail(null)}
+        onUseCoupon={handleSheetUseCoupon}
+        onClaimSharedCoupon={handleSheetClaimShared}
+        onScanQR={handleSheetScanQR}
+        onFlag={handleSheetFlag}
+        onBlock={handleSheetBlock}
       />
     </View>
   );
@@ -226,29 +335,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 0,
   },
-  actionBtns: {
-    position: 'absolute',
-    left: 16,
-    bottom: 90,
-    zIndex: 10,
-    flexDirection: 'column',
-    gap: 8,
-  },
-  actionBtn: {
-    width: 42,
-    height: 42,
-    backgroundColor: colors.card,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.border,
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-  },
-  actionBtnIcon: { fontSize: 18 },
   dropdown: {
     position: 'absolute',
     top: 70,
@@ -296,5 +382,17 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.monoRegular,
     fontSize: 10,
     color: colors.muted,
+  },
+  loadingBox: {
+    position: 'absolute',
+    alignSelf: 'center',
+    left: '50%',
+    marginLeft: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 15,
   },
 });

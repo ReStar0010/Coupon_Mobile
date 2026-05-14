@@ -5,21 +5,16 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
-import { redeemCoupon } from '@/src/services/api/coupons';
+import { receiveCoupon } from '@/src/services/api/coupons';
 import { useWallet } from '@/src/state/WalletContext';
-interface NavParams {
-  id?: string;
-  store?: string;
-  detail?: string;
-  expires?: string;
-  amount?: number;
-  redeem_code?: string;
+
+interface CouponReceiveQRScreenProps {
+  onBack: () => void;
+  onDone: () => void;
 }
-interface CouponScreenProps {
-  onNavigate: (screen: string, params?: NavParams) => void;
-  // Kept as a no-op placeholder; gem credit is now driven by the BE +1 hook.
-  setGems: (fn: (prev: number) => number) => void;
-  params: NavParams;
+
+function generateIdempotencyKey(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 const CORNERS: Array<['top' | 'bottom', 'left' | 'right']> = [
@@ -60,52 +55,44 @@ const scanStyles = StyleSheet.create({
   },
 });
 
-export default function CouponUseQRScreen({
-  onNavigate,
-  params,
-}: CouponScreenProps): React.JSX.Element {
+export default function CouponReceiveQRScreen({
+  onBack,
+  onDone,
+}: CouponReceiveQRScreenProps): React.JSX.Element {
   const [torch, setTorch] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [receiveError, setReceiveError] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const scanned = useRef(false);
+  const idempotencyKeyRef = useRef<string>(generateIdempotencyKey());
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insets = useSafeAreaInsets();
   const { refreshWallet } = useWallet();
 
-  const store = params.store ?? '阿明早餐店';
-  const amount = params.amount ?? 25;
-  const expires = params.expires ?? '11/08';
-
-  const handleScan = async (scannedCode?: string): Promise<void> => {
+  const handleScan = async (scannedQrToken?: string): Promise<void> => {
     if (scanned.current || success) return;
     scanned.current = true;
-
-    const code = scannedCode ?? params.redeem_code ?? 'SIMULATED';
-    const id = params.id;
-
+    const token = scannedQrToken ?? 'SIMULATED';
     try {
-      if (id) {
-        await redeemCoupon(id, code);
-      }
-      setSuccess(true);
-      // BE +1 hook (kind=COUPON_REDEEM) credits the gem; refresh to reflect it.
+      await receiveCoupon(token, idempotencyKeyRef.current);
+      // QR claim earns +1 gem server-side (kind=QR_CLAIM); reflect it locally.
       await refreshWallet();
+      setSuccess(true);
       successTimerRef.current = setTimeout(() => {
         successTimerRef.current = null;
-        onNavigate('home');
-      }, 2600);
+        onDone();
+      }, 2400);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Redeem failed';
-      setRedeemError(msg);
+      const msg = err instanceof Error ? err.message : 'Receive failed';
+      setReceiveError(msg);
       scanned.current = false;
-      console.warn('[CouponUseQRScreen] redeemCoupon failed:', msg);
+      console.warn('[CouponReceiveQRScreen] receiveCoupon failed:', msg);
     }
   };
 
   useEffect(() => {
     if (!permission?.granted) requestPermission();
-  }, []);
+  }, [permission, requestPermission]);
 
   useEffect(
     () => () => {
@@ -119,27 +106,25 @@ export default function CouponUseQRScreen({
       <View style={s.header}>
         <View style={s.backOuter}>
           <View style={s.backShadow} />
-          <Pressable onPress={() => onNavigate('coupon-detail', params)} style={s.backBtn}>
+          <Pressable testID="receive-qr-back" onPress={onBack} style={s.backBtn}>
             <Text style={s.backArrow}>←</Text>
           </Pressable>
         </View>
-        <Text style={s.headerTitle}>掃描店家 QR</Text>
+        <Text style={s.headerTitle}>掃描店家 QR 領取優惠券</Text>
       </View>
-      <View style={s.couponBanner}>
+
+      <View style={s.banner}>
         <View style={s.bannerShadow} />
         <View style={s.bannerCard}>
-          <Text style={s.bannerAmt}>${amount}</Text>
+          <Text style={s.bannerEmoji}>🎁</Text>
           <View style={s.bannerInfo}>
-            <Text style={s.bannerStore}>{store}</Text>
-            <Text style={s.bannerSub}>現金折抵券 · 到期 {expires}</Text>
-          </View>
-          <View style={s.expiryTag}>
-            <Text style={s.expiryTagText}>⚡ 7天</Text>
+            <Text style={s.bannerTitle}>領取店家優惠</Text>
+            <Text style={s.bannerSub}>對準店家提供的 QR Code</Text>
           </View>
         </View>
       </View>
+
       <View style={[s.scanArea, torch && s.scanAreaTorch]}>
-        <View style={s.bgOverlay} />
         {CORNERS.map(([v, h], i) => (
           <View key={i} style={[s.corner, { [v]: 18, [h]: 18 }]}>
             <View style={[s.cornerH, { [v]: 0, [h]: 0 }]} />
@@ -149,6 +134,7 @@ export default function CouponUseQRScreen({
         <ScanLine />
         <View style={s.torchBtnOuter}>
           <Pressable
+            testID="receive-qr-torch"
             onPress={() => setTorch((t) => !t)}
             style={[s.torchBtn, torch && s.torchBtnActive]}
           >
@@ -178,7 +164,7 @@ export default function CouponUseQRScreen({
         )}
         <Text style={s.scanHint}>將店家 QR Code 對準框內</Text>
         {success && (
-          <View style={s.successOverlay}>
+          <View style={s.successOverlay} testID="receive-success">
             <View style={s.successIcon}>
               <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
                 <Path
@@ -190,27 +176,29 @@ export default function CouponUseQRScreen({
                 />
               </Svg>
             </View>
-            <Text style={s.successTitle}>使用成功！</Text>
-            <Text style={s.successSub}>+1 顆寶石</Text>
-            <Text style={s.successReturn}>返回首頁中…</Text>
+            <Text style={s.successTitle}>領取成功！</Text>
+            <Text style={s.successSub}>優惠券已加入你的錢包</Text>
+            <Text style={s.successReturn}>返回地圖中…</Text>
           </View>
         )}
       </View>
+
       <View style={s.footer}>
-        {redeemError ? (
-          <View style={s.errorBanner} testID="redeem-error">
-            <Text style={s.errorText}>{redeemError}</Text>
+        {receiveError ? (
+          <View style={s.errorBanner} testID="receive-error">
+            <Text style={s.errorText}>{receiveError}</Text>
           </View>
         ) : null}
         <View style={s.simBtnOuter}>
           {!success && <View style={s.simBtnShadow} />}
           <Pressable
+            testID="receive-qr-simulate"
             onPress={() => { void handleScan(); }}
             disabled={success}
             style={[s.simBtn, success && s.simBtnDone]}
           >
             <Text style={[s.simBtnText, success && s.simBtnTextDone]}>
-              {success ? '掃描成功 ✓' : '模擬掃描成功 ▶'}
+              {success ? '領取成功 ✓' : '模擬掃描成功 ▶'}
             </Text>
           </Pressable>
         </View>
@@ -253,12 +241,12 @@ const s = StyleSheet.create({
   backArrow: { fontSize: 20, color: '#fff' },
   headerTitle: {
     fontFamily: fontFamilies.extraBold,
-    fontSize: 18,
-    letterSpacing: -0.36,
+    fontSize: 16,
+    letterSpacing: -0.3,
     color: '#fff',
     flex: 1,
   },
-  couponBanner: { position: 'relative', marginHorizontal: 16, marginBottom: 14, zIndex: 5 },
+  banner: { position: 'relative', marginHorizontal: 16, marginBottom: 14, zIndex: 5 },
   bannerShadow: {
     position: 'absolute',
     top: 2,
@@ -269,29 +257,24 @@ const s = StyleSheet.create({
     backgroundColor: colors.border,
   },
   bannerCard: {
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.purple,
     borderWidth: 2.5,
     borderColor: colors.border,
     borderRadius: 6,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  bannerAmt: { fontFamily: fontFamilies.monoSemiBold, fontSize: 26, color: colors.fg },
+  bannerEmoji: { fontSize: 26 },
   bannerInfo: { flex: 1 },
-  bannerStore: { fontFamily: fontFamilies.bold, fontSize: 14, color: colors.fg },
-  bannerSub: { fontFamily: fontFamilies.regular, fontSize: 11, color: 'rgba(51,51,51,0.65)' },
-  expiryTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: colors.fg,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 4,
+  bannerTitle: { fontFamily: fontFamilies.bold, fontSize: 14, color: '#fff' },
+  bannerSub: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
   },
-  expiryTagText: { fontFamily: fontFamilies.monoSemiBold, fontSize: 10, color: colors.yellow },
   scanArea: {
     flex: 1,
     marginHorizontal: 16,
@@ -303,22 +286,21 @@ const s = StyleSheet.create({
     position: 'relative',
   },
   scanAreaTorch: { backgroundColor: '#1a1208' },
-  bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent' },
-  corner: { position: 'absolute', width: 30, height: 30, pointerEvents: 'none' } as any,
+  corner: { position: 'absolute', width: 30, height: 30 } as const,
   cornerH: {
     position: 'absolute',
     width: 30,
     height: 3,
     backgroundColor: colors.yellow,
     borderRadius: 1,
-  } as any,
+  } as const,
   cornerV: {
     position: 'absolute',
     width: 3,
     height: 30,
     backgroundColor: colors.yellow,
     borderRadius: 1,
-  } as any,
+  } as const,
   torchBtnOuter: { position: 'absolute', top: 14, right: 14, zIndex: 6 },
   torchBtn: {
     width: 34,

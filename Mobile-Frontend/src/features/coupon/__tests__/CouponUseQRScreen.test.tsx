@@ -1,6 +1,23 @@
 import React from 'react';
-import { render, fireEvent, act } from '@testing-library/react-native';
+import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 import CouponUseQRScreen from '../CouponUseQRScreen';
+
+// ── service module mock ──────────────────────────────────────────────────────
+const mockRedeemCoupon = jest.fn();
+jest.mock('../../../services/api/coupons', () => ({
+  redeemCoupon: (...args: unknown[]) => mockRedeemCoupon(...args),
+}));
+
+// ── WalletContext mock ───────────────────────────────────────────────────────
+const mockRefreshWallet = jest.fn();
+jest.mock('../../../state/WalletContext', () => ({
+  useWallet: () => ({ refreshWallet: mockRefreshWallet }),
+}));
+
+// ── safe-area mock ───────────────────────────────────────────────────────────
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 
 // ── expo-camera mock ─────────────────────────────────────────────────────────
 jest.mock('expo-camera', () => ({
@@ -9,8 +26,6 @@ jest.mock('expo-camera', () => ({
 }));
 
 // ── react-native-svg mock ────────────────────────────────────────────────────
-// Path renders as a View so its props (including the torch ternary for stroke)
-// are evaluated by React, which ensures the branch is covered.
 jest.mock('react-native-svg', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -32,6 +47,7 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof CouponUseQRScr
   onNavigate: jest.fn(),
   setGems: jest.fn(),
   params: {
+    id: 'c-1',
     store: '阿明早餐店',
     detail: '$25 現金折抵',
     expires: '11/08',
@@ -43,6 +59,15 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof CouponUseQRScr
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  mockRedeemCoupon.mockResolvedValue({
+    message: 'ok',
+    coupon_name: 'x',
+    coupon_detail: 'x',
+    savings_amount: 25,
+    redeemed_at: 'now',
+    redemption_id: 1,
+  });
+  mockRefreshWallet.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -67,69 +92,89 @@ describe('CouponUseQRScreen', () => {
     expect(getByText('模擬掃描成功 ▶')).toBeTruthy();
   });
 
-  it('sim scan button calls setGems with +1', () => {
-    const setGems = jest.fn();
-    const { getByText } = render(<CouponUseQRScreen {...makeProps({ setGems })} />);
-
-    fireEvent.press(getByText('模擬掃描成功 ▶'));
-
-    expect(setGems).toHaveBeenCalledTimes(1);
-    const updaterFn = setGems.mock.calls[0][0];
-    expect(updaterFn(3)).toBe(4);
-  });
-
-  it('sim scan button shows success text after scan', () => {
+  it('sim scan button calls redeemCoupon with the coupon id and a fallback code', async () => {
     const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
 
-    fireEvent.press(getByText('模擬掃描成功 ▶'));
+    await act(async () => {
+      fireEvent.press(getByText('模擬掃描成功 ▶'));
+    });
+
+    expect(mockRedeemCoupon).toHaveBeenCalledTimes(1);
+    expect(mockRedeemCoupon).toHaveBeenCalledWith('c-1', 'SIMULATED');
+  });
+
+  it('uses params.redeem_code when present for the simulate path', async () => {
+    const props = makeProps({
+      params: {
+        id: 'c-1',
+        store: '阿明早餐店',
+        detail: '$25 現金折抵',
+        expires: '11/08',
+        amount: 25,
+        redeem_code: 'ABC123',
+      },
+    });
+    const { getByText } = render(<CouponUseQRScreen {...props} />);
+
+    await act(async () => {
+      fireEvent.press(getByText('模擬掃描成功 ▶'));
+    });
+
+    expect(mockRedeemCoupon).toHaveBeenCalledWith('c-1', 'ABC123');
+  });
+
+  it('refreshes the wallet after a successful redeem', async () => {
+    const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
+
+    await act(async () => {
+      fireEvent.press(getByText('模擬掃描成功 ▶'));
+    });
+
+    await waitFor(() => {
+      expect(mockRefreshWallet).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('shows success text after a successful scan', async () => {
+    const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
+
+    await act(async () => {
+      fireEvent.press(getByText('模擬掃描成功 ▶'));
+    });
 
     expect(getByText('掃描成功 ✓')).toBeTruthy();
   });
 
-  it('sim scan button is disabled after scan', () => {
+  it('pressing sim scan a second time does not call redeemCoupon again', async () => {
     const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
 
-    fireEvent.press(getByText('模擬掃描成功 ▶'));
+    await act(async () => {
+      fireEvent.press(getByText('模擬掃描成功 ▶'));
+    });
+    // After success, the button is disabled; press it again — should be a no-op
+    fireEvent.press(getByText('掃描成功 ✓'));
 
-    // Walk up the tree from the Text node until we find the Pressable with accessibilityState.
-    // The Pressable may be the parent or grandparent depending on RN internals.
-    const textNode = getByText('掃描成功 ✓');
-    let node: any = textNode.parent;
-    let disabled: boolean | undefined;
-    while (node) {
-      if (node.props?.accessibilityState?.disabled !== undefined) {
-        disabled = node.props.accessibilityState.disabled;
-        break;
-      }
-      node = node.parent;
-    }
-    expect(disabled).toBe(true);
+    expect(mockRedeemCoupon).toHaveBeenCalledTimes(1);
   });
 
-  it('pressing sim scan a second time does not call setGems again', () => {
-    const setGems = jest.fn();
-    const { getByText } = render(<CouponUseQRScreen {...makeProps({ setGems })} />);
-
-    fireEvent.press(getByText('模擬掃描成功 ▶'));
-    // Button text has changed to '掃描成功 ✓' and is disabled — pressing it again
-    // should be a no-op because disabled blocks the handler
-    expect(setGems).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows success overlay with success text after scan', () => {
+  it('shows the success overlay after scan', async () => {
     const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
 
-    fireEvent.press(getByText('模擬掃描成功 ▶'));
+    await act(async () => {
+      fireEvent.press(getByText('模擬掃描成功 ▶'));
+    });
 
     expect(getByText('使用成功！')).toBeTruthy();
     expect(getByText('+1 顆寶石')).toBeTruthy();
   });
 
-  it('navigates to home after 2600 ms post-scan', () => {
+  it('navigates to home after 2600 ms post-scan', async () => {
     const onNavigate = jest.fn();
     const { getByText } = render(<CouponUseQRScreen {...makeProps({ onNavigate })} />);
 
-    fireEvent.press(getByText('模擬掃描成功 ▶'));
+    await act(async () => {
+      fireEvent.press(getByText('模擬掃描成功 ▶'));
+    });
 
     act(() => {
       jest.advanceTimersByTime(2600);
@@ -140,7 +185,7 @@ describe('CouponUseQRScreen', () => {
 
   it('back button navigates to coupon-detail with params', () => {
     const onNavigate = jest.fn();
-    const params = { store: '阿明早餐店', expires: '11/08', amount: 25 };
+    const params = { id: 'c-1', store: '阿明早餐店', expires: '11/08', amount: 25 };
     const { getByText } = render(<CouponUseQRScreen {...makeProps({ onNavigate, params })} />);
 
     fireEvent.press(getByText('←'));
@@ -166,21 +211,29 @@ describe('CouponUseQRScreen', () => {
     expect(getByText('需要相機權限')).toBeTruthy();
   });
 
+  it('shows error banner when redeemCoupon fails', async () => {
+    mockRedeemCoupon.mockRejectedValueOnce(new Error('redeem boom'));
+    const { getByText, getByTestId } = render(<CouponUseQRScreen {...makeProps()} />);
+
+    await act(async () => {
+      fireEvent.press(getByText('模擬掃描成功 ▶'));
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('redeem-error')).toBeTruthy();
+    });
+    expect(mockRefreshWallet).not.toHaveBeenCalled();
+  });
+
   it('pressing the torch button does not throw', () => {
-    // Torch Pressable renders as accessible={true} View with an SVG (View) child.
-    // It is the second accessible={true} element — the first is the back arrow.
-    // Use UNSAFE_getByProps on the torch Pressable's container.
     const { UNSAFE_getAllByProps } = render(<CouponUseQRScreen {...makeProps()} />);
-    // Both back and torch Pressables render with accessible={true}
     const accessibles = UNSAFE_getAllByProps({ accessible: true });
-    // accessibles[0] = back btn (has ← text child), accessibles[1] = torch btn
     expect(() => fireEvent.press(accessibles[1])).not.toThrow();
   });
 
   it('pressing torch twice covers both torch state branches', () => {
     const { UNSAFE_getAllByProps } = render(<CouponUseQRScreen {...makeProps()} />);
     const accessibles = UNSAFE_getAllByProps({ accessible: true });
-    // Toggle torch on then off
     fireEvent.press(accessibles[1]);
     fireEvent.press(accessibles[1]);
     expect(true).toBe(true);

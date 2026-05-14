@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,11 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import GemIcon from '@/src/components/icons/GemIcon';
+import { shareCoupon, shareCouponPublic } from '@/src/services/api/coupons';
+import { useWallet } from '@/src/state/WalletContext';
 
 interface NavParams {
+  id?: string;
   store?: string;
   detail?: string;
   expires?: string;
@@ -22,6 +25,8 @@ interface NavParams {
 interface CouponScreenProps {
   onNavigate: (screen: string, params?: NavParams) => void;
   gems: number;
+  // Kept as a no-op placeholder; gem credit now lands on the BE side
+  // when the recipient accepts the share (kind=SHARE_REWARD).
   setGems: (fn: (prev: number) => number) => void;
   couPoints: number;
   setCouPoints: (fn: (prev: number) => number) => void;
@@ -30,11 +35,7 @@ interface CouponScreenProps {
 
 type ShareTarget = 'map' | 'link' | null;
 
-const EXAMPLES = [
-  '希望你會喜歡～～',
-  '剛吃完真的不錯，推薦你試試！',
-  '送給有緣人～有空去逛逛',
-];
+const EXAMPLES = ['希望你會喜歡～～', '剛吃完真的不錯，推薦你試試！', '送給有緣人～有空去逛逛'];
 
 const SHARE_OPTIONS: Array<{ id: 'map' | 'link'; title: string; sub: string }> = [
   { id: 'map', title: '釋出到 CouMap', sub: '附近的人都看得到 · 適合無特定對象' },
@@ -44,18 +45,56 @@ const SHARE_OPTIONS: Array<{ id: 'map' | 'link'; title: string; sub: string }> =
 export default function CouponShareScreen({
   onNavigate,
   params,
-  setGems,
 }: CouponScreenProps): React.JSX.Element {
   const [target, setTarget] = useState<ShareTarget>(null);
   const [note, setNote] = useState('');
   const [success, setSuccess] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { refreshWallet } = useWallet();
 
-  const handleConfirm = () => {
-    if (!target) return;
-    setSuccess(true);
-    setGems((g) => g + 1);
-    setTimeout(() => onNavigate('home'), 2500);
+  const handleConfirm = async (): Promise<void> => {
+    if (!target || success || isSubmitting) return;
+    const id = params.id;
+    if (!id) {
+      setShareError('Missing coupon id');
+      console.warn('[CouponShareScreen] cannot share: params.id missing');
+      return;
+    }
+    setIsSubmitting(true);
+    setShareError(null);
+    try {
+      if (target === 'map') {
+        await shareCouponPublic(id, note);
+      } else {
+        // 'link' path: no phone-input UI exists yet — skipping until UI is added.
+        // TODO: collect recipientPhone and call shareCoupon(id, recipientPhone).
+        await shareCouponPublic(id, note);
+      }
+      // Refresh so any share-related wallet changes are reflected. The actual
+      // +1 SHARE_REWARD lands when the recipient accepts (BE-driven).
+      await refreshWallet();
+      setSuccess(true);
+      successTimerRef.current = setTimeout(() => {
+        successTimerRef.current = null;
+        onNavigate('home');
+      }, 2500);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Share failed';
+      setShareError(msg);
+      console.warn('[CouponShareScreen] share failed:', msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  useEffect(
+    () => () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    },
+    [],
+  );
 
   const confirmLabel =
     target === 'map' ? '釋出到 CouMap' : target === 'link' ? '建立連結' : '選一個分享方式';
@@ -75,12 +114,11 @@ export default function CouponShareScreen({
         <View style={s.gemBannerOuter}>
           <View style={s.gemBannerShadow} />
           <View style={s.gemBanner}>
-            <GemIcon size={46} color={colors.purple} />
-            <View style={s.gemBannerText}>
-              <Text style={s.gemBannerTitle}>分享這張券，有人使用 → 你賺寶石</Text>
-              <Text style={s.gemBannerSub}>
-                每張券回饋 <Text style={s.purpleBold}>1 顆寶石</Text>，可在 Spinner 兌換獎品
-              </Text>
+            <Text style={s.gemBannerLabel}>被使用</Text>
+            <Text style={s.gemBannerArrow}>→</Text>
+            <View style={s.gemBannerReward}>
+              <Text style={s.gemBannerRewardText}>+1</Text>
+              <GemIcon size={26} color={colors.purple} />
             </View>
           </View>
         </View>
@@ -162,13 +200,18 @@ export default function CouponShareScreen({
           </View>
         </View>
         <View style={s.confirmSection}>
+          {shareError ? (
+            <View style={s.errorBanner} testID="share-error">
+              <Text style={s.errorText}>{shareError}</Text>
+            </View>
+          ) : null}
           <View style={s.confirmOuter}>
             {target && <View style={s.confirmShadow} />}
             <Pressable
               testID="confirm-btn"
-              onPress={handleConfirm}
-              disabled={!target}
-              accessibilityState={{ disabled: !target }}
+              onPress={() => { void handleConfirm(); }}
+              disabled={!target || isSubmitting}
+              accessibilityState={{ disabled: !target || isSubmitting }}
               style={[s.confirmBtn, !target && s.confirmBtnDisabled]}
             >
               <GemIcon size={18} color={target ? colors.purpleLight : colors.muted} />
@@ -245,26 +288,36 @@ const s = StyleSheet.create({
     borderWidth: 2.5,
     borderColor: colors.purple,
     borderRadius: 8,
-    padding: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
+    gap: 14,
   },
-  gemBannerText: { flex: 1 },
-  gemBannerTitle: {
+  gemBannerLabel: {
     fontFamily: fontFamilies.extraBold,
-    fontSize: 14,
+    fontSize: 18,
     color: colors.fg,
-    lineHeight: 19,
+    letterSpacing: -0.4,
   },
-  gemBannerSub: {
-    fontFamily: fontFamilies.regular,
-    fontSize: 11,
-    color: colors.fg,
-    marginTop: 4,
-    lineHeight: 16,
+  gemBannerArrow: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 22,
+    color: colors.purple,
+    lineHeight: 26,
   },
-  purpleBold: { fontFamily: fontFamilies.bold, color: colors.purple },
+  gemBannerReward: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  gemBannerRewardText: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 22,
+    color: colors.purple,
+    letterSpacing: -0.6,
+  },
   noteSection: { marginHorizontal: 16, marginBottom: 12 },
   noteHeader: {
     flexDirection: 'row',
@@ -412,4 +465,12 @@ const s = StyleSheet.create({
     color: colors.muted,
     marginTop: 8,
   },
+  errorBanner: {
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.red,
+    borderRadius: 6,
+  },
+  errorText: { fontFamily: fontFamilies.bold, fontSize: 12, color: '#fff' },
 });
