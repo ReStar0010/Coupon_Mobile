@@ -444,6 +444,14 @@ export default function TemplateAnalyticsCountScreen() {
                 {templateName ? `${templateName} 統計數據` : '統計數據'}
               </Text>
 
+              {isStoreTemplate && (
+                <View style={styles.legacyBanner}>
+                  <Text fontSize="$sm" color={colors.textSecondary}>
+                    此優惠券屬於舊版「隨取及用」類型，已不再開放新增
+                  </Text>
+                </View>
+              )}
+
               {/* Toggle: 百分比 / 張數（與時間區間按鈕一致風格） */}
               <XStack gap="$2" marginBottom="$4">
                 <TouchableOpacity
@@ -748,5 +756,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
+  },
+  legacyBanner: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
 });

@@ -231,6 +231,19 @@ export default function MerchantProfileScreen() {
 
                 {/* Account Actions */}
                 <YStack marginTop="$6" marginBottom="$4" gap="$3">
+                  {/* Store News Management */}
+                  <Button
+                    variant="outline"
+                    fullWidth
+                    onPress={() => router.push('/(profile)/news')}
+                    style={styles.contentGuidelinesButton}
+                  >
+                    <XStack gap="$2" style={{ alignItems: 'center', justifyContent: 'center' }}>
+                      <MaterialIcons name="campaign" size={18} color={colors.primary} />
+                      <Text color={colors.primary}>店家近況管理</Text>
+                    </XStack>
+                  </Button>
+
                   {/* Logout Button */}
                   {/* Content Guidelines Button (UGC Compliance) */}
                   <Button
