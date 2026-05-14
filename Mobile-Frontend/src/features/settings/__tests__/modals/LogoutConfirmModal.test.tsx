@@ -1,6 +1,17 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import LogoutConfirmModal from '../../modals/LogoutConfirmModal';
+
+const mockLogout = jest.fn();
+const mockReplace = jest.fn();
+
+jest.mock('@/src/state/AuthContext', () => ({
+  useAuth: () => ({ logout: mockLogout }),
+}));
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ replace: mockReplace }),
+}));
 
 const defaultProps = {
   visible: true,
@@ -11,6 +22,7 @@ const defaultProps = {
 describe('LogoutConfirmModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLogout.mockResolvedValue(undefined);
   });
 
   it('renders when visible is true', () => {
@@ -30,13 +42,6 @@ describe('LogoutConfirmModal', () => {
     expect(getByText('登出帳號')).toBeTruthy();
   });
 
-  it('displays the confirmation subtitle text', () => {
-    const { getByText } = render(<LogoutConfirmModal {...defaultProps} />);
-    expect(
-      getByText('確定要登出嗎？下次登入還需要驗證身份。'),
-    ).toBeTruthy();
-  });
-
   it('displays cancel and confirm buttons', () => {
     const { getByText } = render(<LogoutConfirmModal {...defaultProps} />);
     expect(getByText('取消')).toBeTruthy();
@@ -49,36 +54,46 @@ describe('LogoutConfirmModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('pressing cancel does NOT call onLogout', () => {
+  it('pressing cancel does NOT call logout or navigate', () => {
     const { getByText } = render(<LogoutConfirmModal {...defaultProps} />);
     fireEvent.press(getByText('取消'));
+    expect(mockLogout).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
     expect(defaultProps.onLogout).not.toHaveBeenCalled();
   });
 
-  it('pressing confirm calls onLogout', () => {
+  it('pressing confirm calls logout from auth context', async () => {
     const { getByText } = render(<LogoutConfirmModal {...defaultProps} />);
     fireEvent.press(getByText('確定登出'));
-    expect(defaultProps.onLogout).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockLogout).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('pressing confirm does NOT call onClose', () => {
+  it('pressing confirm navigates to /(auth)/login', async () => {
     const { getByText } = render(<LogoutConfirmModal {...defaultProps} />);
     fireEvent.press(getByText('確定登出'));
-    expect(defaultProps.onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/(auth)/login');
+    });
   });
 
-  it('onLogout and onClose are independent callbacks', () => {
+  it('pressing confirm also calls onLogout prop after success', async () => {
     const onLogout = jest.fn();
-    const onClose = jest.fn();
     const { getByText } = render(
-      <LogoutConfirmModal visible={true} onLogout={onLogout} onClose={onClose} />,
+      <LogoutConfirmModal {...defaultProps} onLogout={onLogout} />,
     );
     fireEvent.press(getByText('確定登出'));
-    expect(onLogout).toHaveBeenCalledTimes(1);
-    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onLogout).toHaveBeenCalledTimes(1);
+    });
+  });
 
-    fireEvent.press(getByText('取消'));
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onLogout).toHaveBeenCalledTimes(1); // still only once
+  it('shows inline error when logout rejects', async () => {
+    mockLogout.mockRejectedValueOnce(new Error('Network error'));
+    const { getByText, findByTestId } = render(<LogoutConfirmModal {...defaultProps} />);
+    fireEvent.press(getByText('確定登出'));
+    const err = await findByTestId('logout-error');
+    expect(err.props.children).toBe('Network error');
   });
 });

@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import CoinIcon from '@/src/components/icons/CoinIcon';
+import { useCouPoints } from '@/src/services/api/coupoint';
+import { useWallet } from '@/src/state/WalletContext';
 
 interface Props {
   couPoints: number;
@@ -54,14 +57,20 @@ const scanStyles = StyleSheet.create({
 
 export default function CouPointUseScreen({
   couPoints,
-  setCouPoints,
   onNavigate,
 }: Props): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>('scan');
   const [torch, setTorch] = useState(false);
   const [amount, setAmount] = useState(5);
   const [permission, requestPermission] = useCameraPermissions();
+  const [scannedToken, setScannedToken] = useState<string | null>(null);
+  const [storeName, setStoreName] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const scanned = useRef(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const insets = useSafeAreaInsets();
+  const { refreshWallet } = useWallet();
 
   const maxAmount = Math.floor(couPoints / 5) * 5;
   const canUse = couPoints >= 5;
@@ -74,23 +83,57 @@ export default function CouPointUseScreen({
     if (canUse) setAmount(Math.min(5, maxAmount));
   }, [couPoints]);
 
-  const handleScan = () => {
+  useEffect(
+    () => () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    },
+    [],
+  );
+
+  const handleScan = (data?: string): void => {
     if (scanned.current) return;
     scanned.current = true;
+    setScannedToken(data ?? 'SIMULATED');
     setPhase('amount');
   };
 
-  const handleConfirm = () => {
-    setCouPoints((p) => p - amount);
-    setPhase('success');
-    setTimeout(() => onNavigate('home'), 2600);
+  const handleConfirm = async (): Promise<void> => {
+    if (submitting) return;
+    if (!scannedToken) {
+      setError('尚未掃描 QR Code');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const resp = await useCouPoints(scannedToken, amount);
+      setStoreName(resp.store.name);
+      await refreshWallet();
+      setPhase('success');
+      successTimerRef.current = setTimeout(() => {
+        successTimerRef.current = null;
+        onNavigate('home');
+      }, 2600);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '兌換失敗';
+      setError(msg || '兌換失敗');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const decrement = () => setAmount((a) => Math.max(5, a - 5));
-  const increment = () => setAmount((a) => Math.min(maxAmount, a + 5));
+  const handleRetry = (): void => {
+    setError(null);
+    setScannedToken(null);
+    scanned.current = false;
+    setPhase('scan');
+  };
+
+  const decrement = (): void => setAmount((a) => Math.max(5, a - 5));
+  const increment = (): void => setAmount((a) => Math.min(maxAmount, a + 5));
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Header */}
       <View style={s.header}>
         <View style={s.backOuter}>
@@ -148,7 +191,7 @@ export default function CouPointUseScreen({
                 style={s.camera}
                 facing="back"
                 enableTorch={torch}
-                onBarcodeScanned={() => handleScan()}
+                onBarcodeScanned={(e) => handleScan(e?.data)}
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
               />
             ) : (
@@ -161,7 +204,11 @@ export default function CouPointUseScreen({
           <View style={s.footer}>
             <View style={s.simBtnOuter}>
               <View style={s.simBtnShadow} />
-              <Pressable onPress={handleScan} style={s.simBtn}>
+              <Pressable
+                testID="sim-scan-btn"
+                onPress={() => handleScan('SIMULATED')}
+                style={s.simBtn}
+              >
                 <Text style={s.simBtnText}>模擬掃描成功 ▶</Text>
               </Pressable>
             </View>
@@ -199,18 +246,35 @@ export default function CouPointUseScreen({
                       disabled={amount >= maxAmount}
                       style={[s.stepBtn, amount >= maxAmount && s.stepBtnDisabled]}
                     >
-                      <Text style={[s.stepBtnText, amount >= maxAmount && s.stepBtnTextDisabled]}>+</Text>
+                      <Text style={[s.stepBtnText, amount >= maxAmount && s.stepBtnTextDisabled]}>
+                        +
+                      </Text>
                     </Pressable>
                   </View>
-                  <Text style={s.remainAfter}>
-                    付款後餘額：{couPoints - amount} CouPoint
-                  </Text>
+                  <Text style={s.remainAfter}>付款後餘額：{couPoints - amount} CouPoint</Text>
                 </View>
               </View>
+              {error && (
+                <View testID="coupoint-error" style={s.errorBox}>
+                  <Text style={s.errorText}>{error}</Text>
+                  <Pressable onPress={handleRetry} style={s.retryBtn}>
+                    <Text style={s.retryBtnText}>重新掃描</Text>
+                  </Pressable>
+                </View>
+              )}
               <View style={s.confirmOuter}>
                 <View style={s.confirmShadow} />
-                <Pressable onPress={handleConfirm} style={s.confirmBtn}>
-                  <Text style={s.confirmText}>確認付款 {amount} CouPoint</Text>
+                <Pressable
+                  testID="confirm-btn"
+                  onPress={() => {
+                    void handleConfirm();
+                  }}
+                  disabled={submitting}
+                  style={[s.confirmBtn, submitting && s.confirmBtnDisabled]}
+                >
+                  <Text style={s.confirmText}>
+                    {submitting ? '處理中…' : `確認付款 ${amount} CouPoint`}
+                  </Text>
                 </Pressable>
               </View>
             </>
@@ -235,6 +299,9 @@ export default function CouPointUseScreen({
             </View>
           </View>
           <Text style={s.successTitle}>付款成功！</Text>
+          {storeName ? (
+            <Text testID="success-store" style={s.successStore}>{storeName}</Text>
+          ) : null}
           <Text style={s.successSub}>已扣除 {amount} CouPoint</Text>
           <Text style={s.successReturn}>返回首頁中…</Text>
         </View>
@@ -534,11 +601,53 @@ const s = StyleSheet.create({
     color: '#fff',
     letterSpacing: -0.48,
   },
+  successStore: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 16,
+    color: '#fff',
+    marginTop: 10,
+    letterSpacing: -0.2,
+  },
   successSub: {
     fontFamily: fontFamilies.regular,
     fontSize: 14,
     color: 'rgba(255,255,255,0.55)',
     marginTop: 8,
+  },
+  confirmBtnDisabled: {
+    opacity: 0.55,
+  },
+  errorBox: {
+    marginBottom: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 80, 80, 0.12)',
+    borderWidth: 2,
+    borderColor: colors.red,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: fontFamilies.regular,
+    fontSize: 13,
+    color: '#fff',
+  },
+  retryBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  retryBtnText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 12,
+    color: '#fff',
   },
   successReturn: {
     fontFamily: fontFamilies.monoRegular,

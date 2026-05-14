@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import EditProfileModal from '../../modals/EditProfileModal';
 
 const defaultProps = {
@@ -7,13 +7,14 @@ const defaultProps = {
   name: 'Test User',
   email: 'test@example.com',
   phone: '+886 912-345-678',
-  onSave: jest.fn(),
+  onSave: jest.fn().mockResolvedValue(undefined),
   onClose: jest.fn(),
 };
 
 describe('EditProfileModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    defaultProps.onSave.mockResolvedValue(undefined);
   });
 
   it('renders when visible is true', () => {
@@ -63,44 +64,51 @@ describe('EditProfileModal', () => {
     expect(getAllByDisplayValue('+886 900-000-000').length).toBeGreaterThan(0);
   });
 
-  it('pressing the save button calls onSave with current field values', () => {
+  it('pressing the save button calls onSave with current field values', async () => {
     const { getByText } = render(<EditProfileModal {...defaultProps} />);
     fireEvent.press(getByText('儲存'));
-    expect(defaultProps.onSave).toHaveBeenCalledTimes(1);
-    expect(defaultProps.onSave).toHaveBeenCalledWith(
-      'Test User',
-      'test@example.com',
-      '+886 912-345-678',
-    );
+    await waitFor(() => {
+      expect(defaultProps.onSave).toHaveBeenCalledWith(
+        'Test User',
+        'test@example.com',
+        '+886 912-345-678',
+      );
+    });
   });
 
-  it('pressing the save button also calls onClose', () => {
+  it('pressing the save button also calls onClose after onSave resolves', async () => {
     const { getByText } = render(<EditProfileModal {...defaultProps} />);
     fireEvent.press(getByText('儲存'));
-    expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('pressing save after editing passes updated values to onSave', () => {
+  it('pressing save after editing passes updated values to onSave', async () => {
     const { getAllByDisplayValue, getByText } = render(
       <EditProfileModal {...defaultProps} />,
     );
     fireEvent.changeText(getAllByDisplayValue('Test User')[0], 'Edited Name');
     fireEvent.press(getByText('儲存'));
-    expect(defaultProps.onSave).toHaveBeenCalledWith(
-      'Edited Name',
-      'test@example.com',
-      '+886 912-345-678',
-    );
+    await waitFor(() => {
+      expect(defaultProps.onSave).toHaveBeenCalledWith(
+        'Edited Name',
+        'test@example.com',
+        '+886 912-345-678',
+      );
+    });
   });
 
-  it('backdrop press calls onClose', () => {
-    // The backdrop Pressable is rendered via absoluteFill — pressing it calls onClose
-    const { getByText } = render(<EditProfileModal {...defaultProps} />);
-    // Confirm the modal is visible first
-    expect(getByText('編輯個人資料')).toBeTruthy();
-    // onRequestClose fires when hardware back is pressed (covered by Modal onRequestClose)
-    // We verify onClose is wired up via the save path and do a direct call check here
-    expect(defaultProps.onClose).not.toHaveBeenCalled();
+  it('shows inline error and does not close when onSave rejects', async () => {
+    const onSave = jest.fn().mockRejectedValue(new Error('伺服器錯誤'));
+    const onClose = jest.fn();
+    const { getByText, findByTestId } = render(
+      <EditProfileModal {...defaultProps} onSave={onSave} onClose={onClose} />,
+    );
+    fireEvent.press(getByText('儲存'));
+    const errorEl = await findByTestId('edit-profile-error');
+    expect(errorEl.props.children).toBe('伺服器錯誤');
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('renders save button text', () => {

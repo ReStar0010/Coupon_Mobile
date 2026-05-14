@@ -3,7 +3,8 @@ import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
-import ToggleSwitch from '@/src/components/ui/ToggleSwitch';
+import { useAuth } from '@/src/state/AuthContext';
+import { updateProfile } from '@/src/services/api/profile';
 import EditProfileModal from './modals/EditProfileModal';
 import LogoutConfirmModal from './modals/LogoutConfirmModal';
 import DeleteAccountModal from './modals/DeleteAccountModal';
@@ -77,33 +78,38 @@ export default function SettingsScreen({
   gems,
   couPoints,
 }: SettingsScreenProps): React.JSX.Element {
+  const { user, refreshAuth } = useAuth();
   const [modal, setModal] = useState<ModalKey>(null);
-  const [profileName, setProfileName] = useState('CoKayne');
-  const [profileEmail, setProfileEmail] = useState('duankayne@gmail.com');
-  const [profilePhone, setProfilePhone] = useState('+886 912-345-678');
-  const [emailVerified, setEmailVerified] = useState(true);
-  const [phoneVerified, setPhoneVerified] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailNotif, setEmailNotif] = useState(false);
 
-  function handleSaveProfile(n: string, e: string, p: string) {
-    const emailChanged = e !== profileEmail;
+  const profileName = user?.displayName ?? '';
+  const profileEmail = user?.email ?? '';
+  const profilePhone = user?.phone ?? '';
+  // Email verification is tracked server-side; for now derive from a falsy email.
+  // Phone verification comes straight from the UserProfile.
+  const emailVerified = Boolean(profileEmail);
+  const phoneVerified = user?.phoneVerified ?? false;
+
+  async function handleSaveProfile(n: string, e: string, p: string): Promise<void> {
     const phoneChanged = p !== profilePhone;
-    setProfileName(n);
-    setProfileEmail(e);
-    setProfilePhone(p);
+    const emailChanged = e !== profileEmail;
+    // Display-name + avatar are the only fields the profile endpoint supports;
+    // email and phone changes go through dedicated verification flows.
+    try {
+      await updateProfile({ displayName: n });
+      await refreshAuth();
+    } catch {
+      // Surface failures inside EditProfileModal (it owns its own inline error).
+      return;
+    }
     if (emailChanged) {
-      setEmailVerified(false);
       setModal('verify-email');
     } else if (phoneChanged) {
-      setPhoneVerified(false);
       setModal('verify-phone');
     }
   }
 
-  function handleVerifyClose(field: 'email' | 'phone') {
-    if (field === 'email') setEmailVerified(true);
-    else setPhoneVerified(true);
+  function handleVerifyClose(): void {
+    void refreshAuth();
     setModal(null);
   }
 
@@ -125,12 +131,12 @@ export default function SettingsScreen({
             <View style={styles.profileCard}>
               <View style={styles.profileInfo}>
                 <Text testID="profile-name" style={styles.profileName}>
-                  {profileName}
+                  {profileName || '尚未設定'}
                 </Text>
                 <Text testID="profile-email" style={styles.profileMeta}>
-                  {profileEmail}
+                  {profileEmail || '尚未設定'}
                 </Text>
-                <Text style={styles.profileMeta}>{profilePhone}</Text>
+                <Text style={styles.profileMeta}>{profilePhone || '尚未設定'}</Text>
                 <View style={styles.pointsBadgeRow}>
                   <View style={styles.pointsBadge}>
                     <Text style={styles.pointsBadgeText}>{couPoints} pt</Text>
@@ -155,7 +161,7 @@ export default function SettingsScreen({
           <SectionLabel label="帳號驗證" />
           <SettingsRow
             label="電子信箱驗證"
-            sub={profileEmail}
+            sub={profileEmail || '尚未設定'}
             right={
               <View style={styles.verifyRight}>
                 <VerifiedBadge ok={emailVerified} />
@@ -170,7 +176,7 @@ export default function SettingsScreen({
           />
           <SettingsRow
             label="手機號碼驗證"
-            sub={profilePhone}
+            sub={profilePhone || '尚未設定'}
             right={
               <View style={styles.verifyRight}>
                 <VerifiedBadge ok={phoneVerified} />
@@ -182,29 +188,6 @@ export default function SettingsScreen({
               </View>
             }
             onPress={phoneVerified ? undefined : () => setModal('verify-phone')}
-          />
-        </View>
-
-        {/* Notifications */}
-        <View style={styles.section}>
-          <SectionLabel label="通知" />
-          <SettingsRow
-            label="推播通知"
-            sub="新優惠券與到期提醒"
-            right={
-              <View testID="toggle-push">
-                <ToggleSwitch value={pushEnabled} onToggle={setPushEnabled} />
-              </View>
-            }
-          />
-          <SettingsRow
-            label="電子信箱通知"
-            sub="每週優惠摘要"
-            right={
-              <View testID="toggle-email">
-                <ToggleSwitch value={emailNotif} onToggle={setEmailNotif} />
-              </View>
-            }
           />
         </View>
 
@@ -317,7 +300,7 @@ export default function SettingsScreen({
         visible={modal === 'verify-email' || modal === 'verify-phone'}
         field={modal === 'verify-phone' ? 'phone' : 'email'}
         currentVal={modal === 'verify-phone' ? profilePhone : profileEmail}
-        onClose={() => handleVerifyClose(modal === 'verify-phone' ? 'phone' : 'email')}
+        onClose={handleVerifyClose}
       />
       <LegalTextModal visible={modal === 'terms'} type="terms" onClose={() => setModal(null)} />
       <LegalTextModal visible={modal === 'privacy'} type="privacy" onClose={() => setModal(null)} />
@@ -458,8 +441,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     left: 2,
-    width: '100%',
-    height: '100%',
+    right: -2,
+    bottom: -2,
     borderRadius: 4,
     backgroundColor: colors.border,
   },

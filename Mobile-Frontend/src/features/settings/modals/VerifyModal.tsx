@@ -3,6 +3,12 @@ import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
+import {
+  requestOtp,
+  verifyOtp,
+  requestEmailVerification,
+} from '@/src/services/api/auth';
+import { useAuth } from '@/src/state/AuthContext';
 
 type VerifyStep = 'input' | 'code' | 'done';
 
@@ -21,14 +27,54 @@ export default function VerifyModal({
 }: VerifyModalProps): React.JSX.Element {
   const [step, setStep] = useState<VerifyStep>('input');
   const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { refreshAuth } = useAuth();
   const isEmail = field === 'email';
   const label = isEmail ? '電子信箱' : '手機號碼';
-  const canVerify = code.length === 6;
+  const canVerify = code.length === 6 && !busy;
 
   function handleClose() {
     setStep('input');
     setCode('');
+    setError(null);
+    setBusy(false);
     onClose();
+  }
+
+  async function handleSendCode(): Promise<void> {
+    if (!currentVal || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (isEmail) {
+        await requestEmailVerification(currentVal);
+        // Email verification happens via a link — guide the user, no OTP step
+        setStep('done');
+      } else {
+        await requestOtp(currentVal);
+        setStep('code');
+      }
+    } catch (err) {
+      setError((err as Error).message || '發送失敗，請稍後再試');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerify(): Promise<void> {
+    if (!canVerify) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await verifyOtp(currentVal, code);
+      await refreshAuth();
+      setStep('done');
+    } catch (err) {
+      setError((err as Error).message || '驗證失敗，請確認驗證碼是否正確');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -44,6 +90,9 @@ export default function VerifyModal({
                 點擊後，驗證碼將發送至：{'\n'}
                 <Text style={styles.boldVal}>{currentVal || '（尚未設定）'}</Text>
               </Text>
+              {error ? (
+                <Text testID="verify-error" style={styles.errorText}>{error}</Text>
+              ) : null}
               <View style={styles.primaryBtnWrapper}>
                 {currentVal ? <View style={styles.primaryBtnShadow} /> : null}
                 <Pressable
@@ -51,9 +100,11 @@ export default function VerifyModal({
                     styles.primaryBtn,
                     { backgroundColor: currentVal ? colors.yellow : '#DDDDDD' },
                   ]}
-                  onPress={() => currentVal && setStep('code')}
+                  onPress={() => { if (currentVal) void handleSendCode(); }}
                 >
-                  <Text style={styles.primaryBtnText}>發送驗證碼</Text>
+                  <Text style={styles.primaryBtnText}>
+                    {busy ? '發送中…' : '發送驗證碼'}
+                  </Text>
                 </Pressable>
               </View>
             </>
@@ -88,6 +139,9 @@ export default function VerifyModal({
                 maxLength={6}
                 textAlign="center"
               />
+              {error ? (
+                <Text testID="verify-error" style={styles.errorText}>{error}</Text>
+              ) : null}
               <View style={styles.primaryBtnWrapper}>
                 {canVerify && <View style={styles.primaryBtnShadow} />}
                 <Pressable
@@ -95,9 +149,11 @@ export default function VerifyModal({
                     styles.primaryBtn,
                     { backgroundColor: canVerify ? colors.yellow : '#DDDDDD' },
                   ]}
-                  onPress={() => canVerify && setStep('done')}
+                  onPress={() => { if (canVerify) void handleVerify(); }}
                 >
-                  <Text style={styles.primaryBtnText}>確認驗證</Text>
+                  <Text style={styles.primaryBtnText}>
+                    {busy ? '驗證中…' : '確認驗證'}
+                  </Text>
                 </Pressable>
               </View>
             </>
@@ -108,7 +164,9 @@ export default function VerifyModal({
               <View style={styles.doneCircle}>
                 <Text style={styles.doneCheckmark}>✓</Text>
               </View>
-              <Text style={styles.doneText}>{label}驗證成功！</Text>
+              <Text style={styles.doneText}>
+                {isEmail ? '請點擊郵件中的連結' : `${label}驗證成功！`}
+              </Text>
             </View>
           )}
 
@@ -165,6 +223,12 @@ const styles = StyleSheet.create({
   boldVal: {
     fontFamily: fontFamilies.bold,
     color: colors.fg,
+  },
+  errorText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    color: colors.red,
+    marginBottom: 10,
   },
   otpRow: {
     flexDirection: 'row',
@@ -248,6 +312,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.extraBold,
     fontSize: 16,
     color: colors.green,
+    textAlign: 'center',
   },
   closeBtnWrapper: {
     position: 'relative',

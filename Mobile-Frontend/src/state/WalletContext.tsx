@@ -20,15 +20,72 @@ interface WalletState {
 
 interface WalletActions {
   refreshWallet: () => Promise<void>;
+  /**
+   * @deprecated Wallet mutations now happen on the server. After the
+   * mutating API call (e.g. `drawSpinner`), call `refreshWallet()` to
+   * pull the canonical balance. This no-op exists so existing screens
+   * that still pass it through props continue to type-check; it will
+   * be removed in a future cleanup.
+   */
   spendGems: (n: number) => void;
+  /**
+   * @deprecated Wallet mutations now happen on the server. After the
+   * mutating API call (e.g. `drawSpinner`), call `refreshWallet()` to
+   * pull the canonical balance. This no-op exists so existing screens
+   * that still pass it through props continue to type-check; it will
+   * be removed in a future cleanup.
+   */
   addPoints: (n: number) => void;
+  /**
+   * @deprecated Wallet mutations now happen on the server. After the
+   * mutating API call (redeemCoupon, acceptShare, claimQr, etc.), call
+   * `refreshWallet()` to pull the canonical balance. This no-op exists
+   * so existing screens that still pass it through props continue to
+   * type-check; it will be removed in a future cleanup.
+   */
   setGemsLocal: (fn: (prev: number) => number) => void;
+  /**
+   * @deprecated Wallet mutations now happen on the server. After the
+   * mutating API call (e.g. `useCouPoints`), call `refreshWallet()` to
+   * pull the canonical balance. This no-op exists so existing screens
+   * that still pass it through props continue to type-check; it will
+   * be removed in a future cleanup.
+   */
   setCouPointsLocal: (fn: (prev: number) => number) => void;
 }
 
+/**
+ * Wallet context value. The context owns the **read** side of the
+ * wallet (`gems`, `couPoints`, `coupons`, `isLoading`) plus
+ * `refreshWallet`, which is the single supported way to refresh state.
+ *
+ * Wallet mutations are server-authoritative. They happen through
+ * service-module API calls — `redeemCoupon`, `acceptShare`, `claimQr`,
+ * `drawSpinner`, `useCouPoints`, etc. After such a call resolves,
+ * callers should invoke `refreshWallet()` to pull the canonical
+ * balance from the server. The legacy mutator actions on this context
+ * (`spendGems`, `addPoints`, `setGemsLocal`, `setCouPointsLocal`) are
+ * deprecated no-ops kept only for prop-pass-through compatibility.
+ */
 type WalletContextValue = WalletState & WalletActions;
 
 const WalletContext = createContext<WalletContextValue | null>(null);
+
+// Module-level guard so each deprecated mutator warns at most once per session.
+const warnedDeprecations = new Set<string>();
+
+function warnDeprecated(method: string): void {
+  if (warnedDeprecations.has(method)) {
+    return;
+  }
+  warnedDeprecations.add(method);
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[WalletContext] ${method}() is deprecated and is now a no-op. ` +
+      'Wallet mutations are server-authoritative — after the mutating API call, ' +
+      'call refreshWallet() to pull the canonical balance.',
+  );
+}
 
 export function useWallet(): WalletContextValue {
   const context = useContext(WalletContext);
@@ -72,20 +129,32 @@ export function WalletProvider({ children }: WalletProviderProps): React.JSX.Ele
     void refreshWallet();
   }, [isAuthenticated, refreshWallet]);
 
-  const spendGems = useCallback((n: number): void => {
-    setGems((prev) => Math.max(0, prev - n));
+  /**
+   * @deprecated See {@link WalletActions.spendGems}. No-op; warns once per session.
+   */
+  const spendGems = useCallback((_n: number): void => {
+    warnDeprecated('spendGems');
   }, []);
 
-  const addPoints = useCallback((n: number): void => {
-    setCouPoints((prev) => prev + n);
+  /**
+   * @deprecated See {@link WalletActions.addPoints}. No-op; warns once per session.
+   */
+  const addPoints = useCallback((_n: number): void => {
+    warnDeprecated('addPoints');
   }, []);
 
-  const setGemsLocal = useCallback((fn: (prev: number) => number): void => {
-    setGems(fn);
+  /**
+   * @deprecated See {@link WalletActions.setGemsLocal}. No-op; warns once per session.
+   */
+  const setGemsLocal = useCallback((_fn: (prev: number) => number): void => {
+    warnDeprecated('setGemsLocal');
   }, []);
 
-  const setCouPointsLocal = useCallback((fn: (prev: number) => number): void => {
-    setCouPoints(fn);
+  /**
+   * @deprecated See {@link WalletActions.setCouPointsLocal}. No-op; warns once per session.
+   */
+  const setCouPointsLocal = useCallback((_fn: (prev: number) => number): void => {
+    warnDeprecated('setCouPointsLocal');
   }, []);
 
   const value = useMemo<WalletContextValue>(

@@ -1,5 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+} from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import TicketIcon from '@/src/components/icons/TicketIcon';
@@ -8,8 +15,11 @@ import CouponRow from '@/src/components/ui/CouponRow';
 import HomeHeader from './HomeHeader';
 import CouPointsCard from './CouPointsCard';
 import DrawModal from './DrawModal';
+import { useWallet } from '@/src/state/WalletContext';
+import type { Coupon } from '@/src/services/api/coupons';
 
 interface NavParams {
+  id?: string;
   store?: string;
   detail?: string;
   expires?: string;
@@ -23,40 +33,26 @@ interface ScreenProps {
   setCouPoints: (fn: (prev: number) => number) => void;
 }
 
-const SAMPLE_COUPONS = [
-  {
-    id: '1',
-    store: '阿明早餐店',
-    detail: '$25 現金折抵',
-    expires: '11/08',
-    amount: 25,
-    urgency: 'expiring' as const,
-  },
-  {
-    id: '2',
-    store: '手沖小巷',
-    detail: '$10 現金折抵',
-    expires: '11/30',
-    amount: 10,
-    urgency: 'new' as const,
-  },
-  {
-    id: '3',
-    store: '夜市攤三杯',
-    detail: '$5 現金折抵',
-    expires: '12/15',
-    amount: 5,
-    urgency: null,
-  },
-  {
-    id: '4',
-    store: '全聯福利中心',
-    detail: '$15 現金折抵',
-    expires: '12/01',
-    amount: 15,
-    urgency: null,
-  },
-];
+function getUrgency(coupon: Coupon): 'expiring' | 'new' | null {
+  if (coupon.status === 'redeemed' || coupon.status === 'expired') return null;
+  // Best-effort: BE returns 'MM/DD'. Compare with today.
+  const parts = coupon.expires.split('/');
+  if (parts.length === 2) {
+    const now = new Date();
+    const month = Number(parts[0]);
+    const day = Number(parts[1]);
+    if (!Number.isNaN(month) && !Number.isNaN(day)) {
+      const year =
+        month < now.getMonth() + 1 ? now.getFullYear() + 1 : now.getFullYear();
+      const expiresAt = new Date(year, month - 1, day);
+      const diffDays = Math.ceil(
+        (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (diffDays >= 0 && diffDays <= 7) return 'expiring';
+    }
+  }
+  return null;
+}
 
 export default function HomeScreen({
   onNavigate,
@@ -64,6 +60,19 @@ export default function HomeScreen({
   couPoints,
 }: ScreenProps): React.JSX.Element {
   const [showDraw, setShowDraw] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { coupons, refreshWallet } = useWallet();
+
+  const visibleCoupons = coupons.filter((c) => c.status === 'active');
+
+  const onRefresh = useCallback(async (): Promise<void> => {
+    setRefreshing(true);
+    try {
+      await refreshWallet();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshWallet]);
 
   const header = (
     <>
@@ -79,9 +88,13 @@ export default function HomeScreen({
           <View style={s.gemInfo}>
             <Text style={s.gemLabel}>CouGem 寶石</Text>
             <View style={s.gemCountRow}>
-              <GemIcon size={38} color={colors.purpleLight} />
-              <Text style={s.gemNum}>{gems}</Text>
-              <Text style={s.gemUnit}>顆</Text>
+              <View style={s.gemIconWrap}>
+                <GemIcon size={38} color={colors.purpleLight} />
+              </View>
+              <View style={s.gemNumRow}>
+                <Text style={s.gemNum}>{gems}</Text>
+                <Text style={s.gemUnit}>顆</Text>
+              </View>
             </View>
           </View>
           <View style={s.gemCtaBtn}>
@@ -97,7 +110,7 @@ export default function HomeScreen({
         <View style={s.countOuter}>
           <View style={s.countShadow} />
           <View style={s.countBadge}>
-            <Text style={s.countNum}>{SAMPLE_COUPONS.length}</Text>
+            <Text style={s.countNum}>{visibleCoupons.length}</Text>
             <Text style={s.countLabel}>張</Text>
           </View>
         </View>
@@ -118,11 +131,24 @@ export default function HomeScreen({
   return (
     <View style={s.root}>
       <FlatList
-        data={SAMPLE_COUPONS}
+        data={visibleCoupons}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={header}
+        ListEmptyComponent={
+          <View testID="coupons-empty" style={s.emptyState}>
+            <Text style={s.emptyTitle}>尚無優惠券</Text>
+            <Text style={s.emptySub}>抽券或前往 CouMap 領取你的第一張券</Text>
+          </View>
+        }
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.fg}
+          />
+        }
         renderItem={({ item }) => (
           <View style={s.rowWrap}>
             <CouponRow
@@ -130,9 +156,10 @@ export default function HomeScreen({
               detail={item.detail}
               expires={item.expires}
               amount={item.amount}
-              urgency={item.urgency ?? null}
+              urgency={getUrgency(item)}
               onPress={() =>
                 onNavigate('coupon-detail', {
+                  id: item.id,
                   store: item.store,
                   detail: item.detail,
                   expires: item.expires,
@@ -141,6 +168,7 @@ export default function HomeScreen({
               }
               onShare={() =>
                 onNavigate('coupon-share', {
+                  id: item.id,
                   store: item.store,
                   detail: item.detail,
                   expires: item.expires,
@@ -160,6 +188,24 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   listContent: { paddingBottom: 88 },
   rowWrap: { paddingHorizontal: 16, marginBottom: 8 },
+  emptyState: {
+    paddingHorizontal: 24,
+    paddingVertical: 36,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 18,
+    color: colors.fg,
+    marginBottom: 6,
+    letterSpacing: -0.2,
+  },
+  emptySub: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 13,
+    color: colors.muted,
+    textAlign: 'center',
+  },
   gemInfo: { flex: 1 },
   gemBannerOuter: { position: 'relative', marginHorizontal: 16, marginBottom: 20 },
   gemBannerShadow: {
@@ -191,6 +237,17 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   gemCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  gemIconWrap: {
+    width: 38,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gemNumRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 6,

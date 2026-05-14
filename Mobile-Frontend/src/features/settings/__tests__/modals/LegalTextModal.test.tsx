@@ -1,6 +1,14 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import LegalTextModal from '../../modals/LegalTextModal';
+
+const mockGet = jest.fn();
+
+jest.mock('@/src/services/api/client', () => ({
+  apiClient: {
+    get: (url: string) => mockGet(url),
+  },
+}));
 
 const defaultProps = {
   visible: true,
@@ -11,31 +19,53 @@ const defaultProps = {
 describe('LegalTextModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  // --- terms variant ---
-
-  it('renders terms title when type is "terms"', () => {
-    const { getByText } = render(<LegalTextModal {...defaultProps} />);
-    expect(getByText('服務條款')).toBeTruthy();
+    mockGet.mockResolvedValue({
+      data: {
+        title: 'CouPro 服務條款',
+        content: '本服務條款規定您使用本服務的條件。',
+      },
+    });
   });
 
   it('does not show content when visible is false', () => {
     const { queryByText } = render(
       <LegalTextModal {...defaultProps} visible={false} />,
     );
-    expect(queryByText('服務條款')).toBeNull();
+    expect(queryByText('CouPro 服務條款')).toBeNull();
   });
 
-  it('shows terms body text', () => {
-    const { getByText } = render(<LegalTextModal {...defaultProps} />);
-    // The body contains this phrase — confirm it is present
-    expect(getByText(/本服務條款/)).toBeTruthy();
+  it('fetches /api/terms/ when type="terms"', async () => {
+    render(<LegalTextModal {...defaultProps} />);
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/api/terms/');
+    });
   });
 
-  it('shows age requirement text in terms body', () => {
-    const { getByText } = render(<LegalTextModal {...defaultProps} />);
-    expect(getByText(/您必須年滿 13 歲/)).toBeTruthy();
+  it('fetches /api/privacy-policy/ when type="privacy"', async () => {
+    render(<LegalTextModal {...defaultProps} type="privacy" />);
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/api/privacy-policy/');
+    });
+  });
+
+  it('fetches /api/content-guidelines/ when type="guidelines"', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        prohibited_content: ['違法', '暴力'],
+        penalties: ['警告', '封鎖'],
+        support_contact: 'support@coupro.app',
+      },
+    });
+    render(<LegalTextModal {...defaultProps} type="guidelines" />);
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/api/content-guidelines/');
+    });
+  });
+
+  it('renders the fetched title and body content', async () => {
+    const { findByText } = render(<LegalTextModal {...defaultProps} />);
+    expect(await findByText('CouPro 服務條款')).toBeTruthy();
+    expect(await findByText(/本服務條款規定/)).toBeTruthy();
   });
 
   it('displays the close button', () => {
@@ -49,36 +79,17 @@ describe('LegalTextModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });
 
-  // --- privacy variant ---
-
-  it('renders privacy title when type is "privacy"', () => {
-    const { getByText } = render(
-      <LegalTextModal {...defaultProps} type="privacy" />,
-    );
-    expect(getByText('隱私政策')).toBeTruthy();
+  it('shows inline error when fetch fails', async () => {
+    mockGet.mockRejectedValueOnce(new Error('Network error'));
+    const { findByTestId } = render(<LegalTextModal {...defaultProps} />);
+    const err = await findByTestId('legal-error');
+    expect(err.props.children).toBe('Network error');
   });
 
-  it('shows privacy body text', () => {
-    const { getByText } = render(
-      <LegalTextModal {...defaultProps} type="privacy" />,
-    );
-    expect(getByText(/本隱私政策說明/)).toBeTruthy();
-  });
-
-  it('shows data collection section in privacy body', () => {
-    const { getByText } = render(
-      <LegalTextModal {...defaultProps} type="privacy" />,
-    );
-    expect(getByText(/資料收集/)).toBeTruthy();
-  });
-
-  it('pressing close calls onClose for privacy type', () => {
-    const onClose = jest.fn();
-    const { getByText } = render(
-      <LegalTextModal visible={true} type="privacy" onClose={onClose} />,
-    );
-    fireEvent.press(getByText('關閉'));
-    expect(onClose).toHaveBeenCalledTimes(1);
+  it('shows loading indicator before the response arrives', () => {
+    mockGet.mockReturnValueOnce(new Promise(() => undefined));
+    const { getByTestId } = render(<LegalTextModal {...defaultProps} />);
+    expect(getByTestId('legal-loading')).toBeTruthy();
   });
 
   it('does not call onClose when modal is just displayed', () => {

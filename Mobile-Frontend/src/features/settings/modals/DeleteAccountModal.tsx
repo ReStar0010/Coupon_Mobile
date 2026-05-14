@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
+import { deleteAccount } from '@/src/services/api/profile';
+import { useAuth } from '@/src/state/AuthContext';
 
 type DeleteStep = null | 'confirm' | 'done';
 
@@ -18,10 +21,42 @@ export default function DeleteAccountModal({
   testID,
 }: DeleteAccountModalProps): React.JSX.Element {
   const [step, setStep] = useState<DeleteStep>(null);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { logout } = useAuth();
+  const router = useRouter();
+
+  function resetState(): void {
+    setStep(null);
+    setPassword('');
+    setError(null);
+    setBusy(false);
+  }
 
   function handleClose() {
-    setStep(null);
+    resetState();
     onClose();
+  }
+
+  async function handleConfirm(): Promise<void> {
+    if (busy) return;
+    if (!password.trim()) {
+      setError('請輸入密碼以確認刪除');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteAccount(password, ['DATA_LOSS']);
+      setStep('done');
+      await logout();
+      router.replace('/(auth)/login' as never);
+    } catch (err) {
+      setError((err as Error).message || '刪除失敗，請確認密碼是否正確');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -38,12 +73,26 @@ export default function DeleteAccountModal({
               <Text style={styles.warningBody}>
                 所有優惠券、寶石和 CouPoints 將無法恢復
               </Text>
+              <Text style={styles.passwordLabel}>輸入密碼以確認</Text>
+              <TextInput
+                testID="delete-password-input"
+                style={styles.passwordInput}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="密碼"
+                placeholderTextColor={colors.muted}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+              {error ? (
+                <Text testID="delete-error" style={styles.errorText}>{error}</Text>
+              ) : null}
               <View style={styles.confirmRow}>
                 <View style={styles.halfWrapper}>
                   <View style={styles.halfShadow} />
                   <Pressable
                     style={styles.cancelBtn}
-                    onPress={() => setStep(null)}
+                    onPress={() => { resetState(); }}
                   >
                     <Text style={styles.cancelText}>取消</Text>
                   </Pressable>
@@ -53,9 +102,11 @@ export default function DeleteAccountModal({
                   <Pressable
                     testID="btn-confirm-delete"
                     style={styles.confirmDeleteBtn}
-                    onPress={() => setStep('done')}
+                    onPress={() => { void handleConfirm(); }}
                   >
-                    <Text style={styles.confirmDeleteText}>確認刪除</Text>
+                    <Text style={styles.confirmDeleteText}>
+                      {busy ? '刪除中…' : '確認刪除'}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -150,11 +201,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.muted,
     marginTop: 3,
+    marginBottom: 10,
+  },
+  passwordLabel: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 11,
+    color: colors.red,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 5,
+  },
+  passwordInput: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
+    color: colors.fg,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    color: colors.red,
+    marginBottom: 8,
   },
   confirmRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 12,
+    marginTop: 4,
   },
   halfWrapper: {
     flex: 1,

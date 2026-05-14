@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
+import { submitFeedback } from '@/src/services/api/profile';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -17,18 +18,31 @@ export default function FeedbackModal({
 }: FeedbackModalProps): React.JSX.Element {
   const [text, setText] = useState('');
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const isBug = type === 'bug';
   const email = isBug ? 'bug@coupro.app' : 'feature@coupro.app';
-  const canSend = text.trim().length > 0;
+  const canSend = text.trim().length > 0 && !sending;
 
-  function handleSend() {
+  async function handleSend(): Promise<void> {
     if (!canSend) return;
-    setSent(true);
+    setSending(true);
+    setError(null);
+    try {
+      await submitFeedback(type, text.trim());
+      setSent(true);
+    } catch (err) {
+      setError((err as Error).message || '送出失敗，請稍後再試');
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleClose() {
     setText('');
     setSent(false);
+    setError(null);
+    setSending(false);
     onClose();
   }
 
@@ -71,6 +85,9 @@ export default function FeedbackModal({
                 numberOfLines={5}
                 textAlignVertical="top"
               />
+              {error ? (
+                <Text testID="feedback-error" style={styles.errorText}>{error}</Text>
+              ) : null}
               <View style={styles.sendBtnWrapper}>
                 {canSend && <View style={styles.sendBtnShadow} />}
                 <Pressable
@@ -80,9 +97,11 @@ export default function FeedbackModal({
                     styles.sendBtn,
                     { backgroundColor: canSend ? colors.yellow : '#DDDDDD' },
                   ]}
-                  onPress={handleSend}
+                  onPress={() => { void handleSend(); }}
                 >
-                  <Text style={styles.sendBtnText}>送出至 {email}</Text>
+                  <Text style={styles.sendBtnText}>
+                    {sending ? '送出中…' : `送出至 ${email}`}
+                  </Text>
                 </Pressable>
               </View>
             </>
@@ -148,6 +167,12 @@ const styles = StyleSheet.create({
     padding: 12,
     height: 110,
     marginBottom: 12,
+  },
+  errorText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    color: colors.red,
+    marginBottom: 8,
   },
   sendBtnWrapper: {
     position: 'relative',

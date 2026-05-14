@@ -84,11 +84,13 @@ describe('WalletContext', () => {
     });
   });
 
-  describe('spendGems', () => {
-    it('decrements gems locally (optimistic update)', async () => {
+  describe('deprecated mutators are no-ops', () => {
+    it('spendGems does not mutate state and warns once per session', async () => {
       mockUseAuth.mockReturnValue({ isAuthenticated: true });
       mockGetWallet.mockResolvedValue({ gems: 100, couPoints: 0 });
       mockListMyCoupons.mockResolvedValue([]);
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
       let walletHook!: ReturnType<typeof useWallet>;
 
@@ -110,9 +112,58 @@ describe('WalletContext', () => {
 
       act(() => {
         walletHook.spendGems(30);
+        // Calling again in the same session should not produce a second warning.
+        walletHook.spendGems(50);
       });
 
-      expect(walletHook.gems).toBe(70);
+      // State is unchanged — server is now authoritative.
+      expect(walletHook.gems).toBe(100);
+      // And the deprecation warning fires at most once per method per session.
+      const spendGemsWarnings = warnSpy.mock.calls.filter((call) =>
+        String(call[0] ?? '').includes('spendGems'),
+      );
+      expect(spendGemsWarnings).toHaveLength(1);
+
+      warnSpy.mockRestore();
+    });
+
+    it('addPoints, setGemsLocal, setCouPointsLocal are no-ops', async () => {
+      mockUseAuth.mockReturnValue({ isAuthenticated: true });
+      mockGetWallet.mockResolvedValue({ gems: 10, couPoints: 20 });
+      mockListMyCoupons.mockResolvedValue([]);
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      let walletHook!: ReturnType<typeof useWallet>;
+
+      function Capture() {
+        walletHook = useWallet();
+        return null;
+      }
+
+      render(
+        <WalletProvider>
+          <Capture />
+        </WalletProvider>,
+      );
+
+      await waitFor(() => {
+        expect(walletHook.isLoading).toBe(false);
+        expect(walletHook.gems).toBe(10);
+        expect(walletHook.couPoints).toBe(20);
+      });
+
+      act(() => {
+        walletHook.addPoints(5);
+        walletHook.setGemsLocal((prev) => prev + 100);
+        walletHook.setCouPointsLocal((prev) => prev + 100);
+      });
+
+      expect(walletHook.gems).toBe(10);
+      expect(walletHook.couPoints).toBe(20);
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
     });
   });
 

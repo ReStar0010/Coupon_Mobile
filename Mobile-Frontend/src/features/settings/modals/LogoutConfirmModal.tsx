@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
+import { useAuth } from '@/src/state/AuthContext';
 
 interface LogoutConfirmModalProps {
   visible: boolean;
@@ -15,30 +17,53 @@ export default function LogoutConfirmModal({
   onLogout,
   onClose,
 }: LogoutConfirmModalProps): React.JSX.Element {
+  const { logout } = useAuth();
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handleConfirm(): Promise<void> {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await logout();
+      router.replace('/(auth)/login' as never);
+      onLogout();
+    } catch (err) {
+      setError((err as Error).message || '登出失敗');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <View testID="logout-modal" style={styles.sheet}>
-          <View style={styles.accentStrip} />
-          <View style={styles.dragHandle} />
-          <Text style={styles.title}>登出帳號</Text>
-          <Text style={styles.subtitle}>
-            確定要登出嗎？下次登入還需要驗證身份。
-          </Text>
-          <View style={styles.row}>
-            <View style={styles.btnWrapper}>
-              <View style={[styles.btnShadow, { backgroundColor: colors.border }]} />
-              <Pressable style={styles.cancelBtn} onPress={onClose}>
-                <Text style={styles.cancelText}>取消</Text>
-              </Pressable>
-            </View>
-            <View style={styles.btnWrapper}>
-              <View style={[styles.btnShadow, { backgroundColor: colors.border }]} />
-              <Pressable style={styles.logoutBtn} onPress={onLogout}>
-                <Text style={styles.logoutText}>確定登出</Text>
-              </Pressable>
-            </View>
+        <View style={styles.accentStrip} />
+        <View style={styles.dragHandle} />
+        <Text style={styles.title}>登出帳號</Text>
+        <Text style={styles.subtitle}>
+          確定要登出嗎？下次登入還需要驗證身份。
+        </Text>
+        {error ? (
+          <Text testID="logout-error" style={styles.errorText}>{error}</Text>
+        ) : null}
+        <View style={styles.row}>
+          <View style={styles.btnWrapper}>
+            <View style={[styles.btnShadow, { backgroundColor: colors.border }]} />
+            <Pressable style={styles.cancelBtn} onPress={onClose}>
+              <Text style={styles.cancelText}>取消</Text>
+            </Pressable>
+          </View>
+          <View style={styles.btnWrapper}>
+            <View style={[styles.btnShadow, { backgroundColor: colors.border }]} />
+            <Pressable style={styles.logoutBtn} onPress={() => { void handleConfirm(); }}>
+              <Text style={styles.logoutText}>{busy ? '登出中…' : '確定登出'}</Text>
+            </Pressable>
           </View>
         </View>
+      </View>
     </BottomSheet>
   );
 }
@@ -80,6 +105,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
     marginBottom: 22,
+  },
+  errorText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    color: colors.red,
+    marginBottom: 10,
   },
   row: {
     flexDirection: 'row',

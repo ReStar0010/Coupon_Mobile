@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
+import { getBlockedMerchants, unblockMerchant, type Merchant } from '@/src/services/api/merchants';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const INIT_LIST = ['廣告商家 A', '煩人推播店 B'];
 
 interface BlockedMerchantsModalProps {
   visible: boolean;
@@ -16,18 +16,48 @@ export default function BlockedMerchantsModal({
   visible,
   onClose,
 }: BlockedMerchantsModalProps): React.JSX.Element {
-  const [list, setList] = useState<string[]>(INIT_LIST);
-  const [input, setInput] = useState('');
+  const [list, setList] = useState<Merchant[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function unblock(index: number) {
-    setList(prev => prev.filter((_, i) => i !== index));
-  }
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    async function load(): Promise<void> {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getBlockedMerchants();
+        if (!cancelled) {
+          setList(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError((err as Error).message || '載入失敗，請稍後再試');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
-  function addMerchant() {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    setList(prev => [...prev, trimmed]);
-    setInput('');
+  async function handleUnblock(id: string): Promise<void> {
+    // Optimistic remove; restore on failure.
+    const snapshot = list;
+    setList((prev) => prev.filter((m) => m.id !== id));
+    setError(null);
+    try {
+      await unblockMerchant(id);
+    } catch (err) {
+      setList(snapshot);
+      setError((err as Error).message || '解除失敗，請稍後再試');
+    }
   }
 
   return (
@@ -40,18 +70,27 @@ export default function BlockedMerchantsModal({
             封鎖的商家不會出現在你的 CouMap 或優惠通知中。
           </Text>
 
+          {error ? (
+            <Text testID="blocked-error" style={styles.errorText}>{error}</Text>
+          ) : null}
+
           <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-            {list.length === 0 ? (
+            {loading ? (
+              <View testID="blocked-loading" style={styles.loadingBox}>
+                <ActivityIndicator color={colors.fg} />
+              </View>
+            ) : list.length === 0 ? (
               <Text style={styles.emptyText}>尚未封鎖任何商家</Text>
             ) : (
-              list.map((merchant, index) => (
-                <View key={`${merchant}-${index}`} style={styles.merchantRow}>
+              list.map((merchant) => (
+                <View key={merchant.id} style={styles.merchantRow}>
                   <View style={styles.merchantShadow} />
                   <View style={styles.merchantCard}>
-                    <Text style={styles.merchantName}>{merchant}</Text>
+                    <Text style={styles.merchantName}>{merchant.name}</Text>
                     <Pressable
+                      testID={`btn-unblock-${merchant.id}`}
                       style={styles.unblockBtn}
-                      onPress={() => unblock(index)}
+                      onPress={() => { void handleUnblock(merchant.id); }}
                     >
                       <Text style={styles.unblockText}>解除</Text>
                     </Pressable>
@@ -60,22 +99,6 @@ export default function BlockedMerchantsModal({
               ))
             )}
           </ScrollView>
-
-          <View style={styles.addRow}>
-            <TextInput
-              style={styles.addInput}
-              value={input}
-              onChangeText={setInput}
-              placeholder="輸入商家名稱…"
-              placeholderTextColor={colors.muted}
-            />
-            <View style={styles.addBtnWrapper}>
-              <View style={styles.addBtnShadow} />
-              <Pressable style={styles.addBtn} onPress={addMerchant}>
-                <Text style={styles.addBtnText}>+</Text>
-              </Pressable>
-            </View>
-          </View>
 
           <View style={styles.doneBtnWrapper}>
             <View style={styles.doneBtnShadow} />
@@ -126,11 +149,21 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginBottom: 14,
   },
+  errorText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    color: colors.red,
+    marginBottom: 8,
+  },
   list: {
     flexGrow: 1,
   },
   listContent: {
     paddingBottom: 8,
+  },
+  loadingBox: {
+    paddingVertical: 24,
+    alignItems: 'center',
   },
   emptyText: {
     textAlign: 'center',
@@ -181,52 +214,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.bold,
     fontSize: 12,
     color: '#fff',
-  },
-  addRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  addInput: {
-    flex: 1,
-    fontFamily: fontFamilies.regular,
-    fontSize: 13,
-    color: colors.fg,
-    backgroundColor: colors.card,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  addBtnWrapper: {
-    position: 'relative',
-    width: 44,
-    height: 44,
-  },
-  addBtnShadow: {
-    position: 'absolute',
-    top: 2,
-    left: 2,
-    width: 44,
-    height: 44,
-    borderRadius: 5,
-    backgroundColor: colors.border,
-  },
-  addBtn: {
-    width: 44,
-    height: 44,
-    backgroundColor: colors.yellow,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtnText: {
-    fontFamily: fontFamilies.extraBold,
-    fontSize: 20,
-    color: colors.fg,
   },
   doneBtnWrapper: {
     position: 'relative',

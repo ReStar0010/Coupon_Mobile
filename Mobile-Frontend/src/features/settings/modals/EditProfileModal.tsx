@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
@@ -9,7 +9,7 @@ interface EditProfileModalProps {
   name: string;
   email: string;
   phone: string;
-  onSave: (name: string, email: string, phone: string) => void;
+  onSave: (name: string, email: string, phone: string) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -53,10 +53,31 @@ export default function EditProfileModal({
   const [n, setN] = useState(name);
   const [e, setE] = useState(email);
   const [p, setP] = useState(phone);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  function handleSave() {
-    onSave(n, e, p);
-    onClose();
+  // Keep local state in sync when the upstream profile changes
+  useEffect(() => {
+    if (visible) {
+      setN(name);
+      setE(email);
+      setP(phone);
+      setError(null);
+    }
+  }, [visible, name, email, phone]);
+
+  async function handleSave(): Promise<void> {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await Promise.resolve(onSave(n, e, p));
+      onClose();
+    } catch (err) {
+      setError((err as Error).message || '儲存失敗');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -80,10 +101,13 @@ export default function EditProfileModal({
               keyboardType="phone-pad"
               placeholder="+886 9xx-xxx-xxx"
             />
+            {error ? (
+              <Text testID="edit-profile-error" style={styles.errorText}>{error}</Text>
+            ) : null}
             <View style={styles.saveBtnWrapper}>
               <View style={styles.saveBtnShadow} />
-              <Pressable style={styles.saveBtn} onPress={handleSave}>
-                <Text style={styles.saveBtnText}>儲存</Text>
+              <Pressable style={styles.saveBtn} onPress={() => { void handleSave(); }}>
+                <Text style={styles.saveBtnText}>{saving ? '儲存中…' : '儲存'}</Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -147,6 +171,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 12,
     paddingVertical: 11,
+  },
+  errorText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    color: colors.red,
+    marginBottom: 8,
   },
   saveBtnWrapper: {
     position: 'relative',
