@@ -71,10 +71,16 @@ class StoreNewsBodyInvalid(CouProAPIException):
     default_detail = "News body required (1–200 chars)."
 
 
-# Default nearby radius (km) when client omits the parameter.
-_NEARBY_DEFAULT_RADIUS_KM = 2.0
+# Upper clamp for explicit radius queries; omitting `radius` now means
+# "return all stores, no proximity filter" (see list_nearby_merchants).
 _NEARBY_MAX_RADIUS_KM = 10.0
 _EARTH_RADIUS_KM = 6371.0
+# Hard cap when `radius` is omitted so the endpoint never returns a payload
+# larger than a single map screen can render or a single response can carry.
+# Stores are pre-sorted by distance to the request lat/lng before slicing so the
+# cap keeps the nearest 500 — that's what a consumer actually wants when they
+# said "show me everything".
+_NEARBY_NO_RADIUS_MAX_ROWS = 500
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -176,10 +182,13 @@ def _resolve_merchant_store(user) -> Store | None:
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def list_nearby_merchants(request):
-    """GET /api/merchants/nearby/?lat&lng&radius (km).
+    """GET /api/merchants/nearby/?lat&lng[&radius] (km).
 
-    Bounding-box prefilter then Haversine refinement. Excludes stores the
-    user has blocked. Returns the FE Merchant shape.
+    When `radius` is provided, applies the bounding-box prefilter + Haversine
+    refinement. When `radius` is omitted, returns every store with lat/lng set
+    (still excluding the user's blocked merchants) — the consumer mobile app
+    relies on this to render every pin regardless of proximity.
+    Returns the FE Merchant shape.
     """
     try:
         lat = float(request.query_params.get('lat'))
@@ -189,36 +198,79 @@ def list_nearby_merchants(request):
             developer_message="lat and lng query params must be floats.",
         )
 
-    try:
-        radius_raw = request.query_params.get('radius')
-        radius = (
-            float(radius_raw) if radius_raw is not None else _NEARBY_DEFAULT_RADIUS_KM
-        )
-    except (TypeError, ValueError):
-        raise MerchantNearbyParamsInvalid(
-            developer_message=f"radius must be a float; got {radius_raw!r}.",
-        )
-    radius = max(0.1, min(_NEARBY_MAX_RADIUS_KM, radius))
-
-    min_lat, max_lat, min_lng, max_lng = _bbox(lat, lng, radius)
+    radius_raw = request.query_params.get('radius')
+    radius: float | None
+    if radius_raw is None:
+        radius = None
+    else:
+        try:
+            radius = float(radius_raw)
+        except (TypeError, ValueError):
+            raise MerchantNearbyParamsInvalid(
+                developer_message=f"radius must be a float; got {radius_raw!r}.",
+            )
+        radius = max(0.1, min(_NEARBY_MAX_RADIUS_KM, radius))
 
     blocked_ids = BlockedMerchant.objects.filter(user=request.user).values_list('store_id', flat=True)
 
     qs = (
         Store.objects
         .filter(lat__isnull=False, lng__isnull=False)
-        .filter(lat__gte=min_lat, lat__lte=max_lat, lng__gte=min_lng, lng__lte=max_lng)
         .exclude(id__in=blocked_ids)
         .only('id', 'name', 'lat', 'lng', 'address', 'store_type', 'image_url', 'owner_id')
     )
 
-    payload: list[dict] = []
+    if radius is not None:
+        min_lat, max_lat, min_lng, max_lng = _bbox(lat, lng, radius)
+        qs = qs.filter(lat__gte=min_lat, lat__lte=max_lat, lng__gte=min_lng, lng__lte=max_lng)
+
+    in_range: list[tuple[Store, float]] = []
     for store in qs:
         dist = _haversine_km(lat, lng, store.lat, store.lng)
-        if dist > radius:
+        if radius is not None and dist > radius:
             continue
+        in_range.append((store, dist))
+
+    # Bound the no-radius response — keep the N nearest so the FE never gets a
+    # runaway payload. The radius-bounded path is already self-limiting.
+    if radius is None and len(in_range) > _NEARBY_NO_RADIUS_MAX_ROWS:
+        in_range.sort(key=lambda pair: pair[1])
+        in_range = in_range[:_NEARBY_NO_RADIUS_MAX_ROWS]
+
+    # Batch the two count queries instead of N+1 per store. The pin badge shows
+    # "actionable coupons here" = user's held exclusives + public shared pool.
+    now = timezone.now()
+    store_ids = [s.id for s, _ in in_range]
+    held_counts = dict(
+        Coupon.objects
+        .filter(
+            store_id__in=store_ids,
+            coupon_type='exclusive',
+            current_holder=request.user,
+            expiry_date__gt=now,
+        )
+        .values('store_id')
+        .annotate(n=Count('id'))
+        .values_list('store_id', 'n')
+    )
+    shared_counts = dict(
+        CouponShareRequest.objects
+        .filter(
+            coupon__store_id__in=store_ids,
+            is_public=True,
+            status='pending',
+        )
+        .exclude(from_user=request.user)
+        .values('coupon__store_id')
+        .annotate(n=Count('id'))
+        .values_list('coupon__store_id', 'n')
+    )
+
+    payload: list[dict] = []
+    for store, dist in in_range:
         row = _serialize_merchant_summary(store)
         row['distanceKm'] = round(dist, 2)
+        row['couponCount'] = held_counts.get(store.id, 0) + shared_counts.get(store.id, 0)
         payload.append(row)
 
     payload.sort(key=lambda r: r['distanceKm'])

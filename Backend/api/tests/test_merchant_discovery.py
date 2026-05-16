@@ -126,6 +126,89 @@ class TestNearby:
         resp = client.get(f"/api/merchants/nearby/?lat={store.lat}&lng={store.lng}&radius=99999")
         assert resp.status_code == 200
 
+    def test_includes_coupon_count(self, client, consumer, store):
+        """Pin badge = held exclusives + public shared pool at this store."""
+        Coupon.objects.create(
+            store=store,
+            coupon_name="held",
+            coupon_detail="x",
+            start_date=timezone.now() - timedelta(days=1),
+            expiry_date=timezone.now() + timedelta(days=5),
+            coupon_type='exclusive',
+            estimated_savings=10,
+            original_owner=consumer,
+            current_holder=consumer,
+        )
+        other = User.objects.create_user(username="sharer_nearby", password="x")
+        shared_coupon = Coupon.objects.create(
+            store=store,
+            coupon_name="shared",
+            coupon_detail="y",
+            start_date=timezone.now() - timedelta(days=1),
+            expiry_date=timezone.now() + timedelta(days=5),
+            coupon_type='exclusive',
+            estimated_savings=5,
+            original_owner=other,
+            current_holder=None,
+        )
+        CouponShareRequest.objects.create(
+            coupon=shared_coupon,
+            from_user=other,
+            token='t-nearby',
+            is_public=True,
+            status='pending',
+        )
+
+        resp = client.get(
+            f"/api/merchants/nearby/?lat={store.lat}&lng={store.lng}&radius=1"
+        )
+        assert resp.status_code == 200
+        row = next(s for s in resp.json() if s["id"] == str(store.id))
+        assert row["couponCount"] == 2
+        assert isinstance(row["couponCount"], int)
+
+    def test_coupon_count_zero_when_none(self, client, store):
+        resp = client.get(
+            f"/api/merchants/nearby/?lat={store.lat}&lng={store.lng}&radius=1"
+        )
+        assert resp.status_code == 200
+        row = next(s for s in resp.json() if s["id"] == str(store.id))
+        assert row["couponCount"] == 0
+
+    def test_no_radius_returns_all_stores(self, client, store, far_store):
+        """Omitting the radius param disables the distance filter — the mobile
+        map relies on this to render every store regardless of proximity to the
+        device's lat/lng."""
+        resp = client.get(f"/api/merchants/nearby/?lat={store.lat}&lng={store.lng}")
+        assert resp.status_code == 200
+        names = [s["name"] for s in resp.json()]
+        assert "阿明早餐店" in names
+        # far_store is ~115 km away — would be excluded under any sane radius
+        # but MUST be present when no radius is sent.
+        assert "遠的店" in names
+
+    def test_no_radius_caps_payload_at_500_nearest(self, client, store):
+        """Safety net against unbounded payloads. With 600 fixture stores,
+        the no-radius response keeps only the 500 nearest."""
+        from api.views.merchant_discovery_views import _NEARBY_NO_RADIUS_MAX_ROWS
+
+        # Seed 600 stores in a tight grid centred on `store`. Step ~0.001° (~110m)
+        # so distances are well-defined and sortable.
+        base_lat, base_lng = store.lat, store.lng
+        Store.objects.bulk_create([
+            Store(
+                name=f"店 {i}",
+                lat=base_lat + (i // 30) * 0.001,
+                lng=base_lng + (i % 30) * 0.001,
+                address="bulk",
+                store_type='other',
+            )
+            for i in range(600)
+        ])
+        resp = client.get(f"/api/merchants/nearby/?lat={base_lat}&lng={base_lng}")
+        assert resp.status_code == 200
+        assert len(resp.json()) == _NEARBY_NO_RADIUS_MAX_ROWS
+
 
 # ── /api/merchants/<id>/ ──────────────────────────────────────────────────────
 
