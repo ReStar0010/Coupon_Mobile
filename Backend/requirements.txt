@@ -51,3 +51,7 @@ locust>=2.20.0
 # Testing tooling
 pytest-django==4.9.0
 pytest-cov==6.1.0
+
+# Channels (spinner co-op WS — deliverable 3b)
+channels==4.1.0
+daphne==4.1.2

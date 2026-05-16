@@ -72,6 +72,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '0.0.0.0',
     '192.168.0.136',
+    '192.168.200.231',
+    '100.93.164.83',  # Tailscale IP — for dev across networks
     '*.loca.lt',
     'coupro-123.loca.lt',
     'api.coupro.pro',
