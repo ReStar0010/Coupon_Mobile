@@ -7,7 +7,9 @@ import { normalizeError } from './errors';
 // We use a dynamic require at call time inside the interceptor.
 type RefreshTokenFn = (refresh: string) => Promise<{ access: string; refresh: string }>;
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.coupro.pro';
+// Hardcoded to staging for refactor/frontend → dev push. Restore env-var read
+// before promoting to prod.
+const BASE_URL = 'https://coupon-mobile-dev.onrender.com';
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
