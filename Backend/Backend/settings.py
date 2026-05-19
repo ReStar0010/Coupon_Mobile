@@ -37,7 +37,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')  # Backend/.env (optional, for local Postgres etc.)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-dev-only')
-DEBUG = True
+# Defensive default: a deployment that forgets to set DJANGO_SETTINGS_MODULE
+# to production_settings.py would previously inherit DEBUG=True from this
+# base file. Env-driven default=False means the worst-case fallback is
+# "harder to debug locally" rather than "leaks tracebacks to the public".
+# Local dev sets DEBUG=true in `.env`.
+DEBUG = os.getenv('DEBUG', 'false').lower() in ('true', '1', 'yes')
 COOKIE_DOMAIN = None
 
 # URLs (backend API, frontend, public app)
@@ -52,8 +57,11 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.Em
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
 FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@coupro.pro')
 
-# Admin & support
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'duankayne@gmail.com')
+# Admin & support — defaults ship in source, so they must not point to
+# a personal address. `coupro707@gmail.com` is the project support inbox
+# and is the same default used for SUPPORT_EMAIL below. Real deployments
+# override both via env.
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'coupro707@gmail.com')
 SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'coupro707@gmail.com')
 SUPPORT_URL = os.getenv('SUPPORT_URL', 'https://coupro-terms.vercel.app/support.html')
 
@@ -115,7 +123,11 @@ INSTALLED_APPS = [
 
 # ── Channels (spinner co-op WS) ─────────────────────────────────────────────
 ASGI_APPLICATION = 'Backend.asgi.application'
-# In-memory channel layer for dev/test. Production uses Redis (separate config).
+# Default to the in-memory layer for local dev and tests. The Channels docs
+# are explicit that this backend is per-process and cannot be used in any
+# multi-worker production deploy — `production_settings.py` overrides this
+# to `channels_redis.core.RedisChannelLayer` and fails loud if REDIS_URL
+# is missing.
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
@@ -301,6 +313,11 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
         'phone_registration_lookup': '20/hour',
         'redemption': '30/hour',
+        # Dedicated scope for the public version-info endpoint. Tighter
+        # than the global anon ceiling because this endpoint is hit on
+        # every cold start of every install and would otherwise be a
+        # cheap amplification target.
+        'version_info': '10/minute',
     },
     'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -323,8 +340,12 @@ SIMPLE_JWT = {
 # -----------------------------------------------------------------------------
 # SMS (Twilio)
 # -----------------------------------------------------------------------------
-# True in dev: log OTP to console instead of sending SMS
-SMS_DEV_MODE = True
+# Defensive default: env-driven, default False — same reasoning as DEBUG
+# above. A deploy that forgets DJANGO_SETTINGS_MODULE=Backend.production_settings
+# previously inherited `SMS_DEV_MODE = True` from this base file and would
+# silently log OTPs to console instead of sending real SMS. Local dev sets
+# SMS_DEV_MODE=true in `.env`.
+SMS_DEV_MODE = os.getenv('SMS_DEV_MODE', 'false').lower() in ('true', '1', 'yes')
 
 # -----------------------------------------------------------------------------
 # Wallet / Spinner economy

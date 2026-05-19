@@ -6,6 +6,7 @@ import CouponUseQRScreen from '@/src/features/coupon/CouponUseQRScreen';
 export default function CouponQRRoute() {
   const router = useRouter();
   const params = useLocalSearchParams<{
+    id?: string;
     store?: string;
     detail?: string;
     expires?: string;
@@ -14,6 +15,7 @@ export default function CouponQRRoute() {
   const { setGemsLocal } = useWallet();
 
   const couponParams = {
+    id: params.id,
     store: params.store,
     detail: params.detail,
     expires: params.expires,

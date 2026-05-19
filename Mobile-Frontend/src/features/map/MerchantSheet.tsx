@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
-import BottomSheet from '@/src/components/ui/BottomSheet';
+import {
+  BottomSheetModal,
+  BottomSheetScrollView,
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+} from '@gorhom/bottom-sheet';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
+import FlagIcon from '@/src/components/icons/FlagIcon';
+import BlockIcon from '@/src/components/icons/BlockIcon';
 import type {
   MerchantDetail,
   MerchantCoupon,
@@ -20,6 +27,25 @@ interface MerchantSheetProps {
   onBlock?: () => void;
 }
 
+// Snap points: a brief preview at 35 % of the screen, then a deeper
+// 90 % stop the user can drag up to. Mirrors Google Maps' merchant
+// sheet behaviour where the user can peek then expand.
+const SNAP_POINTS: string[] = ['35%', '90%'];
+
+// Stable backdrop renderer outside the component so the sheet doesn't
+// reinstantiate it every render (gorhom would otherwise re-mount the
+// backdrop on each animation frame).
+function renderBackdrop(props: BottomSheetBackdropProps): React.JSX.Element {
+  return (
+    <BottomSheetBackdrop
+      {...props}
+      appearsOnIndex={0}
+      disappearsOnIndex={-1}
+      opacity={0.5}
+    />
+  );
+}
+
 export default function MerchantSheet({
   visible,
   merchant,
@@ -30,18 +56,51 @@ export default function MerchantSheet({
   onFlag,
   onBlock,
 }: MerchantSheetProps): React.JSX.Element {
-  if (!merchant) return <></>;
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => SNAP_POINTS, []);
 
-  const myCoupons = merchant.myCoupons ?? [];
-  const sharedCoupons = merchant.sharedCoupons ?? [];
-  const news = merchant.news ?? [];
+  // Bridge the controlled `visible` prop to gorhom's imperative ref
+  // API. Keeping the controlled-component contract means MapScreen
+  // doesn't have to thread a ref through.
+  //
+  // CRITICAL: do NOT early-return when merchant is null. Gorhom owns a
+  // portal + a Reanimated animation; unmounting BottomSheetModal mid-
+  // animation strands the backdrop and leaks the portal node. Render
+  // the modal unconditionally and let `dismiss()` drive its lifecycle.
+  useEffect(() => {
+    if (visible && merchant) {
+      sheetRef.current?.present();
+    } else {
+      sheetRef.current?.dismiss();
+    }
+  }, [visible, merchant]);
+
+  const myCoupons = merchant?.myCoupons ?? [];
+  const sharedCoupons = merchant?.sharedCoupons ?? [];
+  const myPublicShares = merchant?.myPublicShares ?? [];
+  const news = merchant?.news ?? [];
   const firstNews = news[0];
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
-      <View style={styles.sheet} testID="merchant-sheet">
-        <View style={styles.handle} />
-
+    <BottomSheetModal
+      ref={sheetRef}
+      snapPoints={snapPoints}
+      index={0}
+      enablePanDownToClose
+      onDismiss={onClose}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={styles.sheetBackground}
+      handleIndicatorStyle={styles.handleIndicator}
+    >
+      <View testID="merchant-sheet" style={styles.sheet}>
+        <BottomSheetScrollView
+          testID="merchant-sheet-scroll"
+          // The sheet has its own bottom padding; let the scroll content
+          // breathe at the end so the CTA never hugs the device bottom edge.
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+        {merchant && (<>
         {/* Header — pinned above the scroll area */}
         <View style={styles.headerRow}>
           <View style={styles.avatar}>
@@ -76,7 +135,9 @@ export default function MerchantSheet({
                 accessibilityLabel={`檢舉 ${merchant.name}`}
                 hitSlop={6}
               >
-                <Text style={styles.modBtnIcon}>⚑</Text>
+                <View testID="merchant-sheet-flag-icon">
+                  <FlagIcon size={18} />
+                </View>
               </Pressable>
             )}
             {onBlock && (
@@ -88,7 +149,9 @@ export default function MerchantSheet({
                 accessibilityLabel={`封鎖 ${merchant.name}`}
                 hitSlop={6}
               >
-                <Text style={styles.modBtnIcon}>🚫</Text>
+                <View testID="merchant-sheet-block-icon">
+                  <BlockIcon size={18} />
+                </View>
               </Pressable>
             )}
           </View>
@@ -152,6 +215,41 @@ export default function MerchantSheet({
           </ScrollView>
         )}
 
+        {/* My own outstanding public shares — read-only. The BE blocks the
+            sharer from claiming their own coupon, so these tiles are
+            non-interactive. They exist so the sharer sees confirmation
+            that the coupon they released is live in the public pool. */}
+        {myPublicShares.length > 0 && (
+          <>
+            <SectionHeader
+              title="你在這裡釋出的優惠券"
+              subtitle="等待別人領取"
+              dotColor={colors.purple}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carousel}
+              testID="my-public-shares-carousel"
+            >
+              {myPublicShares.map((c, i) => (
+                <View
+                  key={`mine-${i}`}
+                  testID={`my-public-share-${i}`}
+                  style={[styles.sharedTile, styles.myPublicShareTile]}
+                  accessibilityRole="text"
+                  accessibilityLabel={`你已釋出 ${c.label ?? '券'} $${c.amount}`}
+                >
+                  <Text style={styles.tileLabel}>{c.label ?? '折抵'}</Text>
+                  <Text style={styles.tileAmount} numberOfLines={1}>
+                    ${c.amount}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        )}
+
         {/* Merchant news */}
         {firstNews && (
           <View style={styles.newsCard} testID="merchant-news">
@@ -184,8 +282,10 @@ export default function MerchantSheet({
             <Text style={styles.ctaText}>領取</Text>
           </Pressable>
         </View>
+        </>)}
+        </BottomSheetScrollView>
       </View>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 
@@ -215,29 +315,27 @@ function EmptyTile({ text }: { text: string }): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  // Mirrors SharedCouponModal: simple stacked layout, no vertical ScrollView,
-  // hugs the bottom of the screen via BottomSheet's flex-end alignment.
+  // Gorhom owns the sheet's outer rounded background + handle indicator;
+  // `sheet` here is the inner content padding only.
   sheet: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+  },
+  // Outer-card neo-brutalism styling, applied via gorhom's backgroundStyle.
+  sheetBackground: {
     backgroundColor: colors.bg,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     borderWidth: 3,
     borderBottomWidth: 0,
     borderColor: colors.border,
-    padding: 20,
-    paddingBottom: 32,
-    shadowColor: colors.yellow,
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
   },
-  handle: {
+  handleIndicator: {
+    backgroundColor: colors.border,
     width: 40,
     height: 5,
-    backgroundColor: colors.border,
     borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 14,
   },
   headerRow: {
     flexDirection: 'row',
@@ -303,8 +401,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modBtnIcon: {
-    fontSize: 14,
+  scrollContent: {
+    paddingBottom: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -361,6 +459,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     justifyContent: 'space-between',
+  },
+  // Distinct treatment for read-only "your own outstanding share" tiles —
+  // dashed border + muted purple to differentiate from claimable yellow.
+  myPublicShareTile: {
+    backgroundColor: colors.purpleLight,
+    borderStyle: 'dashed',
+    borderColor: colors.purple,
+    opacity: 0.92,
   },
   tileLabel: {
     fontFamily: fontFamilies.monoRegular,

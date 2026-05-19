@@ -31,13 +31,16 @@ jest.mock('../../../services/api/auth', () => ({
 }));
 
 import { refreshToken as mockRefreshTokenFn } from '../../../services/api/auth';
-import { apiClient } from '../client';
+import { apiClient, resetInterceptorState } from '../client';
 
 const mockRefreshToken = mockRefreshTokenFn as jest.MockedFunction<typeof mockRefreshTokenFn>;
 
 describe('apiClient interceptors', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // The interceptor keeps module-level `redirecting` and `refreshPromise`
+    // state. Reset between tests so ordering doesn't matter.
+    resetInterceptorState();
   });
 
   describe('request interceptor', () => {
@@ -72,6 +75,76 @@ describe('apiClient interceptors', () => {
       const result = await handler(config) as { headers: Record<string, string> };
 
       expect(result.headers['Authorization']).toBeUndefined();
+    });
+
+    // The Django backend's JWTAuthentication runs on every request and raises
+    // InvalidToken (→ 401) on an expired access token, even for AllowAny views.
+    // Attaching the expired access token to /api/token/refresh/ therefore
+    // poisons the refresh flow: the BE returns 401 before the refresh view
+    // sees the (valid) refresh_token in the body, and the FE wipes the user's
+    // session despite the 30-day refresh token still being valid.
+    //
+    // The fix is to send AUTH_FREE_PATHS anonymously regardless of stored
+    // token state.
+    it.each([
+      '/api/login/',
+      '/api/token/refresh/',
+      '/api/register/send-otp/',
+      '/api/register/verify-otp/',
+      '/api/phone-otp/send/',
+      '/api/phone-otp/verify/',
+      '/api/forgot-password/',
+      '/api/reset-password/',
+    ])('does not attach Authorization to auth-free path %s even when token stored', async (url) => {
+      mockGetAccessToken.mockResolvedValue('expired-access-token');
+
+      const interceptors = (apiClient.interceptors.request as unknown as {
+        handlers: Array<{ fulfilled: (config: unknown) => unknown }>;
+      }).handlers;
+
+      const handler = interceptors[interceptors.length - 1]?.fulfilled;
+      if (!handler) throw new Error('No request interceptor found');
+
+      const config = { url, headers: {} as Record<string, string> };
+      const result = await handler(config) as { headers: Record<string, string> };
+
+      expect(result.headers['Authorization']).toBeUndefined();
+    });
+
+    it('strips query string before matching auth-free paths', async () => {
+      // Defensive: a future call could include `?next=...` on the path; the
+      // skip decision must still ignore query.
+      mockGetAccessToken.mockResolvedValue('any-token');
+
+      const interceptors = (apiClient.interceptors.request as unknown as {
+        handlers: Array<{ fulfilled: (config: unknown) => unknown }>;
+      }).handlers;
+
+      const handler = interceptors[interceptors.length - 1]?.fulfilled;
+      if (!handler) throw new Error('No request interceptor found');
+
+      const config = { url: '/api/token/refresh/?source=bootstrap', headers: {} as Record<string, string> };
+      const result = await handler(config) as { headers: Record<string, string> };
+
+      expect(result.headers['Authorization']).toBeUndefined();
+    });
+
+    it('still attaches Authorization to protected endpoints', async () => {
+      // Regression guard for the above change — the skip must be limited to
+      // AUTH_FREE_PATHS; everything else still needs the bearer token.
+      mockGetAccessToken.mockResolvedValue('valid-token');
+
+      const interceptors = (apiClient.interceptors.request as unknown as {
+        handlers: Array<{ fulfilled: (config: unknown) => unknown }>;
+      }).handlers;
+
+      const handler = interceptors[interceptors.length - 1]?.fulfilled;
+      if (!handler) throw new Error('No request interceptor found');
+
+      const config = { url: '/api/profile/', headers: {} as Record<string, string> };
+      const result = await handler(config) as { headers: Record<string, string> };
+
+      expect(result.headers['Authorization']).toBe('Bearer valid-token');
     });
   });
 
@@ -123,6 +196,102 @@ describe('apiClient interceptors', () => {
 
       await expect(handler(error)).rejects.toBeDefined();
       expect(mockClearTokens).toHaveBeenCalled();
+    });
+
+    it('does not refresh or navigate when /api/login/ returns 401', async () => {
+      // Bug fix: a 401 from the login endpoint means "bad password", not
+      // "stale token". The old interceptor ran the refresh-and-retry path
+      // here, which remounted the login screen via router.replace and wiped
+      // the catch handler's setError/setLoading, leaving the UI stuck on
+      // "登入中…". Now the rejection propagates directly to the caller.
+      const { router: mockRouter } = jest.requireMock('expo-router');
+
+      const interceptors = (apiClient.interceptors.response as unknown as {
+        handlers: Array<{ rejected: (error: unknown) => unknown }>;
+      }).handlers;
+
+      const handler = interceptors[interceptors.length - 1]?.rejected;
+      if (!handler) throw new Error('No response interceptor found');
+
+      const error = {
+        response: { status: 401, data: { detail: '帳號或密碼錯誤' } },
+        config: { _retry: false, headers: {}, url: '/api/login/' },
+        isAxiosError: true,
+        message: 'Request failed with status code 401',
+      } as unknown as AxiosError;
+
+      await expect(handler(error)).rejects.toMatchObject({
+        status: 401,
+        message: '帳號或密碼錯誤',
+      });
+
+      expect(mockRefreshToken).not.toHaveBeenCalled();
+      expect(mockGetRefreshToken).not.toHaveBeenCalled();
+      expect(mockClearTokens).not.toHaveBeenCalled();
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
+    it('does not recurse when /api/token/refresh/ itself returns 401', async () => {
+      // Previously, a 401 from the refresh request would re-enter the
+      // interceptor and await the in-flight refreshPromise (which is the
+      // very promise that just rejected), risking a hang. Now the refresh
+      // endpoint short-circuits to a direct rejection.
+      const { router: mockRouter } = jest.requireMock('expo-router');
+
+      const interceptors = (apiClient.interceptors.response as unknown as {
+        handlers: Array<{ rejected: (error: unknown) => unknown }>;
+      }).handlers;
+
+      const handler = interceptors[interceptors.length - 1]?.rejected;
+      if (!handler) throw new Error('No response interceptor found');
+
+      const error = {
+        response: { status: 401, data: { detail: 'Invalid refresh token' } },
+        config: { _retry: false, headers: {}, url: '/api/token/refresh/' },
+        isAxiosError: true,
+      } as unknown as AxiosError;
+
+      await expect(handler(error)).rejects.toMatchObject({ status: 401 });
+      expect(mockGetRefreshToken).not.toHaveBeenCalled();
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
+    it('still redirects on a later session expiry after resetInterceptorState() runs', async () => {
+      // Regression: `redirecting` was a module-level flag that latched true
+      // after the first bounce-to-login. Once the user logged back in, a
+      // SECOND session expiry in the same app lifecycle silently skipped
+      // the redirect. AuthContext now calls resetInterceptorState() after
+      // a successful login; this test proves the reset re-arms navigation.
+      const { router: mockRouter } = jest.requireMock('expo-router');
+      mockClearTokens.mockResolvedValue(undefined);
+
+      const interceptors = (apiClient.interceptors.response as unknown as {
+        handlers: Array<{ rejected: (error: unknown) => unknown }>;
+      }).handlers;
+
+      const handler = interceptors[interceptors.length - 1]?.rejected;
+      if (!handler) throw new Error('No response interceptor found');
+
+      // First bounce — no refresh token available.
+      mockGetRefreshToken.mockResolvedValueOnce(null);
+      const firstError = {
+        response: { status: 401 },
+        config: { _retry: false, headers: {}, url: '/api/protected' },
+      } as unknown as AxiosError;
+      await expect(handler(firstError)).rejects.toBeDefined();
+      expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+
+      // Simulate AuthContext clearing the latch after the user logs back in.
+      resetInterceptorState();
+
+      // Second bounce — must navigate again.
+      mockGetRefreshToken.mockResolvedValueOnce(null);
+      const secondError = {
+        response: { status: 401 },
+        config: { _retry: false, headers: {}, url: '/api/protected' },
+      } as unknown as AxiosError;
+      await expect(handler(secondError)).rejects.toBeDefined();
+      expect(mockRouter.replace).toHaveBeenCalledTimes(2);
     });
 
     it('only makes one refresh request when multiple concurrent 401s fire', async () => {

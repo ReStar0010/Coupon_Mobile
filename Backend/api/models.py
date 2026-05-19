@@ -500,7 +500,47 @@ class WebRedemption(models.Model):
         return f"WebRedemption {self.id} - template {tid} - {self.redeemed_at}"
 
 
+class CouponQuerySet(models.QuerySet):
+    """Reusable chainable filters for the Coupon model.
+
+    Centralises the "what counts as an actionable coupon for this user
+    right now?" predicate that recurred ad-hoc across half a dozen
+    views. Using a QuerySet manager keeps the predicate definition in
+    one place — when business rules shift (e.g. add a `disabled` flag)
+    every caller picks up the change for free.
+    """
+
+    def exclusives(self) -> 'CouponQuerySet':
+        """Personal coupons held by individual users; NOT 'store'-type templates."""
+        return self.filter(coupon_type='exclusive')
+
+    def not_expired(self, *, now=None) -> 'CouponQuerySet':
+        """Coupons whose expiry is still in the future."""
+        from django.utils import timezone
+        cutoff = now or timezone.now()
+        return self.filter(expiry_date__gt=cutoff)
+
+    def held_by(self, user) -> 'CouponQuerySet':
+        # Defensive: AnonymousUser has pk=None, which Django would
+        # translate into `current_holder IS NULL` — the exact opposite
+        # of "coupons held by this user", and a potential info leak.
+        # Every current caller is behind @permission_classes([IsAuthenticated])
+        # so this guard only protects future sites that forget it.
+        if not getattr(user, 'is_authenticated', False):
+            return self.none()
+        return self.filter(current_holder=user)
+
+    def at_store(self, store) -> 'CouponQuerySet':
+        return self.filter(store=store)
+
+    def active_for_user(self, user, *, now=None) -> 'CouponQuerySet':
+        """Exclusive, not-expired, held by `user` — the merchant-sheet predicate."""
+        return self.held_by(user).exclusives().not_expired(now=now)
+
+
 class Coupon(models.Model):
+    objects = CouponQuerySet.as_manager()
+
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
     template = models.ForeignKey(CouponTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name='coupons')
 

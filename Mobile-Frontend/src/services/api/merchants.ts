@@ -12,6 +12,8 @@ export interface Merchant {
   logoUrl: string | null;
   /** distance in km from the query lat/lng (only present on /nearby/ results) */
   distanceKm?: number;
+  /** held-exclusive + public-shared coupon count at this store (nearby only) */
+  couponCount?: number;
 }
 
 export interface MerchantCoupon {
@@ -38,10 +40,17 @@ export interface MerchantNewsItem {
   createdAt: string;
 }
 
-/** Bottom-sheet data shape — Merchant + the 3 list sections. */
+/** Bottom-sheet data shape — Merchant + the list sections. */
 export interface MerchantDetail extends Merchant {
   myCoupons: MerchantCoupon[];
   sharedCoupons: SharedCouponSummary[];
+  /**
+   * The current user's own outstanding public shares at this store.
+   * Rendered as a read-only section in the sheet (can't be claimed —
+   * backend blocks self-claim). Optional for forward compatibility with
+   * older BE versions that don't yet send this field.
+   */
+  myPublicShares?: SharedCouponSummary[];
   news: MerchantNewsItem[];
 }
 

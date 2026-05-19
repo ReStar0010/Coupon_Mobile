@@ -38,8 +38,13 @@ jest.mock('@react-native-firebase/perf', () => ({
   }),
 }));
 
-jest.mock('@/app/config/api', () => ({
-  API_URL: 'https://test-api.example.com/api',
-}));
+// Official mock from react-native-safe-area-context — supplies a zero-inset
+// SafeAreaProvider/useSafeAreaInsets so screens using insets render in tests.
+// The shipped mock puts everything on `default`; we expose it as named exports
+// so imports like `{ useSafeAreaInsets }` resolve correctly.
+jest.mock('react-native-safe-area-context', () => {
+  const mock = require('react-native-safe-area-context/jest/mock');
+  return mock.default || mock;
+});
 
 require('@testing-library/jest-native/extend-expect');

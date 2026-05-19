@@ -8,6 +8,7 @@ import { fontFamilies } from '@/src/theme/typography';
 import CoinIcon from '@/src/components/icons/CoinIcon';
 import { submitCouPointSpend } from '@/src/services/api/coupoint';
 import { useWallet } from '@/src/state/WalletContext';
+import PermissionDeniedView from '@/src/components/ui/PermissionDeniedView';
 
 interface Props {
   couPoints: number;
@@ -195,9 +196,11 @@ export default function CouPointUseScreen({
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
               />
             ) : (
-              <View style={s.noCamera}>
-                <Text style={s.noCameraText}>需要相機權限</Text>
-              </View>
+              <PermissionDeniedView
+                title="需要相機權限"
+                description="開啟相機以掃描店家 QR Code 並使用 CouPoint"
+                onRetry={permission?.canAskAgain ? () => { void requestPermission(); } : undefined}
+              />
             )}
             <Text style={s.scanHint}>將店家 QR Code 對準框內</Text>
           </View>

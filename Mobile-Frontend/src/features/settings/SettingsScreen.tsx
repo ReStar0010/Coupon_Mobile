@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import Constants from 'expo-constants';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
+
+// Single source of truth for the version label: app.json → expoConfig.version.
+// `expoConfig` is null in some bare-workflow paths, so fall back to a sentinel
+// rather than rendering `undefined` to the user.
+const APP_VERSION = Constants.expoConfig?.version ?? '?.?.?';
 import { useAuth } from '@/src/state/AuthContext';
 import { updateProfile } from '@/src/services/api/profile';
 import EditProfileModal from './modals/EditProfileModal';
@@ -12,6 +18,7 @@ import FeedbackModal from './modals/FeedbackModal';
 import BlockedMerchantsModal from './modals/BlockedMerchantsModal';
 import VerifyModal from './modals/VerifyModal';
 import LegalTextModal from './modals/LegalTextModal';
+import Coachmark from '@/src/features/onboarding/Coachmark';
 
 type ModalKey =
   | 'edit-profile'
@@ -229,7 +236,7 @@ export default function SettingsScreen({
               <View style={styles.aboutCardInner}>
                 <View style={styles.aboutRow}>
                   <Text style={styles.aboutKey}>版本</Text>
-                  <Text style={styles.aboutVal}>v1.0.0-beta</Text>
+                  <Text style={styles.aboutVal}>{`v${APP_VERSION}`}</Text>
                 </View>
                 <View style={styles.aboutDivider} />
                 <Pressable style={styles.aboutRow} onPress={() => setModal('terms')}>
@@ -304,6 +311,7 @@ export default function SettingsScreen({
       />
       <LegalTextModal visible={modal === 'terms'} type="terms" onClose={() => setModal(null)} />
       <LegalTextModal visible={modal === 'privacy'} type="privacy" onClose={() => setModal(null)} />
+      <Coachmark screen="settings" />
     </View>
   );
 }

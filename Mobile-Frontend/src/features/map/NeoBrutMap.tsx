@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { StyleSheet } from 'react-native';
-import MapView, { MapStyleElement } from 'react-native-maps';
+import MapView, { MapStyleElement, Region } from 'react-native-maps';
 
 const CUSTOM_MAP_STYLE: MapStyleElement[] = [
   { elementType: 'geometry', stylers: [{ color: '#E8E3D8' }] },
@@ -12,34 +12,62 @@ const CUSTOM_MAP_STYLE: MapStyleElement[] = [
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
 ];
 
-const INITIAL_REGION = {
+const INITIAL_REGION: Region = {
   latitude: 25.0478,
   longitude: 121.5318,
   latitudeDelta: 0.01,
   longitudeDelta: 0.01,
 };
 
-interface NeoBrutMapProps {
-  children?: React.ReactNode;
+export interface NeoBrutMapHandle {
+  /** Smoothly pan the camera to a region. Used by the locate-me button. */
+  animateToRegion: (region: Region, durationMs?: number) => void;
 }
 
-export default function NeoBrutMap({ children }: NeoBrutMapProps): React.JSX.Element {
-  return (
-    <MapView
-      style={styles.map}
-      initialRegion={INITIAL_REGION}
-      customMapStyle={CUSTOM_MAP_STYLE}
-      showsCompass={false}
-      showsTraffic={false}
-      showsIndoors={false}
-      showsBuildings={false}
-      rotateEnabled={false}
-      pitchEnabled={false}
-    >
-      {children}
-    </MapView>
-  );
+interface NeoBrutMapProps {
+  children?: React.ReactNode;
+  /** Render the native blue "you are here" dot (requires location permission). */
+  showsUserLocation?: boolean;
 }
+
+const NeoBrutMap = forwardRef<NeoBrutMapHandle, NeoBrutMapProps>(
+  ({ children, showsUserLocation = false }, ref) => {
+    const mapRef = useRef<MapView | null>(null);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        animateToRegion: (region, durationMs = 600) => {
+          mapRef.current?.animateToRegion(region, durationMs);
+        },
+      }),
+      [],
+    );
+
+    return (
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={INITIAL_REGION}
+        customMapStyle={CUSTOM_MAP_STYLE}
+        showsCompass={false}
+        showsTraffic={false}
+        showsIndoors={false}
+        showsBuildings={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
+        showsUserLocation={showsUserLocation}
+        showsMyLocationButton={false}
+      >
+        {children}
+      </MapView>
+    );
+  },
+);
+
+NeoBrutMap.displayName = 'NeoBrutMap';
+
+export default NeoBrutMap;
 
 const styles = StyleSheet.create({
   map: {

@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  Keyboard,
+  ScrollView,
+} from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { submitFeedback } from '@/src/services/api/profile';
+import { track } from '@/src/services/analytics/posthog';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -20,8 +29,35 @@ export default function FeedbackModal({
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  // Lift the sheet body up by the keyboard's reported height. This is
+  // more reliable than KeyboardAvoidingView inside a Modal because the
+  // Modal opens its own window and softInputMode=adjustResize does not
+  // propagate cleanly on Android in Expo SDK 54.
+  //
+  // Gated on `visible` so we don't leak keyboard subscriptions while
+  // the modal is closed — and so we reset `kbHeight` to 0 every time
+  // the modal reopens, defending against a stale value if the keyboard
+  // happened to stay open across a previous close.
+  const [kbHeight, setKbHeight] = useState(0);
+  useEffect(() => {
+    if (!visible) {
+      setKbHeight(0);
+      return;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (e) =>
+      setKbHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [visible]);
   const isBug = type === 'bug';
-  const email = isBug ? 'bug@coupro.app' : 'feature@coupro.app';
+  // Backend routes feedback via settings.SUPPORT_EMAIL (default
+  // coupro707@gmail.com). Keep the FE label aligned with where the
+  // message actually goes — anything else is a lie to the user.
+  const email = 'coupro707@gmail.com';
   const canSend = text.trim().length > 0 && !sending;
 
   async function handleSend(): Promise<void> {
@@ -30,6 +66,7 @@ export default function FeedbackModal({
     setError(null);
     try {
       await submitFeedback(type, text.trim());
+      track('settings.feedback_submitted', { type, length: text.trim().length });
       setSent(true);
     } catch (err) {
       setError((err as Error).message || '送出失敗，請稍後再試');
@@ -48,8 +85,16 @@ export default function FeedbackModal({
 
   return (
     <BottomSheet visible={visible} onClose={handleClose}>
-      <View style={styles.sheet}>
-          <View style={styles.accentStrip} />
+      <ScrollView
+        // `handled` keeps the Send/Close presses responsive while the
+        // keyboard is up — otherwise the first tap dismisses the keyboard
+        // and the user thinks the button is broken.
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={styles.sheet}>
+            <View style={styles.accentStrip} />
           <View style={styles.dragHandle} />
           <Text style={styles.title}>
             {isBug ? '🐞 回報問題' : '💡 功能建議'}
@@ -113,7 +158,11 @@ export default function FeedbackModal({
               <Text style={styles.closeBtnText}>關閉</Text>
             </Pressable>
           </View>
+          {/* Keyboard spacer — height tracks the live keyboard height so
+              the textarea and send button stay above the keyboard top edge. */}
+          <View testID="feedback-keyboard-spacer" style={{ height: kbHeight }} />
         </View>
+      </ScrollView>
     </BottomSheet>
   );
 }

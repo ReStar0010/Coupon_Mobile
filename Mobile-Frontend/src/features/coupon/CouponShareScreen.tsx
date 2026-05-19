@@ -7,13 +7,17 @@ import {
   TextInput,
   StyleSheet,
   SafeAreaView,
+  Share,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import GemIcon from '@/src/components/icons/GemIcon';
 import { shareCoupon, shareCouponPublic } from '@/src/services/api/coupons';
+// Linking import kept available for future deep-link previews if needed.
 import { useWallet } from '@/src/state/WalletContext';
+import { track } from '@/src/services/analytics/posthog';
+import Coachmark from '@/src/features/onboarding/Coachmark';
 
 interface NavParams {
   id?: string;
@@ -67,19 +71,40 @@ export default function CouponShareScreen({
     try {
       if (target === 'map') {
         await shareCouponPublic(id, note);
+        // Refresh so any share-related wallet changes are reflected. The
+        // actual +1 SHARE_REWARD lands when the recipient accepts (BE-driven).
+        await refreshWallet();
+        track('coupon.share_completed', { couponId: id, target });
+        setSuccess(true);
+        successTimerRef.current = setTimeout(() => {
+          successTimerRef.current = null;
+          onNavigate('home');
+        }, 2500);
       } else {
-        // 'link' path: no phone-input UI exists yet — skipping until UI is added.
-        // TODO: collect recipientPhone and call shareCoupon(id, recipientPhone).
-        await shareCouponPublic(id, note);
+        // 'link' target: mint a private share + invoke the OS share sheet so
+        // the user can route the deep link through any installed app
+        // (LINE, Messages, AirDrop, etc.). Recipient opens the link and
+        // claims via app/collection/[token].tsx (Universal Link) or the
+        // `coupro://collection?token=` custom scheme.
+        const minted = await shareCoupon(id);
+        const url = minted.share_link_web ?? minted.share_link;
+        const message = note.trim()
+          ? `${note.trim()} \nCouPro 優惠券：${url}`
+          : `我分享了一張 CouPro 優惠券給你：${url}`;
+        const result = await Share.share({ message, url });
+        // Share.share resolves on dismiss too — `dismissedAction` means
+        // the user closed the OS sheet without picking a target, which
+        // is NOT a completed share. Treat only `sharedAction` as success
+        // so analytics + UI reflect reality.
+        if (result.action === Share.sharedAction) {
+          track('coupon.share_completed', { couponId: id, target });
+          // Don't auto-bounce home — the user has just left the app to
+          // the share-target; bouncing competes with the OS share UI.
+          setSuccess(true);
+        }
+        // else: stay on this screen so the user can retry. Cancel is a
+        // valid outcome, not an error.
       }
-      // Refresh so any share-related wallet changes are reflected. The actual
-      // +1 SHARE_REWARD lands when the recipient accepts (BE-driven).
-      await refreshWallet();
-      setSuccess(true);
-      successTimerRef.current = setTimeout(() => {
-        successTimerRef.current = null;
-        onNavigate('home');
-      }, 2500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Share failed';
       setShareError(msg);
@@ -230,6 +255,7 @@ export default function CouponShareScreen({
           <Text style={s.successReturn}>返回首頁中…</Text>
         </View>
       )}
+      <Coachmark screen="coupon-share" />
     </SafeAreaView>
   );
 }

@@ -7,6 +7,8 @@ import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { redeemCoupon } from '@/src/services/api/coupons';
 import { useWallet } from '@/src/state/WalletContext';
+import { track } from '@/src/services/analytics/posthog';
+import PermissionDeniedView from '@/src/components/ui/PermissionDeniedView';
 interface NavParams {
   id?: string;
   store?: string;
@@ -88,6 +90,7 @@ export default function CouponUseQRScreen({
       if (id) {
         await redeemCoupon(id, code);
       }
+      track('coupon.redeem_succeeded', { couponId: id });
       setSuccess(true);
       // BE +1 hook (kind=COUPON_REDEEM) credits the gem; refresh to reflect it.
       await refreshWallet();
@@ -172,9 +175,11 @@ export default function CouponUseQRScreen({
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
           />
         ) : (
-          <View style={s.noCamera}>
-            <Text style={s.noCameraText}>需要相機權限</Text>
-          </View>
+          <PermissionDeniedView
+            title="需要相機權限"
+            description="開啟相機以掃描店家 QR Code 並完成核銷"
+            onRetry={permission?.canAskAgain ? () => { void requestPermission(); } : undefined}
+          />
         )}
         <Text style={s.scanHint}>將店家 QR Code 對準框內</Text>
         {success && (

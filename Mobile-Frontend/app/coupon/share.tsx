@@ -5,10 +5,11 @@ import CouponShareScreen from '@/src/features/coupon/CouponShareScreen';
 
 export default function CouponShareRoute() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ store?: string; detail?: string; expires?: string; amount?: string }>();
+  const params = useLocalSearchParams<{ id?: string; store?: string; detail?: string; expires?: string; amount?: string }>();
   const { gems, setGemsLocal, couPoints, setCouPointsLocal } = useWallet();
 
   const couponParams = {
+    id: params.id,
     store: params.store,
     detail: params.detail,
     expires: params.expires,

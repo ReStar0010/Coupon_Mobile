@@ -76,9 +76,14 @@ def list_my_coupons(request):
     # Hot-path list — cap payload at 200 rows. The FE renders this in a
     # single FlatList; users with >200 held coupons are an edge case that
     # can be paginated later if it ever shows up.
+    # NB: deliberately NOT filtering by expiry — the FE shows expired
+    # coupons with a strikethrough so users can see the history. Use
+    # `held_by(user).exclusives()` rather than `active_for_user()` to
+    # opt out of the "not-expired" predicate.
     qs = (
         Coupon.objects
-        .filter(current_holder=user, coupon_type='exclusive')
+        .held_by(user)
+        .exclusives()
         .select_related('store')
         .annotate(
             _is_redeemed=Exists(redeemed_subq),

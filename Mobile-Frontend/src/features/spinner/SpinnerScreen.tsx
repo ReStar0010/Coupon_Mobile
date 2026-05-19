@@ -18,6 +18,7 @@ import CoinIcon from '../../components/icons/CoinIcon';
 import WheelDial from './WheelDial';
 import ResultModal from './ResultModal';
 import MeltdownOverlay from './MeltdownOverlay';
+import Coachmark from '@/src/features/onboarding/Coachmark';
 import CoopQRModal from './CoopQRModal';
 import { useSpinLogic } from './useSpinLogic';
 import { getCharge } from './constants';
@@ -27,9 +28,7 @@ import { fontFamilies } from '../../theme/typography';
 interface SpinnerScreenProps {
   onNavigate: (screen: string) => void;
   gems: number;
-  setGems: (fn: (prev: number) => number) => void;
   couPoints: number;
-  setCouPoints: (fn: (prev: number) => number) => void;
   /** Called after a server-authoritative spin settles so global wallet state syncs. */
   refreshWallet?: () => Promise<void> | void;
 }
@@ -59,22 +58,37 @@ const NUM_GEM_VANISH = 5;
 export default function SpinnerScreen({
   onNavigate,
   gems,
-  setGems,
   couPoints,
-  setCouPoints,
   refreshWallet,
 }: SpinnerScreenProps): React.JSX.Element {
   const [players, setPlayers] = useState(1);
   const [filledGuests, setFilledGuests] = useState(0);
   const [pendingSlot, setPendingSlot] = useState<number | null>(null);
+  // Wager (1..min(5, wallet)). Decoupled from the wallet so the Stepper can
+  // actually adjust it — the wallet is server-owned and immutable from the
+  // client, so reusing `gems` as the wager (the previous behaviour) made the
+  // +/- buttons silent no-ops.
+  const [bet, setBet] = useState(1);
   const insets = useSafeAreaInsets();
 
   const invited = players - 1;
   const allFilled = filledGuests >= invited;
+  // Stepper cap. When the wallet is empty the Stepper still needs `max >= min`
+  // (the component requires min=1), so we floor the cap at 1 — `canSpin`
+  // below blocks the actual spin in that state.
+  const maxBet = Math.max(1, Math.min(5, gems));
 
   useEffect(() => {
     setFilledGuests(0);
   }, [players]);
+
+  // Re-clamp the wager when the wallet shrinks (e.g. after a spin debit
+  // refresh). Without this, a user who bet 5 and then dropped to 2 gems in
+  // the wallet would see bet=5 lingering — visually inconsistent with the
+  // (now lowered) Stepper max.
+  useEffect(() => {
+    setBet((b) => Math.min(Math.max(1, b), maxBet));
+  }, [maxBet]);
 
   const {
     spin,
@@ -91,9 +105,9 @@ export default function SpinnerScreen({
     meltdownSpinning,
     handleSpin,
     dismissResult,
-  } = useSpinLogic({ gems, setGems, setCouPoints, players, allFilled, refreshWallet });
+  } = useSpinLogic({ gems: bet, players, allFilled, refreshWallet });
 
-  const canSpin = !spinning && allFilled && gems >= 1;
+  const canSpin = !spinning && allFilled && gems >= 1 && bet >= 1 && bet <= gems;
 
   // ── Co-op slot animations ─────────────────────────────────────────────────
   const slotS0 = useSharedValue(1);
@@ -158,15 +172,17 @@ export default function SpinnerScreen({
     }
   }, [phase]);
 
-  // gem-add shake
+  // gem-add shake — fires from useSpinLogic when the wager grows (Stepper +).
+  // Amplitude/repeats scale with the wager so a +1→+5 sweep feels
+  // progressively heavier.
   useEffect(() => {
     if (!gemShake) return;
-    const amp = 3 + gems * 2;
+    const amp = 3 + bet * 2;
     shakeX.value = withSequence(
       withTiming(-amp, { duration: 40 }),
       withRepeat(
         withSequence(withTiming(amp, { duration: 70 }), withTiming(-amp, { duration: 70 })),
-        Math.ceil(gems * 1.5),
+        Math.ceil(bet * 1.5),
         false,
       ),
       withTiming(0, { duration: 40 }),
@@ -235,7 +251,10 @@ export default function SpinnerScreen({
   const vigOpacity = useSharedValue(0);
   useEffect(() => {
     if (spinning) {
-      const charge = getCharge(gems);
+      // Vignette intensity scales with the WAGER (not the wallet) — a 5-gem
+      // bet earns the dramatic full vignette regardless of how much else the
+      // user has banked.
+      const charge = getCharge(bet);
       // Cap at 0.5 so the wheel stays clearly visible even on max-charge (5-gem) spins.
       vigOpacity.value = withTiming(Math.min(charge.vignette * 0.55 + 0.05, 0.5), {
         duration: 550,
@@ -525,7 +544,10 @@ export default function SpinnerScreen({
             floor={floor}
             spin={spin}
             spinning={spinning}
-            gems={gems}
+            // Wheel rim heat (colour, width, glow) scales with the WAGER —
+            // a 5-gem bet earns the purple max-rim regardless of how much
+            // is left over in the wallet.
+            gems={bet}
             phase={phase}
             upcomingColor={phase === 'pause' ? pendingColor : null}
           />
@@ -580,15 +602,15 @@ export default function SpinnerScreen({
       {/* Controls panel */}
       <View style={styles.controls}>
         <View testID="gem-pips-container">
-          <GemPips count={5} filled={gems} />
+          <GemPips count={5} filled={bet} />
         </View>
         <View style={styles.steppers}>
           <Stepper
             label="寶石"
-            value={gems}
+            value={bet}
             min={1}
-            max={5}
-            onChange={(v) => setGems(() => v)}
+            max={maxBet}
+            onChange={setBet}
             accent
           />
           <View style={styles.divider} />
@@ -651,6 +673,7 @@ export default function SpinnerScreen({
           setPendingSlot(null);
         }}
       />
+      <Coachmark screen="spinner" />
     </View>
   );
 }

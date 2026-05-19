@@ -120,7 +120,19 @@ class SpinnerCoopConsumer(AsyncJsonWebsocketConsumer):
         # C-1: every connection MUST present a valid JWT in `?token=<...>`.
         # The token's `user_id` claim becomes the authenticated identity; the
         # display_name is read from the authenticated User row, not the client.
-        # v4 M2: imports moved to module top.
+        #
+        # Security note (query-string JWT): the browser WebSocket API doesn't
+        # support custom headers on the upgrade request, so the token lives
+        # in the URL. Risks:
+        #   - Server access logs may capture the full URL including ?token=
+        #     unless the log pipeline redacts it. Render's access logs go to
+        #     stdout via gunicorn (see `accesslog = "-"` in gunicorn.conf.py).
+        #   - Browser history / proxy caches may retain the URL.
+        # Mitigations already in place: simplejwt access tokens expire in
+        # 10 min (settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']), so the
+        # exposure window is bounded. If we ever ship to a regulated env,
+        # disable gunicorn access logging or switch to a header-based
+        # subprotocol auth scheme.
         qs = self._parse_qs()
         token = qs.get("token")
         if not token:

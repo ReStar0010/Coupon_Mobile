@@ -21,7 +21,10 @@ export interface RedeemResponse {
 }
 
 export interface ShareResponse {
+  /** Custom-scheme deep link: `coupro://collection?token=…` */
   share_link: string;
+  /** Universal Link: `https://api.coupro.pro/collection/<token>/?open_ext=1` */
+  share_link_web?: string;
   token: string;
 }
 
@@ -64,12 +67,19 @@ export async function redeemCoupon(id: string, redeemCode: string): Promise<Rede
   }
 }
 
-/** Create a private share request to a phone number. */
-export async function shareCoupon(id: string, recipientPhone: string): Promise<ShareResponse> {
+/**
+ * Create a private share request and get a deep link.
+ *
+ * `recipientPhone` is optional: the backend issues the share token
+ * regardless. When the caller wants to surface the share through the
+ * native iOS/Android share sheet, omit the phone — the returned
+ * `share_link_web` is the URL to feed `Share.share({ url })`.
+ */
+export async function shareCoupon(id: string, recipientPhone?: string): Promise<ShareResponse> {
   try {
-    const response = await apiClient.post<ShareResponse>(`/api/coupons/${id}/share/`, {
-      to_phone_number: recipientPhone,
-    });
+    const body: Record<string, unknown> = {};
+    if (recipientPhone) body.to_phone_number = recipientPhone;
+    const response = await apiClient.post<ShareResponse>(`/api/coupons/${id}/share/`, body);
     return response.data;
   } catch (error) {
     throw normalizeError(error);

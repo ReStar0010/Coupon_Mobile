@@ -30,7 +30,7 @@ export default function CouponRow({
   store,
   detail,
   expires,
-  amount,
+  amount: _amount,
   onPress,
   onShare,
   urgency,
@@ -38,16 +38,11 @@ export default function CouponRow({
 }: CouponRowProps): React.JSX.Element {
   const urColor = urgency ? URGENCY_COLORS[urgency] : null;
   const urLabel = urgency ? URGENCY_LABELS[urgency] : null;
-  const gemCount = Math.min(gems, 3);
 
   return (
     <View style={styles.wrapper}>
       <View style={styles.shadowBacking} />
-      <Pressable
-        testID="coupon-row"
-        onPress={onPress}
-        style={styles.card}
-      >
+      <Pressable testID="coupon-row" onPress={onPress} style={styles.card}>
         <View style={styles.yellowAccent} />
         <View style={styles.content}>
           <View style={styles.info}>
@@ -60,25 +55,31 @@ export default function CouponRow({
                   <Text style={styles.urgencyText}>{urLabel}</Text>
                 </View>
               )}
+              {gems > 0 && (
+                <View testID="gem-reward" style={styles.gemReward}>
+                  {Array.from({ length: Math.min(gems, 5) }).map((_, i) => (
+                    <GemIcon key={i} size={13} color={colors.purple} />
+                  ))}
+                </View>
+              )}
             </View>
           </View>
           <View style={styles.rightCol}>
             <View style={styles.shareBtnWrapper}>
               <View style={styles.shareBtnShadow} />
               <Pressable
+                testID="coupon-share-btn"
                 onPress={(e) => {
                   e.stopPropagation?.();
                   onShare?.();
                 }}
                 style={styles.shareBtn}
+                accessibilityRole="button"
+                accessibilityLabel="分享優惠券"
+                hitSlop={8}
               >
-                <PaperPlaneIcon size={15} color={colors.fg} />
+                <PaperPlaneIcon size={22} color={colors.fg} />
               </Pressable>
-            </View>
-            <View style={styles.gems}>
-              {Array.from({ length: gemCount }).map((_, i) => (
-                <GemIcon key={i} size={11} color={colors.purple} />
-              ))}
             </View>
           </View>
         </View>
@@ -116,8 +117,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'stretch',
-    padding: 10,
+    alignItems: 'center',
+    padding: 12,
     gap: 12,
   },
   info: {
@@ -139,8 +140,9 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
-    marginTop: 5,
+    marginTop: 6,
   },
   expires: {
     fontFamily: fontFamilies.monoRegular,
@@ -160,41 +162,42 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     color: '#FFFFFF',
   },
-  rightCol: {
-    flexDirection: 'column',
+  gemReward: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 2,
+  },
+  rightCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
     borderLeftWidth: 2,
     borderLeftColor: colors.subtle,
     borderStyle: 'dashed',
-    paddingLeft: 10,
-    minWidth: 50,
+    paddingLeft: 12,
+    minWidth: 60,
   },
   shareBtnWrapper: {
     position: 'relative',
+    width: 44,
+    height: 44,
   },
   shareBtnShadow: {
     position: 'absolute',
-    top: 2,
-    left: 2,
-    width: 32,
-    height: 32,
-    borderRadius: 4,
+    top: 3,
+    left: 3,
+    width: 44,
+    height: 44,
+    borderRadius: 6,
     backgroundColor: colors.border,
   },
   shareBtn: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     backgroundColor: colors.yellow,
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: colors.border,
-    borderRadius: 4,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  gems: {
-    flexDirection: 'row',
-    gap: 1,
-    marginTop: 4,
   },
 });
