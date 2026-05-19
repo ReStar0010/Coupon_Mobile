@@ -10,10 +10,22 @@ jest.mock('react-native-safe-area-context', () => ({
 
 // ── expo-location mock — used by the bottom-right locate button ────────────
 const mockRequestPermission = jest.fn();
+const mockGetPermission = jest.fn();
 const mockGetCurrentPosition = jest.fn();
+const mockWatchHeading = jest.fn();
+const mockWatchPosition = jest.fn();
+const mockHeadingRemove = jest.fn();
+const mockPositionRemove = jest.fn();
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: () => mockRequestPermission(),
+  getForegroundPermissionsAsync: () => mockGetPermission(),
   getCurrentPositionAsync: (opts: unknown) => mockGetCurrentPosition(opts),
+  watchHeadingAsync: (cb: (h: { trueHeading: number; magHeading: number }) => void) =>
+    mockWatchHeading(cb),
+  watchPositionAsync: (
+    opts: unknown,
+    cb: (p: { coords: { latitude: number; longitude: number } }) => void,
+  ) => mockWatchPosition(opts, cb),
   Accuracy: { Balanced: 3, High: 4, Highest: 6 },
   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
 }));
@@ -399,10 +411,18 @@ beforeEach(() => {
   // Default: permission granted, device near a known LAT/LNG that should
   // trigger a fresh listNearby() call.
   mockRequestPermission.mockResolvedValue({ status: 'granted', granted: true });
+  mockGetPermission.mockResolvedValue({ status: 'granted', granted: true });
   mockGetCurrentPosition.mockResolvedValue({
     coords: { latitude: 25.0333, longitude: 121.5654, accuracy: 10 },
     timestamp: Date.now(),
   });
+  mockHeadingRemove.mockReset();
+  mockPositionRemove.mockReset();
+  mockWatchHeading.mockReset();
+  mockWatchPosition.mockReset();
+  // Default: subscriptions return a remover, no automatic emissions.
+  mockWatchHeading.mockResolvedValue({ remove: mockHeadingRemove });
+  mockWatchPosition.mockResolvedValue({ remove: mockPositionRemove });
 });
 
 /** Render MapScreen and wait for the listNearby fetch to commit pins. */
@@ -435,9 +455,10 @@ describe('MapScreen', () => {
     expect(activePins.length).toBe(4);
   });
 
-  it('calls listNearby with fallback coordinates on mount', async () => {
+  it('calls listNearby with fallback coordinates and NO radius on mount', async () => {
+    // Omitting radius = backend returns every store, no proximity filter.
     await renderMap();
-    expect(mockListNearby).toHaveBeenCalledWith(25.0478, 121.5318, 2);
+    expect(mockListNearby).toHaveBeenCalledWith(25.0478, 121.5318, undefined);
   });
 
   it('does not render inactive pins (none returned by listNearby)', async () => {
@@ -468,7 +489,7 @@ describe('MapScreen — locate button', () => {
     await waitFor(() => {
       expect(mockRequestPermission).toHaveBeenCalled();
       expect(mockGetCurrentPosition).toHaveBeenCalled();
-      expect(mockListNearby).toHaveBeenCalledWith(25.0333, 121.5654, 2);
+      expect(mockListNearby).toHaveBeenCalledWith(25.0333, 121.5654, undefined);
     });
   });
 
@@ -664,5 +685,44 @@ describe('MapScreen — pin press opens MerchantSheet', () => {
     await openPinSheet(utils, 'pin-active-25.0478');
     fireEvent.press(utils.getByTestId('sheet-close'));
     expect(utils.queryByTestId('merchant-sheet')).toBeNull();
+  });
+});
+
+describe('MapScreen — user heading marker', () => {
+  it('subscribes to heading + position on mount and removes both on unmount', async () => {
+    const utils = await renderMap();
+    // Both subscriptions were started on mount.
+    expect(mockWatchHeading).toHaveBeenCalled();
+    expect(mockWatchPosition).toHaveBeenCalled();
+    // The subscriptions resolve to objects with .remove; mount → unmount must
+    // call them. We unmount and let the async cleanup run via act().
+    await act(async () => {
+      utils.unmount();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockHeadingRemove).toHaveBeenCalledTimes(1);
+    expect(mockPositionRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the user-location marker once a position fix arrives', async () => {
+    let positionCb: ((p: { coords: { latitude: number; longitude: number } }) => void) | null = null;
+    mockWatchPosition.mockImplementationOnce(
+      (_opts: unknown, cb: (p: { coords: { latitude: number; longitude: number } }) => void) => {
+        positionCb = cb;
+        return Promise.resolve({ remove: mockPositionRemove });
+      },
+    );
+
+    const utils = await renderMap();
+    // Before any position emission, no marker.
+    expect(utils.queryByTestId('user-location-marker')).toBeNull();
+
+    await act(async () => {
+      positionCb?.({ coords: { latitude: 25.0478, longitude: 121.5318 } });
+      await Promise.resolve();
+    });
+
+    expect(utils.getByTestId('user-location-marker')).toBeTruthy();
   });
 });

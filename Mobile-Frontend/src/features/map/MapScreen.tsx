@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import * as Location from 'expo-location';
 import { colors } from '../../theme/colors';
 import LogoIcon from '../../components/icons/LogoIcon';
 import { fontFamilies } from '../../theme/typography';
-import NeoBrutMap from './NeoBrutMap';
+import NeoBrutMap, { NeoBrutMapHandle } from './NeoBrutMap';
 import NeoTeardropPin from './NeoTeardropPin';
+import UserLocationMarker from './UserLocationMarker';
 import FlagStoreModal from './FlagStoreModal';
 import BlockStoreModal from './BlockStoreModal';
 import SharedCouponModal, { SharedCoupon } from './SharedCouponModal';
@@ -23,6 +24,8 @@ import {
   type MerchantCoupon,
   type SharedCouponSummary,
 } from '@/src/services/api/merchants';
+import { track } from '@/src/services/analytics/posthog';
+import Coachmark from '@/src/features/onboarding/Coachmark';
 
 interface MapScreenProps {
   onNavigate: (screen: string, params?: object) => void;
@@ -31,16 +34,29 @@ interface MapScreenProps {
 // Fallback centre point if device geolocation is unavailable (Taipei).
 const FALLBACK_LAT = 25.0478;
 const FALLBACK_LNG = 121.5318;
-const NEARBY_RADIUS_KM = 2;
+// `listNearby` is called without a radius — the backend treats that as
+// "return every store, no proximity filter" so the map renders all pins
+// regardless of how far the user is from a particular store. distanceKm is
+// still computed server-side for sorting.
+// Belt-and-suspenders cap so the loading spinner never wedges if the network
+// request stalls past axios's own timeout. The interceptor's 401 refresh path
+// is the most plausible source of an unresolved promise here.
+const LOAD_SAFETY_TIMEOUT_MS = 15_000;
+// Default delta used when re-centering on the user's current fix. ~0.01 ≈
+// 1 km square — tight enough to feel "here" without losing nearby pins.
+const LOCATE_DELTA = 0.01;
 
 /** Convert an API `Merchant` to the marker-level shape used by the map. */
 function toMapMerchant(m: Merchant): MapMerchant {
+  const count = m.couponCount ?? 0;
   return {
     id: m.id,
     name: m.name,
     lat: m.lat,
     lng: m.lng,
-    couponCount: 0,
+    couponCount: count,
+    // Pins with zero usable coupons still render — the user can tap to see the
+    // store sheet, but the badge correctly reads "0".
     active: true,
   };
 }
@@ -48,6 +64,11 @@ function toMapMerchant(m: Merchant): MapMerchant {
 export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Element {
   const [merchants, setMerchants] = useState<MapMerchant[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // True once the OS has stopped showing the location prompt (user picked
+  // "Don't Allow" or selected a non-promptable option). When this is set,
+  // the error tile becomes a Settings deep-link instead of a retry button.
+  const [locationDeniedPermanent, setLocationDeniedPermanent] = useState(false);
   const [activeDetail, setActiveDetail] = useState<MerchantDetail | null>(null);
   const [showFlag, setShowFlag] = useState(false);
   const [showBlock, setShowBlock] = useState(false);
@@ -56,53 +77,160 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [locating, setLocating] = useState<boolean>(false);
+  // Live user position + heading. The native `showsUserLocation` blue dot
+  // does not surface heading on Android until the user moves; we render our
+  // own marker for parity with Google Maps.
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(
+    null,
+  );
+  const [userHeading, setUserHeading] = useState<number | null>(null);
   // Ref-based in-flight guard. Using state in the callback's deps would
   // re-memoise on every transition (and the rapid-press guard would be
   // ordering-dependent on the disabled prop arriving before the next
   // press). A ref is the canonical "do not re-render on flip" pattern.
   const locatingRef = useRef<boolean>(false);
+  const mapRef = useRef<NeoBrutMapHandle | null>(null);
+  // Tracked across the lifetime of the component so async paths (retry,
+  // locate) can skip state updates after unmount instead of warning.
+  const mountedRef = useRef<boolean>(true);
   const insets = useSafeAreaInsets();
 
-  const fetchNearby = useCallback(async (lat: number, lng: number): Promise<void> => {
-    try {
-      const result = await listNearby(lat, lng, NEARBY_RADIUS_KM);
-      setMerchants(result.map(toMapMerchant));
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('listNearby failed', err);
-    }
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
+
+  // Live location + heading subscriptions for the "you are here" marker.
+  // expo-location returns subscriptions whose .remove() we MUST call on
+  // unmount; if we don't, the OS keeps the GPS/compass radios hot in the
+  // background and burns battery.
+  useEffect(() => {
+    let positionSub: { remove: () => void } | null = null;
+    let headingSub: { remove: () => void } | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        // Read-only permission check — never prompts. The bottom-right locate
+        // button owns the explicit `requestForegroundPermissionsAsync()`
+        // permission prompt; this effect only piggy-backs on whatever was
+        // already granted in this or a previous session.
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (cancelled || !perm.granted) return;
+        positionSub = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 2000,
+            distanceInterval: 5,
+          },
+          (loc) => {
+            if (cancelled) return;
+            setUserLocation({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+          },
+        );
+        headingSub = await Location.watchHeadingAsync((reading) => {
+          if (cancelled) return;
+          // Prefer trueHeading when the compass is calibrated (≥ 0); fall
+          // back to magnetic heading otherwise. Below-zero trueHeading is
+          // the documented "not yet available" sentinel.
+          const next = reading.trueHeading >= 0 ? reading.trueHeading : reading.magHeading;
+          setUserHeading(typeof next === 'number' ? next : null);
+        });
+      } catch {
+        // Permission denied or hardware unavailable — fall through silently.
+        // The fallback marker (native blue dot) is already disabled; the
+        // user simply sees no "me" indicator until they hit the locate btn.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      positionSub?.remove();
+      headingSub?.remove();
+    };
+  }, []);
+
+  const fetchNearby = useCallback(
+    async (lat: number, lng: number): Promise<void> => {
+      try {
+        const result = await listNearby(lat, lng);
+        if (!mountedRef.current) return;
+        setMerchants(result.map(toMapMerchant));
+        setLoadError(null);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('listNearby failed', err);
+        if (!mountedRef.current) return;
+        setLoadError(err instanceof Error ? err.message : '無法載入店家');
+      }
+    },
+    [],
+  );
+
+  const loadInitial = useCallback(async () => {
+    if (!mountedRef.current) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      await fetchNearby(FALLBACK_LAT, FALLBACK_LNG);
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [fetchNearby]);
 
   useEffect(() => {
     let cancelled = false;
+    // Belt-and-suspenders: if the request stalls past LOAD_SAFETY_TIMEOUT_MS
+    // (e.g. interceptor refresh loop never resolves), flip the spinner off so
+    // the user can retry instead of staring at a frozen indicator.
+    const safetyTimer = setTimeout(() => {
+      if (!cancelled) {
+        setLoading((prev) => {
+          if (prev) {
+            setLoadError('讀取逾時，請重試');
+          }
+          return false;
+        });
+      }
+    }, LOAD_SAFETY_TIMEOUT_MS);
+
     (async () => {
       try {
-        const result = await listNearby(FALLBACK_LAT, FALLBACK_LNG, NEARBY_RADIUS_KM);
+        const result = await listNearby(FALLBACK_LAT, FALLBACK_LNG);
         if (!cancelled) {
           setMerchants(result.map(toMapMerchant));
+          setLoadError(null);
         }
       } catch (err) {
         if (!cancelled) {
-          // Surface the failure to telemetry instead of crashing the screen.
           // eslint-disable-next-line no-console
           console.warn('listNearby failed', err);
+          setLoadError(err instanceof Error ? err.message : '無法載入店家');
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
+      clearTimeout(safetyTimer);
     };
   }, []);
 
   /**
-   * Bottom-right locate button:
-   *   1. Ask for foreground location permission (no-op if previously granted)
+   * Bottom-right locate button — Google-Maps-style one-shot recenter:
+   *   1. Ask for foreground location permission
    *   2. Read the current device position
-   *   3. Recentre + re-fetch /api/merchants/nearby/ with those coords
-   * Silently no-ops when permission is denied or the device can't return
-   * a fix; the existing FALLBACK_LAT/LNG centre stays in place.
+   *   3. Animate the map camera to that position
+   *   4. Re-fetch /api/merchants/nearby/ with those coords
+   * When permission is denied we surface the failure inline rather than
+   * silently swallowing the press; the FALLBACK_LAT/LNG centre stays.
    */
   const handleLocatePress = useCallback(async (): Promise<void> => {
     if (locatingRef.current) return;
@@ -110,20 +238,46 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
     setLocating(true);
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
+      if (!mountedRef.current) return;
       if (!perm.granted) {
+        // canAskAgain === false means the OS will silently resolve future
+        // request*PermissionsAsync calls; the only escape is Settings.
+        if (perm.canAskAgain === false) {
+          setLocationDeniedPermanent(true);
+          setLoadError('定位權限已關閉');
+        } else {
+          setLocationDeniedPermanent(false);
+          setLoadError('請允許定位權限');
+        }
         return;
       }
+      setLocationDeniedPermanent(false);
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
+      if (!mountedRef.current) return;
       const { latitude, longitude } = position.coords;
+      mapRef.current?.animateToRegion(
+        {
+          latitude,
+          longitude,
+          latitudeDelta: LOCATE_DELTA,
+          longitudeDelta: LOCATE_DELTA,
+        },
+        600,
+      );
       await fetchNearby(latitude, longitude);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('locate failed', err);
+      if (mountedRef.current) {
+        setLoadError(err instanceof Error ? err.message : '無法取得目前位置');
+      }
     } finally {
+      // locatingRef is always reset even after unmount so a remount doesn't
+      // inherit a stale "in-flight" state from the prior instance.
       locatingRef.current = false;
-      setLocating(false);
+      if (mountedRef.current) setLocating(false);
     }
   }, [fetchNearby]);
 
@@ -137,6 +291,7 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
     try {
       const detail = await getMerchant(m.id);
       setActiveDetail(detail);
+      track('map.merchant_opened', { merchantId: m.id, couponCount: m.couponCount });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('getMerchant failed', err);
@@ -215,7 +370,7 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
   return (
     <View style={styles.root}>
       <View style={styles.mapContainer}>
-        <NeoBrutMap>
+        <NeoBrutMap ref={mapRef}>
           {merchants
             .filter((m) => m.active)
             .map((m) => (
@@ -228,6 +383,9 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
                 onPress={() => handlePinPress(m)}
               />
             ))}
+          {userLocation && (
+            <UserLocationMarker coordinate={userLocation} heading={userHeading} />
+          )}
         </NeoBrutMap>
 
         {/* Search bar — pushed below the notch */}
@@ -278,6 +436,34 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
           <View style={[styles.loadingBox, { top: insets.top + 70 }]} testID="map-loading">
             <ActivityIndicator size="small" color={colors.fg} />
           </View>
+        )}
+
+        {/* Error tile — when location is permanently denied, route the press
+            to system Settings (the only path back). Otherwise default to a
+            retry of loadInitial. */}
+        {!loading && loadError && (
+          <Pressable
+            testID="map-error"
+            accessibilityRole="button"
+            accessibilityLabel={
+              locationDeniedPermanent
+                ? `${loadError} 點擊前往設定`
+                : `${loadError} 點擊重試`
+            }
+            onPress={() => {
+              if (locationDeniedPermanent) {
+                void Linking.openSettings();
+              } else {
+                void loadInitial();
+              }
+            }}
+            style={[styles.errorTile, { top: insets.top + 70 }]}
+          >
+            <Text style={styles.errorTileText}>{loadError}</Text>
+            <Text style={styles.errorTileHint}>
+              {locationDeniedPermanent ? '點擊前往設定開啟' : '點擊重試'}
+            </Text>
+          </Pressable>
         )}
 
         {/* Location button — request permission, re-centre on current device fix */}
@@ -335,6 +521,7 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
         onFlag={handleSheetFlag}
         onBlock={handleSheetBlock}
       />
+      <Coachmark screen="map" />
     </View>
   );
 }
@@ -457,5 +644,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 15,
+  },
+  errorTile: {
+    position: 'absolute',
+    alignSelf: 'center',
+    left: 16,
+    right: 16,
+    zIndex: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2.5,
+    borderColor: colors.border,
+    borderRadius: 6,
+    shadowColor: colors.border,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    alignItems: 'center',
+    gap: 2,
+  },
+  errorTileText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: colors.fg,
+  },
+  errorTileHint: {
+    fontFamily: fontFamilies.monoRegular,
+    fontSize: 10,
+    color: colors.muted,
   },
 });

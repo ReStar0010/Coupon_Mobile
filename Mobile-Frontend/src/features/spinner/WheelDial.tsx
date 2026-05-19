@@ -192,32 +192,37 @@ export default function WheelDial({
     };
   });
 
-  const vb = `0 0 ${size} ${size}`;
+  // iOS SVGs clip their drawable area to width/height; shadow/glow/needle
+  // decorations extend past `size`, so without extra headroom they get cut into
+  // a square. Pad the canvas + offset the viewBox to keep wheel content centered.
+  const PAD = 20;
+  const total = size + PAD * 2;
+  const vb = `${-PAD} ${-PAD} ${total} ${total}`;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width: total, height: total }]}>
       {/* Layer 1: Static background — shadow + solid rim */}
-      <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+      <Svg width={total} height={total} viewBox={vb} style={styles.svg}>
         <Circle cx={cx + 8} cy={cy + 8} r={r + 14} fill="#333" />
         <Circle cx={cx} cy={cy} r={r + 14} fill="#1a1a1a" stroke={rc} strokeWidth={rimW} />
       </Svg>
 
       {/* Layer 2: Pulsing glow ring */}
       <Animated.View
-        style={[styles.overlay, { width: size, height: size }, glowStyle]}
+        style={[styles.overlay, { width: total, height: total }, glowStyle]}
         pointerEvents="none"
       >
-        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+        <Svg width={total} height={total} viewBox={vb} style={styles.svg}>
           <Circle cx={cx} cy={cy} r={r + 18} fill="none" stroke={rc} strokeWidth={16} />
         </Svg>
       </Animated.View>
 
       {/* Layer 3: Idle-rotating notch marks */}
       <Animated.View
-        style={[styles.overlay, { width: size, height: size }, idleStyle]}
+        style={[styles.overlay, { width: total, height: total }, idleStyle]}
         pointerEvents="none"
       >
-        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+        <Svg width={total} height={total} viewBox={vb} style={styles.svg}>
           {notches.map((n, i) => (
             <Line
               key={i}
@@ -233,8 +238,8 @@ export default function WheelDial({
       </Animated.View>
 
       {/* Layer 4: Spinning sectors + hub */}
-      <Animated.View style={[styles.overlay, { width: size, height: size }, animStyle]}>
-        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+      <Animated.View style={[styles.overlay, { width: total, height: total }, animStyle]}>
+        <Svg width={total} height={total} viewBox={vb} style={styles.svg}>
           {ranges.map((sec, i) => {
             const [lx, ly, aDeg] = labelPos(sec.a0, sec.a1, cx, cy, r);
             return (
@@ -288,10 +293,10 @@ export default function WheelDial({
 
       {/* Layer 5: Static needle — topmost, wobbles on pause */}
       <Animated.View
-        style={[styles.overlay, { width: size, height: size }, needleStyle]}
+        style={[styles.overlay, { width: total, height: total }, needleStyle]}
         pointerEvents="none"
       >
-        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+        <Svg width={total} height={total} viewBox={vb} style={styles.svg}>
           {/* Pre-reveal glow halo on needle tip */}
           <AnimatedCircle
             cx={cx}

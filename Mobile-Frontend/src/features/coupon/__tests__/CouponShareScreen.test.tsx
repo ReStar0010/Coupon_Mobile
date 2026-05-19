@@ -1,4 +1,5 @@
 import React from 'react';
+import { Share } from 'react-native';
 import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 import CouponShareScreen from '../CouponShareScreen';
 
@@ -75,16 +76,55 @@ describe('CouponShareScreen', () => {
     jest.useRealTimers();
   });
 
-  it('confirm with link target also calls shareCouponPublic (link UI not yet implemented)', async () => {
-    const { getByTestId } = render(<CouponShareScreen {...makeProps()} />);
+  it('confirm with link target mints a private share and opens the native share sheet', async () => {
+    mockShareCoupon.mockResolvedValueOnce({
+      share_link: 'coupro://collection?token=abc',
+      share_link_web: 'https://api.coupro.pro/collection/abc/?open_ext=1',
+      token: 'abc',
+    });
+    const shareSpy = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: Share.sharedAction } as never);
 
+    const { getByTestId } = render(<CouponShareScreen {...makeProps()} />);
     fireEvent.press(getByTestId('target-link'));
     await act(async () => {
       fireEvent.press(getByTestId('confirm-btn'));
     });
 
-    expect(mockShareCouponPublic).toHaveBeenCalledTimes(1);
-    expect(mockShareCoupon).not.toHaveBeenCalled();
+    // No public-pool call; instead a private share + RN's Share.share.
+    expect(mockShareCouponPublic).not.toHaveBeenCalled();
+    expect(mockShareCoupon).toHaveBeenCalledWith('c-9');
+    expect(shareSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://api.coupro.pro/collection/abc/?open_ext=1' }),
+    );
+    shareSpy.mockRestore();
+  });
+
+  it('does NOT mark success when the user dismisses the share sheet without sharing', async () => {
+    // Regression caught by code review: Share.share resolves with
+    // dismissedAction when the OS sheet is cancelled. Treating that as
+    // "shared" inflated analytics and incorrectly showed the success
+    // overlay.
+    mockShareCoupon.mockResolvedValueOnce({
+      share_link: 'coupro://collection?token=xyz',
+      share_link_web: 'https://api.coupro.pro/collection/xyz/?open_ext=1',
+      token: 'xyz',
+    });
+    const shareSpy = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: Share.dismissedAction } as never);
+
+    const { getByTestId, queryByText } = render(<CouponShareScreen {...makeProps()} />);
+    fireEvent.press(getByTestId('target-link'));
+    await act(async () => {
+      fireEvent.press(getByTestId('confirm-btn'));
+    });
+
+    expect(shareSpy).toHaveBeenCalled();
+    // Success overlay must NOT appear — the user cancelled.
+    expect(queryByText('已分享！')).toBeNull();
+    shareSpy.mockRestore();
   });
 
   it('shows error banner if shareCouponPublic fails', async () => {

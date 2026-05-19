@@ -45,11 +45,49 @@ describe('CouponDetailScreen', () => {
     );
   });
 
+  it('forwards the coupon id when navigating to coupon-share', async () => {
+    // Regression: without the id, CouponShareScreen rejects with
+    // "Missing coupon id" and the share never reaches the backend.
+    mockGetCoupon.mockResolvedValueOnce({
+      id: 'c-42', store: 'X', detail: 'D', expires: 'E', amount: 10, status: 'active',
+    });
+    const onNavigate = jest.fn();
+    const props = makeProps({
+      onNavigate,
+      params: { id: 'c-42', store: 'X', detail: 'D', expires: 'E', amount: 10 },
+    });
+    const { getByTestId } = render(<CouponDetailScreen {...props} />);
+    await waitFor(() => getByTestId('share-btn'));
+    fireEvent.press(getByTestId('share-btn'));
+    expect(onNavigate).toHaveBeenCalledWith(
+      'coupon-share',
+      expect.objectContaining({ id: 'c-42' }),
+    );
+  });
+
   it('tapping QR button calls onNavigate with coupon-qr', () => {
     const onNavigate = jest.fn();
     const { getByTestId } = render(<CouponDetailScreen {...makeProps({ onNavigate })} />);
     fireEvent.press(getByTestId('use-btn'));
     expect(onNavigate).toHaveBeenCalledWith('coupon-qr', expect.objectContaining({ amount: 25 }));
+  });
+
+  it('forwards the coupon id when navigating to coupon-qr', async () => {
+    mockGetCoupon.mockResolvedValueOnce({
+      id: 'c-77', store: 'X', detail: 'D', expires: 'E', amount: 10, status: 'active',
+    });
+    const onNavigate = jest.fn();
+    const props = makeProps({
+      onNavigate,
+      params: { id: 'c-77', store: 'X', detail: 'D', expires: 'E', amount: 10 },
+    });
+    const { getByTestId } = render(<CouponDetailScreen {...props} />);
+    await waitFor(() => getByTestId('use-btn'));
+    fireEvent.press(getByTestId('use-btn'));
+    expect(onNavigate).toHaveBeenCalledWith(
+      'coupon-qr',
+      expect.objectContaining({ id: 'c-77' }),
+    );
   });
 
   it('calls getCoupon on mount when params.id is present', async () => {

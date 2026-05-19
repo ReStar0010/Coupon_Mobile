@@ -3,7 +3,9 @@
     "name": "CouPro",
     "slug": "Mobile-Frontend",
     "version": "1.0.3",
-    "scheme": ["coupro"],
+    "scheme": [
+      "coupro"
+    ],
     "web": {
       "favicon": "./assets/icon.png",
       "bundler": "metro"
@@ -55,21 +57,31 @@
         {
           "ios": {
             "useFrameworks": "static",
-            "forceStaticLinking": ["RNFBApp", "RNFBAnalytics", "RNFBPerf"]
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAnalytics",
+              "RNFBPerf"
+            ]
           }
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-localization"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.cokayne.MobileFrontend",
-      "associatedDomains": ["applinks:api.coupro.pro", "applinks:app.coupro.pro"],
+      "associatedDomains": [
+        "applinks:api.coupro.pro",
+        "applinks:app.coupro.pro"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -79,8 +91,14 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
-      "blockedPermissions": ["com.google.android.gms.permission.AD_ID"],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ],
       "googleServicesFile": "./google-services.json",
       "package": "com.cokayne.MobileFrontend",
       "intentFilters": [
@@ -119,7 +137,10 @@
               "pathPrefix": "/voucher/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "config": {

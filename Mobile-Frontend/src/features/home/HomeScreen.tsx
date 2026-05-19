@@ -15,6 +15,7 @@ import CouponRow from '@/src/components/ui/CouponRow';
 import HomeHeader from './HomeHeader';
 import CouPointsCard from './CouPointsCard';
 import DrawModal from './DrawModal';
+import Coachmark from '@/src/features/onboarding/Coachmark';
 import { useWallet } from '@/src/state/WalletContext';
 import type { Coupon } from '@/src/services/api/coupons';
 
@@ -180,6 +181,7 @@ export default function HomeScreen({
         )}
       />
       <DrawModal visible={showDraw} onClose={() => setShowDraw(false)} onDraw={() => {}} />
+      <Coachmark screen="home" />
     </View>
   );
 }

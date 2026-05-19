@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import {
@@ -22,6 +23,8 @@ export default function HistoryDetailScreen({
   onBack,
 }: HistoryDetailScreenProps): React.JSX.Element {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
+  // Detail route lives outside (tabs); no parent inset.
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +48,7 @@ export default function HistoryDetailScreen({
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Pressable testID="detail-back" onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
         </Pressable>

@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import {
@@ -80,6 +81,9 @@ export default function HistoryScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // History routes live outside (tabs), so the parent layout adds no top
+  // padding for the status bar — we own the inset here.
+  const insets = useSafeAreaInsets();
 
   // Guard against late responses overwriting a newer filter selection.
   const requestIdRef = useRef(0);
@@ -146,7 +150,7 @@ export default function HistoryScreen({
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Pressable testID="history-back" onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
         </Pressable>

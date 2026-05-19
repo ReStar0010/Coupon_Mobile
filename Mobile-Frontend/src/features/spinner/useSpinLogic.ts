@@ -3,15 +3,17 @@ import { MULTS, MELT_MULTS, getFloor } from './constants';
 import type { SpinResult } from './ResultModal';
 import { drawSpinner } from '../../services/api/spinner';
 import type { SpinnerDrawResult } from '../../services/api/spinner';
+import { track } from '../../services/analytics/posthog';
+import { getFlag } from '../../services/analytics/flags';
+
+/** Variants for the first spinner A/B test. Wired into PostHog as a multivariate flag. */
+export type SpinnerCostVariant = 'default' | 'cheap' | 'bundled';
 
 export type SpinPhase = 'idle' | 'launch' | 'peak' | 'decel' | 'pause' | 'reveal' | 'meltdown';
 
 interface SpinLogicOptions {
+  /** Number of gems being wagered this spin (1..5). */
   gems: number;
-  /** Kept for backwards-compatible call sites; no longer invoked. Server now owns the gem debit. */
-  setGems?: (fn: (prev: number) => number) => void;
-  /** Kept for backwards-compatible call sites; no longer invoked. Server now owns CouPoint credit. */
-  setCouPoints?: (fn: (prev: number) => number) => void;
   players: number;
   allFilled: boolean;
   /** Called after the reveal settles so the global wallet picks up the server-authoritative balances. */
@@ -180,9 +182,28 @@ export function useSpinLogic({
     setPhase('launch');
 
     const gemsSnapshot = gems;
+    // Read the A/B variant once per draw so it gets attached to every
+    // funnel event from this spin (started + won). PostHog uses the
+    // variant on the started event for cohort assignment and the won
+    // event for the success metric.
+    const costVariant = getFlag<SpinnerCostVariant>('spinner_cost_variant', 'default');
+    track('spinner.draw_started', { gems: gemsSnapshot, players, costVariant });
 
     void drawSpinner(gemsSnapshot)
       .then((draw) => {
+        // Fire on EVERY completed draw, win or lose. `won` is a property
+        // so funnel queries filter on it; do NOT branch the event name,
+        // otherwise every experiment query needs to OR two event names
+        // together. (Convention also applies to coupon.redeem_succeeded
+        // which is a one-shot success-only event; this one is the
+        // outcome-bearing completion event.)
+        track('spinner.draw_completed', {
+          gems: gemsSnapshot,
+          players,
+          multiplier: draw.multiplier,
+          won: draw.multiplier > 0,
+          costVariant,
+        });
         startAnimation(draw);
       })
       .catch((err: unknown) => {

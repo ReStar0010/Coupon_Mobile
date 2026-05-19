@@ -75,17 +75,20 @@ export default function MeltdownWheel({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  const vb = `0 0 ${size} ${size}`;
+  // iOS clips SVG bounds; pad canvas + offset viewBox to keep decorations visible.
+  const PAD = 16;
+  const total = size + PAD * 2;
+  const vb = `${-PAD} ${-PAD} ${total} ${total}`;
 
   return (
-    <View style={styles.container}>
-      <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+    <View style={[styles.container, { width: total, height: total }]}>
+      <Svg width={total} height={total} viewBox={vb} style={styles.svg}>
         <Circle cx={cx + 5} cy={cy + 5} r={r + 10} fill="#2a0060" />
         <Circle cx={cx} cy={cy} r={r + 10} fill="#1a1a1a" stroke={colors.purple} strokeWidth={4} />
       </Svg>
 
-      <Animated.View style={[styles.overlay, { width: size, height: size }, animStyle]}>
-        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+      <Animated.View style={[styles.overlay, { width: total, height: total }, animStyle]}>
+        <Svg width={total} height={total} viewBox={vb} style={styles.svg}>
           {ranges.map((sec, i) => {
             const [lx, ly, aDeg] = labelPos(sec.a0, sec.a1, cx, cy, r);
             return (
@@ -119,8 +122,8 @@ export default function MeltdownWheel({
         </Svg>
       </Animated.View>
 
-      <View style={[styles.overlay, { width: size, height: size }]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={vb} style={styles.svg}>
+      <View style={[styles.overlay, { width: total, height: total }]} pointerEvents="none">
+        <Svg width={total} height={total} viewBox={vb} style={styles.svg}>
           <Polygon
             points={`${cx - 9},${cy - r - 2} ${cx + 9},${cy - r - 2} ${cx},${cy - r + 9}`}
             fill={colors.yellow}

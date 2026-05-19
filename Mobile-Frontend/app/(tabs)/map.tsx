@@ -9,6 +9,7 @@ export default function MapRoute() {
     <MapScreen
       onNavigate={(screen, params) => {
         if (screen === 'coupon-detail') router.push({ pathname: '/coupon/[id]', params: { id: (params as Record<string, string> | undefined)?.store ?? 'detail', ...params } } as any);
+        else if (screen === 'coupon-receive') router.push('/coupon/receive');
         else router.push(`/(tabs)/${screen}` as any);
       }}
     />

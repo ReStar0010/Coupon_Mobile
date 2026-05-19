@@ -45,9 +45,7 @@ function makeProps(overrides = {}) {
   return {
     onNavigate: jest.fn(),
     gems: 1,
-    setGems: jest.fn(),
     couPoints: 0,
-    setCouPoints: jest.fn(),
     refreshWallet: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -92,7 +90,9 @@ describe('SpinnerScreen', () => {
     expect(getByTestId('spin-button').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('press calls drawSpinner with current gem count', async () => {
+  it('press calls drawSpinner with the chosen bet (defaults to 1)', async () => {
+    // Wager defaults to 1 even when the wallet holds more, so the user can
+    // choose how much to risk per spin via the Stepper.
     const props = makeProps({ gems: 3 });
     const { getByTestId } = render(<SpinnerScreen {...props} />);
     const btn = getByTestId('spin-button');
@@ -102,21 +102,59 @@ describe('SpinnerScreen', () => {
     });
 
     expect(mockedDrawSpinner).toHaveBeenCalledTimes(1);
+    expect(mockedDrawSpinner).toHaveBeenCalledWith(1);
+  });
+
+  it('Stepper increments the wager and that wager is sent to drawSpinner', async () => {
+    const props = makeProps({ gems: 5 });
+    const { getByTestId, getAllByTestId } = render(<SpinnerScreen {...props} />);
+
+    // Two increments: the gem Stepper is the FIRST one rendered (the second
+    // is for the player count). The Stepper captures its `value` in a
+    // closure at render time, so successive presses inside the same `act()`
+    // would both see value=1 and only land one increment. Split into two
+    // act() blocks so React re-renders between them.
+    const gemInc = () => getAllByTestId('stepper-increment')[0];
+    await act(async () => {
+      fireEvent.press(gemInc());
+    });
+    await act(async () => {
+      fireEvent.press(gemInc());
+    });
+
+    await act(async () => {
+      fireEvent.press(getByTestId('spin-button'));
+    });
+
     expect(mockedDrawSpinner).toHaveBeenCalledWith(3);
   });
 
-  it('does not mutate local gem balance via setGems (server owns the debit)', async () => {
-    const setGems = jest.fn();
-    const props = makeProps({ gems: 3, setGems });
-    const { getByTestId } = render(<SpinnerScreen {...props} />);
-    const btn = getByTestId('spin-button');
+  it('clamps the wager to the wallet balance — cannot bet more than you have', async () => {
+    // User has only 1 gem. Pressing the gem Stepper's + must not raise the
+    // wager above the wallet, so drawSpinner still gets 1.
+    const props = makeProps({ gems: 1 });
+    const { getByTestId, getAllByTestId } = render(<SpinnerScreen {...props} />);
 
+    const incButtons = getAllByTestId('stepper-increment');
     await act(async () => {
-      fireEvent.press(btn);
+      // Try to increment four times — should all no-op because max=min(5, wallet)=1.
+      fireEvent.press(incButtons[0]);
+      fireEvent.press(incButtons[0]);
+      fireEvent.press(incButtons[0]);
+      fireEvent.press(incButtons[0]);
     });
 
-    expect(setGems).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.press(getByTestId('spin-button'));
+    });
+
+    expect(mockedDrawSpinner).toHaveBeenCalledWith(1);
   });
+
+  // The setGems prop has been removed from SpinnerScreenProps entirely —
+  // the server owns the gem debit and the screen no longer attempts (nor
+  // is allowed) to mutate the wallet locally. The earlier "does not mutate
+  // via setGems" assertion is now enforced by the type system.
 
   it('renders player slot avatars', () => {
     const { getAllByTestId } = render(<SpinnerScreen {...makeProps()} />);

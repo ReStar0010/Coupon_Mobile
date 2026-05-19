@@ -7,6 +7,7 @@ import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { receiveCoupon } from '@/src/services/api/coupons';
 import { useWallet } from '@/src/state/WalletContext';
+import PermissionDeniedView from '@/src/components/ui/PermissionDeniedView';
 
 interface CouponReceiveQRScreenProps {
   onBack: () => void;
@@ -158,9 +159,11 @@ export default function CouponReceiveQRScreen({
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
           />
         ) : (
-          <View style={s.noCamera}>
-            <Text style={s.noCameraText}>需要相機權限</Text>
-          </View>
+          <PermissionDeniedView
+            title="需要相機權限"
+            description="開啟相機以掃描店家 QR Code 領取優惠"
+            onRetry={permission?.canAskAgain ? () => { void requestPermission(); } : undefined}
+          />
         )}
         <Text style={s.scanHint}>將店家 QR Code 對準框內</Text>
         {success && (

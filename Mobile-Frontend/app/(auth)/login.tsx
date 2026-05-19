@@ -15,24 +15,40 @@ import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 import NeoButton from '@/src/components/ui/NeoButton';
 import LogoIcon from '@/src/components/icons/LogoIcon';
+import { loginSchema, fieldErrorsFrom } from '@/src/features/auth/schemas';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password) return;
-    setError('');
+    // Single source of truth for "what counts as a valid login input"
+    // — the Zod schema. Per-field issues drive inline UI; anything
+    // server-side comes back as `formError`.
+    const parsed = loginSchema.safeParse({ phone, password });
+    setPhoneError(null);
+    setPasswordError(null);
+    setFormError('');
+    if (!parsed.success) {
+      const fields = fieldErrorsFrom(parsed.error);
+      setPhoneError(fields.phone ?? null);
+      setPasswordError(fields.password ?? null);
+      return;
+    }
     setLoading(true);
     try {
-      await login(email.trim(), '', password);
+      await login(undefined, parsed.data.phone, parsed.data.password);
       router.replace('/(tabs)/home');
-    } catch {
-      setError('登入失敗，請確認帳號密碼');
+    } catch (e) {
+      const message =
+        e instanceof Error && e.message ? e.message : '登入失敗，請確認手機號碼與密碼';
+      setFormError(message);
     } finally {
       setLoading(false);
     }
@@ -54,33 +70,53 @@ export default function LoginScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>登入</Text>
 
-          <Text style={styles.label}>電子信箱</Text>
+          <Text style={styles.label}>手機號碼</Text>
           <TextInput
             style={styles.input}
-            value={email}
-            onChangeText={setEmail}
+            value={phone}
+            onChangeText={(v) => {
+              setPhone(v);
+              if (phoneError) setPhoneError(null);
+            }}
             autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="your@email.com"
-            testID="email-input"
+            keyboardType="phone-pad"
+            placeholder="0912-345-678"
+            testID="phone-input"
           />
+          {phoneError ? (
+            <Text testID="phone-error" style={styles.error}>
+              {phoneError}
+            </Text>
+          ) : null}
 
           <Text style={styles.label}>密碼</Text>
           <TextInput
             style={styles.input}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(v) => {
+              setPassword(v);
+              if (passwordError) setPasswordError(null);
+            }}
             secureTextEntry
             placeholder="••••••••"
             testID="password-input"
           />
+          {passwordError ? (
+            <Text testID="password-error" style={styles.error}>
+              {passwordError}
+            </Text>
+          ) : null}
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {formError ? (
+            <Text testID="form-error" style={styles.error}>
+              {formError}
+            </Text>
+          ) : null}
 
           <NeoButton
             label={loading ? '登入中…' : '登入'}
             onPress={handleLogin}
-            disabled={loading || !email.trim() || !password}
+            disabled={loading || !phone.trim() || !password}
             fullWidth
             style={styles.btn}
           />

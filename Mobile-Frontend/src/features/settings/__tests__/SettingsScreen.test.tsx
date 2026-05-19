@@ -29,6 +29,14 @@ jest.mock('@/src/state/AuthContext', () => ({
   }),
 }));
 
+// expo-constants — the source of truth for app version on the settings screen.
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: { version: '9.9.9' },
+  },
+}));
+
 // ── Chrome mocks ─────────────────────────────────────────────────────────────
 jest.mock('@/src/components/chrome/StatusBar', () => 'AppStatusBar');
 jest.mock('@/src/components/chrome/TabBar', () => {
@@ -494,5 +502,15 @@ describe('SettingsScreen — no modal shown initially', () => {
     expect(queryByTestId('blocked-modal')).toBeNull();
     expect(queryByTestId('verify-modal')).toBeNull();
     expect(queryByTestId('legal-modal')).toBeNull();
+  });
+});
+
+describe('SettingsScreen — version label', () => {
+  it('renders the version from app.json (via expo-constants), not a hardcoded value', () => {
+    // The hardcoded "v1.0.0-beta" drifted out of sync with app.json. Anchor
+    // the displayed version to Constants.expoConfig.version so a release
+    // bump in app.json automatically reflects on the settings screen.
+    const { getByText } = render(<SettingsScreen {...defaultProps} />);
+    expect(getByText('v9.9.9')).toBeTruthy();
   });
 });

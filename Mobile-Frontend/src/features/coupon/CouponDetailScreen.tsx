@@ -6,6 +6,8 @@ import { fontFamilies } from '@/src/theme/typography';
 import GemIcon from '@/src/components/icons/GemIcon';
 import { getCoupon } from '@/src/services/api/coupons';
 import type { Coupon } from '@/src/services/api/coupons';
+import { track } from '@/src/services/analytics/posthog';
+import Coachmark from '@/src/features/onboarding/Coachmark';
 
 interface NavParams {
   id?: string;
@@ -35,6 +37,7 @@ export default function CouponDetailScreen({
     if (!params.id) {
       return;
     }
+    track('coupon.viewed', { couponId: params.id });
     let cancelled = false;
     setIsLoading(true);
     setLoadError(null);
@@ -151,7 +154,10 @@ export default function CouponDetailScreen({
             <View style={s.ctaShadow} />
             <Pressable
               testID="share-btn"
-              onPress={() => onNavigate('coupon-share', { store, detail, expires, amount })}
+              onPress={() => {
+                track('coupon.share_started', { couponId: params.id });
+                onNavigate('coupon-share', { id: params.id, store, detail, expires, amount });
+              }}
               style={[s.ctaBtn, s.ctaBtnShare]}
             >
               <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -170,7 +176,10 @@ export default function CouponDetailScreen({
             <View style={[s.ctaShadow, s.ctaShadowDark]} />
             <Pressable
               testID="use-btn"
-              onPress={() => onNavigate('coupon-qr', { store, detail, expires, amount })}
+              onPress={() => {
+                track('coupon.redeem_started', { couponId: params.id });
+                onNavigate('coupon-qr', { id: params.id, store, detail, expires, amount });
+              }}
               style={[s.ctaBtn, s.ctaBtnUse]}
             >
               <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -189,6 +198,7 @@ export default function CouponDetailScreen({
           </View>
         </View>
       </ScrollView>
+      <Coachmark screen="coupon-detail" />
     </SafeAreaView>
   );
 }

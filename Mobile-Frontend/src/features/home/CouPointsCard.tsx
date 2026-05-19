@@ -34,7 +34,9 @@ export default function CouPointsCard({
       <View style={styles.card}>
         <Text style={styles.label}>CouPoint 餘額</Text>
         <View style={styles.balanceRow}>
-          <CoinIcon size={40} />
+          <View style={styles.balanceIconWrap}>
+            <CoinIcon size={40} />
+          </View>
           <Text testID="coupoints-balance" style={styles.balanceNum}>
             {couPoints}
           </Text>
@@ -94,9 +96,15 @@ const styles = StyleSheet.create({
   },
   balanceRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 2,
+  },
+  balanceIconWrap: {
+    width: 40,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   balanceNum: {
     fontFamily: fontFamilies.extraBold,
