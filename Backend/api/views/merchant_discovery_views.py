@@ -243,12 +243,8 @@ def list_nearby_merchants(request):
     store_ids = [s.id for s, _ in in_range]
     held_counts = dict(
         Coupon.objects
-        .filter(
-            store_id__in=store_ids,
-            coupon_type='exclusive',
-            current_holder=request.user,
-            expiry_date__gt=now,
-        )
+        .active_for_user(request.user, now=now)
+        .filter(store_id__in=store_ids)
         .values('store_id')
         .annotate(n=Count('id'))
         .values_list('store_id', 'n')
@@ -298,12 +294,8 @@ def get_merchant_detail(request, id: int):
     # is unrealistic for a single bottom-sheet glance.
     my_coupons_qs = (
         Coupon.objects
-        .filter(
-            store=store,
-            current_holder=request.user,
-            coupon_type='exclusive',
-            expiry_date__gt=now,
-        )
+        .active_for_user(request.user, now=now)
+        .at_store(store)
         .order_by('-id')[:20]
     )
 
@@ -319,11 +311,29 @@ def get_merchant_detail(request, id: int):
         .order_by('-created_at')[:20]
     )
 
+    # Surface the user's OWN outstanding public shares at this store as a
+    # separate read-only section. The sharer can't self-claim (blocked at
+    # accept_share_request), but they need visual confirmation that the
+    # share landed — otherwise an empty sharedCoupons list looks like a
+    # silent failure when the user is testing their own share.
+    my_public_shares_qs = (
+        CouponShareRequest.objects
+        .filter(
+            from_user=request.user,
+            is_public=True,
+            status='pending',
+            coupon__store=store,
+        )
+        .select_related('coupon', 'coupon__store', 'from_user')
+        .order_by('-created_at')[:20]
+    )
+
     news_qs = StoreNews.objects.filter(store=store).select_related('store').order_by('-created_at')[:5]
 
     base = _serialize_merchant_summary(store)
     base['myCoupons'] = [_serialize_merchant_coupon(c) for c in my_coupons_qs]
     base['sharedCoupons'] = [_serialize_shared_coupon(s) for s in shared_coupons_qs]
+    base['myPublicShares'] = [_serialize_shared_coupon(s) for s in my_public_shares_qs]
     base['news'] = [_serialize_news(n) for n in news_qs]
     return Response(base)
 

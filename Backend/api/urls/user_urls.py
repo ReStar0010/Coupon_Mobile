@@ -6,6 +6,7 @@ from api.views.user_profile import (
 )
 from api.views.consumer_account_deletion import consumer_pre_delete_check, consumer_delete_account
 from api.views.feedback import submit_feedback
+from api.views.app_version import version_info
 from api.views.wallet_views import get_transaction, get_wallet, list_transactions
 from api.views.profile_views import profile
 from api.views.spinner_views import get_spinner_state, post_spinner_draw
@@ -31,6 +32,9 @@ urlpatterns = [
 
     # Feedback
     path('feedback/', submit_feedback, name='feedback'),
+
+    # App version metadata for the upgrade-nudge flow.
+    path('app/version-info/', version_info, name='app_version_info'),
 
     # Phone management
     path('user/phone/', user_phone, name='user_phone'),
