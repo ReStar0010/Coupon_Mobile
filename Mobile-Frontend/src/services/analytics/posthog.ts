@@ -177,12 +177,29 @@ export function track(eventName: string, props?: Record<string, unknown>): void 
 /**
  * Associate the current device with a backend user id. Call once on
  * login / register / app boot when a stored session restores a user.
+ *
+ * After updating the distinct id, we fire-and-forget a flag refresh
+ * (`reloadFeatureFlagsAsync`) so a user who logs in and immediately
+ * spins the wheel sees their user-bucketed feature-flag variants
+ * instead of the anonymous-bucket values still cached from before
+ * login. Without this refresh, A/B variants only update on the next
+ * cold start. Documented behaviour per PostHog v3+ docs.
  */
 export function identify(userId: string, traits?: Record<string, unknown>): void {
   const client = getClient();
   if (!client) return;
   try {
     client.identify(userId, stripPII(traits) as IdentifyProps);
+    // Best-effort flag refresh. Never block identify on a network
+    // round-trip; swallow rejection so a stale-flag refresh failure
+    // doesn't break the telemetry contract. The cast tolerates SDK
+    // type drift between releases (return type may be Promise<void>
+    // or void depending on version).
+    const maybePromise = (client as { reloadFeatureFlagsAsync?: () => unknown })
+      .reloadFeatureFlagsAsync?.();
+    if (maybePromise && typeof (maybePromise as Promise<unknown>).then === 'function') {
+      (maybePromise as Promise<unknown>).catch(() => undefined);
+    }
   } catch (err) {
     if (__DEV__) {
       // eslint-disable-next-line no-console

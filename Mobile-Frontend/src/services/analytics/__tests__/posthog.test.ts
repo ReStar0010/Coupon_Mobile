@@ -11,6 +11,7 @@ const mockCapture = jest.fn();
 const mockIdentify = jest.fn();
 const mockReset = jest.fn();
 const mockGetFeatureFlag = jest.fn();
+const mockReloadFeatureFlagsAsync = jest.fn(() => Promise.resolve());
 
 jest.mock('posthog-react-native', () => ({
   __esModule: true,
@@ -19,6 +20,7 @@ jest.mock('posthog-react-native', () => ({
     identify: mockIdentify,
     reset: mockReset,
     getFeatureFlag: mockGetFeatureFlag,
+    reloadFeatureFlagsAsync: mockReloadFeatureFlagsAsync,
   })),
 }));
 
@@ -132,6 +134,29 @@ describe('analytics/posthog wrapper', () => {
       const [userId, traits] = mockIdentify.mock.calls[0];
       expect(userId).toBe('u-9');
       expect(traits).toEqual({ displayName: 'CoKayne' });
+    });
+
+    it('identify() triggers a flag refresh so post-login A/B bucketing updates immediately', async () => {
+      // Without this refresh, PostHog keeps the anonymous-bucket flag
+      // values cached from before login, so the first spinner draw
+      // after sign-in would silently get the wrong variant.
+      const { identify } = withKey();
+      identify('u-7', { displayName: 'CoKayne' });
+      expect(mockReloadFeatureFlagsAsync).toHaveBeenCalledTimes(1);
+      // Settle the fire-and-forget promise so the test runner doesn't
+      // warn about pending microtasks.
+      await Promise.resolve();
+    });
+
+    it('identify() never throws when reloadFeatureFlagsAsync rejects', async () => {
+      mockReloadFeatureFlagsAsync.mockImplementationOnce(() =>
+        Promise.reject(new Error('flags down')),
+      );
+      const { identify } = withKey();
+      expect(() => identify('u-8')).not.toThrow();
+      // Drain the rejected promise so Jest doesn't see an unhandled
+      // rejection from the swallowed `.catch()`.
+      await Promise.resolve();
     });
 
     it('reset() calls underlying client.reset', () => {
