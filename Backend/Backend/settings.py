@@ -14,21 +14,72 @@ load_dotenv()
 # BASE_DIR is set below; load Backend/.env after paths are available (see end of Paths section)
 
 import sentry_sdk
+from sentry_sdk.scrubber import EventScrubber, DEFAULT_DENYLIST
 
-sentry_sdk.init(
-    dsn=os.environ.get("SENTRY_DSN", ""),
-    # PII disabled: JWTs and phone numbers flow through requests.
-    send_default_pii=False,
-    # Enable sending logs to Sentry
-    enable_logs=True,
-    # Sampling rates read from env so production_settings.py can lower them via .env.
-    # Defaults to 1.0 (100%) in dev; production should set these to ~0.1 via env vars.
-    traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
-    profile_session_sample_rate=float(os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "1.0")),
-    # Set profile_lifecycle to "trace" to automatically
-    # run the profiler on when there is an active transaction
-    profile_lifecycle="trace",
-)
+# Belt-and-suspenders denylist on top of `send_default_pii=False`. The
+# default scrubber catches obvious keys; this list adds project-specific
+# ones we know flow through requests (JWTs, phone numbers, OTPs).
+_SENTRY_DENYLIST = DEFAULT_DENYLIST + [
+    "access_token",
+    "refresh_token",
+    "phone_number",
+    "phone",
+    "otp",
+    "verification_code",
+]
+
+# Guard against silent SDK regressions: if a future sentry-sdk upgrade
+# shrinks DEFAULT_DENYLIST (or someone vendors a stripped fork), our
+# composed list silently loses coverage. Pinned to the baseline at the
+# time of writing — bump the floor only after auditing the new contents.
+# Baseline: sentry-sdk==2.53.0 ships 32 entries in DEFAULT_DENYLIST.
+_SENTRY_DEFAULT_DENYLIST_MIN = 32
+if len(DEFAULT_DENYLIST) < _SENTRY_DEFAULT_DENYLIST_MIN:
+    raise RuntimeError(
+        f"sentry-sdk DEFAULT_DENYLIST shrank to {len(DEFAULT_DENYLIST)} entries "
+        f"(expected >= {_SENTRY_DEFAULT_DENYLIST_MIN}). Audit the new contents "
+        "before lowering this floor — silently shipping PII is the failure mode."
+    )
+
+# Guard empty DSN so a misconfigured dev env doesn't waste init cycles
+# constructing a client that immediately no-ops. SDK already no-ops on
+# empty DSN; this keeps the init line clean and visible.
+_SENTRY_DSN = os.environ.get("SENTRY_DSN")
+if _SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        # PII disabled: JWTs and phone numbers flow through requests.
+        send_default_pii=False,
+        # Enable sending logs to Sentry
+        enable_logs=True,
+        # Environment + release let the Sentry dashboard segment errors
+        # by deploy. RENDER_GIT_COMMIT is auto-provided by Render; falls
+        # back to None on other hosts.
+        environment=os.environ.get("SENTRY_ENVIRONMENT")
+        or os.environ.get("DJANGO_ENV", "development"),
+        release=os.environ.get("SENTRY_RELEASE")
+        or os.environ.get("RENDER_GIT_COMMIT")
+        or None,
+        # Sampling rates read from env so production_settings.py can lower them via .env.
+        # Defaults to 1.0 (100%) in dev; production should set these to ~0.1 via env vars.
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+        profile_session_sample_rate=float(
+            os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "1.0")
+        ),
+        # Set profile_lifecycle to "trace" to automatically
+        # run the profiler on when there is an active transaction
+        profile_lifecycle="trace",
+        # Additional defense-in-depth on top of send_default_pii=False.
+        # Denylist runs on every event before send; catches PII that
+        # might slip into custom contexts or breadcrumb data.
+        #
+        # `recursive=True` is O(event size). Events ship from a
+        # background transport thread, so the cost only lands on the
+        # synchronous `sentry_sdk.capture_*()` call path — measured
+        # negligible. Don't drop the recursion: PII frequently hides
+        # inside `breadcrumb.data` and nested `extra` payloads.
+        event_scrubber=EventScrubber(denylist=_SENTRY_DENYLIST, recursive=True),
+    )
 
 # -----------------------------------------------------------------------------
 # Paths & environment

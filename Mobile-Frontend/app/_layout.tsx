@@ -1,16 +1,18 @@
 import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useNavigationContainerRef } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import Constants from 'expo-constants';
 import FontProvider from '@/src/theme/FontProvider';
 import { AuthProvider } from '@/src/state/AuthContext';
 import { WalletProvider } from '@/src/state/WalletContext';
 import { tryApplyUpdate } from '@/src/services/updates/applyUpdates';
 import UpgradePrompt from '@/src/features/upgrade/UpgradePrompt';
 import ErrorBoundary from '@/src/components/ErrorBoundary';
+import { scrubBreadcrumb } from '@/src/services/sentry/scrubBreadcrumb';
 
 // Launch-time EAS Update budget. 5s gives the typical 3-5 MB bundle a
 // fair shot on healthy wifi while never trapping the user on a bad
@@ -18,14 +20,51 @@ import ErrorBoundary from '@/src/components/ErrorBoundary';
 // on the next cold start, so a 'timed-out' result still makes progress.
 const UPDATE_DEADLINE_MS = 5_000;
 
+// Sentry navigation integration is created at module scope so the
+// instance referenced by Sentry.init() is the same one we register
+// the navigation container against inside the component. Re-creating
+// it would break Fast Refresh's screen-transition span tracking.
+const navigationIntegration = Sentry.reactNavigationIntegration({
+  enableTimeToInitialDisplay: true,
+});
+
+// Helper: read app version from app.json so Sentry releases line up
+// with what UpgradePrompt's `Constants.expoConfig?.version` reads —
+// single source of truth.
+function resolveRelease(): string | undefined {
+  const version = Constants.expoConfig?.version;
+  return version ? `coupro-mobile@${version}` : undefined;
+}
+
+// `EXPO_PUBLIC_ENV` lets ops tag environments without rebuilding the
+// JS bundle for every channel switch. Falls back to NODE_ENV so a
+// dev/prod split is still visible if the env var isn't set yet.
+function resolveEnvironment(): string {
+  return process.env.EXPO_PUBLIC_ENV ?? (process.env.NODE_ENV === 'production' ? 'production' : 'development');
+}
+
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
   enabled: process.env.NODE_ENV === 'production',
+  // Performance monitoring: 10% sample is the canonical starting point
+  // (Sentry docs). Lower than the BE default because mobile transaction
+  // volume is higher and the Sentry tier costs more per RN event.
+  tracesSampleRate: 0.1,
+  environment: resolveEnvironment(),
+  release: resolveRelease(),
+  integrations: [navigationIntegration],
+  // CRITICAL — JWT tokens flow through the spinner co-op WebSocket URL
+  // (`?token=…`). Without this scrub, the RN SDK captures the full URL
+  // as a breadcrumb and ships the token to Sentry. Token TTL is 10 min
+  // but Sentry retains breadcrumbs for weeks — defense in depth.
+  beforeBreadcrumb: scrubBreadcrumb,
 });
 
 SplashScreen.preventAutoHideAsync();
 
 function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
+
   // Fire-and-forget update check. The deadline race inside tryApplyUpdate
   // guarantees this never blocks the UI thread; we just kick it off on
   // mount and let it either reload the app (if there's a new bundle)
@@ -39,6 +78,15 @@ function RootLayout() {
   useEffect(() => {
     void tryApplyUpdate({ deadlineMs: UPDATE_DEADLINE_MS });
   }, []);
+
+  // Register the navigation container with the Sentry integration so
+  // screen transitions become performance spans. Idempotent — the SDK
+  // handles repeat registrations safely on Fast Refresh.
+  useEffect(() => {
+    if (navigationRef?.current) {
+      navigationIntegration.registerNavigationContainer(navigationRef);
+    }
+  }, [navigationRef]);
 
   return (
     // ErrorBoundary sits just INSIDE GestureHandlerRootView so the
