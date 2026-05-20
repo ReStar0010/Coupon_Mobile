@@ -62,6 +62,13 @@ export default function NeoButton({
         onPressOut={() => setPressed(false)}
         accessibilityRole="button"
         accessibilityLabel={label}
+        // Propagate disabled to a11y. Without this, react-native-web emits
+        // a `<button>` with no `aria-disabled`, so screen readers and
+        // Playwright's `toBeDisabled()` matcher both incorrectly treat
+        // the button as enabled. The on-press no-op above prevents
+        // actual activation, but the surface signal needs to match.
+        accessibilityState={{ disabled }}
+        disabled={disabled}
         style={[
           styles.button,
           {

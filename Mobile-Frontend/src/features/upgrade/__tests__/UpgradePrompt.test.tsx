@@ -7,11 +7,23 @@ jest.mock('@/src/services/api/appVersion', () => ({
   getVersionInfo: () => mockGetVersionInfo(),
 }));
 
-const mockNativeVersion = { current: '1.0.0' };
+const mockNativeVersion = { current: '1.0.0' as string | null };
 jest.mock('expo-application', () => ({
   __esModule: true,
   get nativeApplicationVersion() {
     return mockNativeVersion.current;
+  },
+}));
+
+// Constants.expoConfig.version is the web/Expo-Go fallback when the
+// native API returns null (no native bundle).
+const mockExpoConfigVersion = { current: '1.0.0' as string | undefined };
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    get expoConfig() {
+      return { version: mockExpoConfigVersion.current };
+    },
   },
 }));
 
@@ -147,6 +159,24 @@ describe('UpgradePrompt', () => {
     fireEvent.press(await findByTestId('upgrade-force-btn'));
     expect(openSpy).not.toHaveBeenCalled();
     openSpy.mockRestore();
+  });
+
+  it('falls back to Constants.expoConfig.version when nativeApplicationVersion is null (web / Expo Go)', async () => {
+    // On Expo Web there is no native bundle, so the expo-application
+    // module returns null. Without the fallback, the upgrade prompt
+    // would silently never fire on web. The Settings screen already
+    // uses Constants.expoConfig.version for the version label — this
+    // brings UpgradePrompt onto the same fallback chain.
+    mockNativeVersion.current = null;
+    mockExpoConfigVersion.current = '1.0.1';
+    mockGetVersionInfo.mockResolvedValueOnce({
+      platform: 'ios',
+      minVersion: '1.0.0',
+      latestVersion: '1.0.3',
+      storeUrl: 'https://apps.apple.com/app/id0',
+    });
+    const { findByTestId } = render(<UpgradePrompt />);
+    expect(await findByTestId('upgrade-recommend-banner')).toBeTruthy();
   });
 
   it('renders nothing when the version-info call fails (fail-open)', async () => {

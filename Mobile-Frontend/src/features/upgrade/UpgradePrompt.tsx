@@ -1,11 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, Modal } from 'react-native';
 import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 import { getVersionInfo, type AppVersionInfo } from '@/src/services/api/appVersion';
 import { compareVersions } from './semverCompare';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
+
+/**
+ * Resolve the running app's version string.
+ *
+ * On iOS/Android, `Application.nativeApplicationVersion` reads from the
+ * native bundle (CFBundleShortVersionString / versionName) — that's
+ * the canonical source on a real device.
+ *
+ * On web — including Playwright E2E and the Expo Web preview —
+ * `nativeApplicationVersion` is `null` because there is no native
+ * bundle. Falling back to `Constants.expoConfig?.version` (the value
+ * baked into `app.json`) gives the upgrade prompt something to compare
+ * against in the web build instead of bailing to `'up-to-date'` and
+ * never firing the API call.
+ */
+function resolveCurrentVersion(): string | null {
+  return Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? null;
+}
 
 type Mode = 'idle' | 'up-to-date' | 'recommend' | 'force';
 
@@ -56,7 +75,7 @@ export default function UpgradePrompt(): React.JSX.Element | null {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const current = Application.nativeApplicationVersion;
+      const current = resolveCurrentVersion();
       if (!current) {
         if (!cancelled) setMode('up-to-date');
         return;
