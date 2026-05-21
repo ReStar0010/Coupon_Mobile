@@ -153,7 +153,10 @@
       "router": {},
       "eas": {
         "projectId": "ba247e6a-3cfa-4285-99f6-5867b5257c0e"
-      }
+      },
+      "posthogApiKey": "phc_D3dE4nTXuEv3ceaKLPr2KHKREMLjmUnBhJcDgh3MGmoW",
+      "posthogHost": "https://us.i.posthog.com",
+      "posthogSessionReplay": false
     },
     "runtimeVersion": {
       "policy": "appVersion"
