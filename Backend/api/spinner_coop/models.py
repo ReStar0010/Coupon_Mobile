@@ -175,3 +175,59 @@ class WalletTransaction(models.Model):
             f"WalletTx(user={self.user_id}, kind={self.kind}, "
             f"Δg={self.delta_gems}, Δp={self.delta_cou_points})"
         )
+
+
+class DailyDrawAttempt(models.Model):
+    """Append-only ledger row for every call to the daily-draw endpoint.
+
+    Replaces the previous "only the latest timestamp" record on
+    StudentProfile.last_draw_time by persisting every attempt — winning
+    AND losing — with the template that was drawn against, the
+    probability snapshot, and the resulting coupon (if any). Powers the
+    admin draw-history view and supports future analytics on draw
+    success rate per template / per user.
+
+    Written inside the same transaction.atomic as the coupon creation in
+    views/daily_draw.draw_coupon — if coupon generation fails, the
+    attempt row rolls back too. We never want orphan attempts that
+    describe an outcome that never happened.
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='daily_draw_attempts',
+    )
+    # Template is SET_NULL so deleting/replacing a CouponTemplate doesn't
+    # cascade-wipe historical draw analytics.
+    template = models.ForeignKey(
+        'api.CouponTemplate',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='daily_draw_attempts',
+    )
+    success = models.BooleanField()
+    awarded_coupon = models.ForeignKey(
+        'api.Coupon',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    # Snapshot of the probability at the moment of the roll. Lets a future
+    # admin reproduce a dispute or audit a draw-rate change without trusting
+    # whatever value the template happens to hold now.
+    draw_probability = models.FloatField()
+    attempted_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'daily_draw_attempt'
+        ordering = ['-attempted_at']
+        indexes = [
+            models.Index(fields=['user', '-attempted_at'], name='ddattempt_user_recent_idx'),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover (display only)
+        outcome = "won" if self.success else "miss"
+        return f"DailyDrawAttempt(user={self.user_id}, template={self.template_id}, {outcome})"

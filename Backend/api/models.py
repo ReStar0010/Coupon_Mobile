@@ -1234,5 +1234,10 @@ class ViolationRecord(models.Model):
 
 # ── Spinner Co-op (deliverable 3b) ──────────────────────────────────────────
 # Re-export so Django picks them up via app config.
-from api.spinner_coop.models import Wallet, SpinnerRound, WalletTransaction  # noqa: E402, F401
+from api.spinner_coop.models import (  # noqa: E402, F401
+    Wallet,
+    SpinnerRound,
+    WalletTransaction,
+    DailyDrawAttempt,
+)
 

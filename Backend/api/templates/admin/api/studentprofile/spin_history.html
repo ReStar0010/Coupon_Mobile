@@ -1,0 +1,69 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label='api' %}">api</a>
+  &rsaquo; <a href="{% url 'admin:api_studentprofile_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{% url 'admin:api_studentprofile_change' profile.id %}">{{ target_user.email }}</a>
+  &rsaquo; 轉盤紀錄
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p style="margin: 12px 0;">
+  <a class="button" href="{% url 'admin:api_studentprofile_draw_history' profile.id %}">📜 抽券紀錄</a>
+  <a class="button" href="{% url 'admin:api_studentprofile_holdings' profile.id %}">🎟️ 持有清單</a>
+  <a class="button" href="{% url 'admin:api_studentprofile_change' profile.id %}">← 返回使用者</a>
+</p>
+
+<p>共 {{ paginator.count }} 筆紀錄</p>
+
+<table id="result_list" style="width: 100%;">
+  <thead>
+    <tr>
+      <th>時間</th>
+      <th>種類</th>
+      <th title="負數 = 消耗 / 正數 = 獲得">Gems Δ</th>
+      <th title="負數 = 消耗 / 正數 = 獲得">CouPoints Δ</th>
+      <th>結算 Gems</th>
+      <th>結算 CouPoints</th>
+      <th>備註</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tx in page_obj.object_list %}
+    <tr class="{% cycle 'row1' 'row2' %}">
+      <td>{{ tx.created_at|date:"Y-m-d H:i:s" }}</td>
+      <td>{{ tx.get_kind_display }}</td>
+      <td style="color: {% if tx.delta_gems < 0 %}#b3261e{% elif tx.delta_gems > 0 %}#137333{% else %}#888{% endif %};">
+        {{ tx.delta_gems }}
+      </td>
+      <td style="color: {% if tx.delta_cou_points < 0 %}#b3261e{% elif tx.delta_cou_points > 0 %}#137333{% else %}#888{% endif %};">
+        {{ tx.delta_cou_points }}
+      </td>
+      <td>{{ tx.balance_after_gems }}</td>
+      <td>{{ tx.balance_after_cou_points }}</td>
+      <td>{{ tx.note|default:"—" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" style="text-align: center; color: #888;">（無轉盤紀錄）</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if paginator.num_pages > 1 %}
+<p class="paginator" style="margin-top: 12px;">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}">上一頁</a>
+  {% endif %}
+  第 {{ page_obj.number }} / {{ paginator.num_pages }} 頁
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">下一頁</a>
+  {% endif %}
+</p>
+{% endif %}
+{% endblock %}

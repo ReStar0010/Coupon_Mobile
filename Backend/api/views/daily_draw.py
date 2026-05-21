@@ -11,7 +11,7 @@ from drf_yasg.utils import swagger_auto_schema
 import random
 import string
 
-from api.models import CouponTemplate, Coupon, StudentProfile, Log
+from api.models import CouponTemplate, Coupon, StudentProfile, Log, DailyDrawAttempt
 from api.exceptions import CouponTemplateNotFound, UserNotFound
 from ..serializers import DrawCouponSerializer
 
@@ -77,11 +77,15 @@ def draw_coupon(request):
             start_date__lte=now,
             expiry_date__gt=now
         )
-          # Set user's last draw time in their StudentProfile
+        # Resolve the StudentProfile up front so we can fail fast with 404
+        # before doing any DB writes. The actual `last_draw_time` write
+        # moves into the atomic block below so this "when did the user
+        # last draw" record stays in lock-step with the coupon/attempt
+        # writes — if any roll back, the timestamp also rolls back.
+        # NOTE: this is a *record*, not a rate-limit guard. Throttling is
+        # handled by DRF's UserRateThrottle, not by reading this field.
         try:
             student_profile = StudentProfile.objects.get(user=request.user)
-            student_profile.last_draw_time = timezone.now()
-            student_profile.save()
         except StudentProfile.DoesNotExist:
             logger.warning(
                 "StudentProfile not found for authenticated user %s during daily draw",
@@ -92,19 +96,38 @@ def draw_coupon(request):
                     f"StudentProfile not found for authenticated user {request.user.id} during daily draw"
                 )
             )
-        
+
         # Determine if user successfully draws the coupon based on probability
         success = random.random() < template.draw_probability
         with transaction.atomic():
+            # Update last_draw_time atomically with the coupon + attempt
+            # writes. Previously this was outside the atomic block, so a
+            # failed generate_coupon left an updated last_draw_time
+            # pointing at a draw that never produced an outcome — fixed
+            # in code-review.
+            student_profile.last_draw_time = timezone.now()
+            student_profile.save(update_fields=['last_draw_time'])
             if success:
                 # Generate the coupon and assign to user
                 coupon = template.generate_coupon(recipient=request.user)
-                
+
                 if coupon:
                     # Set acquisition method to 'draw'
                     coupon.acquisition_method = 'draw'
                     coupon.save()
-                    
+
+                    # Persist the attempt for admin/analytics visibility.
+                    # Snapshot draw_probability so a future template edit
+                    # can't rewrite history. Inside the same atomic block
+                    # as coupon creation — orphan attempts are impossible.
+                    DailyDrawAttempt.objects.create(
+                        user=request.user,
+                        template=template,
+                        success=True,
+                        awarded_coupon=coupon,
+                        draw_probability=template.draw_probability,
+                    )
+
                     # Log the successful draw
                     logger.info(
                         "Daily draw successful",
@@ -145,6 +168,15 @@ def draw_coupon(request):
                         'message': 'No coupons remaining'
                     }, status=status.HTTP_400_BAD_REQUEST)
             else:
+                # Persist the miss attempt (no awarded_coupon).
+                DailyDrawAttempt.objects.create(
+                    user=request.user,
+                    template=template,
+                    success=False,
+                    awarded_coupon=None,
+                    draw_probability=template.draw_probability,
+                )
+
                 # Log the unsuccessful draw
                 logger.info(
                     "Daily draw unsuccessful",
