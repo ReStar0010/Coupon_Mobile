@@ -14,7 +14,7 @@ Last updated: 2026-05-08
 - SMS / OTP: Twilio SDK
 - Media storage: Cloudflare R2 (`django-storages[s3]`); falls back to local `FileSystemStorage`
 - Error tracking: Sentry (`sentry-sdk`)
-- Serving: Gunicorn + gevent workers; WhiteNoise for static files
+- Serving: Gunicorn + UvicornWorker (ASGI); WhiteNoise for static files
 
 **Mobile Frontend:**
 
