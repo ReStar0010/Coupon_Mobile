@@ -75,14 +75,19 @@ def _is_allowed_host(host: str) -> bool:
     # Django wildcard-subdomain entries like ".loca.lt" / "*.loca.lt"
     # match `anything.loca.lt`. Honour the same convention so the
     # validator doesn't disagree with Django's own host parsing.
+    #
+    # IMPORTANT: enforce a dot boundary on the suffix match. A naive
+    # `host.endswith('.loca.lt')` accepts `evilevilloca.lt` because the
+    # string literally ends in `.loca.lt`. We must match either the
+    # bare host (`loca.lt`) exactly OR a subdomain (`<x>.loca.lt`).
     for pattern in allowed:
         if pattern.startswith("."):
-            suffix = pattern
+            bare = pattern.lstrip(".")  # ".loca.lt" -> "loca.lt"
         elif pattern.startswith("*."):
-            suffix = pattern[1:]  # ".loca.lt"
+            bare = pattern[2:]  # "*.loca.lt" -> "loca.lt"
         else:
             continue
-        if host.endswith(suffix) or host == suffix.lstrip("."):
+        if host == bare or host.endswith("." + bare):
             return True
     return False
 
@@ -90,13 +95,33 @@ def _is_allowed_host(host: str) -> bool:
 def _is_acceptable_origin(origin_header: bytes | None) -> bool:
     """Apply the policy documented at the top of this module."""
     if origin_header is None:
-        return True  # missing — native mobile / curl / server-to-server
+        # Missing Origin — cannot come from a browser (RFC 6455 §10.2
+        # mandates Origin on WS handshakes, enforced by every browser
+        # engine). Native mobile / curl / server-to-server is the
+        # only source.
+        return True
+    # ASCII-only per HTTP spec (RFC 7230 field-value). latin-1 would
+    # silently decode control chars and high-bytes; ascii rejects them
+    # outright which is the safer default.
     try:
-        origin_str = origin_header.decode("latin-1").strip()
+        origin_str = origin_header.decode("ascii").strip()
     except (UnicodeDecodeError, AttributeError):
         return False
-    if origin_str == "" or origin_str.lower() == "null":
-        return True  # `Origin: null` from sandboxed iframe / some iOS WS
+    if origin_str == "":
+        # Malformed `Origin:` with empty value — no real client sends
+        # this. Reject to be safe.
+        return False
+    if origin_str.lower() == "null":
+        # `Origin: null` CAN come from a browser (sandboxed iframe,
+        # `file://`, `data:` URI). Accepting it here is SAFE ONLY
+        # because the consumer authenticates with a JWT in `?token=`
+        # (the URL), NOT cookies — a foreign sandboxed page can't
+        # read another origin's storage to mint a valid token.
+        #
+        # ⚠ If WS auth ever migrates to cookies, this branch becomes
+        # a CSWSH vector from sandboxed-iframe attackers and MUST be
+        # removed or narrowed.
+        return True
     parsed = urlparse(origin_str)
     if not parsed.scheme or not parsed.hostname:
         # Malformed Origin (e.g. raw "junk" without scheme) — reject.

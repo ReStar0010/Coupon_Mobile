@@ -106,3 +106,27 @@ class TestMobileFriendlyOriginValidator:
             f"Expected localhost.evil.com to be rejected (host != localhost), "
             f"got code {code}."
         )
+
+    async def test_lookalike_suffix_without_dot_boundary_is_rejected(self):
+        # Regression guard for the endswith() dot-boundary bug surfaced
+        # in code review. test_settings.py allows `*.loca.lt`. Without
+        # the dot anchor, `evilevilloca.lt`.endswith('.loca.lt') would
+        # return True and the validator would accept this foreign host.
+        # The fix is `host == bare OR host.endswith('.' + bare)`.
+        accepted, code = await _try_connect(
+            headers=[(b"origin", b"https://evilevilloca.lt")]
+        )
+        assert accepted is False
+        assert code == 4403, (
+            "Expected evilevilloca.lt to be rejected (not a subdomain of "
+            f"loca.lt despite ending with the string '.loca.lt'), got {code}."
+        )
+
+    async def test_empty_origin_value_is_rejected(self):
+        # An `Origin:` header with an empty value is malformed per RFC
+        # 6454 and no real client emits it. Reject defensively.
+        accepted, code = await _try_connect(headers=[(b"origin", b"")])
+        assert accepted is False
+        assert code == 4403, (
+            f"Expected empty Origin to be rejected at validator, got {code}."
+        )
