@@ -20,17 +20,23 @@ django_application = get_asgi_application()
 
 # Channels imports must come AFTER django_application (Django apps must be loaded first)
 from channels.routing import ProtocolTypeRouter, URLRouter  # noqa: E402
-from channels.security.websocket import AllowedHostsOriginValidator  # noqa: E402
 
+from api.spinner_coop.origin import MobileFriendlyOriginValidator  # noqa: E402
 from api.spinner_coop.routing import websocket_urlpatterns  # noqa: E402
 
 
-# C-3: AllowedHostsOriginValidator gates the WebSocket route to settings.ALLOWED_HOSTS,
-# preventing cross-origin WebSocket attacks from a malicious page.
+# Gate the WS route by Origin. Replaces the stock
+# `AllowedHostsOriginValidator` which blocked legitimate React Native
+# clients (their WS sends no Origin / `Origin: null`). The custom
+# validator accepts missing/null Origin (native mobile cannot be a
+# CSWSH source per RFC 6455) and Origins whose host is in
+# `ALLOWED_HOSTS`, rejecting everything else with close code 4403 so
+# the frontend can distinguish it from the consumer's auth-fail 4401.
+# See `api/spinner_coop/origin.py` for the full rationale.
 _protocol_router = ProtocolTypeRouter(
     {
         "http": django_application,
-        "websocket": AllowedHostsOriginValidator(URLRouter(websocket_urlpatterns)),
+        "websocket": MobileFriendlyOriginValidator(URLRouter(websocket_urlpatterns)),
     }
 )
 
