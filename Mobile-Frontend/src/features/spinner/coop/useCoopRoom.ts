@@ -18,8 +18,12 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { CoopClient, type TokenProvider } from './coopClient';
 import { applyFrame, clearLastError, type CoopState, INITIAL_COOP_STATE } from './coopReducer';
 import type { ClientCommand, ServerFrame } from './coopProtocol';
+import { refreshTokens } from '../../../services/auth/tokenStore';
 
 export type CoopStatus = 'closed' | 'connecting' | 'open' | 'closing';
+
+/** Mirrors `AUTH_FAILED_CLOSE_CODE` in `coopClient.ts`. */
+const AUTH_FAILED_CLOSE_CODE = 4401;
 
 interface UseCoopRoomOptions {
   /** JWT access token, or a thunk returning a fresh one on each connect.
@@ -37,6 +41,10 @@ interface UseCoopRoomResult {
   send: (cmd: ClientCommand) => boolean;
   close: () => void;
   clearError: () => void;
+  /** Re-open the WS connection. Used by the "Retry" button when the
+   * connection has dropped (status === 'closed') without an explicit
+   * user-initiated close. No-op if already connected. */
+  reconnect: () => void;
   createRoom: (solo: boolean) => boolean;
   joinRoom: (target: { code?: string; room_id?: string }) => boolean;
   leaveRoom: () => boolean;
@@ -76,6 +84,12 @@ export function useCoopRoom(options: UseCoopRoomOptions): UseCoopRoomResult {
     tokenRef.current = token;
   }, [token]);
 
+  // Track whether we've already attempted a one-shot token refresh for the
+  // current connection. We refresh AT MOST ONCE per lifecycle so a bad
+  // refresh token (or a backend-side auth failure that survives refresh)
+  // doesn't burn into a tight loop. Reset on explicit reconnect().
+  const authRefreshAttemptedRef = useRef(false);
+
   useEffect(() => {
     if (!enabled) {
       setStatus('closed');
@@ -96,9 +110,48 @@ export function useCoopRoom(options: UseCoopRoomOptions): UseCoopRoomResult {
       },
       onOpen: () => {
         if (!released) setStatus('open');
+        // Successful (re)open clears the refresh-attempted guard so a
+        // later 4401 in the same session can trigger another refresh.
+        authRefreshAttemptedRef.current = false;
       },
-      onClose: () => {
-        if (!released) setStatus('closed');
+      onClose: (_reason, code) => {
+        if (released) return;
+        // Auth failure (4401): the JWT we presented is stale. Try to
+        // refresh ONCE, then reconnect with the new token. If refresh
+        // fails (or has already been attempted this lifecycle), surface
+        // an AUTH_FAILED error frame so the UI can prompt the user.
+        if (code === AUTH_FAILED_CLOSE_CODE && !authRefreshAttemptedRef.current) {
+          authRefreshAttemptedRef.current = true;
+          refreshTokens()
+            .then(() => {
+              if (released) return;
+              setStatus('connecting');
+              client.connect();
+            })
+            .catch(() => {
+              if (released) return;
+              // SESSION_EXPIRED is the closest existing ErrorCode for "JWT
+              // refresh failed, user must log in again." The backend's
+              // ErrorCode enum (api/spinner_coop/events.py) uses the
+              // same name for the same condition.
+              dispatch({
+                kind: 'frame',
+                frame: {
+                  v: 1,
+                  type: 'error',
+                  ts: Date.now(),
+                  body: {
+                    code: 'SESSION_EXPIRED',
+                    message: '請重新登入',
+                    command: null,
+                  },
+                } as ServerFrame,
+              });
+              setStatus('closed');
+            });
+          return;
+        }
+        setStatus('closed');
       },
     });
     clientRef.current = client;
@@ -120,6 +173,14 @@ export function useCoopRoom(options: UseCoopRoomOptions): UseCoopRoomResult {
   );
   const close = useCallback(() => clientRef.current?.close(), []);
   const clearError = useCallback(() => dispatch({ kind: 'clear-error' }), []);
+  const reconnect = useCallback(() => {
+    const client = clientRef.current;
+    if (!client) return;
+    // Allow a fresh refresh attempt — the user is asking us to try again.
+    authRefreshAttemptedRef.current = false;
+    setStatus('connecting');
+    client.connect();
+  }, []);
 
   const helpers = useMemo(
     () => ({
@@ -139,5 +200,5 @@ export function useCoopRoom(options: UseCoopRoomOptions): UseCoopRoomResult {
     [send],
   );
 
-  return { state, status, send, close, clearError, ...helpers };
+  return { state, status, send, close, clearError, reconnect, ...helpers };
 }

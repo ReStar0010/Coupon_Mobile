@@ -19,7 +19,6 @@ import WheelDial from './WheelDial';
 import ResultModal from './ResultModal';
 import MeltdownOverlay from './MeltdownOverlay';
 import Coachmark from '@/src/features/onboarding/Coachmark';
-import CoopQRModal from './CoopQRModal';
 import { useSpinLogic } from './useSpinLogic';
 import { getCharge } from './constants';
 import { colors } from '../../theme/colors';
@@ -62,8 +61,6 @@ export default function SpinnerScreen({
   refreshWallet,
 }: SpinnerScreenProps): React.JSX.Element {
   const [players, setPlayers] = useState(1);
-  const [filledGuests, setFilledGuests] = useState(0);
-  const [pendingSlot, setPendingSlot] = useState<number | null>(null);
   // Wager (1..min(5, wallet)). Decoupled from the wallet so the Stepper can
   // actually adjust it — the wallet is server-owned and immutable from the
   // client, so reusing `gems` as the wager (the previous behaviour) made the
@@ -71,16 +68,17 @@ export default function SpinnerScreen({
   const [bet, setBet] = useState(1);
   const insets = useSafeAreaInsets();
 
+  // Co-op invites are no longer a faked-in-place modal with a placeholder
+  // QR; tapping a guest slot routes the user to the real CoopRoomScreen
+  // (mounted at /spinner-coop) which speaks the existing /ws/spinner/v1/
+  // protocol via useCoopRoom. `players > 1` here is just the local intent
+  // picker — the actual roster lives on the co-op screen.
   const invited = players - 1;
-  const allFilled = filledGuests >= invited;
+  const allFilled = invited === 0;
   // Stepper cap. When the wallet is empty the Stepper still needs `max >= min`
   // (the component requires min=1), so we floor the cap at 1 — `canSpin`
   // below blocks the actual spin in that state.
   const maxBet = Math.max(1, Math.min(5, gems));
-
-  useEffect(() => {
-    setFilledGuests(0);
-  }, [players]);
 
   // Re-clamp the wager when the wallet shrinks (e.g. after a spin debit
   // refresh). Without this, a user who bet 5 and then dropped to 2 gems in
@@ -118,22 +116,6 @@ export default function SpinnerScreen({
   const slot1Style = useAnimatedStyle(() => ({ transform: [{ scale: slotS1.value }] }));
   const slot2Style = useAnimatedStyle(() => ({ transform: [{ scale: slotS2.value }] }));
   const slotStyles = [slot0Style, slot1Style, slot2Style];
-
-  const prevFilledRef = useRef(filledGuests);
-  useEffect(() => {
-    if (filledGuests > prevFilledRef.current) {
-      const idx = filledGuests;
-      if (idx < slotScales.length) {
-        slotScales[idx].value = withSequence(
-          withTiming(1.5, { duration: 90 }),
-          withTiming(0.75, { duration: 70 }),
-          withTiming(1.1, { duration: 110 }),
-          withTiming(1.0, { duration: 80 }),
-        );
-      }
-    }
-    prevFilledRef.current = filledGuests;
-  }, [filledGuests]);
 
   const emptyRingOp = useSharedValue(0.4);
   useEffect(() => {
@@ -452,10 +434,12 @@ export default function SpinnerScreen({
   const nmToastStyle = useAnimatedStyle(() => ({ opacity: nmToastOp.value }));
 
   // ── Slot helpers ──────────────────────────────────────────────────────────
+  // Slot 0 is the local player; any slot > 0 is an "invite this friend"
+  // affordance that hands the user off to the real CoopRoomScreen. Local
+  // state no longer pretends to track guest fills — that's the WS layer's
+  // job once the user reaches the co-op screen.
   const slotType = (i: number) => {
     if (i === 0) return 'me';
-    if (i <= filledGuests) return 'guest';
-    if (i === pendingSlot) return 'pending';
     return 'empty';
   };
 
@@ -504,15 +488,12 @@ export default function SpinnerScreen({
                 <Pressable
                   testID="player-slot"
                   onPress={() => {
-                    if (slot === 'empty' && i > 0) setPendingSlot(i);
-                    else if (slot === 'pending') setPendingSlot(null);
+                    if (slot === 'empty' && i > 0) onNavigate('spinner-coop');
                   }}
                   style={[
                     styles.slot,
                     slot === 'me' && styles.slotMe,
-                    slot === 'guest' && styles.slotGuest,
-                    (slot === 'empty' || slot === 'pending') && styles.slotEmpty,
-                    slot === 'pending' && styles.slotPending,
+                    slot === 'empty' && styles.slotEmpty,
                   ]}
                 >
                   {/* Pulsing orange ring for invited empty slots */}
@@ -522,15 +503,7 @@ export default function SpinnerScreen({
                       pointerEvents="none"
                     />
                   )}
-                  <Text style={styles.slotText}>
-                    {slot === 'me'
-                      ? '我'
-                      : slot === 'guest'
-                        ? '友'
-                        : slot === 'pending'
-                          ? '…'
-                          : '+'}
-                  </Text>
+                  <Text style={styles.slotText}>{slot === 'me' ? '我' : '+'}</Text>
                 </Pressable>
               </Reanimated.View>
             );
@@ -664,15 +637,6 @@ export default function SpinnerScreen({
         onDismiss={dismissResult}
       />
 
-      <CoopQRModal
-        visible={pendingSlot !== null}
-        slotIndex={pendingSlot ?? 1}
-        onCancel={() => setPendingSlot(null)}
-        onSimulateJoin={() => {
-          setFilledGuests((g) => g + 1);
-          setPendingSlot(null);
-        }}
-      />
       <Coachmark screen="spinner" />
     </View>
   );
@@ -735,9 +699,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   slotMe: { backgroundColor: colors.purple },
-  slotGuest: { backgroundColor: colors.green },
   slotEmpty: { backgroundColor: '#FFFFFF' },
-  slotPending: { backgroundColor: 'rgba(255,97,53,0.15)', borderColor: '#FF6135' },
   slotPulseRing: {
     borderRadius: 21,
     borderWidth: 3,

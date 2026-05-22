@@ -9,7 +9,15 @@ export default function SpinnerRoute() {
 
   return (
     <SpinnerScreen
-      onNavigate={(screen) => router.push(`/(tabs)/${screen}` as any)}
+      onNavigate={(screen) => {
+        // The co-op invite flow lives at the root-level `/spinner-coop`
+        // route (not a tab). Other names map to sibling tabs as before.
+        if (screen === 'spinner-coop') {
+          router.push('/spinner-coop' as any);
+        } else {
+          router.push(`/(tabs)/${screen}` as any);
+        }
+      }}
       gems={gems}
       couPoints={couPoints}
       refreshWallet={refreshWallet}

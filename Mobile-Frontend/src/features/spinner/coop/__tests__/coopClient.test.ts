@@ -271,6 +271,110 @@ describe('CoopClient — out-of-band frames bypass seq dedup', () => {
   });
 });
 
+describe('CoopClient — close code propagation (4401 auth failure)', () => {
+  it('passes the WS close code through onClose', async () => {
+    const onClose = jest.fn();
+    const client = new CoopClient({
+      token: 't',
+      baseUrl: 'wss://e.test',
+      onFrame: () => {},
+      onClose,
+      maxReconnect: 0, // disable retries so the close surfaces immediately
+    });
+    client.connect();
+    await flushMicro();
+    const ws = MockWebSocket.instances[0];
+    ws.readyState = MockWebSocket.CLOSED;
+    ws.onclose?.({ reason: 'auth_failed', code: 4401 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [, code] = onClose.mock.calls[0];
+    expect(code).toBe(4401);
+  });
+
+  it('does NOT auto-reconnect after a 4401 (token is stale, retry would be a loop)', async () => {
+    const onClose = jest.fn();
+    const client = new CoopClient({
+      token: 'stale-jwt',
+      baseUrl: 'wss://e.test',
+      onFrame: () => {},
+      onClose,
+      maxReconnect: 5,
+    });
+    client.connect();
+    await flushMicro();
+    const ws = MockWebSocket.instances[0];
+    ws.readyState = MockWebSocket.CLOSED;
+    ws.onclose?.({ reason: '', code: 4401 });
+    // Allow the (would-be) backoff timer a generous window to fire.
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const [reason] = onClose.mock.calls[0];
+    expect(reason).toMatch(/auth/i);
+    client.close();
+  });
+
+  it('still auto-reconnects after a non-auth close (1006, etc.)', async () => {
+    const client = new CoopClient({
+      token: 't',
+      baseUrl: 'wss://e.test',
+      onFrame: () => {},
+      maxReconnect: 5,
+    });
+    client.connect();
+    await flushMicro();
+    const ws = MockWebSocket.instances[0];
+    ws.readyState = MockWebSocket.CLOSED;
+    ws.onclose?.({ reason: 'transport', code: 1006 });
+    // First backoff is 1s; wait a little past that.
+    await new Promise((r) => setTimeout(r, 1200));
+    expect(MockWebSocket.instances.length).toBeGreaterThanOrEqual(2);
+    client.close();
+  });
+});
+
+describe('CoopClient — connect() is idempotent during CONNECTING', () => {
+  it('a second connect() call while the socket is still CONNECTING is a no-op', async () => {
+    const client = new CoopClient({
+      token: 't',
+      baseUrl: 'wss://example.test',
+      onFrame: () => {},
+    });
+    client.connect();
+    await flushMicro();
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(MockWebSocket.instances[0].readyState).toBe(MockWebSocket.CONNECTING);
+    // Fast double-tap: caller invokes connect() again before onopen fires.
+    // Without the CONNECTING guard this would construct a second socket
+    // and orphan the first handshake — feeding the backoff loop on close.
+    client.connect();
+    await flushMicro();
+    expect(MockWebSocket.instances).toHaveLength(1);
+    client.close();
+  });
+
+  it('connect() called after close() while a previous token thunk is still pending does not race', async () => {
+    let resolveToken: (t: string) => void = () => {};
+    const tokenFn = () => new Promise<string>((r) => { resolveToken = r; });
+    const client = new CoopClient({
+      token: tokenFn,
+      baseUrl: 'wss://example.test',
+      onFrame: () => {},
+    });
+    client.connect();
+    // Token thunk is pending — no socket yet.
+    await flushMicro();
+    expect(MockWebSocket.instances).toHaveLength(0);
+    // Caller bails out before the thunk resolves.
+    client.close();
+    // Thunk now resolves; the post-await explicitlyClosed guard should
+    // stop the orphan socket from being constructed.
+    resolveToken('late-token');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(MockWebSocket.instances).toHaveLength(0);
+  });
+});
+
 describe('CoopClient — auto-pong', () => {
   it('responds to ping with pong without surfacing the ping', async () => {
     const onFrame = jest.fn();

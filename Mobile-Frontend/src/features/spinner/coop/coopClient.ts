@@ -66,7 +66,9 @@ export interface CoopClientOptions {
   token: TokenProvider;
   onFrame: (frame: ServerFrame) => void;
   onOpen?: () => void;
-  onClose?: (reason: string) => void;
+  /** Called on permanent close. `code` is the WS close code (if known) so
+   * callers can branch on auth failures (4401) vs transport errors. */
+  onClose?: (reason: string, code?: number) => void;
   /** Called when a frame fails schema validation. Defaults to a no-op. */
   onMalformedFrame?: (raw: unknown) => void;
   maxReconnect?: number;
@@ -75,6 +77,15 @@ export interface CoopClientOptions {
 // Hardcoded to staging for refactor/frontend → dev push. Restore env-var read
 // before promoting to prod.
 const DEFAULT_BASE = 'wss://coupon-mobile-dev.onrender.com';
+
+/**
+ * Backend auth-failure close code. The Channels consumer at
+ * `Backend/api/spinner_coop/consumer.py` closes with 4401 on missing /
+ * invalid / expired JWT. Reusing a stale token would just loop on the
+ * same close, so the client must NOT auto-reconnect on this code — the
+ * caller (useCoopRoom) decides whether to refresh and try again.
+ */
+const AUTH_FAILED_CLOSE_CODE = 4401;
 
 // ── Class ───────────────────────────────────────────────────────────────────
 
@@ -100,7 +111,18 @@ export class CoopClient {
   }
 
   connect(): void {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) return;
+    // Idempotency guards. Without the CONNECTING guard, a fast double-call
+    // (e.g. a user mashing the Retry button) would construct a second
+    // WebSocket and overwrite `this.socket`, leaving the first handshake's
+    // onclose handler attached to an orphaned instance that can still
+    // kick off a spurious backoff reconnect.
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN ||
+        this.socket.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
     this.explicitlyClosed = false;
     void this.openWithToken();
   }
@@ -110,13 +132,21 @@ export class CoopClient {
     try {
       token = typeof this.opts.token === 'string' ? this.opts.token : await this.opts.token();
     } catch {
-      this.handleClose({ reason: 'token_unavailable' });
+      // No socket created yet — surface as a final close. Backoff makes
+      // no sense without a token to retry with.
+      this.opts.onClose('token_unavailable');
       return;
     }
     if (!token) {
-      this.handleClose({ reason: 'token_empty' });
+      this.opts.onClose('token_empty');
       return;
     }
+
+    // The token thunk awaited above could have resolved AFTER the caller
+    // called close() — without this check the freshly-constructed socket
+    // would replace `this.socket` and its onopen/onclose would fire on an
+    // instance the caller has already abandoned.
+    if (this.explicitlyClosed) return;
 
     const url = `${this.opts.baseUrl}${WS_PATH}?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
@@ -211,11 +241,18 @@ export class CoopClient {
 
   private handleClose(e: CloseReason): void {
     if (this.explicitlyClosed) {
-      this.opts.onClose(`closed: ${e.reason || 'client'}`);
+      this.opts.onClose(`closed: ${e.reason || 'client'}`, e.code);
+      return;
+    }
+    // Auth failure: the server told us this token is no good. Don't loop
+    // by retrying with the same token — the caller must refresh the JWT
+    // and call connect() again from scratch.
+    if (e.code === AUTH_FAILED_CLOSE_CODE) {
+      this.opts.onClose(`auth_failed: ${e.reason || 'jwt_rejected'}`, e.code);
       return;
     }
     if (this.reconnectAttempts >= this.opts.maxReconnect) {
-      this.opts.onClose('max_reconnect_exceeded');
+      this.opts.onClose('max_reconnect_exceeded', e.code);
       return;
     }
     this.reconnectAttempts += 1;

@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import QRCode from 'react-native-qrcode-svg';
 import { colors } from '../../../theme/colors';
 import { fontFamilies } from '../../../theme/typography';
 import { useCoopRoom } from './useCoopRoom';
@@ -117,12 +118,46 @@ function PhaseView({ coop, userId }: PhaseViewProps): React.JSX.Element {
 
 function ConnectView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
   const [code, setCode] = useState('');
+  const isConnected = coop.status === 'open';
+  // Show the Retry affordance when we're definitively closed (handshake
+  // failed or transport dropped). 'connecting' still has hope, so we
+  // disable the buttons but don't show Retry yet — it would race with
+  // the in-flight handshake.
+  const showRetry = coop.status === 'closed';
   return (
     <View testID="phase-connect">
       <Text style={styles.h2}>建立或加入房間</Text>
+      {!isConnected && (
+        <Text style={styles.bodyText}>
+          {coop.status === 'connecting' ? '連線中…' : '連線已中斷'}
+        </Text>
+      )}
       <View style={styles.btnGroup}>
-        <PrimaryBtn label="開單人房" onPress={() => coop.createRoom(true)} testID="btn-solo" />
-        <PrimaryBtn label="開多人房" onPress={() => coop.createRoom(false)} testID="btn-multi" />
+        <PrimaryBtn
+          label="開單人房"
+          onPress={() => coop.createRoom(true)}
+          disabled={!isConnected}
+          testID="btn-solo"
+        />
+        <PrimaryBtn
+          label="開多人房"
+          onPress={() => coop.createRoom(false)}
+          disabled={!isConnected}
+          testID="btn-multi"
+        />
+        {showRetry && (
+          <PrimaryBtn
+            label="重新連線"
+            onPress={() => coop.reconnect()}
+            // Defensive: in the brief gap between tap-onPress and the next
+            // re-render (where status flips to 'connecting' and this branch
+            // unmounts), a fast double-tap could otherwise fire reconnect()
+            // twice. The CoopClient also guards CONNECTING in connect(),
+            // so this is belt-and-suspenders.
+            disabled={coop.status !== 'closed'}
+            testID="btn-retry-connection"
+          />
+        )}
       </View>
       <Text style={styles.label}>用代碼加入</Text>
       <View style={styles.row}>
@@ -138,7 +173,7 @@ function ConnectView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
         <PrimaryBtn
           label="加入"
           onPress={() => coop.joinRoom({ code })}
-          disabled={code.length < 4}
+          disabled={!isConnected || code.length < 4}
           testID="btn-join"
         />
       </View>
@@ -148,14 +183,29 @@ function ConnectView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
 
 function LobbyView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
   const { state } = coop;
+  // The QR encodes a coupro:// deep link carrying the room code. Note: a
+  // matching deep-link handler route is not yet wired up (no entry in
+  // app.json intentFilters for spinner-coop-join, no route file). For the
+  // moment the QR functions as a shareable visual representation of the
+  // 6-char code shown beneath it — a friend across the table can read
+  // either form and type the code into ConnectView's input. The deep-link
+  // shape is preserved so a future change can route the scanning device
+  // directly into the join flow without forcing a re-encoding rollout.
+  const inviteUrl = state.code ? `coupro://spinner-coop-join?code=${state.code}` : '';
   return (
     <View testID="phase-lobby">
       <Text style={styles.h2}>等待玩家加入</Text>
       <View style={styles.codeBox}>
         <Text style={styles.codeLabel}>房間代碼</Text>
+        {state.code && (
+          <View style={styles.qrWrapper}>
+            <QRCode value={inviteUrl} size={168} backgroundColor="#fff" />
+          </View>
+        )}
         <Text testID="room-code" style={styles.codeValue}>
           {state.code}
         </Text>
+        <Text style={styles.codeHint}>請朋友掃描 QR 或輸入代碼加入</Text>
       </View>
       <PlayerRoster players={state.players} hostId={state.hostId} />
       <PrimaryBtn label="開始下注" onPress={() => coop.setStake(1)} testID="btn-begin-staking" />
@@ -607,6 +657,19 @@ const styles = StyleSheet.create({
     fontSize: 38,
     color: colors.yellow,
     letterSpacing: 6,
+  },
+  codeHint: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  qrWrapper: {
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    marginVertical: 12,
   },
   roster: { gap: 6, marginTop: 6 },
   rosterRow: {
