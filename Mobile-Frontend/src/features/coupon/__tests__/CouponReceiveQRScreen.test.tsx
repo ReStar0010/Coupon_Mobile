@@ -16,10 +16,27 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
-jest.mock('expo-camera', () => ({
-  CameraView: ({ children }: { children?: React.ReactNode }) => children ?? null,
-  useCameraPermissions: jest.fn(() => [{ granted: true }, jest.fn()]),
-}));
+// Capture onBarcodeScanned so tests can fire real-looking scan events.
+// The "模擬掃描成功" dev bypass button has been removed; this is the
+// only entry point into the receive flow.
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    CameraView: (props: { onBarcodeScanned?: (e: { data?: string }) => void }) => {
+      (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned = props.onBarcodeScanned;
+      return React.createElement(View, props);
+    },
+    useCameraPermissions: jest.fn(() => [{ granted: true }, jest.fn()]),
+  };
+});
+
+const triggerScan = (data: string | undefined) => {
+  const cb = (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned as
+    | ((e: { data?: string }) => void)
+    | undefined;
+  cb?.({ data });
+};
 
 jest.mock('react-native-svg', () => {
   const React = require('react');
@@ -43,6 +60,7 @@ const makeProps = (
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned = undefined;
   mockReceiveCoupon.mockResolvedValue({
     message: 'ok',
     coupon_id: 1,
@@ -70,6 +88,11 @@ describe('CouponReceiveQRScreen', () => {
     expect(getByText('領取店家優惠')).toBeTruthy();
   });
 
+  it('does NOT show the simulate-scan dev button', () => {
+    const { queryByTestId } = render(<CouponReceiveQRScreen {...makeProps()} />);
+    expect(queryByTestId('receive-qr-simulate')).toBeNull();
+  });
+
   it('back button calls onBack', () => {
     const onBack = jest.fn();
     const { getByTestId } = render(<CouponReceiveQRScreen {...makeProps({ onBack })} />);
@@ -77,23 +100,33 @@ describe('CouponReceiveQRScreen', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('simulate scan calls receiveCoupon with a token and idempotency key', async () => {
-    const { getByTestId } = render(<CouponReceiveQRScreen {...makeProps()} />);
+  it('camera scan calls receiveCoupon with the scanned token and idempotency key', async () => {
+    render(<CouponReceiveQRScreen {...makeProps()} />);
     await act(async () => {
-      fireEvent.press(getByTestId('receive-qr-simulate'));
+      triggerScan('REAL_SHARE_TOKEN');
     });
 
     expect(mockReceiveCoupon).toHaveBeenCalledTimes(1);
     const [token, key] = mockReceiveCoupon.mock.calls[0];
-    expect(token).toBe('SIMULATED');
+    expect(token).toBe('REAL_SHARE_TOKEN');
     expect(typeof key).toBe('string');
     expect((key as string).length).toBeGreaterThan(0);
   });
 
-  it('refreshes the wallet after a successful receive', async () => {
-    const { getByTestId } = render(<CouponReceiveQRScreen {...makeProps()} />);
+  it('does NOT call receiveCoupon when camera data is empty', async () => {
+    render(<CouponReceiveQRScreen {...makeProps()} />);
     await act(async () => {
-      fireEvent.press(getByTestId('receive-qr-simulate'));
+      triggerScan(undefined);
+    });
+    // The removed `?? 'SIMULATED'` fallback used to send a literal to the
+    // backend on empty data. After removal the scan is ignored.
+    expect(mockReceiveCoupon).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the wallet after a successful receive', async () => {
+    render(<CouponReceiveQRScreen {...makeProps()} />);
+    await act(async () => {
+      triggerScan('REAL_SHARE_TOKEN');
     });
 
     await waitFor(() => {
@@ -101,20 +134,20 @@ describe('CouponReceiveQRScreen', () => {
     });
   });
 
-  it('simulate scan shows the success overlay', async () => {
+  it('shows the success overlay after a successful scan', async () => {
     const { getByTestId, queryByTestId } = render(<CouponReceiveQRScreen {...makeProps()} />);
     expect(queryByTestId('receive-success')).toBeNull();
     await act(async () => {
-      fireEvent.press(getByTestId('receive-qr-simulate'));
+      triggerScan('REAL_SHARE_TOKEN');
     });
     expect(getByTestId('receive-success')).toBeTruthy();
   });
 
   it('calls onDone after the success delay', async () => {
     const onDone = jest.fn();
-    const { getByTestId } = render(<CouponReceiveQRScreen {...makeProps({ onDone })} />);
+    render(<CouponReceiveQRScreen {...makeProps({ onDone })} />);
     await act(async () => {
-      fireEvent.press(getByTestId('receive-qr-simulate'));
+      triggerScan('REAL_SHARE_TOKEN');
     });
     expect(onDone).not.toHaveBeenCalled();
     act(() => {
@@ -129,13 +162,15 @@ describe('CouponReceiveQRScreen', () => {
     fireEvent.press(getByTestId('receive-qr-torch'));
   });
 
-  it('does not call receiveCoupon twice on repeated scan press', async () => {
+  it('does not call receiveCoupon twice on repeated scan events', async () => {
     const onDone = jest.fn();
-    const { getByTestId } = render(<CouponReceiveQRScreen {...makeProps({ onDone })} />);
+    render(<CouponReceiveQRScreen {...makeProps({ onDone })} />);
     await act(async () => {
-      fireEvent.press(getByTestId('receive-qr-simulate'));
+      triggerScan('REAL_SHARE_TOKEN');
     });
-    fireEvent.press(getByTestId('receive-qr-simulate'));
+    await act(async () => {
+      triggerScan('REAL_SHARE_TOKEN');
+    });
     act(() => {
       jest.advanceTimersByTime(2400);
     });
@@ -143,11 +178,11 @@ describe('CouponReceiveQRScreen', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it('does NOT fire onDone after unmount (e.g. user swipes/navigates away mid-success)', async () => {
+  it('does NOT fire onDone after unmount', async () => {
     const onDone = jest.fn();
-    const { getByTestId, unmount } = render(<CouponReceiveQRScreen {...makeProps({ onDone })} />);
+    const { unmount } = render(<CouponReceiveQRScreen {...makeProps({ onDone })} />);
     await act(async () => {
-      fireEvent.press(getByTestId('receive-qr-simulate'));
+      triggerScan('REAL_SHARE_TOKEN');
     });
     unmount();
     act(() => {
@@ -160,7 +195,7 @@ describe('CouponReceiveQRScreen', () => {
     mockReceiveCoupon.mockRejectedValueOnce(new Error('receive boom'));
     const { getByTestId } = render(<CouponReceiveQRScreen {...makeProps()} />);
     await act(async () => {
-      fireEvent.press(getByTestId('receive-qr-simulate'));
+      triggerScan('REAL_SHARE_TOKEN');
     });
 
     await waitFor(() => {

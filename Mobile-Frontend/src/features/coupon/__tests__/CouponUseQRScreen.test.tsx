@@ -20,10 +20,27 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 // ── expo-camera mock ─────────────────────────────────────────────────────────
-jest.mock('expo-camera', () => ({
-  CameraView: ({ children }: any) => children,
-  useCameraPermissions: jest.fn(() => [{ granted: true }, jest.fn()]),
-}));
+// Capture the `onBarcodeScanned` prop so tests can simulate the camera
+// detecting a QR. This is the only path to advance the screen after the
+// dev "模擬掃描成功" bypass button was removed.
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    CameraView: (props: { onBarcodeScanned?: (e: { data?: string }) => void }) => {
+      (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned = props.onBarcodeScanned;
+      return React.createElement(View, props);
+    },
+    useCameraPermissions: jest.fn(() => [{ granted: true }, jest.fn()]),
+  };
+});
+
+const triggerScan = (data: string | undefined) => {
+  const cb = (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned as
+    | ((e: { data?: string }) => void)
+    | undefined;
+  cb?.({ data });
+};
 
 // ── react-native-svg mock ────────────────────────────────────────────────────
 jest.mock('react-native-svg', () => {
@@ -59,6 +76,7 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof CouponUseQRScr
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned = undefined;
   mockRedeemCoupon.mockResolvedValue({
     message: 'ok',
     coupon_name: 'x',
@@ -87,23 +105,24 @@ describe('CouponUseQRScreen', () => {
     expect(getByText('阿明早餐店')).toBeTruthy();
   });
 
-  it('shows the simulate scan button before scanning', () => {
-    const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
-    expect(getByText('模擬掃描成功 ▶')).toBeTruthy();
+  it('does NOT show the simulate-scan dev button', () => {
+    const { queryByText } = render(<CouponUseQRScreen {...makeProps()} />);
+    expect(queryByText('模擬掃描成功 ▶')).toBeNull();
   });
 
-  it('sim scan button calls redeemCoupon with the coupon id and a fallback code', async () => {
-    const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
+  it('camera scan calls redeemCoupon with the coupon id and the scanned code', async () => {
+    const { toJSON } = render(<CouponUseQRScreen {...makeProps()} />);
+    expect(toJSON()).toBeTruthy();
 
     await act(async () => {
-      fireEvent.press(getByText('模擬掃描成功 ▶'));
+      triggerScan('REAL_REDEEM_CODE');
     });
 
     expect(mockRedeemCoupon).toHaveBeenCalledTimes(1);
-    expect(mockRedeemCoupon).toHaveBeenCalledWith('c-1', 'SIMULATED');
+    expect(mockRedeemCoupon).toHaveBeenCalledWith('c-1', 'REAL_REDEEM_CODE');
   });
 
-  it('uses params.redeem_code when present for the simulate path', async () => {
+  it('uses params.redeem_code when the camera fires with empty data (defensive)', async () => {
     const props = makeProps({
       params: {
         id: 'c-1',
@@ -114,20 +133,30 @@ describe('CouponUseQRScreen', () => {
         redeem_code: 'ABC123',
       },
     });
-    const { getByText } = render(<CouponUseQRScreen {...props} />);
+    render(<CouponUseQRScreen {...props} />);
 
     await act(async () => {
-      fireEvent.press(getByText('模擬掃描成功 ▶'));
+      triggerScan(undefined);
     });
 
     expect(mockRedeemCoupon).toHaveBeenCalledWith('c-1', 'ABC123');
   });
 
-  it('refreshes the wallet after a successful redeem', async () => {
-    const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
+  it('does NOT call redeemCoupon when camera data is empty and no params.redeem_code is set', async () => {
+    render(<CouponUseQRScreen {...makeProps()} />);
 
     await act(async () => {
-      fireEvent.press(getByText('模擬掃描成功 ▶'));
+      triggerScan(undefined);
+    });
+
+    expect(mockRedeemCoupon).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the wallet after a successful redeem', async () => {
+    render(<CouponUseQRScreen {...makeProps()} />);
+
+    await act(async () => {
+      triggerScan('REAL_REDEEM_CODE');
     });
 
     await waitFor(() => {
@@ -135,24 +164,15 @@ describe('CouponUseQRScreen', () => {
     });
   });
 
-  it('shows success text after a successful scan', async () => {
-    const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
+  it('repeated scan events after success do not call redeemCoupon again', async () => {
+    render(<CouponUseQRScreen {...makeProps()} />);
 
     await act(async () => {
-      fireEvent.press(getByText('模擬掃描成功 ▶'));
+      triggerScan('REAL_REDEEM_CODE');
     });
-
-    expect(getByText('掃描成功 ✓')).toBeTruthy();
-  });
-
-  it('pressing sim scan a second time does not call redeemCoupon again', async () => {
-    const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
-
     await act(async () => {
-      fireEvent.press(getByText('模擬掃描成功 ▶'));
+      triggerScan('REAL_REDEEM_CODE');
     });
-    // After success, the button is disabled; press it again — should be a no-op
-    fireEvent.press(getByText('掃描成功 ✓'));
 
     expect(mockRedeemCoupon).toHaveBeenCalledTimes(1);
   });
@@ -161,7 +181,7 @@ describe('CouponUseQRScreen', () => {
     const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
 
     await act(async () => {
-      fireEvent.press(getByText('模擬掃描成功 ▶'));
+      triggerScan('REAL_REDEEM_CODE');
     });
 
     expect(getByText('使用成功！')).toBeTruthy();
@@ -170,10 +190,10 @@ describe('CouponUseQRScreen', () => {
 
   it('navigates to home after 2600 ms post-scan', async () => {
     const onNavigate = jest.fn();
-    const { getByText } = render(<CouponUseQRScreen {...makeProps({ onNavigate })} />);
+    render(<CouponUseQRScreen {...makeProps({ onNavigate })} />);
 
     await act(async () => {
-      fireEvent.press(getByText('模擬掃描成功 ▶'));
+      triggerScan('REAL_REDEEM_CODE');
     });
 
     act(() => {
@@ -213,10 +233,10 @@ describe('CouponUseQRScreen', () => {
 
   it('shows error banner when redeemCoupon fails', async () => {
     mockRedeemCoupon.mockRejectedValueOnce(new Error('redeem boom'));
-    const { getByText, getByTestId } = render(<CouponUseQRScreen {...makeProps()} />);
+    const { getByTestId } = render(<CouponUseQRScreen {...makeProps()} />);
 
     await act(async () => {
-      fireEvent.press(getByText('模擬掃描成功 ▶'));
+      triggerScan('REAL_REDEEM_CODE');
     });
 
     await waitFor(() => {

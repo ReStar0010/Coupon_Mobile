@@ -81,9 +81,14 @@ export default function CouponUseQRScreen({
 
   const handleScan = async (scannedCode?: string): Promise<void> => {
     if (scanned.current || success) return;
-    scanned.current = true;
 
-    const code = scannedCode ?? params.redeem_code ?? 'SIMULATED';
+    // Prefer the camera-scanned code. Fall back to params.redeem_code
+    // (set when the user lands here from a deep-link with the code
+    // pre-supplied). Never fall back to a literal "SIMULATED" placeholder
+    // — the dev-only bypass button that relied on that has been removed.
+    const code = scannedCode ?? params.redeem_code;
+    if (!code) return;
+    scanned.current = true;
     const id = params.id;
 
     try {
@@ -108,7 +113,7 @@ export default function CouponUseQRScreen({
 
   useEffect(() => {
     if (!permission?.granted) requestPermission();
-  }, []);
+  }, [permission, requestPermission]);
 
   useEffect(
     () => () => {
@@ -207,18 +212,6 @@ export default function CouponUseQRScreen({
             <Text style={s.errorText}>{redeemError}</Text>
           </View>
         ) : null}
-        <View style={s.simBtnOuter}>
-          {!success && <View style={s.simBtnShadow} />}
-          <Pressable
-            onPress={() => { void handleScan(); }}
-            disabled={success}
-            style={[s.simBtn, success && s.simBtnDone]}
-          >
-            <Text style={[s.simBtnText, success && s.simBtnTextDone]}>
-              {success ? '掃描成功 ✓' : '模擬掃描成功 ▶'}
-            </Text>
-          </Pressable>
-        </View>
       </View>
     </View>
   );
@@ -337,8 +330,6 @@ const s = StyleSheet.create({
   },
   torchBtnActive: { backgroundColor: colors.yellow, borderColor: colors.border },
   camera: { ...StyleSheet.absoluteFillObject },
-  noCamera: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  noCameraText: { fontFamily: fontFamilies.regular, fontSize: 14, color: 'rgba(255,255,255,0.55)' },
   scanHint: {
     position: 'absolute',
     bottom: 16,
@@ -387,32 +378,6 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   footer: { padding: 12, paddingHorizontal: 16, paddingBottom: 14, zIndex: 5 },
-  simBtnOuter: { position: 'relative' },
-  simBtnShadow: {
-    position: 'absolute',
-    top: 3,
-    left: 3,
-    right: -3,
-    bottom: -3,
-    borderRadius: 6,
-    backgroundColor: colors.border,
-  },
-  simBtn: {
-    backgroundColor: colors.yellow,
-    borderWidth: 2.5,
-    borderColor: colors.border,
-    borderRadius: 6,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  simBtnDone: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)' },
-  simBtnText: {
-    fontFamily: fontFamilies.monoSemiBold,
-    fontSize: 15,
-    letterSpacing: 0.3,
-    color: colors.fg,
-  },
-  simBtnTextDone: { color: 'rgba(255,255,255,0.3)' },
   errorBanner: {
     marginBottom: 10,
     paddingHorizontal: 12,

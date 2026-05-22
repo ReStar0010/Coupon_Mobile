@@ -78,11 +78,11 @@ export default function CouPointUseScreen({
 
   useEffect(() => {
     if (!permission?.granted) requestPermission();
-  }, []);
+  }, [permission, requestPermission]);
 
   useEffect(() => {
     if (canUse) setAmount(Math.min(5, maxAmount));
-  }, [couPoints]);
+  }, [couPoints, canUse, maxAmount]);
 
   useEffect(
     () => () => {
@@ -93,8 +93,14 @@ export default function CouPointUseScreen({
 
   const handleScan = (data?: string): void => {
     if (scanned.current) return;
+    // Real QR only. The previous `?? 'SIMULATED'` fallback meant an
+    // empty scan event would silently push the literal "SIMULATED" to
+    // the backend; we now ignore empty scans entirely. The dev-only
+    // bypass button that used to call handleScan('SIMULATED') has been
+    // removed.
+    if (!data) return;
     scanned.current = true;
-    setScannedToken(data ?? 'SIMULATED');
+    setScannedToken(data);
     setPhase('amount');
   };
 
@@ -203,18 +209,6 @@ export default function CouPointUseScreen({
               />
             )}
             <Text style={s.scanHint}>將店家 QR Code 對準框內</Text>
-          </View>
-          <View style={s.footer}>
-            <View style={s.simBtnOuter}>
-              <View style={s.simBtnShadow} />
-              <Pressable
-                testID="sim-scan-btn"
-                onPress={() => handleScan('SIMULATED')}
-                style={s.simBtn}
-              >
-                <Text style={s.simBtnText}>模擬掃描成功 ▶</Text>
-              </Pressable>
-            </View>
           </View>
         </>
       )}
@@ -424,8 +418,6 @@ const s = StyleSheet.create({
   },
   torchBtnActive: { backgroundColor: colors.yellow, borderColor: colors.border },
   camera: { ...StyleSheet.absoluteFillObject },
-  noCamera: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  noCameraText: { fontFamily: fontFamilies.regular, fontSize: 14, color: 'rgba(255,255,255,0.55)' },
   scanHint: {
     position: 'absolute',
     bottom: 16,
@@ -436,31 +428,6 @@ const s = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.44,
     color: 'rgba(255,255,255,0.55)',
-  },
-  footer: { padding: 12, paddingHorizontal: 16, paddingBottom: 14, zIndex: 5 },
-  simBtnOuter: { position: 'relative' },
-  simBtnShadow: {
-    position: 'absolute',
-    top: 3,
-    left: 3,
-    right: -3,
-    bottom: -3,
-    borderRadius: 6,
-    backgroundColor: colors.border,
-  },
-  simBtn: {
-    backgroundColor: colors.yellow,
-    borderWidth: 2.5,
-    borderColor: colors.border,
-    borderRadius: 6,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  simBtnText: {
-    fontFamily: fontFamilies.monoSemiBold,
-    fontSize: 15,
-    letterSpacing: 0.3,
-    color: colors.fg,
   },
   amountPhase: {
     flex: 1,

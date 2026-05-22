@@ -20,10 +20,29 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 // ── expo-camera mock ─────────────────────────────────────────────────────────
-jest.mock('expo-camera', () => ({
-  CameraView: () => null,
-  useCameraPermissions: jest.fn(() => [{ granted: true }, jest.fn()]),
-}));
+// CameraView is replaced with a stub component that captures the
+// `onBarcodeScanned` prop onto a global. Tests trigger a "scan" by
+// calling triggerScan(token) which invokes the captured callback —
+// this is the only way to advance the screen now that the dev-only
+// "模擬掃描成功" bypass button has been removed.
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    CameraView: (props: { onBarcodeScanned?: (e: { data?: string }) => void }) => {
+      (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned = props.onBarcodeScanned;
+      return React.createElement(View, props);
+    },
+    useCameraPermissions: jest.fn(() => [{ granted: true }, jest.fn()]),
+  };
+});
+
+const triggerScan = (data: string | undefined) => {
+  const cb = (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned as
+    | ((e: { data?: string }) => void)
+    | undefined;
+  cb?.({ data });
+};
 
 // ── react-native-svg mock ────────────────────────────────────────────────────
 jest.mock('react-native-svg', () => {
@@ -53,6 +72,7 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof CouPointUseScr
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  (globalThis as Record<string, unknown>).__cameraOnBarcodeScanned = undefined;
   mockSubmitCouPointSpend.mockResolvedValue({
     couPoints: 95,
     store: { id: 1, name: '測試店家', address: 'addr' },
@@ -67,29 +87,47 @@ afterEach(() => {
 });
 
 describe('CouPointUseScreen', () => {
-  it('renders the scan phase initially', () => {
-    const { getByTestId } = render(<CouPointUseScreen {...makeProps()} />);
-    expect(getByTestId('sim-scan-btn')).toBeTruthy();
+  it('renders the scan phase initially without a simulate-scan dev button', () => {
+    const { queryByTestId, queryByText } = render(<CouPointUseScreen {...makeProps()} />);
+    expect(queryByTestId('sim-scan-btn')).toBeNull();
+    expect(queryByText('模擬掃描成功 ▶')).toBeNull();
   });
 
-  it('transitions to amount phase after simulated scan', () => {
+  it('transitions to amount phase after the camera emits a real QR scan', () => {
     const { getByTestId } = render(<CouPointUseScreen {...makeProps()} />);
-    fireEvent.press(getByTestId('sim-scan-btn'));
+    act(() => {
+      triggerScan('REAL_TOKEN_XYZ');
+    });
     expect(getByTestId('confirm-btn')).toBeTruthy();
   });
 
-  it('calls submitCouPointSpend with token and amount on confirm', async () => {
+  it('calls submitCouPointSpend with the scanned token (NOT the literal SIMULATED)', async () => {
     const { getByTestId } = render(<CouPointUseScreen {...makeProps()} />);
-    fireEvent.press(getByTestId('sim-scan-btn'));
+    act(() => {
+      triggerScan('REAL_TOKEN_XYZ');
+    });
     await act(async () => {
       fireEvent.press(getByTestId('confirm-btn'));
     });
-    expect(mockSubmitCouPointSpend).toHaveBeenCalledWith('SIMULATED', 5);
+    expect(mockSubmitCouPointSpend).toHaveBeenCalledWith('REAL_TOKEN_XYZ', 5);
+  });
+
+  it('ignores camera events with empty data (no phase transition, no API call)', () => {
+    // Defensive guard against the removed `?? 'SIMULATED'` fallback: an
+    // empty scan event must not advance the UI or fire a request.
+    const { queryByTestId } = render(<CouPointUseScreen {...makeProps()} />);
+    act(() => {
+      triggerScan(undefined);
+    });
+    expect(queryByTestId('confirm-btn')).toBeNull();
+    expect(mockSubmitCouPointSpend).not.toHaveBeenCalled();
   });
 
   it('refreshes wallet on successful confirm', async () => {
     const { getByTestId } = render(<CouPointUseScreen {...makeProps()} />);
-    fireEvent.press(getByTestId('sim-scan-btn'));
+    act(() => {
+      triggerScan('REAL_TOKEN_XYZ');
+    });
     await act(async () => {
       fireEvent.press(getByTestId('confirm-btn'));
     });
@@ -98,7 +136,9 @@ describe('CouPointUseScreen', () => {
 
   it('shows store name on success', async () => {
     const { getByTestId } = render(<CouPointUseScreen {...makeProps()} />);
-    fireEvent.press(getByTestId('sim-scan-btn'));
+    act(() => {
+      triggerScan('REAL_TOKEN_XYZ');
+    });
     await act(async () => {
       fireEvent.press(getByTestId('confirm-btn'));
     });
@@ -108,7 +148,9 @@ describe('CouPointUseScreen', () => {
   it('surfaces an error message and does NOT refresh wallet on failure', async () => {
     mockSubmitCouPointSpend.mockRejectedValueOnce(new Error('餘額不足'));
     const { getByTestId } = render(<CouPointUseScreen {...makeProps()} />);
-    fireEvent.press(getByTestId('sim-scan-btn'));
+    act(() => {
+      triggerScan('REAL_TOKEN_XYZ');
+    });
     await act(async () => {
       fireEvent.press(getByTestId('confirm-btn'));
     });
@@ -117,10 +159,12 @@ describe('CouPointUseScreen', () => {
   });
 
   it('shows insufficient balance UI when couPoints < 5', () => {
-    const { getByTestId, getByText, queryByTestId } = render(
+    const { getByText, queryByTestId } = render(
       <CouPointUseScreen {...makeProps({ couPoints: 3 })} />,
     );
-    fireEvent.press(getByTestId('sim-scan-btn'));
+    act(() => {
+      triggerScan('REAL_TOKEN_XYZ');
+    });
     expect(getByText('餘額不足')).toBeTruthy();
     expect(queryByTestId('confirm-btn')).toBeNull();
   });

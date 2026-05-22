@@ -72,8 +72,13 @@ export default function CouponReceiveQRScreen({
 
   const handleScan = async (scannedQrToken?: string): Promise<void> => {
     if (scanned.current || success) return;
+    // Real QR only. The previous `?? 'SIMULATED'` fallback would have
+    // POSTed a literal placeholder share-token to the backend on an
+    // empty scan event; we now bail out instead. The dev-only bypass
+    // button that depended on that fallback has been removed.
+    if (!scannedQrToken) return;
     scanned.current = true;
-    const token = scannedQrToken ?? 'SIMULATED';
+    const token = scannedQrToken;
     try {
       await receiveCoupon(token, idempotencyKeyRef.current);
       // QR claim earns +1 gem server-side (kind=QR_CLAIM); reflect it locally.
@@ -192,19 +197,6 @@ export default function CouponReceiveQRScreen({
             <Text style={s.errorText}>{receiveError}</Text>
           </View>
         ) : null}
-        <View style={s.simBtnOuter}>
-          {!success && <View style={s.simBtnShadow} />}
-          <Pressable
-            testID="receive-qr-simulate"
-            onPress={() => { void handleScan(); }}
-            disabled={success}
-            style={[s.simBtn, success && s.simBtnDone]}
-          >
-            <Text style={[s.simBtnText, success && s.simBtnTextDone]}>
-              {success ? '領取成功 ✓' : '模擬掃描成功 ▶'}
-            </Text>
-          </Pressable>
-        </View>
       </View>
     </View>
   );
@@ -317,8 +309,6 @@ const s = StyleSheet.create({
   },
   torchBtnActive: { backgroundColor: colors.yellow, borderColor: colors.border },
   camera: { ...StyleSheet.absoluteFillObject },
-  noCamera: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  noCameraText: { fontFamily: fontFamilies.regular, fontSize: 14, color: 'rgba(255,255,255,0.55)' },
   scanHint: {
     position: 'absolute',
     bottom: 16,
@@ -367,32 +357,6 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   footer: { padding: 12, paddingHorizontal: 16, paddingBottom: 14, zIndex: 5 },
-  simBtnOuter: { position: 'relative' },
-  simBtnShadow: {
-    position: 'absolute',
-    top: 3,
-    left: 3,
-    right: -3,
-    bottom: -3,
-    borderRadius: 6,
-    backgroundColor: colors.border,
-  },
-  simBtn: {
-    backgroundColor: colors.yellow,
-    borderWidth: 2.5,
-    borderColor: colors.border,
-    borderRadius: 6,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  simBtnDone: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)' },
-  simBtnText: {
-    fontFamily: fontFamilies.monoSemiBold,
-    fontSize: 15,
-    letterSpacing: 0.3,
-    color: colors.fg,
-  },
-  simBtnTextDone: { color: 'rgba(255,255,255,0.3)' },
   errorBanner: {
     marginBottom: 10,
     paddingHorizontal: 12,
