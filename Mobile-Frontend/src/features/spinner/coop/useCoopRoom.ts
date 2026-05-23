@@ -35,7 +35,7 @@ interface UseCoopRoomOptions {
   enabled?: boolean;
 }
 
-interface UseCoopRoomResult {
+export interface UseCoopRoomResult {
   state: CoopState;
   status: CoopStatus;
   send: (cmd: ClientCommand) => boolean;

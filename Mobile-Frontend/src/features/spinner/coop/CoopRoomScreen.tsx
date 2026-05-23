@@ -12,27 +12,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { colors } from '../../../theme/colors';
 import { fontFamilies } from '../../../theme/typography';
-import { useCoopRoom } from './useCoopRoom';
+import type { UseCoopRoomResult } from './useCoopRoom';
 import type { PlayerSnapshot } from './coopProtocol';
-import type { TokenProvider } from './coopClient';
 import ChargeMeter from './ChargeMeter';
 import { allFullyCharged, interpolateLocalCharge } from './charge';
 import RevealAnimation from './RevealAnimation';
 import { useForceUpdate } from './useForceUpdate';
 
 interface CoopRoomScreenProps {
-  /** JWT access token (or a thunk for refresh-on-reconnect). Identity is
-   * derived server-side from the token — the client no longer accepts a
-   * user id directly. */
-  token: TokenProvider;
+  coop: UseCoopRoomResult & { active: boolean; activate: () => void; deactivate: () => void };
   onExit: () => void;
+  onStartStaking?: () => void;
 }
 
 const ERROR_AUTO_DISMISS_MS = 4_000;
 
-export default function CoopRoomScreen({ token, onExit }: CoopRoomScreenProps): React.JSX.Element {
+export default function CoopRoomScreen({ coop, onExit, onStartStaking }: CoopRoomScreenProps): React.JSX.Element {
   const insets = useSafeAreaInsets();
-  const coop = useCoopRoom({ token });
   const { state, status, clearError } = coop;
 
   // v2 H-5: auto-dismiss the error banner so stale codes don't haunt the UI.
@@ -72,18 +68,19 @@ export default function CoopRoomScreen({ token, onExit }: CoopRoomScreenProps): 
         contentContainerStyle={styles.bodyContent}
         showsVerticalScrollIndicator={false}
       >
-        <PhaseView coop={coop} userId={meUserId} />
+        <PhaseView coop={coop} userId={meUserId} onStartStaking={onStartStaking} />
       </ScrollView>
     </View>
   );
 }
 
 interface PhaseViewProps {
-  coop: ReturnType<typeof useCoopRoom>;
+  coop: UseCoopRoomResult;
   userId: string;
+  onStartStaking?: () => void;
 }
 
-function PhaseView({ coop, userId }: PhaseViewProps): React.JSX.Element {
+function PhaseView({ coop, userId, onStartStaking }: PhaseViewProps): React.JSX.Element {
   const { state } = coop;
   if (state.phase === null) {
     return <ConnectView coop={coop} />;
@@ -91,7 +88,7 @@ function PhaseView({ coop, userId }: PhaseViewProps): React.JSX.Element {
   switch (state.phase) {
     case 'SOLO':
     case 'LOBBY_OPEN':
-      return <LobbyView coop={coop} />;
+      return <LobbyView coop={coop} onStartStaking={onStartStaking} />;
     case 'STAKING':
       return <StakingView coop={coop} userId={userId} />;
     case 'READY':
@@ -116,7 +113,7 @@ function PhaseView({ coop, userId }: PhaseViewProps): React.JSX.Element {
 
 // ── Per-phase sub-views ─────────────────────────────────────────────────────
 
-function ConnectView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
+function ConnectView({ coop }: { coop: UseCoopRoomResult }) {
   const [code, setCode] = useState('');
   const isConnected = coop.status === 'open';
   // Show the Retry affordance when we're definitively closed (handshake
@@ -133,12 +130,6 @@ function ConnectView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
         </Text>
       )}
       <View style={styles.btnGroup}>
-        <PrimaryBtn
-          label="開單人房"
-          onPress={() => coop.createRoom(true)}
-          disabled={!isConnected}
-          testID="btn-solo"
-        />
         <PrimaryBtn
           label="開多人房"
           onPress={() => coop.createRoom(false)}
@@ -181,7 +172,7 @@ function ConnectView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
   );
 }
 
-function LobbyView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
+function LobbyView({ coop, onStartStaking }: { coop: UseCoopRoomResult; onStartStaking?: () => void }) {
   const { state } = coop;
   // The QR encodes a coupro:// deep link carrying the room code. Note: a
   // matching deep-link handler route is not yet wired up (no entry in
@@ -208,12 +199,19 @@ function LobbyView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
         <Text style={styles.codeHint}>請朋友掃描 QR 或輸入代碼加入</Text>
       </View>
       <PlayerRoster players={state.players} hostId={state.hostId} />
-      <PrimaryBtn label="開始下注" onPress={() => coop.setStake(1)} testID="btn-begin-staking" />
+      <PrimaryBtn
+        label="開始下注"
+        onPress={() => {
+          coop.setStake(1);
+          onStartStaking?.();
+        }}
+        testID="btn-begin-staking"
+      />
     </View>
   );
 }
 
-function StakingView({ coop, userId }: { coop: ReturnType<typeof useCoopRoom>; userId: string }) {
+function StakingView({ coop, userId }: { coop: UseCoopRoomResult; userId: string }) {
   const { state } = coop;
   const me = state.players.find((p) => p.user_id === userId);
   const stake = me?.stake ?? 1;
@@ -250,7 +248,7 @@ function StakingView({ coop, userId }: { coop: ReturnType<typeof useCoopRoom>; u
   );
 }
 
-function ReadyView({ coop, userId }: { coop: ReturnType<typeof useCoopRoom>; userId: string }) {
+function ReadyView({ coop, userId }: { coop: UseCoopRoomResult; userId: string }) {
   const { state } = coop;
   const isHost = state.hostId === userId;
   return (
@@ -272,7 +270,7 @@ function ReadyView({ coop, userId }: { coop: ReturnType<typeof useCoopRoom>; use
   );
 }
 
-function CountdownView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
+function CountdownView({ coop }: { coop: UseCoopRoomResult }) {
   return (
     <View testID="phase-countdown" style={styles.center}>
       <Text style={styles.giant}>{coop.state.countdownTick ?? 3}</Text>
@@ -285,7 +283,7 @@ function ChargingView({
   coop,
   userId,
 }: {
-  coop: ReturnType<typeof useCoopRoom>;
+  coop: UseCoopRoomResult;
   userId: string;
 }): React.JSX.Element {
   const me = coop.state.players.find((p) => p.user_id === userId);
@@ -378,7 +376,7 @@ function SpinningView() {
   );
 }
 
-function RevealView({ coop, userId }: { coop: ReturnType<typeof useCoopRoom>; userId: string }) {
+function RevealView({ coop, userId }: { coop: UseCoopRoomResult; userId: string }) {
   const reveal = coop.state.reveal;
   if (!reveal) return <Text style={styles.bodyText}>等待結果…</Text>;
   return (
@@ -397,7 +395,7 @@ function RevealView({ coop, userId }: { coop: ReturnType<typeof useCoopRoom>; us
   );
 }
 
-function SettledView({ coop, userId }: { coop: ReturnType<typeof useCoopRoom>; userId: string }) {
+function SettledView({ coop, userId }: { coop: UseCoopRoomResult; userId: string }) {
   const myCredit = coop.state.credited?.[userId] ?? 0;
   return (
     <View testID="phase-settled">
@@ -408,7 +406,7 @@ function SettledView({ coop, userId }: { coop: ReturnType<typeof useCoopRoom>; u
   );
 }
 
-function AbortedView({ coop }: { coop: ReturnType<typeof useCoopRoom> }) {
+function AbortedView({ coop }: { coop: UseCoopRoomResult }) {
   return (
     <View testID="phase-aborted">
       <Text style={styles.h2}>本局取消</Text>

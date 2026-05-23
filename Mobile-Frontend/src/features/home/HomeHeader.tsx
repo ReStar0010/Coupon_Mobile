@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
-import LogoIcon from '@/src/components/icons/LogoIcon';
 import SettingsIcon from '@/src/components/icons/SettingsIcon';
+
+const APP_LOGO = require('@/assets/adaptive-icon.png');
 
 interface HomeHeaderProps {
   onSettings: () => void;
@@ -15,8 +17,13 @@ export default function HomeHeader({ onSettings }: HomeHeaderProps): React.JSX.E
       <View style={styles.brand}>
         <View style={styles.logoWrapper}>
           <View style={styles.logoShadow} />
-          <View style={styles.logoBox}>
-            <LogoIcon size={26} />
+          <View style={[styles.logoBox, { overflow: 'hidden' }]}>
+            <Image
+              source={APP_LOGO}
+              style={{ width: 38, height: 38 }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
           </View>
         </View>
         <Text style={styles.title}>CouPro</Text>
@@ -70,10 +77,9 @@ const styles = StyleSheet.create({
   logoBox: {
     width: 38,
     height: 38,
-    backgroundColor: colors.yellow,
+    borderRadius: 6,
     borderWidth: 2.5,
     borderColor: colors.border,
-    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },

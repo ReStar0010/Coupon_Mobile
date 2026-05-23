@@ -8,24 +8,6 @@ import { useAuth } from '@/src/state/AuthContext';
 import { acceptShare } from '@/src/services/api/sharing';
 import { track } from '@/src/services/analytics/posthog';
 
-/**
- * Deep-link landing for shared coupons.
- *
- * Two entry routes — both resolved by Expo Router to this file:
- *   - Custom scheme : `coupro://collection?token=…` (in-app + share-sheet)
- *   - Universal Link: `https://api.coupro.pro/collection/<token>/?open_ext=1`
- *
- * Either way we read the token and POST to the BE's
- * accept_share_request endpoint. The BE owns the race / self-claim /
- * already-claimed checks; we just project its response into a single
- * focused success/error screen.
- *
- * Auth gating: an unauthenticated user can't accept (BE returns 401),
- * so we bounce them to /(auth)/login first. We don't currently round-trip
- * the token through login — once logged in the user reopens the link
- * from their messaging app. A future enhancement would persist the token
- * across the auth flow.
- */
 type ClaimState =
   | { kind: 'idle' }
   | { kind: 'loading' }
@@ -41,7 +23,6 @@ export default function CollectionTokenRoute(): React.JSX.Element {
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) {
-      // Send the user to login. After login they can reopen the link.
       router.replace('/(auth)/login');
       return;
     }

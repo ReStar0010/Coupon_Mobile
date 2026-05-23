@@ -41,8 +41,8 @@ const mockReconnect = jest.fn();
 let mockState: CoopState = INITIAL_COOP_STATE;
 let mockStatus: 'closed' | 'connecting' | 'open' | 'closing' = 'open';
 
-jest.mock('../useCoopRoom', () => ({
-  useCoopRoom: () => ({
+function mockCoop() {
+  return {
     state: mockState,
     status: mockStatus,
     send: jest.fn(),
@@ -60,8 +60,11 @@ jest.mock('../useCoopRoom', () => ({
     ackReveal: jest.fn(),
     requestRematch: jest.fn(),
     reconnect: mockReconnect,
-  }),
-}));
+    active: true,
+    activate: jest.fn(),
+    deactivate: jest.fn(),
+  };
+}
 
 // ── react-native-reanimated soft mock for animation children ────────────────
 // CoopRoomScreen imports RevealAnimation which transitively uses Reanimated;
@@ -84,7 +87,7 @@ describe('CoopRoomScreen — lobby invite UX', () => {
   it('shows the connect view (no QR) before a room is created', () => {
     mockState = makeState({ phase: null, code: null });
     const { queryByTestId } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     expect(queryByTestId('qr-code')).toBeNull();
     expect(queryByTestId('phase-connect')).toBeTruthy();
@@ -93,7 +96,7 @@ describe('CoopRoomScreen — lobby invite UX', () => {
   it('renders the room code as plain text in the lobby phase', () => {
     mockState = makeState({ phase: 'LOBBY_OPEN', code: 'ABC123', roomId: 'room-1' });
     const { getByTestId } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     expect(getByTestId('room-code').props.children).toBe('ABC123');
   });
@@ -101,7 +104,7 @@ describe('CoopRoomScreen — lobby invite UX', () => {
   it('renders a real QR component in the lobby phase encoding a coupro:// deep link with the code', () => {
     mockState = makeState({ phase: 'LOBBY_OPEN', code: 'ABC123', roomId: 'room-1' });
     const { getByTestId } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     const qr = getByTestId('qr-code');
     // The QR must encode the actual room code so another device's scanner
@@ -114,7 +117,7 @@ describe('CoopRoomScreen — lobby invite UX', () => {
   it('does not render the QR for non-lobby phases', () => {
     mockState = makeState({ phase: 'STAKING', code: 'ABC123', roomId: 'room-1' });
     const { queryByTestId } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     expect(queryByTestId('qr-code')).toBeNull();
   });
@@ -125,7 +128,7 @@ describe('CoopRoomScreen — closed-status UX', () => {
     mockState = makeState({ phase: null });
     mockStatus = 'closed';
     const { getByTestId, getByText } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     expect(getByTestId('btn-retry-connection')).toBeTruthy();
     getByText('重新連線');
@@ -135,7 +138,7 @@ describe('CoopRoomScreen — closed-status UX', () => {
     mockState = makeState({ phase: null });
     mockStatus = 'closed';
     const { getByTestId } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     getByTestId('btn-retry-connection').props.onClick?.();
     // RN Pressable uses onPress, not onClick — use fireEvent.
@@ -149,7 +152,7 @@ describe('CoopRoomScreen — closed-status UX', () => {
     mockState = makeState({ phase: null });
     mockStatus = 'connecting';
     const { getByTestId } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     const solo = getByTestId('btn-solo');
     const multi = getByTestId('btn-multi');
@@ -163,7 +166,7 @@ describe('CoopRoomScreen — closed-status UX', () => {
     mockState = makeState({ phase: null });
     mockStatus = 'closed';
     const { getByTestId } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     const solo = getByTestId('btn-solo');
     const multi = getByTestId('btn-multi');
@@ -177,7 +180,7 @@ describe('CoopRoomScreen — closed-status UX', () => {
     mockState = makeState({ phase: null });
     mockStatus = 'open';
     const { queryByTestId } = render(
-      <CoopRoomScreen token="fake-jwt" onExit={jest.fn()} />,
+      <CoopRoomScreen coop={mockCoop()} onExit={jest.fn()} />,
     );
     expect(queryByTestId('btn-retry-connection')).toBeNull();
   });

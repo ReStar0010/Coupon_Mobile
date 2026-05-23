@@ -8,8 +8,8 @@ import type { MerchantDetail } from '@/src/services/api/merchants';
 // tests exercise our content layout, not the sheet animation library.
 // `present` and `dismiss` are tracked jest.fn()s so tests can assert
 // the gorhom prop bridge calls them at the right times.
-const gorhomPresent = jest.fn();
-const gorhomDismiss = jest.fn();
+const mockGorhomPresent = jest.fn();
+const mockGorhomDismiss = jest.fn();
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
   const { View, ScrollView } = require('react-native');
@@ -19,9 +19,9 @@ jest.mock('@gorhom/bottom-sheet', () => {
       ref: React.MutableRefObject<unknown>,
     ) => {
       React.useImperativeHandle(ref, () => ({
-        present: gorhomPresent,
+        present: mockGorhomPresent,
         dismiss: () => {
-          gorhomDismiss();
+          mockGorhomDismiss();
           onDismiss?.();
         },
       }));
@@ -45,8 +45,8 @@ jest.mock('@gorhom/bottom-sheet', () => {
 });
 
 beforeEach(() => {
-  gorhomPresent.mockClear();
-  gorhomDismiss.mockClear();
+  mockGorhomPresent.mockClear();
+  mockGorhomDismiss.mockClear();
 });
 
 const baseMerchant: MerchantDetail = {
@@ -92,9 +92,9 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof MerchantSheet>
 });
 
 describe('MerchantSheet', () => {
-  it('renders nothing when merchant is null', () => {
-    const { queryByTestId } = render(<MerchantSheet {...makeProps({ merchant: null })} />);
-    expect(queryByTestId('merchant-sheet')).toBeNull();
+  it('dismisses when merchant is null', () => {
+    render(<MerchantSheet {...makeProps({ merchant: null })} />);
+    expect(mockGorhomPresent).not.toHaveBeenCalled();
   });
 
   it('renders the merchant name and meta line', () => {
@@ -223,7 +223,7 @@ describe('MerchantSheet', () => {
 
   it('calls gorhom.present() when visible becomes true with a merchant', () => {
     render(<MerchantSheet {...makeProps({ visible: true })} />);
-    expect(gorhomPresent).toHaveBeenCalled();
+    expect(mockGorhomPresent).toHaveBeenCalled();
   });
 
   it('calls gorhom.dismiss() when visible flips to false', () => {
@@ -231,9 +231,9 @@ describe('MerchantSheet', () => {
     // rather than unmounting it — unmounting strands gorhom's portal
     // and leaves the backdrop on screen.
     const { rerender } = render(<MerchantSheet {...makeProps({ visible: true })} />);
-    gorhomPresent.mockClear();
+    mockGorhomPresent.mockClear();
     rerender(<MerchantSheet {...makeProps({ visible: false })} />);
-    expect(gorhomDismiss).toHaveBeenCalled();
+    expect(mockGorhomDismiss).toHaveBeenCalled();
   });
 
   it('keeps the BottomSheetModal mounted even when merchant becomes null', () => {
@@ -247,6 +247,6 @@ describe('MerchantSheet', () => {
     expect(getByTestId('bottom-sheet-modal')).toBeTruthy();
     rerender(<MerchantSheet {...makeProps({ visible: false, merchant: null })} />);
     expect(getByTestId('bottom-sheet-modal')).toBeTruthy();
-    expect(gorhomDismiss).toHaveBeenCalled();
+    expect(mockGorhomDismiss).toHaveBeenCalled();
   });
 });

@@ -239,7 +239,6 @@ export default function CouponShareScreen({
               accessibilityState={{ disabled: !target || isSubmitting }}
               style={[s.confirmBtn, !target && s.confirmBtnDisabled]}
             >
-              <GemIcon size={18} color={target ? colors.purpleLight : colors.muted} />
               <Text style={[s.confirmText, !target && s.confirmTextDisabled]}>{confirmLabel}</Text>
             </Pressable>
           </View>
@@ -248,10 +247,18 @@ export default function CouponShareScreen({
       {success && (
         <View style={s.successOverlay}>
           <View style={s.successIcon}>
-            <GemIcon size={46} color={colors.purpleLight} />
+            <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M5 13l4 4L19 7"
+                stroke={colors.purpleLight}
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
           </View>
           <Text style={s.successTitle}>已分享！</Text>
-          <Text style={s.successSub}>+1 顆寶石 已入帳</Text>
+          <Text style={s.successSub}>被使用時，你將獲得寶石獎勵</Text>
           <Text style={s.successReturn}>返回首頁中…</Text>
         </View>
       )}

@@ -45,6 +45,7 @@ from .states import (
     Phase,
 )
 from .store import RoomStore
+from .wallet_service import WalletService, WalletNotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -313,6 +314,23 @@ class SpinnerCoopConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def _cmd_stake_lock(self, body: dict):
+        room = _ROOM_STORE.get(self.room_id) if self.room_id else None
+        if room is not None:
+            player = next((p for p in room.players if p.user_id == str(self.user_id)), None)
+            if player and not player.locked:
+                try:
+                    gems, _ = await database_sync_to_async(
+                        WalletService.get_balance, thread_sensitive=False
+                    )(self.user_id)
+                except WalletNotFoundError:
+                    gems = 0
+                if gems < player.stake:
+                    await self._send_error(
+                        ErrorCode.INSUFFICIENT_GEMS,
+                        f"寶石不足（需要 {player.stake}，剩餘 {gems}）",
+                        "stake.lock",
+                    )
+                    return
         await self._run_locked(
             "stake.lock",
             lambda room: T.lock_stake(room, user_id=str(self.user_id), now_ms=_now_ms()),
@@ -472,7 +490,7 @@ class SpinnerCoopConsumer(AsyncJsonWebsocketConsumer):
         #    scheduler effects only run if the atomic commits.
         if result.side_effects:
             try:
-                await database_sync_to_async(self._exec_effects, thread_sensitive=True)(
+                await database_sync_to_async(self._exec_effects, thread_sensitive=False)(
                     tuple(result.side_effects)
                 )
             except Exception as exc:  # noqa: BLE001 — broad on purpose; log + abort below.

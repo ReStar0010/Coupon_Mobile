@@ -23,6 +23,7 @@ import { useSpinLogic } from './useSpinLogic';
 import { getCharge } from './constants';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
+import { useCoopContext } from './coop/CoopContext';
 
 interface SpinnerScreenProps {
   onNavigate: (screen: string) => void;
@@ -61,20 +62,16 @@ export default function SpinnerScreen({
   refreshWallet,
 }: SpinnerScreenProps): React.JSX.Element {
   const [players, setPlayers] = useState(1);
-  // Wager (1..min(5, wallet)). Decoupled from the wallet so the Stepper can
-  // actually adjust it — the wallet is server-owned and immutable from the
-  // client, so reusing `gems` as the wager (the previous behaviour) made the
-  // +/- buttons silent no-ops.
   const [bet, setBet] = useState(1);
   const insets = useSafeAreaInsets();
+  const coop = useCoopContext();
 
-  // Co-op invites are no longer a faked-in-place modal with a placeholder
-  // QR; tapping a guest slot routes the user to the real CoopRoomScreen
-  // (mounted at /spinner-coop) which speaks the existing /ws/spinner/v1/
-  // protocol via useCoopRoom. `players > 1` here is just the local intent
-  // picker — the actual roster lives on the co-op screen.
-  const invited = players - 1;
-  const allFilled = invited === 0;
+  const isMultiplayer = coop.active && coop.state.phase !== null;
+  const coopPlayers = coop.state.players;
+  const displayPlayers = isMultiplayer ? coopPlayers.length : players;
+
+  const invited = isMultiplayer ? 0 : players - 1;
+  const allFilled = isMultiplayer || invited === 0;
   // Stepper cap. When the wallet is empty the Stepper still needs `max >= min`
   // (the component requires min=1), so we floor the cap at 1 — `canSpin`
   // below blocks the actual spin in that state.
@@ -438,18 +435,102 @@ export default function SpinnerScreen({
   // affordance that hands the user off to the real CoopRoomScreen. Local
   // state no longer pretends to track guest fills — that's the WS layer's
   // job once the user reaches the co-op screen.
-  const slotType = (i: number) => {
+  const meUserId = coop.state.meUserId ?? '';
+  const slotType = (i: number): 'me' | 'player' | 'empty' => {
+    if (isMultiplayer) {
+      const p = coopPlayers[i];
+      if (!p) return 'empty';
+      return p.user_id === meUserId ? 'me' : 'player';
+    }
     if (i === 0) return 'me';
     return 'empty';
   };
 
+  const myCoopPlayer = isMultiplayer
+    ? coopPlayers.find((p) => p.user_id === meUserId)
+    : null;
+  const myLocked = myCoopPlayer?.locked ?? false;
+  const isHost = coop.state.hostId === meUserId;
+  const wsOpen = coop.status === 'open';
+  const coopEnded = isMultiplayer &&
+    (coop.state.phase === 'ABORTED' || coop.state.phase === 'DISPOSED' || coop.state.phase === 'SETTLED');
+  const coopDisconnected = isMultiplayer && coop.status === 'closed';
+
+  const exitMultiplayer = () => {
+    coop.leaveRoom();
+    coop.deactivate();
+  };
+
+  // Auto-deactivate after 30s of closed connection
+  const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (coopDisconnected) {
+      disconnectTimerRef.current = setTimeout(() => {
+        coop.deactivate();
+      }, 30_000);
+      return () => {
+        if (disconnectTimerRef.current) clearTimeout(disconnectTimerRef.current);
+      };
+    }
+    if (disconnectTimerRef.current) {
+      clearTimeout(disconnectTimerRef.current);
+      disconnectTimerRef.current = null;
+    }
+  }, [coopDisconnected]);
+
+  const handleBetChange = (v: number) => {
+    setBet(v);
+    if (isMultiplayer && wsOpen) coop.setStake(v);
+  };
+
   const spinBtnLabel = () => {
+    if (isMultiplayer) {
+      if (coopEnded) return '回到單人';
+      if (coopDisconnected) return '重新連線';
+      if (!wsOpen) return '連線中…';
+      if (coop.state.phase === 'STAKING') {
+        if (myLocked) return '等待其他人…';
+        return '鎖定下注';
+      }
+      if (coop.state.phase === 'READY') {
+        return isHost ? '開始！' : '等待房主開始…';
+      }
+    }
     if (!allFilled) return '等待朋友加入';
     if (spinning) return '轉啊轉…';
     if (!spinning && result?.mult === 5) return 'RAGE SPIN';
     if (!spinning && result?.mult === 0) return '復仇轉！';
     return 'SPIN!';
   };
+
+  const handleMainButton = () => {
+    if (isMultiplayer) {
+      if (coopEnded) {
+        exitMultiplayer();
+        return;
+      }
+      if (coopDisconnected) {
+        coop.reconnect();
+        return;
+      }
+      if (coop.state.phase === 'STAKING' && !myLocked && wsOpen) {
+        coop.lockStake();
+        return;
+      }
+      if (coop.state.phase === 'READY' && isHost && wsOpen) {
+        coop.startCountdown();
+        return;
+      }
+      return;
+    }
+    handleSpin();
+  };
+
+  const mainBtnDisabled = isMultiplayer
+    ? (!wsOpen && !coopDisconnected && !coopEnded) ||
+      (coop.state.phase === 'STAKING' && myLocked) ||
+      (coop.state.phase === 'READY' && !isHost)
+    : !canSpin;
 
   return (
     <View style={styles.screen}>
@@ -461,7 +542,31 @@ export default function SpinnerScreen({
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.title}>Spinner</Text>
+        <View style={styles.titleRow}>
+          {isMultiplayer && (
+            <Pressable
+              testID="coop-exit-btn"
+              onPress={exitMultiplayer}
+              style={styles.exitBtn}
+              accessibilityRole="button"
+              accessibilityLabel="離開多人房"
+            >
+              <Text style={styles.exitBtnText}>←</Text>
+            </Pressable>
+          )}
+          <Text style={styles.title}>CouSino</Text>
+          {isMultiplayer && (
+            <View style={[
+              styles.statusPill,
+              wsOpen && styles.statusPillOpen,
+              coopDisconnected && styles.statusPillClosed,
+            ]}>
+              <Text style={styles.statusPillText}>
+                {wsOpen ? '已連線' : coopDisconnected ? '已斷線' : '連線中…'}
+              </Text>
+            </View>
+          )}
+        </View>
         <View style={styles.badges}>
           <Animated.View
             testID="coupoints-badge"
@@ -477,12 +582,42 @@ export default function SpinnerScreen({
         </View>
       </View>
 
+      {/* Co-op status banners */}
+      {isMultiplayer && coop.state.lastError && (
+        <Pressable
+          style={styles.coopBanner}
+          onPress={coop.clearError}
+        >
+          <Text style={styles.coopBannerText}>
+            ⚠ {coop.state.lastError.message}
+          </Text>
+        </Pressable>
+      )}
+      {isMultiplayer && coop.state.phase === 'ABORTED' && (
+        <View style={styles.coopBanner}>
+          <Text style={styles.coopBannerText}>
+            房間已取消{coop.state.abortReason ? `：${coop.state.abortReason}` : ''}
+          </Text>
+        </View>
+      )}
+      {coopDisconnected && (
+        <View style={[styles.coopBanner, styles.coopBannerWarn]}>
+          <Text style={styles.coopBannerText}>連線中斷，點擊下方按鈕重新連線</Text>
+        </View>
+      )}
+
       {/* Wheel area — zoom + shake */}
       <Reanimated.View style={[styles.wheelArea, shakeStyle]}>
         {/* Player slots */}
         <View style={styles.slots}>
-          {Array.from({ length: players }).map((_, i) => {
+          {Array.from({ length: displayPlayers }).map((_, i) => {
             const slot = slotType(i);
+            const player = isMultiplayer ? coopPlayers[i] : null;
+            const slotLabel = slot === 'me'
+              ? '我'
+              : slot === 'player'
+                ? (player?.display_name?.slice(0, 2) ?? '?')
+                : '+';
             return (
               <Reanimated.View key={i} style={slotStyles[i]}>
                 <Pressable
@@ -493,17 +628,17 @@ export default function SpinnerScreen({
                   style={[
                     styles.slot,
                     slot === 'me' && styles.slotMe,
+                    slot === 'player' && styles.slotPlayer,
                     slot === 'empty' && styles.slotEmpty,
                   ]}
                 >
-                  {/* Pulsing orange ring for invited empty slots */}
                   {slot === 'empty' && i > 0 && (
                     <Reanimated.View
                       style={[StyleSheet.absoluteFill, styles.slotPulseRing, emptyRingStyle]}
                       pointerEvents="none"
                     />
                   )}
-                  <Text style={styles.slotText}>{slot === 'me' ? '我' : '+'}</Text>
+                  <Text style={styles.slotText}>{slotLabel}</Text>
                 </Pressable>
               </Reanimated.View>
             );
@@ -583,22 +718,26 @@ export default function SpinnerScreen({
             value={bet}
             min={1}
             max={maxBet}
-            onChange={setBet}
+            onChange={handleBetChange}
             accent
           />
-          <View style={styles.divider} />
-          <Stepper label="揪友" value={players} min={1} max={3} onChange={setPlayers} />
+          {!isMultiplayer && (
+            <>
+              <View style={styles.divider} />
+              <Stepper label="揪友" value={players} min={1} max={3} onChange={setPlayers} />
+            </>
+          )}
         </View>
         <Reanimated.View style={btnBreathStyle}>
           <Pressable
             testID="spin-button"
-            onPress={handleSpin}
-            disabled={!canSpin}
+            onPress={handleMainButton}
+            disabled={mainBtnDisabled}
             accessibilityRole="button"
-            accessibilityState={{ disabled: !canSpin }}
-            style={[styles.spinBtn, canSpin ? styles.spinBtnActive : styles.spinBtnDisabled]}
+            accessibilityState={{ disabled: mainBtnDisabled }}
+            style={[styles.spinBtn, !mainBtnDisabled ? styles.spinBtnActive : styles.spinBtnDisabled]}
           >
-            <Text style={[styles.spinBtnText, !canSpin && styles.spinBtnTextDisabled]}>
+            <Text style={[styles.spinBtnText, mainBtnDisabled && styles.spinBtnTextDisabled]}>
               {spinBtnLabel()}
             </Text>
           </Pressable>
@@ -699,6 +838,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   slotMe: { backgroundColor: colors.purple },
+  slotPlayer: { backgroundColor: colors.green },
   slotEmpty: { backgroundColor: '#FFFFFF' },
   slotPulseRing: {
     borderRadius: 21,
@@ -818,5 +958,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     letterSpacing: -0.2,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  exitBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exitBtnText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 18,
+    color: '#fff',
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  statusPillOpen: {
+    backgroundColor: 'rgba(0,200,150,0.25)',
+  },
+  statusPillClosed: {
+    backgroundColor: 'rgba(238,51,85,0.3)',
+  },
+  statusPillText: {
+    fontFamily: fontFamilies.monoRegular,
+    fontSize: 10,
+    color: '#fff',
+  },
+  coopBanner: {
+    marginHorizontal: 16,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: 'rgba(238,51,85,0.15)',
+  },
+  coopBannerWarn: {
+    backgroundColor: 'rgba(255,173,49,0.2)',
+  },
+  coopBannerText: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
+    color: '#fff',
+    textAlign: 'center',
   },
 });

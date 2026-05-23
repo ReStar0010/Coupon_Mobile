@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
-import LogoIcon from '../icons/LogoIcon';
+
+const APP_LOGO = require('@/assets/adaptive-icon.png');
 
 type TabName = 'home' | 'map' | 'spinner';
 
@@ -22,7 +24,7 @@ interface TabConfig {
 const TABS: TabConfig[] = [
   { id: 'map', label: 'CouMap' },
   { id: 'home', label: 'CouPro' },
-  { id: 'spinner', label: 'Spinner' },
+  { id: 'spinner', label: 'CouSino' },
 ];
 
 function MapIcon({ active, iconColor }: { active: boolean; iconColor: string }) {
@@ -95,8 +97,13 @@ export default function TabBar({
               { top: 5, left: 5 },
             ]}
           />
-          <View style={[styles.homeBtn, { backgroundColor: homeBgActive }]}>
-            <LogoIcon size={36} />
+          <View style={[styles.homeBtn, { overflow: 'hidden' }]}>
+            <Image
+              source={APP_LOGO}
+              style={{ width: 58, height: 58 }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
           </View>
         </View>
         <Text
@@ -130,7 +137,7 @@ export default function TabBar({
             activeTab === 'spinner' && styles.tabLabelActive,
           ]}
         >
-          Spinner
+          CouSino
         </Text>
       </Pressable>
 

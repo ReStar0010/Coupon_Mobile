@@ -1,14 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import * as Location from 'expo-location';
 import { colors } from '../../theme/colors';
-import LogoIcon from '../../components/icons/LogoIcon';
 import { fontFamilies } from '../../theme/typography';
+
+const APP_LOGO = require('@/assets/adaptive-icon.png');
 import NeoBrutMap, { NeoBrutMapHandle } from './NeoBrutMap';
 import NeoTeardropPin from './NeoTeardropPin';
 import UserLocationMarker from './UserLocationMarker';
+import { shouldUpdateHeading } from './heading';
 import FlagStoreModal from './FlagStoreModal';
 import BlockStoreModal from './BlockStoreModal';
 import SharedCouponModal, { SharedCoupon } from './SharedCouponModal';
@@ -84,6 +87,13 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
     null,
   );
   const [userHeading, setUserHeading] = useState<number | null>(null);
+  // Last value passed to setUserHeading. The watcher fires at ~10 Hz and
+  // most ticks differ by far less than a degree; pushing each one would
+  // re-render the whole MapScreen subtree 10× per second for no visible
+  // effect. Tracked in a ref so the watcher closure can compare without
+  // adding userHeading to its dep array (which would tear down the
+  // subscription on every update).
+  const prevHeadingRef = useRef<number | null>(null);
   // Ref-based in-flight guard. Using state in the callback's deps would
   // re-memoise on every transition (and the rapid-press guard would be
   // ordering-dependent on the disabled prop arriving before the next
@@ -139,7 +149,11 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
           // back to magnetic heading otherwise. Below-zero trueHeading is
           // the documented "not yet available" sentinel.
           const next = reading.trueHeading >= 0 ? reading.trueHeading : reading.magHeading;
-          setUserHeading(typeof next === 'number' ? next : null);
+          const value = typeof next === 'number' ? next : null;
+          // Throttle to ≥1° deltas (see `./heading.ts` for full rules).
+          if (!shouldUpdateHeading(prevHeadingRef.current, value)) return;
+          prevHeadingRef.current = value;
+          setUserHeading(value);
         });
       } catch {
         // Permission denied or hardware unavailable — fall through silently.
@@ -390,8 +404,13 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
 
         {/* Search bar — pushed below the notch */}
         <View style={[styles.searchBar, { top: insets.top + 8 }]}>
-          <View style={styles.searchLogoBox}>
-            <LogoIcon size={22} />
+          <View style={[styles.searchLogoBox, { overflow: 'hidden' }]}>
+            <Image
+              source={APP_LOGO}
+              style={{ width: 34, height: 34 }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
           </View>
           <TextInput
             placeholder="搜尋店家或優惠…"
@@ -552,10 +571,9 @@ const styles = StyleSheet.create({
   searchLogoBox: {
     width: 34,
     height: 34,
-    backgroundColor: colors.yellow,
+    borderRadius: 4,
     borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.border,

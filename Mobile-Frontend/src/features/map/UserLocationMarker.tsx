@@ -13,11 +13,20 @@ interface UserLocationMarkerProps {
 // Neo-brutalism "you are here" marker:
 //   • a hard-bordered purple disc (your position)
 //   • a yellow triangle cone pointing in the direction the device is facing
-// `tracksViewChanges` is left at its default (true) on purpose: the rotation
-// transform must propagate to the native marker bitmap on every heading
-// update, otherwise the cone appears frozen. The cost is a single marker
-// re-rasterise per heading tick (~10 Hz on iOS, less on Android), which is
-// cheap compared to the many merchant pins around it.
+//
+// Rotation is delivered via the Marker's NATIVE `rotation` prop, applied to
+// the marker bitmap by MapKit/Google-Maps SDK directly. The inner View
+// deliberately does NOT carry a `transform: rotate` — that was the
+// previous implementation and it caused the iOS "marker jumps between
+// center and top-left" bug. With JS-side rotation, the Marker has to
+// re-rasterise its child bitmap on every heading tick (10 Hz from
+// `Location.watchHeadingAsync`), and during re-rasterisation iOS briefly
+// projects the marker at screen coord (0,0) before snapping back.
+//
+// `tracksViewChanges={false}` pins the marker bitmap as static. Heading
+// updates change only the native `rotation` value — no re-rasterise, no
+// flicker. The cone still rotates because MapKit re-renders the rotated
+// bitmap each frame natively, which is what we wanted all along.
 function UserLocationMarker({ coordinate, heading }: UserLocationMarkerProps): React.JSX.Element {
   const rotation = heading ?? 0;
   return (
@@ -25,11 +34,10 @@ function UserLocationMarker({ coordinate, heading }: UserLocationMarkerProps): R
       coordinate={coordinate}
       anchor={{ x: 0.5, y: 0.5 }}
       flat
+      rotation={rotation}
+      tracksViewChanges={false}
     >
-      <View
-        testID="user-location-marker"
-        style={[styles.wrap, { transform: [{ rotate: `${rotation}deg` }] }]}
-      >
+      <View testID="user-location-marker" style={styles.wrap}>
         <Svg width={44} height={44} viewBox="0 0 44 44">
           {/* heading cone — only render when heading is known */}
           {heading !== null && (
