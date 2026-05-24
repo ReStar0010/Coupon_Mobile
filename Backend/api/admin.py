@@ -2223,32 +2223,14 @@ from api.models import DailyDrawAttempt, Wallet, WalletTransaction
 from api.spinner_coop.wallet_service import WalletService
 
 
-class WalletAdjustForm(forms.Form):
-    delta_gems = forms.IntegerField(
-        label='CouGem 調整',
-        help_text='正數 = 加, 負數 = 扣',
-        initial=0,
-    )
-    delta_cou_points = forms.IntegerField(
-        label='CouPoint 調整',
-        help_text='正數 = 加, 負數 = 扣',
-        initial=0,
-    )
-    note = forms.CharField(
-        label='備註',
-        max_length=255,
-        required=False,
-        widget=forms.TextInput(attrs={'size': 60}),
-    )
-
-
 @admin.register(Wallet)
 class WalletAdmin(admin.ModelAdmin):
     list_display = ['user_id', 'user_email', 'gems', 'cou_points', 'version', 'updated_at']
     search_fields = ['user__email', 'user__username']
     list_select_related = ['user']
     ordering = ['-updated_at']
-    readonly_fields = ['user', 'gems', 'cou_points', 'version', 'created_at', 'updated_at']
+    fields = ['user', 'gems', 'cou_points', 'version', 'created_at', 'updated_at']
+    readonly_fields = ['user', 'version', 'created_at', 'updated_at']
 
     def user_email(self, obj):
         return obj.user.email
@@ -2261,56 +2243,24 @@ class WalletAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def get_urls(self):
-        urls = super().get_urls()
-        custom = [
-            path(
-                '<int:wallet_pk>/adjust/',
-                self.admin_site.admin_view(self.adjust_view),
-                name='spinner_wallet_adjust',
-            ),
-        ]
-        return custom + urls
-
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['adjust_url'] = reverse(
-            'admin:spinner_wallet_adjust', args=[object_id],
+    def save_model(self, request, obj, form, change):
+        if not change:
+            return
+        old = Wallet.objects.only('gems', 'cou_points').get(pk=obj.pk)
+        dg = obj.gems - old.gems
+        dp = obj.cou_points - old.cou_points
+        if dg == 0 and dp == 0:
+            messages.info(request, '餘額未變更')
+            return
+        kind = WalletTransaction.Kind.REFUND if (dg < 0 or dp < 0) else WalletTransaction.Kind.SEED
+        WalletService.mutate(
+            user_id=obj.pk,
+            delta_gems=dg,
+            delta_cou_points=dp,
+            kind=kind,
+            note=f'Admin adjust by {request.user.username}',
         )
-        return super().change_view(request, object_id, form_url, extra_context)
-
-    def adjust_view(self, request, wallet_pk):
-        wallet = Wallet.objects.select_related('user').get(pk=wallet_pk)
-        if request.method == 'POST':
-            form = WalletAdjustForm(request.POST)
-            if form.is_valid():
-                dg = form.cleaned_data['delta_gems']
-                dp = form.cleaned_data['delta_cou_points']
-                note = form.cleaned_data['note'] or f'Admin adjust by {request.user.username}'
-                if dg == 0 and dp == 0:
-                    messages.warning(request, '調整量都是 0，未執行任何操作')
-                else:
-                    kind = WalletTransaction.Kind.REFUND if (dg < 0 or dp < 0) else WalletTransaction.Kind.SEED
-                    try:
-                        WalletService.mutate(
-                            user_id=wallet.user_id,
-                            delta_gems=dg,
-                            delta_cou_points=dp,
-                            kind=kind,
-                            note=note,
-                        )
-                        messages.success(request, f'已調整 {wallet.user.email}: gems {dg:+d}, couPoints {dp:+d}')
-                    except Exception as exc:
-                        messages.error(request, f'調整失敗: {exc}')
-                return redirect(reverse('admin:api_wallet_change', args=[wallet_pk]))
-        else:
-            form = WalletAdjustForm()
-        return render(request, 'admin/wallet_adjust.html', {
-            'form': form,
-            'wallet': wallet,
-            'title': f'調整錢包 — {wallet.user.email}',
-            'opts': self.model._meta,
-        })
+        messages.success(request, f'已調整: gems {dg:+d}, couPoints {dp:+d}')
 
 
 @admin.register(WalletTransaction)
