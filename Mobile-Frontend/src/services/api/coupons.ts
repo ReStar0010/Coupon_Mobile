@@ -9,6 +9,7 @@ export interface Coupon {
   expires: string; // 'MM/DD' formatted by BE
   amount: number;
   status: 'active' | 'redeemed' | 'expired' | 'shared';
+  gem_reward: number;
 }
 
 export interface RedeemResponse {
@@ -108,6 +109,7 @@ export interface DailyDrawTemplate {
   estimated_savings: number | null;
   expiry_date: string;
   remaining_quantity: number;
+  draw_probability: number;
 }
 
 /** Normalized daily-draw result. */
@@ -141,14 +143,13 @@ export async function listDailyDrawTemplates(): Promise<DailyDrawTemplate[]> {
 }
 
 /**
- * Roll the daily draw for a specific template. The BE owns the RNG and
- * the success probability per template.
+ * Roll the daily draw. When called without a templateId, the server picks
+ * a template weighted by draw_probability from the active pool.
  */
-export async function dailyDraw(templateId: number): Promise<DailyDrawResult> {
+export async function dailyDraw(templateId?: number): Promise<DailyDrawResult> {
   try {
-    const response = await apiClient.post<DailyDrawResult>('/api/coupon/daily-draw/', {
-      template_id: templateId,
-    });
+    const body = templateId !== undefined ? { template_id: templateId } : {};
+    const response = await apiClient.post<DailyDrawResult>('/api/coupon/daily-draw/', body);
     return response.data;
   } catch (error) {
     throw normalizeError(error);

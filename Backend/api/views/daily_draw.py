@@ -8,12 +8,13 @@ from django.utils import timezone
 from django.db import transaction
 from datetime import timedelta
 from drf_yasg.utils import swagger_auto_schema
-import random
-import string
+import secrets as _secrets
 
 from api.models import CouponTemplate, Coupon, StudentProfile, Log, DailyDrawAttempt
 from api.exceptions import CouponTemplateNotFound, UserNotFound
 from ..serializers import DrawCouponSerializer
+
+_sysrand = _secrets.SystemRandom()
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,8 @@ def get_daily_draw_templates(request):
             'image_url': template.image_url,
             'estimated_savings': template.estimated_savings,
             'expiry_date': template.expiry_date,
-            'remaining_quantity': template.remaining_quantity
+            'remaining_quantity': template.remaining_quantity,
+            'draw_probability': template.draw_probability
         })
     
     return Response({
@@ -62,28 +64,34 @@ def get_daily_draw_templates(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def draw_coupon(request):
-    """Try to draw a coupon from a template based on probability"""
+    """Try to draw a coupon from a template based on probability.
+
+    When ``template_id`` is omitted, the server selects a template from the
+    active pool weighted by ``draw_probability``.
+    """
     template_id = request.data.get('template_id')
-    if not template_id:
-        return Response({'error': 'Template ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
-        # Get the template and verify it's active
         now = timezone.now()
-        template = CouponTemplate.objects.get(
-            id=template_id,
+        active_qs = CouponTemplate.objects.filter(
             is_active=True,
             remaining_quantity__gt=0,
             start_date__lte=now,
-            expiry_date__gt=now
-        )
-        # Resolve the StudentProfile up front so we can fail fast with 404
-        # before doing any DB writes. The actual `last_draw_time` write
-        # moves into the atomic block below so this "when did the user
-        # last draw" record stays in lock-step with the coupon/attempt
-        # writes — if any roll back, the timestamp also rolls back.
-        # NOTE: this is a *record*, not a rate-limit guard. Throttling is
-        # handled by DRF's UserRateThrottle, not by reading this field.
+            expiry_date__gt=now,
+        ).select_related('store')
+
+        if template_id:
+            template = active_qs.get(id=template_id)
+        else:
+            candidates = list(active_qs)
+            if not candidates:
+                return Response({
+                    'success': False,
+                    'message': 'No coupons remaining',
+                }, status=status.HTTP_400_BAD_REQUEST)
+            weights = [t.draw_probability for t in candidates]
+            template = _sysrand.choices(candidates, weights=weights, k=1)[0]
+
         try:
             student_profile = StudentProfile.objects.get(user=request.user)
         except StudentProfile.DoesNotExist:
@@ -97,8 +105,7 @@ def draw_coupon(request):
                 )
             )
 
-        # Determine if user successfully draws the coupon based on probability
-        success = random.random() < template.draw_probability
+        success = _sysrand.random() < template.draw_probability
         with transaction.atomic():
             # Update last_draw_time atomically with the coupon + attempt
             # writes. Previously this was outside the atomic block, so a
@@ -201,10 +208,11 @@ def draw_coupon(request):
             'success': False,
             'message': 'Coupon template not found or not active'
         }, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
+    except Exception:
+        logger.exception("Unexpected error during daily draw for user %s", request.user.id)
         return Response({
             'success': False,
-            'message': f'An error occurred: {str(e)}'
+            'message': 'An unexpected error occurred. Please try again later.',
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
@@ -212,11 +220,10 @@ def draw_coupon(request):
 def draw_history(request):
     """Get user's draw history"""
     
-    # Get all draw logs for the user
     draw_logs = Log.objects.filter(
         user=request.user,
-        action='draw'
-    ).order_by('-timestamp')
+        action='draw',
+    ).select_related('coupon__store').order_by('-timestamp')[:50]
     
     history = []
     for log in draw_logs:

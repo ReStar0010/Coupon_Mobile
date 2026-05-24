@@ -59,21 +59,21 @@ describe('spinner API', () => {
   });
 
   describe('drawSpinner', () => {
-    it('POSTs no body when no client snapshot is given', async () => {
+    it('POSTs bet amount in the body', async () => {
       mockPost.mockResolvedValueOnce({ data: sampleDrawResult });
 
-      const result = await drawSpinner();
+      const result = await drawSpinner(1);
 
-      expect(mockPost).toHaveBeenCalledWith('/api/spinner/draw/', {});
+      expect(mockPost).toHaveBeenCalledWith('/api/spinner/draw/', { bet: 1 });
       expect(result).toEqual(sampleDrawResult);
     });
 
-    it('forwards the client gems snapshot for desync detection', async () => {
+    it('sends higher bet values correctly', async () => {
       mockPost.mockResolvedValueOnce({ data: sampleDrawResult });
 
       await drawSpinner(5);
 
-      expect(mockPost).toHaveBeenCalledWith('/api/spinner/draw/', { gems: 5 });
+      expect(mockPost).toHaveBeenCalledWith('/api/spinner/draw/', { bet: 5 });
     });
 
     it('returns the meltdownMultiplier when present', async () => {
@@ -86,7 +86,7 @@ describe('spinner API', () => {
       };
       mockPost.mockResolvedValueOnce({ data: meltdown });
 
-      const result = await drawSpinner();
+      const result = await drawSpinner(3);
 
       expect(result.meltdownMultiplier).toBe(3);
       expect(result.pointsEarned).toBe(75);
@@ -115,7 +115,7 @@ describe('spinner API', () => {
       });
       mockPost.mockRejectedValueOnce(axiosError);
 
-      await expect(drawSpinner()).rejects.toMatchObject({
+      await expect(drawSpinner(1)).rejects.toMatchObject({
         name: 'ApiRequestError',
         status: 429,
       });

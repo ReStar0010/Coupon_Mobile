@@ -14,7 +14,7 @@ export interface SpinnerDrawResult {
   multiplier: number;
   /** Bonus multiplier set only when `multiplier === 5`. */
   meltdownMultiplier: number | null;
-  /** Pre-debit gem count used as the reward base. */
+  /** Bet amount (1..5) — the reward base. */
   gemsUsed: number;
   /** Total CouPoints credited this spin (= gemsUsed × multiplier × (meltdownMultiplier ?? 1)). */
   pointsEarned: number;
@@ -31,19 +31,13 @@ export interface SpinnerDrawResult {
 }
 
 /**
- * Trigger a solo spinner draw. The server owns the RNG, debits 1 gem, credits
- * the prize CouPoints, writes a ledger row, and returns the result for the FE
- * to animate towards.
- *
- * The optional `gems` argument is a client-side balance snapshot used for
- * desync detection — if it disagrees with the server-side balance, the server
- * returns 409 (WALLET_GEMS_DESYNC) and the FE should `refreshWallet()` before
- * retrying.
+ * Trigger a solo spinner draw. The server owns the RNG, debits `bet` gems,
+ * credits the prize CouPoints, writes a ledger row, and returns the result
+ * for the FE to animate towards.
  */
-export async function drawSpinner(gems?: number): Promise<SpinnerDrawResult> {
+export async function drawSpinner(bet: number): Promise<SpinnerDrawResult> {
   try {
-    const body = gems !== undefined ? { gems } : {};
-    const response = await apiClient.post<SpinnerDrawResult>('/api/spinner/draw/', body);
+    const response = await apiClient.post<SpinnerDrawResult>('/api/spinner/draw/', { bet });
     return response.data;
   } catch (error) {
     throw normalizeError(error);

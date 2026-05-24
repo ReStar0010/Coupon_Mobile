@@ -9,6 +9,7 @@ import {
   dailyDraw,
   type DailyDrawTemplate,
 } from '@/src/services/api/coupons';
+import { localizeError } from '@/src/services/api/errorMessages';
 import { useWallet } from '@/src/state/WalletContext';
 
 /** UI projection of a daily-draw outcome (win or miss). */
@@ -78,11 +79,7 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
     setDrawing(true);
     setError(null);
     try {
-      // Pick a random template from the pool so each press has a chance
-      // at any of the listed stores — not always the same first one.
-      // The BE then rolls success against that template's draw_probability.
-      const target = templates[Math.floor(Math.random() * templates.length)];
-      const response = await dailyDraw(target.id);
+      const response = await dailyDraw();
       if (response.success && response.coupon) {
         setResult({
           success: true,
@@ -92,14 +89,7 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
           amount: Number(response.coupon.estimated_savings ?? 0),
           message: response.message,
         });
-        // A new coupon now belongs to the user — pull the canonical list.
-        // Fire-and-forget: if the refresh fails (network blip after the
-        // BE-side success), don't overwrite the win UI with a misleading
-        // "抽券失敗" error message.
-        void refreshWallet().catch((refreshErr: unknown) => {
-          // eslint-disable-next-line no-console
-          console.warn('refreshWallet after draw failed', refreshErr);
-        });
+        void refreshWallet().catch(() => undefined);
       } else {
         setResult({
           success: false,
@@ -111,7 +101,7 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
         });
       }
     } catch (err: unknown) {
-      setError((err as Error).message || '抽券失敗，請稍後再試');
+      setError(localizeError(err, '抽券失敗，請稍後再試'));
     } finally {
       setDrawing(false);
     }
@@ -156,9 +146,14 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
                     <Text style={styles.poolAmt}>
                       {t.estimated_savings ? `$${Math.floor(Number(t.estimated_savings))}` : '—'}
                     </Text>
-                    <Text style={styles.poolStore}>{t.store_name}</Text>
-                    <Text style={styles.poolDetail}>{t.coupon_name}</Text>
-                    <Text style={styles.probText}>{t.remaining_quantity} 張</Text>
+                    <View style={styles.poolInfo}>
+                      <Text style={styles.poolStore}>{t.store_name}</Text>
+                      <Text style={styles.poolDetail}>{t.coupon_name}</Text>
+                    </View>
+                    <View style={styles.poolMeta}>
+                      <Text style={styles.probText}>{Math.round(t.draw_probability * 100)}%</Text>
+                      <Text style={styles.qtyText}>{t.remaining_quantity} 張</Text>
+                    </View>
                   </View>
                 ))
               )}
@@ -284,20 +279,21 @@ const styles = StyleSheet.create({
     color: colors.fg,
     width: 36,
   },
+  poolInfo: {
+    flex: 1,
+  },
   poolStore: {
     fontFamily: fontFamilies.regular,
     fontSize: 12,
     color: colors.fg,
-    flex: 1,
   },
   poolDetail: {
     fontFamily: fontFamilies.regular,
     fontSize: 11,
     color: colors.muted,
-    flex: 1,
   },
-  textMuted: {
-    color: colors.muted,
+  poolMeta: {
+    alignItems: 'flex-end',
   },
   poolEmpty: {
     paddingVertical: 24,
@@ -309,11 +305,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   probText: {
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 12,
+    color: colors.fg,
+  },
+  qtyText: {
     fontFamily: fontFamilies.monoRegular,
-    fontSize: 10,
+    fontSize: 9,
     color: colors.muted,
-    width: 36,
-    textAlign: 'right',
   },
   errorText: {
     fontFamily: fontFamilies.regular,

@@ -86,7 +86,12 @@ export function applyFrame(state: CoopState, frame: ServerFrame): CoopState {
   // every group-broadcast variant of ServerFrame. The `error` and `ping`
   // variants intentionally don't carry it, so guard the property access.
   const youAre = 'you_are' in frame && typeof frame.you_are === 'string' ? frame.you_are : null;
-  const baseState = youAre && state.meUserId !== youAre ? { ...state, meUserId: youAre } : state;
+  const cleared = frame.type !== 'error' && state.lastError !== null;
+  const baseState = {
+    ...state,
+    ...(youAre && state.meUserId !== youAre ? { meUserId: youAre } : undefined),
+    ...(cleared ? { lastError: null } : undefined),
+  };
 
   switch (frame.type) {
     case 'room.created':

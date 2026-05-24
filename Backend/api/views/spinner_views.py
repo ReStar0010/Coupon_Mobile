@@ -8,16 +8,15 @@ sector the server returned.
 
 Endpoints:
     GET  /api/spinner/        → {gems, floor, lastSpinAt}
-    POST /api/spinner/draw/   → debits 1 gem, rolls multiplier, credits
-                                CouPoints, writes a WalletTransaction row.
-                                Returns the result for the FE to animate to.
+    POST /api/spinner/draw/   → debits `bet` gems (1..5), rolls multiplier,
+                                credits CouPoints, writes a WalletTransaction
+                                row. Returns the result for the FE to animate.
 
 Notes:
-  * Cost is fixed at 1 gem per spin — `gems` in the request body is treated
-    as a client-side snapshot for desync detection (409 if it disagrees with
-    the server-side balance).
-  * `floor` shifts the available multipliers up when the user is holding
-    more gems: same shape as the FE's getFloor(gems, players=1).
+  * `bet` (1..5) in the request body sets how many gems to wager. The
+    reward is `bet × effective_multiplier` CouPoints.
+  * `floor` shifts the available multipliers up based on the bet:
+    same shape as the FE's getFloor(bet, players=1).
   * The meltdown bonus only fires on a base multiplier of 5; we surface
     `meltdownMultiplier` as a separate field so the FE can sequence its
     own animation.
@@ -62,8 +61,9 @@ _MELTDOWN_TABLE = (
     (5, 0.050),
 )
 
-# Fixed cost per spin in gems.
-_SPIN_COST_GEMS = 1
+# Allowed bet range.
+_MIN_BET = 1
+_MAX_BET = 5
 
 
 # ── Errors (typed for the global exception handler) ──────────────────────────
@@ -85,6 +85,12 @@ class NoGemsToSpin(CouProAPIException):
     status_code = status.HTTP_400_BAD_REQUEST
     error_code = "NO_GEMS_TO_SPIN"
     default_detail = "You need at least 1 gem to spin."
+
+
+class InvalidBet(CouProAPIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    error_code = "INVALID_BET"
+    default_detail = "Bet must be between 1 and 5."
 
 
 # ── Reward math ──────────────────────────────────────────────────────────────
@@ -159,14 +165,14 @@ def get_spinner_state(request):
 def post_spinner_draw(request):
     """POST /api/spinner/draw/.
 
-    Optional body:
-        {"gems": <int>}   — client-side balance snapshot for desync detection.
+    Required body:
+        {"bet": <int 1..5>}   — number of gems to wager.
 
     Response:
         {
           "multiplier":          <0..5>,
           "meltdownMultiplier":  <int|null>,    # set only when multiplier==5
-          "gemsUsed":            <int>,         # pre-debit balance — reward base
+          "gemsUsed":            <int>,         # bet amount (= reward base)
           "pointsEarned":        <int>,         # total CouPoints credited
           "gems":                <int>,         # post-debit balance
           "couPoints":           <int>,         # post-credit balance
@@ -177,45 +183,31 @@ def post_spinner_draw(request):
     """
     user_id = request.user.id
 
-    # Ensure the wallet exists (lazy seed for very first spin) — same path
-    # the /api/wallet/ endpoint takes. Outside the locked block; ensure_wallet
-    # is itself atomic and cheap.
     starter = max(0, int(getattr(settings, 'STARTER_GEMS', 0)))
     WalletService.ensure_wallet(user_id, initial_gems=starter)
 
-    interval = max(0, int(getattr(settings, 'SOLO_SPINNER_RATE_LIMIT_SECONDS', 2)))
-    client_gems = request.data.get('gems') if isinstance(request.data, dict) else None
+    # Parse and validate bet.
+    raw_bet = request.data.get('bet') if isinstance(request.data, dict) else None
+    if raw_bet is None or type(raw_bet) is not int:
+        bet = _MIN_BET
+    else:
+        bet = raw_bet
+    if bet < _MIN_BET or bet > _MAX_BET:
+        raise InvalidBet(
+            developer_message=f"bet={bet} out of range [{_MIN_BET}, {_MAX_BET}].",
+            context={'bet': bet, 'min': _MIN_BET, 'max': _MAX_BET},
+        )
 
-    # Roll the prize OUTSIDE the locked block — the inputs (floor) only
-    # depend on the user's current gem balance, which we'll re-read under
-    # the lock. We re-roll if the lock-time balance changes the floor.
-    # The key invariant: ALL state checks (rate limit, balance, desync) and
-    # the mutate() must execute under the same select_for_update lock so
-    # no concurrent draw from the same user can interleave.
-    #
-    # H2 fix: rate-limit query + balance snapshot + mutate are now in one
-    # atomic block, gated by the row lock.
+    interval = max(0, int(getattr(settings, 'SOLO_SPINNER_RATE_LIMIT_SECONDS', 2)))
+
     with transaction.atomic():
         wallet = Wallet.objects.select_for_update().get(user_id=user_id)
         gems_before = wallet.gems
 
-        if gems_before < _SPIN_COST_GEMS:
+        if gems_before < bet:
             raise NoGemsToSpin(
-                developer_message=f"User {user_id} has {gems_before} gems.",
-                context={'have': gems_before, 'need': _SPIN_COST_GEMS},
-            )
-
-        if (
-            client_gems is not None
-            and type(client_gems) is int
-            and client_gems != gems_before
-        ):
-            raise WalletGemsDesync(
-                developer_message=(
-                    f"Client thinks user {user_id} has {client_gems} gems, "
-                    f"server has {gems_before}."
-                ),
-                context={'client': client_gems, 'server': gems_before},
+                developer_message=f"User {user_id} has {gems_before} gems, needs {bet}.",
+                context={'have': gems_before, 'need': bet},
             )
 
         if interval > 0:
@@ -234,26 +226,24 @@ def post_spinner_draw(request):
                     context={'retryAfterSeconds': interval},
                 )
 
-        floor = _get_floor(gems_before)
+        floor = _get_floor(bet)
         base_mult = _roll_base_multiplier(floor)
         meltdown_mult: int | None = _roll_meltdown() if base_mult == 5 else None
         effective_mult = base_mult * (meltdown_mult if meltdown_mult else 1)
-        points_earned = _SPIN_COST_GEMS * effective_mult
+        points_earned = bet * effective_mult
 
         try:
             tx = WalletService.mutate(
                 user_id,
-                delta_gems=-_SPIN_COST_GEMS,
+                delta_gems=-bet,
                 delta_cou_points=points_earned,
                 kind=WalletTransaction.Kind.SPINNER_SOLO,
                 note=(
-                    f"x{base_mult}"
+                    f"bet={bet} x{base_mult}"
                     + (f" meltdown x{meltdown_mult}" if meltdown_mult else "")
                 ),
             )
         except InsufficientGemsError as exc:
-            # Defense in depth — should be impossible since we checked above
-            # under the lock. Still translate to desync rather than 500.
             raise WalletGemsDesync(
                 developer_message=f"Concurrent debit for user {user_id}: {exc}",
             ) from exc
@@ -262,7 +252,7 @@ def post_spinner_draw(request):
         "spinner_solo.draw",
         extra={
             "user_id": user_id,
-            "gems_used": gems_before,
+            "bet": bet,
             "multiplier": base_mult,
             "meltdown_multiplier": meltdown_mult,
             "points_earned": points_earned,
@@ -273,7 +263,7 @@ def post_spinner_draw(request):
     return Response({
         'multiplier': base_mult,
         'meltdownMultiplier': meltdown_mult,
-        'gemsUsed': gems_before,
+        'gemsUsed': bet,
         'pointsEarned': points_earned,
         'gems': tx.balance_after_gems,
         'couPoints': tx.balance_after_cou_points,

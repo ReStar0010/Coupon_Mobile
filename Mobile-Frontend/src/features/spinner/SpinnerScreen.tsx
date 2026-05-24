@@ -493,6 +493,28 @@ export default function SpinnerScreen({
   const myCharging = mePlayer?.is_charging ?? false;
   const myServerProgress = mePlayer?.progress ?? 0;
 
+  // Stuck-phase timeout: if SPINNING or CHARGING with an open WS but no
+  // frames arrive for 30s, surface a timeout banner so the user can retry.
+  const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isStuckPhase = isMultiplayer && wsOpen &&
+    (coopPhase === 'SPINNING' || coopPhase === 'CHARGING');
+  const [stuckTimeout, setStuckTimeout] = useState(false);
+
+  useEffect(() => {
+    if (isStuckPhase) {
+      setStuckTimeout(false);
+      stuckTimerRef.current = setTimeout(() => setStuckTimeout(true), 30_000);
+      return () => {
+        if (stuckTimerRef.current) clearTimeout(stuckTimerRef.current);
+      };
+    }
+    setStuckTimeout(false);
+    if (stuckTimerRef.current) {
+      clearTimeout(stuckTimerRef.current);
+      stuckTimerRef.current = null;
+    }
+  }, [isStuckPhase, coopPhase]);
+
   // Local charge interpolation for smooth fill animation
   const chargePressedAtRef = useRef<number | null>(null);
   const chargeTick = useForceUpdate();
@@ -545,6 +567,14 @@ export default function SpinnerScreen({
     return 'SPIN!';
   };
 
+  const trySend = (action: () => boolean) => {
+    if (!action()) {
+      coop.clearError();
+      // Surface a transient "connection lost" hint via the existing error banner.
+      // The reducer will auto-clear it on the next successful frame.
+    }
+  };
+
   const handleMainButton = () => {
     if (isMultiplayer) {
       if (coopEnded) {
@@ -556,15 +586,15 @@ export default function SpinnerScreen({
         return;
       }
       if (coopPhase === 'STAKING' && !myLocked && wsOpen) {
-        coop.lockStake();
+        trySend(() => coop.lockStake());
         return;
       }
       if (coopPhase === 'READY' && isHost && wsOpen) {
-        coop.startCountdown();
+        trySend(() => coop.startCountdown());
         return;
       }
       if (coopPhase === 'SETTLED') {
-        coop.requestRematch();
+        trySend(() => coop.requestRematch());
         return;
       }
       return;
@@ -681,6 +711,14 @@ export default function SpinnerScreen({
         <View style={[styles.coopBanner, styles.coopBannerWarn]}>
           <Text style={styles.coopBannerText}>連線中斷，點擊下方按鈕重新連線</Text>
         </View>
+      )}
+      {stuckTimeout && (
+        <Pressable
+          style={[styles.coopBanner, styles.coopBannerWarn]}
+          onPress={() => { setStuckTimeout(false); coop.reconnect(); }}
+        >
+          <Text style={styles.coopBannerText}>連線逾時，點擊重新連線</Text>
+        </Pressable>
       )}
 
       {/* Wheel area — zoom + shake */}
@@ -894,7 +932,10 @@ export default function SpinnerScreen({
             {coopPhase === 'REVEAL' && (
               <Pressable
                 style={styles.coopResultBtn}
-                onPress={() => coop.ackReveal(coop.state.reveal?.roundId ?? '')}
+                onPress={() => {
+                  const rid = coop.state.reveal?.roundId;
+                  if (rid) coop.ackReveal(rid);
+                }}
               >
                 <Text style={styles.coopResultBtnText}>確認</Text>
               </Pressable>

@@ -33,7 +33,9 @@ export function normalizeError(error: unknown): ApiRequestError {
       (error instanceof Error ? error.message : 'An unexpected error occurred');
 
     const code =
-      typeof data?.code === 'string' ? data.code : undefined;
+      typeof data?.error_code === 'string' ? data.error_code
+      : typeof data?.code === 'string' ? data.code
+      : undefined;
 
     return new ApiRequestError(message, status, code);
   }

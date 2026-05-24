@@ -17,11 +17,11 @@ interface ResultModalProps {
 
 const TIER_LABELS: Record<number, string> = {
   0: '沒中…下次再試！',
-  1: '',
-  2: '',
+  1: '普通',
+  2: '不錯！',
   3: '好運！',
   4: '超棒！',
-  5: '大獎！🎉',
+  5: '大獎！',
 };
 
 const TIER_OVERLAY: Record<number, string> = {

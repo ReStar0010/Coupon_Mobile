@@ -3,6 +3,8 @@ import { MULTS, MELT_MULTS, getFloor } from './constants';
 import type { SpinResult } from './ResultModal';
 import { drawSpinner } from '../../services/api/spinner';
 import type { SpinnerDrawResult } from '../../services/api/spinner';
+import { ApiRequestError } from '../../services/api/errors';
+import { localizeError } from '../../services/api/errorMessages';
 import { track } from '../../services/analytics/posthog';
 import { getFlag } from '../../services/analytics/flags';
 
@@ -190,7 +192,7 @@ export function useSpinLogic({
     const costVariant = getFlag<SpinnerCostVariant>('spinner_cost_variant', 'default');
     track('spinner.draw_started', { gems: betSnapshot, players, costVariant });
 
-    void drawSpinner()
+    void drawSpinner(betSnapshot)
       .then((draw) => {
         // Fire on EVERY completed draw, win or lose. `won` is a property
         // so funnel queries filter on it; do NOT branch the event name,
@@ -212,8 +214,7 @@ export function useSpinLogic({
         setSpinning(false);
         setPhase('idle');
         setPendingColor(null);
-        const message = err instanceof Error ? err.message : 'spinner draw failed';
-        setSpinError(message);
+        setSpinError(localizeError(err));
         if (refreshWallet) {
           void Promise.resolve(refreshWallet()).catch(() => undefined);
         }
@@ -221,6 +222,7 @@ export function useSpinLogic({
   };
 
   const dismissResult = (): void => {
+    clearTimers();
     setResult(null);
     setMeltdownResult(null);
     setNearMiss(false);

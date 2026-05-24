@@ -12,6 +12,8 @@
  *   - reconnect with exponential backoff (1s → 30s) up to maxAttempts
  */
 
+import Constants from 'expo-constants';
+
 import type {
   ClientCommand,
   Phase,
@@ -27,6 +29,9 @@ const WS_PATH = '/ws/spinner/v1/';
 const MIN_RECONNECT_DELAY_MS = 1_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const DEFAULT_MAX_RECONNECT = 5;
+
+const _log = __DEV__ ? (...a: unknown[]) => console.info('[CoopClient]', ...a) : () => {};
+const _warn = __DEV__ ? (...a: unknown[]) => console.warn('[CoopClient]', ...a) : () => {};
 
 /**
  * v3 M-1: typed against ServerFrame['type'] so a typo in the set fails the build
@@ -74,9 +79,9 @@ export interface CoopClientOptions {
   maxReconnect?: number;
 }
 
-// Hardcoded to staging for refactor/frontend → dev push. Restore env-var read
-// before promoting to prod.
-const DEFAULT_BASE = 'wss://coupon-mobile-dev.onrender.com';
+const DEFAULT_BASE: string =
+  (Constants.expoConfig?.extra as Record<string, unknown> | undefined)?.coopWsUrl as string
+  ?? 'wss://coupon-mobile-dev.onrender.com';
 
 /**
  * Backend auth-failure close code. The Channels consumer at
@@ -133,12 +138,12 @@ export class CoopClient {
     try {
       token = typeof this.opts.token === 'string' ? this.opts.token : await this.opts.token();
     } catch (err) {
-      console.warn('[CoopClient] token thunk threw:', err);
+      _warn('token thunk threw:', err);
       this.opts.onClose('token_unavailable');
       return;
     }
     if (!token) {
-      console.warn('[CoopClient] token is empty/null');
+      _warn('token is empty/null');
       this.opts.onClose('token_empty');
       return;
     }
@@ -150,20 +155,20 @@ export class CoopClient {
     if (this.explicitlyClosed) return;
 
     const url = `${this.opts.baseUrl}${WS_PATH}?token=${encodeURIComponent(token)}`;
-    console.info('[CoopClient] connecting →', url.replace(/token=[^&]+/, 'token=***'));
+    _log('connecting →', url.replace(/token=[^&]+/, 'token=***'));
     const ws = new WebSocket(url);
     this.socket = ws;
     ws.onopen = () => {
-      console.info('[CoopClient] ✓ connected');
+      _log('connected');
       this.reconnectAttempts = 0;
       this.opts.onOpen();
     };
     ws.onmessage = (e: MessageEvent) => this.handleMessage(e.data);
     ws.onerror = (err) => {
-      console.warn('[CoopClient] ws.onerror', err);
+      _warn('ws.onerror', err);
     };
     ws.onclose = (e: CloseEvent) => {
-      console.warn('[CoopClient] ws.onclose', { code: e.code, reason: e.reason, wasClean: e.wasClean });
+      _warn('ws.onclose', { code: e.code, reason: e.reason, wasClean: e.wasClean });
       this.handleClose({ reason: e.reason, code: e.code });
     };
   }
@@ -171,11 +176,11 @@ export class CoopClient {
   send(cmd: ClientCommand): boolean {
     const ws = this.socket;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.warn('[CoopClient] send blocked — socket not open, readyState:', ws?.readyState);
+      _warn('send blocked — socket not open, readyState:', ws?.readyState);
       return false;
     }
     try {
-      console.info('[CoopClient] → send', cmd.type);
+      _log('→ send', cmd.type);
       ws.send(JSON.stringify(cmd));
       return true;
     } catch {
@@ -227,12 +232,12 @@ export class CoopClient {
       return;
     }
     if (!isServerFrame(parsed)) {
-      console.warn('[CoopClient] malformed frame:', JSON.stringify(parsed).slice(0, 200));
+      _warn('malformed frame:', JSON.stringify(parsed).slice(0, 200));
       this.opts.onMalformedFrame(raw);
       return;
     }
     const frame: ServerFrame = parsed;
-    console.info('[CoopClient] ← frame', frame.type);
+    _log('← frame', frame.type);
 
     if (frame.type === 'ping') {
       this.send({ type: 'pong', body: { id: frame.body.id } });

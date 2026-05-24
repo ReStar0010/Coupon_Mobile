@@ -156,11 +156,10 @@
       },
       "posthogApiKey": "phc_D3dE4nTXuEv3ceaKLPr2KHKREMLjmUnBhJcDgh3MGmoW",
       "posthogHost": "https://us.i.posthog.com",
-      "posthogSessionReplay": false
+      "posthogSessionReplay": false,
+      "coopWsUrl": "wss://coupon-mobile-dev.onrender.com"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.3",
     "updates": {
       "url": "https://u.expo.dev/ba247e6a-3cfa-4285-99f6-5867b5257c0e",
       "fallbackToCacheTimeout": 3000,
