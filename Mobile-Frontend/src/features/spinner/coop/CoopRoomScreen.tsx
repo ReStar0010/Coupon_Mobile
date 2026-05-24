@@ -21,13 +21,14 @@ import { useForceUpdate } from './useForceUpdate';
 
 interface CoopRoomScreenProps {
   coop: UseCoopRoomResult & { active: boolean; activate: () => void; deactivate: () => void };
+  gems: number;
   onExit: () => void;
   onStartStaking?: () => void;
 }
 
 const ERROR_AUTO_DISMISS_MS = 4_000;
 
-export default function CoopRoomScreen({ coop, onExit, onStartStaking }: CoopRoomScreenProps): React.JSX.Element {
+export default function CoopRoomScreen({ coop, gems, onExit, onStartStaking }: CoopRoomScreenProps): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const { state, status, clearError } = coop;
 
@@ -68,7 +69,7 @@ export default function CoopRoomScreen({ coop, onExit, onStartStaking }: CoopRoo
         contentContainerStyle={styles.bodyContent}
         showsVerticalScrollIndicator={false}
       >
-        <PhaseView coop={coop} userId={meUserId} onStartStaking={onStartStaking} />
+        <PhaseView coop={coop} userId={meUserId} gems={gems} onStartStaking={onStartStaking} />
       </ScrollView>
     </View>
   );
@@ -77,10 +78,11 @@ export default function CoopRoomScreen({ coop, onExit, onStartStaking }: CoopRoo
 interface PhaseViewProps {
   coop: UseCoopRoomResult;
   userId: string;
+  gems: number;
   onStartStaking?: () => void;
 }
 
-function PhaseView({ coop, userId, onStartStaking }: PhaseViewProps): React.JSX.Element {
+function PhaseView({ coop, userId, gems, onStartStaking }: PhaseViewProps): React.JSX.Element {
   const { state } = coop;
   if (state.phase === null) {
     return <ConnectView coop={coop} />;
@@ -90,7 +92,7 @@ function PhaseView({ coop, userId, onStartStaking }: PhaseViewProps): React.JSX.
     case 'LOBBY_OPEN':
       return <LobbyView coop={coop} onStartStaking={onStartStaking} />;
     case 'STAKING':
-      return <StakingView coop={coop} userId={userId} />;
+      return <StakingView coop={coop} userId={userId} gems={gems} />;
     case 'READY':
       return <ReadyView coop={coop} userId={userId} />;
     case 'COUNTDOWN':
@@ -211,14 +213,18 @@ function LobbyView({ coop, onStartStaking }: { coop: UseCoopRoomResult; onStartS
   );
 }
 
-function StakingView({ coop, userId }: { coop: UseCoopRoomResult; userId: string }) {
+function StakingView({ coop, userId, gems }: { coop: UseCoopRoomResult; userId: string; gems: number }) {
   const { state } = coop;
   const me = state.players.find((p) => p.user_id === userId);
   const stake = me?.stake ?? 1;
   const locked = me?.locked ?? false;
+  const maxStake = Math.max(1, Math.min(5, gems));
   return (
     <View testID="phase-staking">
       <Text style={styles.h2}>選擇寶石數量</Text>
+      {gems < 1 && (
+        <Text style={styles.insufficientText}>寶石不足，無法下注</Text>
+      )}
       <View style={styles.row}>
         <SmallBtn
           label="−"
@@ -230,8 +236,8 @@ function StakingView({ coop, userId }: { coop: UseCoopRoomResult; userId: string
         </Text>
         <SmallBtn
           label="+"
-          onPress={() => coop.setStake(Math.min(5, stake + 1))}
-          disabled={locked || stake >= 5}
+          onPress={() => coop.setStake(Math.min(maxStake, stake + 1))}
+          disabled={locked || stake >= maxStake}
         />
       </View>
       <View style={styles.metaRow}>
@@ -241,6 +247,7 @@ function StakingView({ coop, userId }: { coop: UseCoopRoomResult; userId: string
       <PrimaryBtn
         label={locked ? '取消鎖定' : '確認鎖定'}
         onPress={() => (locked ? coop.unlockStake() : coop.lockStake())}
+        disabled={!locked && gems < 1}
         testID="btn-lock"
       />
       <PlayerRoster players={state.players} hostId={state.hostId} highlight={(p) => p.locked} />
@@ -557,6 +564,12 @@ const styles = StyleSheet.create({
   errorText: { fontFamily: fontFamilies.bold, fontSize: 12, color: '#fff' },
   body: { flex: 1 },
   bodyContent: { padding: 16, gap: 14 },
+  insufficientText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: colors.red,
+    textAlign: 'center',
+  },
   h2: {
     fontFamily: fontFamilies.extraBold,
     fontSize: 22,
