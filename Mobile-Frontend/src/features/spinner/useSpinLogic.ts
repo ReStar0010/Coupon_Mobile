@@ -184,15 +184,11 @@ export function useSpinLogic({
     setSpinError(null);
     setPhase('launch');
 
-    const gemsSnapshot = gems;
-    // Read the A/B variant once per draw so it gets attached to every
-    // funnel event from this spin (started + won). PostHog uses the
-    // variant on the started event for cohort assignment and the won
-    // event for the success metric.
+    const betSnapshot = gems;
     const costVariant = getFlag<SpinnerCostVariant>('spinner_cost_variant', 'default');
-    track('spinner.draw_started', { gems: gemsSnapshot, players, costVariant });
+    track('spinner.draw_started', { gems: betSnapshot, players, costVariant });
 
-    void drawSpinner(gemsSnapshot)
+    void drawSpinner()
       .then((draw) => {
         // Fire on EVERY completed draw, win or lose. `won` is a property
         // so funnel queries filter on it; do NOT branch the event name,
@@ -201,7 +197,7 @@ export function useSpinLogic({
         // which is a one-shot success-only event; this one is the
         // outcome-bearing completion event.)
         track('spinner.draw_completed', {
-          gems: gemsSnapshot,
+          gems: betSnapshot,
           players,
           multiplier: draw.multiplier,
           won: draw.multiplier > 0,
