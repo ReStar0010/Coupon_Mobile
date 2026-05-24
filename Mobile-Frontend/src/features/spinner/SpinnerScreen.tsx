@@ -24,6 +24,8 @@ import { getCharge } from './constants';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
 import { useCoopContext } from './coop/CoopContext';
+import { interpolateLocalCharge } from './coop/charge';
+import { useForceUpdate } from './coop/useForceUpdate';
 
 interface SpinnerScreenProps {
   onNavigate: (screen: string) => void;
@@ -487,7 +489,37 @@ export default function SpinnerScreen({
   const coopPhase = coop.state.phase;
   const coopCountdown = coop.state.countdownTick;
   const coopCharging = coopPhase === 'CHARGING';
-  const myCharging = coop.state.players.find((p) => p.user_id === (coop.state.meUserId ?? ''))?.is_charging ?? false;
+  const mePlayer = coop.state.players.find((p) => p.user_id === (coop.state.meUserId ?? ''));
+  const myCharging = mePlayer?.is_charging ?? false;
+  const myServerProgress = mePlayer?.progress ?? 0;
+
+  // Local charge interpolation for smooth fill animation
+  const chargePressedAtRef = useRef<number | null>(null);
+  const chargeTick = useForceUpdate();
+
+  useEffect(() => {
+    if (myCharging && chargePressedAtRef.current === null) {
+      chargePressedAtRef.current = Date.now();
+    } else if (!myCharging) {
+      chargePressedAtRef.current = null;
+    }
+  }, [myCharging]);
+
+  useEffect(() => {
+    if (!myCharging) return;
+    const id = setInterval(chargeTick, 33);
+    return () => clearInterval(id);
+  }, [myCharging, chargeTick]);
+
+  const chargeProgress = coopCharging
+    ? interpolateLocalCharge({
+        serverProgress: myServerProgress,
+        isCharging: myCharging,
+        pressedAtMs: chargePressedAtRef.current,
+        nowMs: Date.now(),
+        durationMs: coop.state.chargingDurationMs,
+      })
+    : 0;
 
   const spinBtnLabel = () => {
     if (isMultiplayer) {
@@ -502,7 +534,7 @@ export default function SpinnerScreen({
         return isHost ? '開始！' : '等待房主開始…';
       }
       if (coopPhase === 'COUNTDOWN') return `${coopCountdown ?? 3}`;
-      if (coopPhase === 'CHARGING') return '按住蓄力！';
+      if (coopPhase === 'CHARGING') return `按住蓄力 ${Math.round(chargeProgress * 100)}%`;
       if (coopPhase === 'SPINNING') return '轉啊轉…';
       if (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') return '查看結果';
     }
@@ -752,6 +784,14 @@ export default function SpinnerScreen({
         </View>
       </Reanimated.View>
 
+      {/* Co-op countdown overlay */}
+      {isMultiplayer && coopPhase === 'COUNTDOWN' && (
+        <View style={styles.countdownOverlay} pointerEvents="none">
+          <Text style={styles.countdownNum}>{coopCountdown ?? 3}</Text>
+          <Text style={styles.countdownHint}>準備按住</Text>
+        </View>
+      )}
+
       {/* Controls panel */}
       <View style={styles.controls}>
         <View testID="gem-pips-container">
@@ -785,9 +825,18 @@ export default function SpinnerScreen({
             style={[
               styles.spinBtn,
               !mainBtnDisabled ? styles.spinBtnActive : styles.spinBtnDisabled,
-              coopCharging && myCharging && styles.spinBtnCharging,
+              coopCharging && styles.spinBtnChargeable,
             ]}
           >
+            {coopCharging && (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.chargeFill,
+                  { width: `${Math.min(100, chargeProgress * 100)}%` as `${number}%` },
+                ]}
+              />
+            )}
             <Text style={[styles.spinBtnText, mainBtnDisabled && styles.spinBtnTextDisabled]}>
               {spinBtnLabel()}
             </Text>
@@ -1012,9 +1061,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderColor: 'rgba(255,255,255,0.15)',
   },
-  spinBtnCharging: {
+  spinBtnChargeable: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: colors.yellow,
+    overflow: 'hidden' as const,
+  },
+  chargeFill: {
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    bottom: 0,
     backgroundColor: colors.green,
-    borderColor: '#fff',
+    borderRadius: 8,
   },
   spinBtnText: {
     fontFamily: fontFamilies.monoSemiBold,
@@ -1103,6 +1161,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     textAlign: 'center',
+  },
+  countdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  countdownNum: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 96,
+    color: colors.yellow,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 12,
+  },
+  countdownHint: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: -4,
   },
   stakingRoster: {
     marginHorizontal: 16,
