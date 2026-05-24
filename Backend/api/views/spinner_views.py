@@ -238,7 +238,7 @@ def post_spinner_draw(request):
         base_mult = _roll_base_multiplier(floor)
         meltdown_mult: int | None = _roll_meltdown() if base_mult == 5 else None
         effective_mult = base_mult * (meltdown_mult if meltdown_mult else 1)
-        points_earned = gems_before * effective_mult
+        points_earned = _SPIN_COST_GEMS * effective_mult
 
         try:
             tx = WalletService.mutate(

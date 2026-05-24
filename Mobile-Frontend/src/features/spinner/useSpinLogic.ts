@@ -49,15 +49,16 @@ function computeSectorMath(
 ): SectorMath {
   const weights = table.map((m) => 1 / (m.v + 1));
   const total = weights.reduce((a, b) => a + b, 0);
-  let acc = 0;
+  // WheelDial draws sectors starting at -90° (top). Accumulate from -90°
+  // so the target degree matches the visual position under the top needle.
+  let acc = -90;
   for (let i = 0; i < table.length; i++) {
     const w = (weights[i] / total) * 360;
     if (table[i].v === multiplier) {
-      return { centerDeg: acc + w / 2, color: table[i].color };
+      return { centerDeg: ((acc + w / 2) % 360 + 360) % 360, color: table[i].color };
     }
     acc += w;
   }
-  // Fallback: first entry. Should be unreachable when the server returns a valid multiplier.
   return { centerDeg: 0, color: table[0]?.color ?? '#2E2E2E' };
 }
 
@@ -114,7 +115,8 @@ export function useSpinLogic({
     setGemsAtSpin(gemsUsed);
     setServerFloor(draw.floor);
 
-    const sector = computeSectorMath(MULTS, multiplier);
+    const filteredMults = MULTS.filter((m) => m.v >= draw.floor);
+    const sector = computeSectorMath(filteredMults, multiplier);
     setPendingColor(sector.color);
 
     setSpin((s) => {
