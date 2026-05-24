@@ -102,7 +102,7 @@ export async function shareCouponPublic(id: string, msg?: string): Promise<Share
 /** Withdraw a coupon from the public CouMap pool back to the user's wallet. */
 export async function withdrawShare(shareId: number): Promise<void> {
   try {
-    await apiClient.post(`/api/coupon/share/${shareId}/withdraw/`);
+    await apiClient.post(`/api/coupon/share-public/${shareId}/withdraw/`);
   } catch (error) {
     throw normalizeError(error);
   }

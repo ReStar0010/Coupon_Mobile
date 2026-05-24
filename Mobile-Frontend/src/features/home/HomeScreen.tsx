@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -77,11 +77,11 @@ export default function HomeScreen({
       const shares = await listMyPublicShares();
       setPublicShares(shares);
     } catch {
-      // non-critical — fail silently
+      setPublicShares([]);
     }
   }, []);
 
-  React.useEffect(() => { void loadShares(); }, [loadShares]);
+  useEffect(() => { void loadShares(); }, [loadShares]);
 
   const handleWithdraw = useCallback(async (share: PublicShare) => {
     Alert.alert(
@@ -233,8 +233,8 @@ export default function HomeScreen({
                     <Text style={s.sharedStore}>{sh.store_name ?? ''}</Text>
                   </View>
                   <Pressable
-                    testID="withdraw-btn"
-                    onPress={() => handleWithdraw(sh)}
+                    testID={`withdraw-btn-${sh.share_id}`}
+                    onPress={() => { void handleWithdraw(sh); }}
                     disabled={withdrawingId === sh.share_id}
                     style={s.withdrawBtn}
                   >
