@@ -33,6 +33,7 @@ interface SpinLogicReturn {
   meltdownResult: SpinResult | null;
   meltdownSpin: number;
   meltdownSpinning: boolean;
+  spinError: string | null;
   handleSpin: () => void;
   dismissResult: () => void;
 }
@@ -78,6 +79,7 @@ export function useSpinLogic({
   const [meltdownSpin, setMeltdownSpin] = useState(0);
   const [meltdownSpinning, setMeltdownSpinning] = useState(false);
   const [serverFloor, setServerFloor] = useState<number | null>(null);
+  const [spinError, setSpinError] = useState<string | null>(null);
 
   const prevGemsRef = useRef(gems);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -179,6 +181,7 @@ export function useSpinLogic({
     setResult(null);
     setMeltdownResult(null);
     setNearMiss(false);
+    setSpinError(null);
     setPhase('launch');
 
     const gemsSnapshot = gems;
@@ -212,8 +215,7 @@ export function useSpinLogic({
         setPhase('idle');
         setPendingColor(null);
         const message = err instanceof Error ? err.message : 'spinner draw failed';
-        // eslint-disable-next-line no-console
-        console.warn('[spinner] draw failed:', message);
+        setSpinError(message);
         if (refreshWallet) {
           void Promise.resolve(refreshWallet()).catch(() => undefined);
         }
@@ -242,6 +244,7 @@ export function useSpinLogic({
     meltdownResult,
     meltdownSpin,
     meltdownSpinning,
+    spinError,
     handleSpin,
     dismissResult,
   };

@@ -98,6 +98,7 @@ export default function SpinnerScreen({
     meltdownResult,
     meltdownSpin,
     meltdownSpinning,
+    spinError,
     handleSpin,
     dismissResult,
   } = useSpinLogic({ gems: bet, players, allFilled, refreshWallet });
@@ -604,6 +605,28 @@ export default function SpinnerScreen({
         </View>
       </View>
 
+      {/* Spin error banner */}
+      {spinError && (
+        <View style={styles.coopBanner}>
+          <Text style={styles.coopBannerText}>轉盤失敗：{spinError}</Text>
+        </View>
+      )}
+
+      {/* Co-op player stakes (live during STAKING) */}
+      {isMultiplayer && coopPhase === 'STAKING' && (
+        <View style={styles.stakingRoster}>
+          {coop.state.players.map((p) => (
+            <View key={p.user_id} style={[styles.stakingRow, p.locked && styles.stakingRowLocked]}>
+              <Text style={styles.stakingName}>
+                {p.user_id === (coop.state.meUserId ?? '') ? '我' : (p.display_name ?? '?')}
+              </Text>
+              <Text style={styles.stakingGems}>{p.stake} 💎</Text>
+              <Text style={styles.stakingStatus}>{p.locked ? '✓' : '…'}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Co-op status banners */}
       {isMultiplayer && coop.state.lastError && (
         <Pressable
@@ -1079,6 +1102,44 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.medium,
     fontSize: 12,
     color: '#fff',
+    textAlign: 'center',
+  },
+  stakingRoster: {
+    marginHorizontal: 16,
+    marginBottom: 4,
+    gap: 4,
+  },
+  stakingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  stakingRowLocked: {
+    borderColor: colors.green,
+    backgroundColor: 'rgba(0,200,150,0.08)',
+  },
+  stakingName: {
+    flex: 1,
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: '#fff',
+  },
+  stakingGems: {
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 13,
+    color: colors.purpleLight,
+    marginRight: 8,
+  },
+  stakingStatus: {
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 13,
+    color: colors.green,
+    width: 20,
     textAlign: 'center',
   },
   coopResultOverlay: {
