@@ -39,9 +39,16 @@ export default function CoopRoomScreen({ coop, gems, onExit, onStartStaking }: C
     return () => clearTimeout(id);
   }, [state.lastError, clearError]);
 
-  // v3/v4 H-1: server stamps the authenticated user_id on every envelope as
-  // `you_are`; the reducer hoists it onto state.meUserId. Empty string until
-  // the first frame arrives so PlayerRoster comparisons short-circuit cleanly.
+  // Auto-navigate ALL players to SpinnerScreen once the game leaves lobby.
+  // The host triggers staking via "開始下注", but guests receive the phase
+  // change over WS — this effect ensures everyone lands on the same screen.
+  const postLobby = state.phase !== null
+    && state.phase !== 'SOLO'
+    && state.phase !== 'LOBBY_OPEN';
+  useEffect(() => {
+    if (postLobby) onStartStaking?.();
+  }, [postLobby]);
+
   const meUserId = state.meUserId ?? '';
 
   return (
@@ -91,25 +98,8 @@ function PhaseView({ coop, userId, gems, onStartStaking }: PhaseViewProps): Reac
     case 'SOLO':
     case 'LOBBY_OPEN':
       return <LobbyView coop={coop} onStartStaking={onStartStaking} />;
-    case 'STAKING':
-      return <StakingView coop={coop} userId={userId} gems={gems} />;
-    case 'READY':
-      return <ReadyView coop={coop} userId={userId} />;
-    case 'COUNTDOWN':
-      return <CountdownView coop={coop} />;
-    case 'CHARGING':
-      return <ChargingView coop={coop} userId={userId} />;
-    case 'SPINNING':
-      return <SpinningView />;
-    case 'REVEAL':
-      return <RevealView coop={coop} userId={userId} />;
-    case 'SETTLED':
-      return <SettledView coop={coop} userId={userId} />;
-    case 'ABORTED':
-    case 'DISPOSED':
-      return <AbortedView coop={coop} />;
     default:
-      return <Text style={styles.bodyText}>未知狀態：{state.phase}</Text>;
+      return <Text style={styles.bodyText}>跳轉到轉盤中…</Text>;
   }
 }
 

@@ -154,12 +154,12 @@ describe('CoopRoomScreen — closed-status UX', () => {
     const { getByTestId } = render(
       <CoopRoomScreen coop={mockCoop()} gems={10} onExit={jest.fn()} />,
     );
-    const solo = getByTestId('btn-solo');
     const multi = getByTestId('btn-multi');
+    const join = getByTestId('btn-join');
     const disabledOf = (n: { props: { disabled?: boolean; accessibilityState?: { disabled?: boolean } } }) =>
       n.props.disabled || n.props.accessibilityState?.disabled;
-    expect(disabledOf(solo)).toBe(true);
     expect(disabledOf(multi)).toBe(true);
+    expect(disabledOf(join)).toBe(true);
   });
 
   it('disables createRoom + joinRoom buttons when status is closed', () => {
@@ -168,12 +168,12 @@ describe('CoopRoomScreen — closed-status UX', () => {
     const { getByTestId } = render(
       <CoopRoomScreen coop={mockCoop()} gems={10} onExit={jest.fn()} />,
     );
-    const solo = getByTestId('btn-solo');
     const multi = getByTestId('btn-multi');
+    const join = getByTestId('btn-join');
     const disabledOf = (n: { props: { disabled?: boolean; accessibilityState?: { disabled?: boolean } } }) =>
       n.props.disabled || n.props.accessibilityState?.disabled;
-    expect(disabledOf(solo)).toBe(true);
     expect(disabledOf(multi)).toBe(true);
+    expect(disabledOf(join)).toBe(true);
   });
 
   it('does NOT render the Retry button while status is open', () => {

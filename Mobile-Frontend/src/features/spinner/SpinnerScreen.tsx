@@ -483,18 +483,27 @@ export default function SpinnerScreen({
     if (isMultiplayer && wsOpen) coop.setStake(v);
   };
 
+  const coopPhase = coop.state.phase;
+  const coopCountdown = coop.state.countdownTick;
+  const coopCharging = coopPhase === 'CHARGING';
+  const myCharging = coop.state.players.find((p) => p.user_id === (coop.state.meUserId ?? ''))?.is_charging ?? false;
+
   const spinBtnLabel = () => {
     if (isMultiplayer) {
       if (coopEnded) return '回到單人';
       if (coopDisconnected) return '重新連線';
       if (!wsOpen) return '連線中…';
-      if (coop.state.phase === 'STAKING') {
+      if (coopPhase === 'STAKING') {
         if (myLocked) return '等待其他人…';
         return '鎖定下注';
       }
-      if (coop.state.phase === 'READY') {
+      if (coopPhase === 'READY') {
         return isHost ? '開始！' : '等待房主開始…';
       }
+      if (coopPhase === 'COUNTDOWN') return `${coopCountdown ?? 3}`;
+      if (coopPhase === 'CHARGING') return '按住蓄力！';
+      if (coopPhase === 'SPINNING') return '轉啊轉…';
+      if (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') return '查看結果';
     }
     if (!allFilled) return '等待朋友加入';
     if (spinning) return '轉啊轉…';
@@ -513,12 +522,16 @@ export default function SpinnerScreen({
         coop.reconnect();
         return;
       }
-      if (coop.state.phase === 'STAKING' && !myLocked && wsOpen) {
+      if (coopPhase === 'STAKING' && !myLocked && wsOpen) {
         coop.lockStake();
         return;
       }
-      if (coop.state.phase === 'READY' && isHost && wsOpen) {
+      if (coopPhase === 'READY' && isHost && wsOpen) {
         coop.startCountdown();
+        return;
+      }
+      if (coopPhase === 'SETTLED') {
+        coop.requestRematch();
         return;
       }
       return;
@@ -526,10 +539,19 @@ export default function SpinnerScreen({
     handleSpin();
   };
 
+  const handleChargePressIn = () => {
+    if (isMultiplayer && coopCharging && wsOpen) coop.pressIn();
+  };
+  const handleChargePressOut = () => {
+    if (isMultiplayer && coopCharging && wsOpen) coop.pressOut();
+  };
+
   const mainBtnDisabled = isMultiplayer
     ? (!wsOpen && !coopDisconnected && !coopEnded) ||
-      (coop.state.phase === 'STAKING' && myLocked) ||
-      (coop.state.phase === 'READY' && !isHost)
+      (coopPhase === 'STAKING' && myLocked) ||
+      (coopPhase === 'READY' && !isHost) ||
+      coopPhase === 'COUNTDOWN' ||
+      coopPhase === 'SPINNING'
     : !canSpin;
 
   return (
@@ -716,8 +738,8 @@ export default function SpinnerScreen({
           <Stepper
             label="寶石"
             value={bet}
-            min={1}
-            max={maxBet}
+            min={isMultiplayer && coopPhase !== 'STAKING' ? bet : 1}
+            max={isMultiplayer && coopPhase !== 'STAKING' ? bet : maxBet}
             onChange={handleBetChange}
             accent
           />
@@ -731,11 +753,17 @@ export default function SpinnerScreen({
         <Reanimated.View style={btnBreathStyle}>
           <Pressable
             testID="spin-button"
-            onPress={handleMainButton}
+            onPress={coopCharging ? undefined : handleMainButton}
+            onPressIn={coopCharging ? handleChargePressIn : undefined}
+            onPressOut={coopCharging ? handleChargePressOut : undefined}
             disabled={mainBtnDisabled}
             accessibilityRole="button"
             accessibilityState={{ disabled: mainBtnDisabled }}
-            style={[styles.spinBtn, !mainBtnDisabled ? styles.spinBtnActive : styles.spinBtnDisabled]}
+            style={[
+              styles.spinBtn,
+              !mainBtnDisabled ? styles.spinBtnActive : styles.spinBtnDisabled,
+              coopCharging && myCharging && styles.spinBtnCharging,
+            ]}
           >
             <Text style={[styles.spinBtnText, mainBtnDisabled && styles.spinBtnTextDisabled]}>
               {spinBtnLabel()}
@@ -775,6 +803,41 @@ export default function SpinnerScreen({
         originalResult={result}
         onDismiss={dismissResult}
       />
+
+      {/* Co-op result overlay */}
+      {isMultiplayer && (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') && (
+        <View style={styles.coopResultOverlay}>
+          <View style={styles.coopResultCard}>
+            <Text style={styles.coopResultTitle}>
+              {coopPhase === 'SETTLED' ? '已結算' : '結果揭曉'}
+            </Text>
+            {coop.state.reveal && (
+              <Text style={styles.coopResultMult}>×{coop.state.reveal.M}</Text>
+            )}
+            {coopPhase === 'SETTLED' && coop.state.credited && (
+              <Text style={styles.coopResultCredit}>
+                你獲得 {coop.state.credited[coop.state.meUserId ?? ''] ?? 0} CouPoints
+              </Text>
+            )}
+            {coopPhase === 'REVEAL' && (
+              <Pressable
+                style={styles.coopResultBtn}
+                onPress={() => coop.ackReveal(coop.state.reveal?.roundId ?? '')}
+              >
+                <Text style={styles.coopResultBtnText}>確認</Text>
+              </Pressable>
+            )}
+            {coopPhase === 'SETTLED' && (
+              <Pressable
+                style={styles.coopResultBtn}
+                onPress={() => coop.requestRematch()}
+              >
+                <Text style={styles.coopResultBtnText}>再玩一局</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
 
       <Coachmark screen="spinner" />
     </View>
@@ -926,6 +989,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderColor: 'rgba(255,255,255,0.15)',
   },
+  spinBtnCharging: {
+    backgroundColor: colors.green,
+    borderColor: '#fff',
+  },
   spinBtnText: {
     fontFamily: fontFamilies.monoSemiBold,
     fontSize: 20,
@@ -1013,5 +1080,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     textAlign: 'center',
+  },
+  coopResultOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50,
+  },
+  coopResultCard: {
+    backgroundColor: '#1a1a1a',
+    borderWidth: 2.5,
+    borderColor: colors.yellow,
+    borderRadius: 12,
+    padding: 28,
+    alignItems: 'center',
+    gap: 12,
+    minWidth: 240,
+  },
+  coopResultTitle: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 20,
+    color: '#fff',
+  },
+  coopResultMult: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 48,
+    color: colors.yellow,
+    letterSpacing: -2,
+  },
+  coopResultCredit: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 16,
+    color: colors.green,
+  },
+  coopResultBtn: {
+    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    backgroundColor: colors.yellow,
+    borderWidth: 2.5,
+    borderColor: colors.border,
+    borderRadius: 6,
+  },
+  coopResultBtnText: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 14,
+    color: colors.fg,
   },
 });
