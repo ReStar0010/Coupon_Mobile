@@ -12,5 +12,6 @@ export interface MapMerchant {
   lng: number;
   couponCount: number;
   active: boolean;
+  hasSharedCoupons: boolean;
   big?: boolean;
 }

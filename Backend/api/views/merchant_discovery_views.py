@@ -267,6 +267,7 @@ def list_nearby_merchants(request):
         row = _serialize_merchant_summary(store)
         row['distanceKm'] = round(dist, 2)
         row['couponCount'] = held_counts.get(store.id, 0) + shared_counts.get(store.id, 0)
+        row['hasSharedCoupons'] = shared_counts.get(store.id, 0) > 0
         payload.append(row)
 
     payload.sort(key=lambda r: r['distanceKm'])

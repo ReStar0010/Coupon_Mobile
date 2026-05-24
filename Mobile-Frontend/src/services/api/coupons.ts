@@ -99,6 +99,33 @@ export async function shareCouponPublic(id: string, msg?: string): Promise<Share
   }
 }
 
+/** Withdraw a coupon from the public CouMap pool back to the user's wallet. */
+export async function withdrawShare(shareId: number): Promise<void> {
+  try {
+    await apiClient.post(`/api/coupon/share/${shareId}/withdraw/`);
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export interface PublicShare {
+  share_id: number;
+  coupon_id: number;
+  coupon_name: string;
+  store_name: string | null;
+  status: 'pending' | 'accepted' | 'cancelled';
+  created_at: string;
+}
+
+export async function listMyPublicShares(): Promise<PublicShare[]> {
+  try {
+    const response = await apiClient.get<PublicShare[]>('/api/my-public-shares/');
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
 /** Daily-draw template (returned by GET /api/daily-draw-templates/). */
 export interface DailyDrawTemplate {
   id: number;

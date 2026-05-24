@@ -5,6 +5,8 @@ import {
   Pressable,
   FlatList,
   RefreshControl,
+  ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { colors } from '@/src/theme/colors';
@@ -18,6 +20,7 @@ import DrawModal from './DrawModal';
 import Coachmark from '@/src/features/onboarding/Coachmark';
 import { useWallet } from '@/src/state/WalletContext';
 import type { Coupon } from '@/src/services/api/coupons';
+import { listMyPublicShares, withdrawShare, type PublicShare } from '@/src/services/api/coupons';
 
 interface NavParams {
   id?: string;
@@ -62,18 +65,57 @@ export default function HomeScreen({
 }: ScreenProps): React.JSX.Element {
   const [showDraw, setShowDraw] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [publicShares, setPublicShares] = useState<PublicShare[]>([]);
+  const [withdrawingId, setWithdrawingId] = useState<number | null>(null);
   const { coupons, refreshWallet } = useWallet();
 
   const visibleCoupons = coupons.filter((c) => c.status === 'active');
+  const pendingShares = publicShares.filter((s) => s.status === 'pending');
+
+  const loadShares = useCallback(async () => {
+    try {
+      const shares = await listMyPublicShares();
+      setPublicShares(shares);
+    } catch {
+      // non-critical — fail silently
+    }
+  }, []);
+
+  React.useEffect(() => { void loadShares(); }, [loadShares]);
+
+  const handleWithdraw = useCallback(async (share: PublicShare) => {
+    Alert.alert(
+      '收回優惠券',
+      `確定要從 CouMap 收回「${share.coupon_name}」嗎？`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '收回',
+          style: 'destructive',
+          onPress: async () => {
+            setWithdrawingId(share.share_id);
+            try {
+              await withdrawShare(share.share_id);
+              await Promise.all([refreshWallet(), loadShares()]);
+            } catch {
+              Alert.alert('收回失敗', '請稍後再試');
+            } finally {
+              setWithdrawingId(null);
+            }
+          },
+        },
+      ],
+    );
+  }, [refreshWallet, loadShares]);
 
   const onRefresh = useCallback(async (): Promise<void> => {
     setRefreshing(true);
     try {
-      await refreshWallet();
+      await Promise.all([refreshWallet(), loadShares()]);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshWallet]);
+  }, [refreshWallet, loadShares]);
 
   const header = (
     <>
@@ -158,6 +200,7 @@ export default function HomeScreen({
               expires={item.expires}
               amount={item.amount}
               urgency={getUrgency(item)}
+              gems={item.gem_reward}
               onPress={() =>
                 onNavigate('coupon-detail', {
                   id: item.id,
@@ -179,6 +222,33 @@ export default function HomeScreen({
             />
           </View>
         )}
+        ListFooterComponent={
+          pendingShares.length > 0 ? (
+            <View style={s.sharedSection}>
+              <Text style={s.sharedTitle}>已釋出到 CouMap</Text>
+              {pendingShares.map((sh) => (
+                <View key={sh.share_id} style={s.sharedRow}>
+                  <View style={s.sharedInfo}>
+                    <Text style={s.sharedName}>{sh.coupon_name}</Text>
+                    <Text style={s.sharedStore}>{sh.store_name ?? ''}</Text>
+                  </View>
+                  <Pressable
+                    testID="withdraw-btn"
+                    onPress={() => handleWithdraw(sh)}
+                    disabled={withdrawingId === sh.share_id}
+                    style={s.withdrawBtn}
+                  >
+                    {withdrawingId === sh.share_id ? (
+                      <ActivityIndicator size="small" color={colors.fg} />
+                    ) : (
+                      <Text style={s.withdrawText}>收回</Text>
+                    )}
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : null
+        }
       />
       <DrawModal visible={showDraw} onClose={() => setShowDraw(false)} onDraw={() => {}} />
       <Coachmark screen="home" />
@@ -350,6 +420,54 @@ const s = StyleSheet.create({
     fontFamily: fontFamilies.extraBold,
     fontSize: 26,
     letterSpacing: -0.52,
+    color: colors.fg,
+  },
+  sharedSection: {
+    paddingHorizontal: 16,
+    marginTop: 20,
+    gap: 6,
+  },
+  sharedTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: colors.muted,
+    marginBottom: 4,
+  },
+  sharedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 6,
+    padding: 12,
+    gap: 10,
+  },
+  sharedInfo: {
+    flex: 1,
+  },
+  sharedName: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: colors.fg,
+  },
+  sharedStore: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  withdrawBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.subtle,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 4,
+  },
+  withdrawText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 12,
     color: colors.fg,
   },
 });

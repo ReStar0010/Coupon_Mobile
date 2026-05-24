@@ -58,9 +58,8 @@ function toMapMerchant(m: Merchant): MapMerchant {
     lat: m.lat,
     lng: m.lng,
     couponCount: count,
-    // Pins with zero usable coupons still render — the user can tap to see the
-    // store sheet, but the badge correctly reads "0".
     active: true,
+    hasSharedCoupons: m.hasSharedCoupons ?? false,
   };
 }
 
@@ -393,7 +392,7 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
                 coordinate={{ latitude: m.lat, longitude: m.lng }}
                 active
                 count={m.couponCount}
-                hasShared={false}
+                hasShared={m.hasSharedCoupons}
                 onPress={() => handlePinPress(m)}
               />
             ))}

@@ -14,6 +14,8 @@ export interface Merchant {
   distanceKm?: number;
   /** held-exclusive + public-shared coupon count at this store (nearby only) */
   couponCount?: number;
+  /** true when other users have shared coupons at this store (nearby only) */
+  hasSharedCoupons?: boolean;
 }
 
 export interface MerchantCoupon {

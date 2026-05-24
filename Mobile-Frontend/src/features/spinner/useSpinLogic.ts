@@ -124,8 +124,10 @@ export function useSpinLogic({
     setSpin((s) => {
       const currentMod = ((s % 360) + 360) % 360;
       const sectorPos = (sector.centerDeg + currentMod) % 360;
-      const adjustment = sectorPos === 0 ? 360 : 360 - sectorPos;
-      // Keep the same 4.7s feel: 7 full rotations + sector-targeted offset + jitter.
+      // The needle sits at -90° (= 270° from positive-x). To land the sector
+      // center under the needle: adjustment = (270 - sectorPos) mod 360.
+      const raw = ((270 - sectorPos) % 360 + 360) % 360;
+      const adjustment = raw === 0 ? 360 : raw;
       return s + 360 * 7 + adjustment + (Math.random() * 4 - 2);
     });
 
@@ -154,7 +156,8 @@ export function useSpinLogic({
           setMeltdownSpin((prev) => {
             const mod = ((prev % 360) + 360) % 360;
             const pos = (mSector.centerDeg + mod) % 360;
-            const adj = pos === 0 ? 360 : 360 - pos;
+            const rawAdj = ((270 - pos) % 360 + 360) % 360;
+            const adj = rawAdj === 0 ? 360 : rawAdj;
             return prev + 360 * 5 + adj + (Math.random() * 4 - 2);
           });
           setPhase('meltdown');
