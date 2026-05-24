@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, TextInput, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Path } from 'react-native-svg';
@@ -70,6 +70,8 @@ export default function CouponUseQRScreen({
   const [success, setSuccess] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
+  const [manualCode, setManualCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const scanned = useRef(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insets = useSafeAreaInsets();
@@ -109,6 +111,14 @@ export default function CouponUseQRScreen({
       scanned.current = false;
       console.warn('[CouponUseQRScreen] redeemCoupon failed:', msg);
     }
+  };
+
+  const handleManualSubmit = (): void => {
+    const trimmed = manualCode.trim();
+    if (!trimmed || isSubmitting) return;
+    Keyboard.dismiss();
+    setIsSubmitting(true);
+    void handleScan(trimmed).finally(() => setIsSubmitting(false));
   };
 
   useEffect(() => {
@@ -205,6 +215,42 @@ export default function CouponUseQRScreen({
             <Text style={s.successReturn}>返回首頁中…</Text>
           </View>
         )}
+      </View>
+      <View style={s.manualSection}>
+        <Text style={s.manualLabel}>或手動輸入兌換碼</Text>
+        <View style={s.manualRow}>
+          <View style={s.inputWrap}>
+            <TextInput
+              testID="redeem-code-input"
+              style={s.manualInput}
+              value={manualCode}
+              onChangeText={setManualCode}
+              placeholder="輸入 6 位兌換碼"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              maxLength={6}
+              keyboardType="number-pad"
+              returnKeyType="go"
+              onSubmitEditing={handleManualSubmit}
+              editable={!success && !isSubmitting}
+            />
+          </View>
+          <View style={s.submitOuter}>
+            <View style={s.submitShadow} />
+            <Pressable
+              testID="redeem-code-submit"
+              onPress={handleManualSubmit}
+              disabled={!manualCode.trim() || success || isSubmitting}
+              style={[
+                s.submitBtn,
+                (!manualCode.trim() || success || isSubmitting) && s.submitBtnDisabled,
+              ]}
+            >
+              <Text style={s.submitBtnText}>
+                {isSubmitting ? '核銷中…' : '確認核銷'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
       <View style={s.footer}>
         {redeemError ? (
@@ -377,6 +423,52 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.35)',
     marginTop: 8,
   },
+  manualSection: { paddingHorizontal: 16, paddingTop: 14, zIndex: 5 },
+  manualLabel: {
+    fontFamily: fontFamilies.monoRegular,
+    fontSize: 11,
+    letterSpacing: 0.44,
+    color: 'rgba(255,255,255,0.55)',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  manualRow: { flexDirection: 'row', gap: 10 },
+  inputWrap: { flex: 1 },
+  manualInput: {
+    height: 46,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 18,
+    letterSpacing: 6,
+    color: '#fff',
+    textAlign: 'center',
+  },
+  submitOuter: { position: 'relative' },
+  submitShadow: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    right: -3,
+    bottom: -3,
+    borderRadius: 6,
+    backgroundColor: colors.border,
+  },
+  submitBtn: {
+    height: 46,
+    paddingHorizontal: 18,
+    backgroundColor: colors.yellow,
+    borderWidth: 2.5,
+    borderColor: colors.border,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitBtnDisabled: { opacity: 0.4 },
+  submitBtnText: { fontFamily: fontFamilies.extraBold, fontSize: 13, color: colors.fg },
   footer: { padding: 12, paddingHorizontal: 16, paddingBottom: 14, zIndex: 5 },
   errorBanner: {
     marginBottom: 10,
