@@ -1,9 +1,0 @@
-appId: com.coupro.app
----
-- launchApp
-- tapOn:
-    id: "tab-spinner"
-- assertVisible: "Spinner"
-- assertVisible: "SPIN"
-- tapOn: "SPIN"
-- assertVisible: "pts"

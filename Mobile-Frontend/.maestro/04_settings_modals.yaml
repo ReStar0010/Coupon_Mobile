@@ -1,0 +1,22 @@
+appId: com.cokayne.MobileFrontend
+---
+- launchApp
+
+# Open Settings
+- tapOn:
+    id: "settings-btn"
+- assertVisible:
+    id: "profile-name"
+- assertVisible:
+    id: "profile-email"
+
+# Open blocked merchants modal
+- tapOn:
+    id: "btn-blocked"
+- back
+
+# Tap logout button — verify confirm dialog appears
+- tapOn:
+    id: "btn-logout"
+- assertVisible: "確認"
+- tapOn: "取消"

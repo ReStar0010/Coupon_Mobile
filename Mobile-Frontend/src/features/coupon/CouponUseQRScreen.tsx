@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated, TextInput, Keyboard } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, TextInput, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Path } from 'react-native-svg';
@@ -133,7 +133,10 @@ export default function CouponUseQRScreen({
   );
 
   return (
-    <View style={[s.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <KeyboardAvoidingView
+      style={[s.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <View style={s.header}>
         <View style={s.backOuter}>
           <View style={s.backShadow} />
@@ -259,7 +262,7 @@ export default function CouponUseQRScreen({
           </View>
         ) : null}
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -1,12 +1,55 @@
-appId: com.coupro.app
+appId: com.cokayne.MobileFrontend
 ---
-- launchApp:
-    clearState: true
-- assertVisible: "登入"
-- tapOn: "電子郵件"
-- inputText: "test@coupro.com"
-- tapOn: "密碼"
-- inputText: "testpassword123"
+# Deep-link into the dev client to connect to Metro
+- openLink: "exp+mobile-frontend://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+
+# Dismiss the Expo first-launch welcome modal
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 30000
+- tapOn: "Continue"
+
+# The full dev menu opens next — press back to close it
+- extendedWaitUntil:
+    visible: "Reload"
+    timeout: 5000
+- back
+
+# Tap through the 3-page launch onboarding
+- extendedWaitUntil:
+    visible: "下一步"
+    timeout: 15000
+- tapOn: "下一步"
+- tapOn: "下一步"
+- tapOn: "開始使用 CouPro"
+
+# Now the login screen should appear
+- extendedWaitUntil:
+    visible:
+      id: "phone-input"
+    timeout: 10000
+
 - tapOn:
-    text: "登入"
-- assertVisible: "我的券"
+    id: "phone-input"
+
+# Dismiss the Android stylus tutorial popup if it appears
+- runFlow:
+    when:
+      visible: "Try out your stylus"
+    commands:
+      - back
+
+- inputText: ${MAESTRO_TEST_PHONE}
+
+- tapOn:
+    id: "password-input"
+- inputText: ${MAESTRO_TEST_PASSWORD}
+
+# Hide the keyboard so the login button is visible
+- hideKeyboard
+
+- tapOn: "登入"
+
+- extendedWaitUntil:
+    visible: "我的券"
+    timeout: 15000

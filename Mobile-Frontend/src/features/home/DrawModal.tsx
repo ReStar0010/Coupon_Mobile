@@ -175,7 +175,7 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
           </>
         ) : (
           <>
-            {result.success && result.amount > 0 ? (
+            {result.success ? (
               <>
                 <View style={styles.resultIconWrapper}>
                   <View style={styles.resultIconShadow} />
@@ -188,7 +188,9 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
                 <View style={styles.resultCard}>
                   <View style={styles.resultCardShadow} />
                   <View style={styles.resultCardInner}>
-                    <Text style={styles.resultAmt}>${result.amount}</Text>
+                    {result.amount > 0 ? (
+                      <Text style={styles.resultAmt}>${result.amount}</Text>
+                    ) : null}
                     <Text style={styles.resultDetail}>
                       {result.detail} · 到期 {result.expires}
                     </Text>
@@ -213,7 +215,7 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
                 style={styles.closeBtn}
               >
                 <Text style={styles.closeBtnText}>
-                  {result.success && result.amount > 0 ? '收下 →' : '關閉'}
+                  {result.success ? '收下 →' : '關閉'}
                 </Text>
               </Pressable>
             </View>

@@ -52,6 +52,7 @@ def _serialize_coupon(c, *, is_redeemed: bool, has_pending_share: bool, now) -> 
         'expires': c.expiry_date.strftime('%m/%d') if c.expiry_date else '',
         'amount': int(c.estimated_savings) if c.estimated_savings is not None else 0,
         'status': _derive_status(is_redeemed, has_pending_share, expired),
+        'gem_reward': c.template.gem_reward if c.template else 1,
     }
 
 
@@ -84,7 +85,7 @@ def list_my_coupons(request):
         Coupon.objects
         .held_by(user)
         .exclusives()
-        .select_related('store')
+        .select_related('store', 'template')
         .annotate(
             _is_redeemed=Exists(redeemed_subq),
             _has_pending_share=Exists(shared_pending_subq),

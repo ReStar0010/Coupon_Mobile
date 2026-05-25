@@ -37,24 +37,38 @@ admin.site.register(User, UserAdmin)
 # =============================================================================
 
 class CouponInline(admin.TabularInline):
-    """顯示店家的優惠券（限制顯示最近 10 筆）"""
+    """顯示店家最近 10 筆優惠券（完整列表請從 Coupon admin 查看）"""
     model = Coupon
     extra = 0
-    max_num = 10
+    max_num = 0
     fields = ['coupon_name', 'coupon_type', 'start_date', 'expiry_date', 'current_holder']
-    readonly_fields = ['current_holder']
+    readonly_fields = ['coupon_name', 'coupon_type', 'start_date', 'expiry_date', 'current_holder']
     can_delete = False
     show_change_link = True
+    verbose_name_plural = '優惠券（最近 10 筆）'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).order_by('-id')[:10]
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 class CouponTemplateInline(admin.TabularInline):
-    """顯示店家的優惠券範本（限制顯示最近 5 筆）"""
+    """顯示店家最近 5 筆優惠券範本"""
     model = CouponTemplate
     extra = 0
-    max_num = 5
+    max_num = 0
     fields = ['coupon_name', 'total_quantity', 'remaining_quantity', 'is_active', 'show_in_desk_qrcode']
     can_delete = False
     show_change_link = True
+    verbose_name_plural = '優惠券範本（最近 5 筆）'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).order_by('-id')[:5]
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 class ViolationRecordInline(admin.TabularInline):

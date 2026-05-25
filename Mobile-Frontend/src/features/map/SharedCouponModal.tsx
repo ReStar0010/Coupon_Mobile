@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
+import { acceptShare } from '@/src/services/api/sharing';
 
 export interface SharedCoupon {
+  token: string;
   store: string;
   amount: number;
   sharer: string;
@@ -23,17 +25,38 @@ export default function SharedCouponModal({
   visible, coupon, onClaim, onClose,
 }: SharedCouponModalProps): React.JSX.Element {
   const [claimed, setClaimed] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const claimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleClaim = () => {
-    setClaimed(true);
-    setTimeout(() => {
-      setClaimed(false);
-      onClaim();
-    }, 1200);
+  const handleClaim = async () => {
+    if (!coupon || claiming) return;
+    setClaiming(true);
+    setError(null);
+    try {
+      await acceptShare(coupon.token);
+      setClaimed(true);
+      claimTimerRef.current = setTimeout(() => {
+        claimTimerRef.current = null;
+        setClaimed(false);
+        setClaiming(false);
+        onClaim();
+      }, 1200);
+    } catch (err: unknown) {
+      setClaiming(false);
+      const msg = err instanceof Error ? err.message : '領取失敗，請稍後再試';
+      setError(msg);
+    }
   };
 
   const handleClose = () => {
+    if (claimTimerRef.current) {
+      clearTimeout(claimTimerRef.current);
+      claimTimerRef.current = null;
+    }
     setClaimed(false);
+    setClaiming(false);
+    setError(null);
     onClose();
   };
 
@@ -70,15 +93,26 @@ export default function SharedCouponModal({
               </View>
               <View style={styles.messageBody}>
                 <Text style={styles.sharerName}>來自 {coupon.sharer}</Text>
-                <Text style={styles.message}>「{coupon.msg}」</Text>
+                {coupon.msg ? (
+                  <Text style={styles.message}>「{coupon.msg}」</Text>
+                ) : null}
               </View>
             </View>
+            {error && (
+              <Text style={styles.errorText}>{error}</Text>
+            )}
             <View style={styles.btnRow}>
               <Pressable onPress={handleClose} style={styles.skipBtn}>
                 <Text style={styles.skipBtnText}>略過</Text>
               </Pressable>
-              <Pressable onPress={handleClaim} style={styles.claimBtn}>
-                <Text style={styles.claimBtnText}>確認領取 →</Text>
+              <Pressable
+                onPress={handleClaim}
+                style={[styles.claimBtn, claiming && styles.claimBtnDisabled]}
+                disabled={claiming}
+              >
+                <Text style={styles.claimBtnText}>
+                  {claiming ? '領取中…' : '確認領取 →'}
+                </Text>
               </Pressable>
             </View>
           </>
@@ -136,7 +170,9 @@ const styles = StyleSheet.create({
     borderWidth: 2.5, borderColor: colors.border, borderRadius: 6, alignItems: 'center',
     shadowColor: colors.border, shadowOffset: { width: 3, height: 3 }, shadowOpacity: 1, shadowRadius: 0,
   },
+  claimBtnDisabled: { opacity: 0.6 },
   claimBtnText: { fontFamily: fontFamilies.bold, fontSize: 15, color: colors.fg },
+  errorText: { fontFamily: fontFamilies.regular, fontSize: 12, color: '#D32F2F', marginBottom: 10 },
   successContainer: { alignItems: 'center', paddingVertical: 16 },
   checkBox: {
     width: 60, height: 60, borderRadius: 6, backgroundColor: colors.yellow,

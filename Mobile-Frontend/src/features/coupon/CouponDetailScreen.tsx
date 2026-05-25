@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
@@ -69,6 +70,7 @@ export default function CouponDetailScreen({
   const expires = fetched?.expires ?? params.expires ?? '11/08';
   const amount = fetched?.amount ?? params.amount ?? 25;
   const isCash = amount > 0;
+  const gemReward = fetched?.gem_reward ?? 1;
 
   if (isLoading) {
     return (
@@ -126,7 +128,7 @@ export default function CouponDetailScreen({
               <View>
                 <Text style={s.metaKey}>分享獎勵</Text>
                 <View style={s.gemRow}>
-                  {[0, 1, 2].map((i) => (
+                  {Array.from({ length: Math.min(gemReward, 5) }).map((_, i) => (
                     <GemIcon key={i} size={18} color={colors.purpleLight} />
                   ))}
                 </View>
@@ -145,7 +147,7 @@ export default function CouponDetailScreen({
           <View style={s.shareBannerText}>
             <Text style={s.shareBannerBold}>用不到? 分享出去</Text>
             <Text style={s.shareBannerSub}>
-              有人使用後，你可以賺到 <Text style={s.shareBold}>3 顆 CouGem</Text> !
+              有人使用後，你可以賺到 <Text style={s.shareBold}>{gemReward} 顆 CouGem</Text> !
             </Text>
           </View>
         </View>

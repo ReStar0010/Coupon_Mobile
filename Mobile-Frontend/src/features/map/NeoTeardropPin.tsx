@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Marker } from 'react-native-maps';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
@@ -27,11 +27,33 @@ export default function NeoTeardropPin({
   hasShared = false,
   onPress,
 }: NeoTeardropPinProps): React.JSX.Element {
+  const [tracking, setTracking] = useState(true);
+  const prevKey = useRef(`${count}-${hasShared}`);
+
+  useEffect(() => {
+    const key = `${count}-${hasShared}`;
+    if (key !== prevKey.current) {
+      prevKey.current = key;
+      setTracking(true);
+    }
+  }, [count, hasShared]);
+
+  useEffect(() => {
+    if (!tracking) return;
+    const id = setTimeout(() => setTracking(false), 300);
+    return () => clearTimeout(id);
+  }, [tracking]);
+
   if (!active) {
     const r = (INACTIVE_SIZE - STROKE) / 2;
     const c = INACTIVE_SIZE / 2;
     return (
-      <Marker coordinate={coordinate} onPress={onPress} anchor={{ x: 0.5, y: 0.5 }}>
+      <Marker
+        coordinate={coordinate}
+        onPress={onPress}
+        anchor={{ x: 0.5, y: 0.5 }}
+        tracksViewChanges={tracking}
+      >
         <Pressable onPress={onPress}>
           <View style={styles.pin}>
             <Svg width={INACTIVE_SIZE} height={INACTIVE_SIZE}>
@@ -56,7 +78,12 @@ export default function NeoTeardropPin({
   const displayCount = count ?? 0;
 
   return (
-    <Marker coordinate={coordinate} onPress={onPress} anchor={{ x: 0.5, y: 0.5 }}>
+    <Marker
+      coordinate={coordinate}
+      onPress={onPress}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={tracking}
+    >
       <Pressable onPress={onPress}>
         <View style={styles.pin}>
           <Svg width={ACTIVE_SIZE} height={ACTIVE_SIZE}>

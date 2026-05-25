@@ -14,7 +14,13 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\"",
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix",
-    "clean": "expo start -c"
+    "clean": "expo start -c",
+    "e2e": "maestro test .maestro/",
+    "e2e:login": "maestro test .maestro/01_login_flow.yaml",
+    "e2e:nav": "maestro test .maestro/02_tab_navigation.yaml",
+    "e2e:spinner": "maestro test .maestro/03_spinner_flow.yaml",
+    "e2e:settings": "maestro test .maestro/04_settings_modals.yaml",
+    "e2e:coupon": "maestro test .maestro/05_coupon_detail_share.yaml"
   },
   "dependencies": {
     "@expo-google-fonts/jetbrains-mono": "^0.3.0",

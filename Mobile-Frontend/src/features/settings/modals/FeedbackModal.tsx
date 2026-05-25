@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -38,15 +38,17 @@ export default function FeedbackModal({
   // the modal is closed — and so we reset `kbHeight` to 0 every time
   // the modal reopens, defending against a stale value if the keyboard
   // happened to stay open across a previous close.
+  const scrollRef = useRef<ScrollView>(null);
   const [kbHeight, setKbHeight] = useState(0);
   useEffect(() => {
     if (!visible) {
       setKbHeight(0);
       return;
     }
-    const show = Keyboard.addListener('keyboardDidShow', (e) =>
-      setKbHeight(e.endCoordinates.height),
-    );
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKbHeight(e.endCoordinates.height);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+    });
     const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
     return () => {
       show.remove();
@@ -86,9 +88,7 @@ export default function FeedbackModal({
   return (
     <BottomSheet visible={visible} onClose={handleClose}>
       <ScrollView
-        // `handled` keeps the Send/Close presses responsive while the
-        // keyboard is up — otherwise the first tap dismisses the keyboard
-        // and the user thinks the button is broken.
+        ref={scrollRef}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces={false}

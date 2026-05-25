@@ -290,6 +290,7 @@ class CouponTemplate(models.Model):
     expiry_date = models.DateTimeField()
     
     # Daily drawing settings
+    gem_reward = models.PositiveIntegerField(default=1, help_text="Gems earned when this coupon is redeemed")
     draw_probability = models.FloatField(default=0.5, help_text="Probability (0-1) of successful draw")
     show_in_desk_qrcode = models.BooleanField(
         default=True,

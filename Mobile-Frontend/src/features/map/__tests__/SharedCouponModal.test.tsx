@@ -19,6 +19,7 @@ jest.mock('react-native-svg', () => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const sampleCoupon: SharedCoupon = {
+  token: 'tok-sample',
   store: '阿明早餐店',
   amount: 50,
   sharer: '小明',

@@ -1,0 +1,31 @@
+appId: com.cokayne.MobileFrontend
+---
+- launchApp
+
+- assertVisible: "我的券"
+
+# Tap the first coupon in the list
+- tapOn:
+    id: "coupon-row"
+    index: 0
+
+# Wait for detail screen to load
+- extendedWaitUntil:
+    visible:
+      id: "share-btn"
+    timeout: 5000
+
+# Open share flow
+- tapOn:
+    id: "share-btn"
+- assertVisible: "分享優惠券"
+
+# Select a target and confirm
+- tapOn:
+    id: "target-map"
+- tapOn:
+    id: "confirm-btn"
+
+- extendedWaitUntil:
+    visible: "已分享"
+    timeout: 5000

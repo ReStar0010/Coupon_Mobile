@@ -64,11 +64,11 @@ const baseMerchant: MerchantDetail = {
     { id: 'mc2', label: '買一送一', detail: '美式咖啡', expires: '11/15', amount: 0 },
   ],
   sharedCoupons: [
-    { store: '阿明早餐店', amount: 5, sharer: 'A', msg: 'a', label: '折抵' },
-    { store: '阿明早餐店', amount: 10, sharer: 'B', msg: 'b', label: '兌換' },
-    { store: '阿明早餐店', amount: 8, sharer: 'C', msg: 'c', label: '折抵' },
-    { store: '阿明早餐店', amount: 15, sharer: 'D', msg: 'd', label: '折抵' },
-    { store: '阿明早餐店', amount: 20, sharer: 'E', msg: 'e', label: '折抵' },
+    { token: 'tok-a', store: '阿明早餐店', amount: 5, sharer: 'A', msg: 'a', label: '折抵' },
+    { token: 'tok-b', store: '阿明早餐店', amount: 10, sharer: 'B', msg: 'b', label: '兌換' },
+    { token: 'tok-c', store: '阿明早餐店', amount: 8, sharer: 'C', msg: 'c', label: '折抵' },
+    { token: 'tok-d', store: '阿明早餐店', amount: 15, sharer: 'D', msg: 'd', label: '折抵' },
+    { token: 'tok-e', store: '阿明早餐店', amount: 20, sharer: 'E', msg: 'e', label: '折抵' },
   ],
   news: [
     {
@@ -203,7 +203,7 @@ describe('MerchantSheet', () => {
     const merchant: MerchantDetail = {
       ...baseMerchant,
       myPublicShares: [
-        { store: '阿明早餐店', amount: 12, sharer: '我', msg: '', label: '折抵' },
+        { token: 'tok-my', store: '阿明早餐店', amount: 12, sharer: '我', msg: '', label: '折抵' },
       ],
     };
     const { getByTestId } = render(

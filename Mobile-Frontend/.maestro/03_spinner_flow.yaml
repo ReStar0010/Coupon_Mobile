@@ -1,0 +1,24 @@
+appId: com.cokayne.MobileFrontend
+---
+- launchApp
+
+- tapOn:
+    id: "tab-spinner"
+
+- assertVisible:
+    id: "spin-button"
+- assertVisible:
+    id: "gem-pips-container"
+- assertVisible:
+    id: "gems-badge"
+- assertVisible:
+    id: "coupoints-badge"
+
+# Tap spin
+- tapOn:
+    id: "spin-button"
+
+# Wait for spin animation to finish — result modal or score update
+- extendedWaitUntil:
+    visible: "pts"
+    timeout: 8000

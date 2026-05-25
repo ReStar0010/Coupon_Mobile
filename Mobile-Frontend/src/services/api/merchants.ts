@@ -27,6 +27,7 @@ export interface MerchantCoupon {
 }
 
 export interface SharedCouponSummary {
+  token: string;
   store: string;
   amount: number;
   sharer: string;

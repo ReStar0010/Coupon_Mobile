@@ -50,7 +50,7 @@ const FIXTURE_DETAILS: Record<string, MerchantDetail> = {
       { id: 'mc1-2', label: '買一送一', detail: '美式咖啡', expires: '11/15', amount: 0 },
     ],
     sharedCoupons: [
-      { store: '阿明早餐店', amount: 5, sharer: '小明', msg: '大家來吃看看', label: '折抵' },
+      { token: 'tok-1a', store: '阿明早餐店', amount: 5, sharer: '小明', msg: '大家來吃看看', label: '折抵' },
     ],
     news: [{ id: 1, author: '阿明早餐店', agoText: '2 小時前', body: '今天有新品', createdAt: '2026-05-14' }],
   },
@@ -61,7 +61,7 @@ const FIXTURE_DETAILS: Record<string, MerchantDetail> = {
       { id: 'mc2-1', label: '折抵', detail: '$50 現金折抵', expires: '12/01', amount: 50 },
     ],
     sharedCoupons: [
-      { store: '鼎泰豐', amount: 30, sharer: '志明', msg: '小籠包必嚐', label: '折抵' },
+      { token: 'tok-2a', store: '鼎泰豐', amount: 30, sharer: '志明', msg: '小籠包必嚐', label: '折抵' },
     ],
     news: [],
   },

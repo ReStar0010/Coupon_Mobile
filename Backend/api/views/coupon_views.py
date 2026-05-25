@@ -356,6 +356,7 @@ def get_coupon_detail(request, id):
             "tags": [tag.display_name for tag in coupon.tags.all()],  # 返回標籤的顯示名稱
             "merchant_deleted": coupon.store.owner is None,
             "acquisition_method": getattr(coupon, "acquisition_method", None) or None,  # store coupons typically null
+            "gem_reward": coupon.template.gem_reward if coupon.template else 1,
         }
 
     else:
@@ -397,8 +398,9 @@ def get_coupon_detail(request, id):
             "tags": [tag.display_name for tag in coupon.tags.all()],  # 返回標籤的顯示名稱
             "merchant_deleted": coupon.store.owner is None,
             "acquisition_method": coupon.acquisition_method,
+            "gem_reward": coupon.template.gem_reward if coupon.template else 1,
         }
-    
+
     return Response(data)
 
 @api_view(['POST'])

@@ -526,7 +526,11 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
       <SharedCouponModal
         visible={sharedCoupon !== null}
         coupon={sharedCoupon}
-        onClaim={() => setSharedCoupon(null)}
+        onClaim={() => {
+          setSharedCoupon(null);
+          const loc = userLocation;
+          fetchNearby(loc?.latitude ?? FALLBACK_LAT, loc?.longitude ?? FALLBACK_LNG);
+        }}
         onClose={() => setSharedCoupon(null)}
       />
       <MerchantSheet
