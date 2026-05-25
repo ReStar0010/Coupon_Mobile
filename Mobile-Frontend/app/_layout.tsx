@@ -107,14 +107,15 @@ function RootLayout() {
                   screenOptions={{
                     headerShown: false,
                     animation: 'none',
-                    // Enable swipe-back globally so a user can never get
-                    // stuck on a screen whose own back affordance is hidden
-                    // or unresponsive. Individual screens with mid-transaction
-                    // state (e.g. CouponUseQRScreen during the scan→success
-                    // window) can opt out by setting `gestureEnabled: false`
-                    // on their own <Stack.Screen> options.
-                    gestureEnabled: true,
-                    fullScreenGestureEnabled: true,
+                    // Swipe-back disabled globally: navigation is button-only
+                    // so an accidental horizontal drag can never pop the
+                    // screen. Every pushed screen renders its own explicit
+                    // back affordance (e.g. CouponDetailScreen's ← header
+                    // button), so no screen can trap the user. A screen that
+                    // genuinely wants edge-swipe back can opt in by setting
+                    // `gestureEnabled: true` on its own <Stack.Screen>.
+                    gestureEnabled: false,
+                    fullScreenGestureEnabled: false,
                   }}
                 />
                 {/* Force/recommend upgrade prompt — overlays everything,
