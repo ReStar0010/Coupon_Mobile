@@ -1,20 +1,19 @@
 /**
  * UserLocationMarker contract tests.
  *
- * Guards the iOS "marker jumps between center and top-left" bug.
+ * Platform split:
+ *   Android — Marker `rotation` prop, `tracksViewChanges={false}`.
+ *   iOS    — SVG `<G transform="rotate(…)">` on the cone, Marker
+ *            `rotation={0}`, `tracksViewChanges` briefly true then false
+ *            so MapKit re-snapshots the rotated bitmap.
  *
- * Root cause was `tracksViewChanges` defaulting to true while an inner
- * View carried a `transform: [{ rotate: ... }]` driven by heading. The
- * 10 Hz heading stream re-rasterised the marker bitmap on every tick,
- * and during re-rasterisation the marker briefly flashed at screen
- * (0,0) — the top-left — before snapping back to the correct lat/lng.
- *
- * Fix: use the Marker's native `rotation` prop (no JS re-rasterise) and
- * pin `tracksViewChanges={false}` so the bitmap is only rendered once.
- * Inner View must NOT carry a rotate transform.
+ * Guards the iOS "marker jumps between center and top-left" bug that
+ * occurred when a View-level `transform: [{ rotate }]` re-rasterised the
+ * marker at 10 Hz. The current approach avoids View transforms entirely.
  */
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { Platform } from 'react-native';
+import { render, act } from '@testing-library/react-native';
 
 // Capture Marker props onto a global so tests can read them.
 jest.mock('react-native-maps', () => {
@@ -36,6 +35,8 @@ jest.mock('react-native-svg', () => {
     default: (props: Record<string, unknown>) => ReactLocal.createElement(View, props),
     Svg: (props: Record<string, unknown>) =>
       ReactLocal.createElement(View, { ...props, testID: 'svg-root' }),
+    G: (props: Record<string, unknown>) =>
+      ReactLocal.createElement(View, { ...props, testID: 'svg-g' }),
     Path: (props: Record<string, unknown>) =>
       ReactLocal.createElement(View, { ...props, testID: 'svg-path' }),
     Circle: (props: Record<string, unknown>) =>
@@ -51,46 +52,90 @@ function getMarkerProps(): Record<string, unknown> {
   return (globalThis as Record<string, unknown>).__markerProps as Record<string, unknown>;
 }
 
+function withPlatform(os: string, fn: () => void) {
+  const original = Platform.OS;
+  (Platform as { OS: string }).OS = os;
+  try {
+    fn();
+  } finally {
+    (Platform as { OS: string }).OS = original;
+  }
+}
+
 beforeEach(() => {
   (globalThis as Record<string, unknown>).__markerProps = undefined;
 });
 
 describe('UserLocationMarker', () => {
-  it('passes heading to the Marker via the native `rotation` prop', () => {
-    render(<UserLocationMarker coordinate={HOLDING_COORD} heading={42} />);
-    expect(getMarkerProps().rotation).toBe(42);
+  // ── Android (native rotation) ──────────────────────────────────────
+
+  it('Android: passes heading to Marker via native rotation prop', () => {
+    withPlatform('android', () => {
+      render(<UserLocationMarker coordinate={HOLDING_COORD} heading={42} />);
+      expect(getMarkerProps().rotation).toBe(42);
+    });
   });
 
-  it('sets rotation to 0 when heading is null (no JS-side default that triggers re-render)', () => {
+  it('Android: keeps tracksViewChanges={false}', () => {
+    withPlatform('android', () => {
+      render(<UserLocationMarker coordinate={HOLDING_COORD} heading={42} />);
+      expect(getMarkerProps().tracksViewChanges).toBe(false);
+    });
+  });
+
+  // ── iOS (SVG rotation + tracksViewChanges toggle) ──────────────────
+
+  it('iOS: sets Marker rotation to 0 (rotation is in the SVG, not the Marker)', () => {
+    withPlatform('ios', () => {
+      render(<UserLocationMarker coordinate={HOLDING_COORD} heading={42} />);
+      expect(getMarkerProps().rotation).toBe(0);
+    });
+  });
+
+  it('iOS: rotates the cone via SVG <G transform>', () => {
+    withPlatform('ios', () => {
+      const { getByTestId } = render(
+        <UserLocationMarker coordinate={HOLDING_COORD} heading={42} />,
+      );
+      const g = getByTestId('svg-g');
+      expect(g.props.transform).toBe('rotate(42, 22, 22)');
+    });
+  });
+
+  it('iOS: settles tracksViewChanges to false after the re-snapshot window', () => {
+    jest.useFakeTimers();
+    withPlatform('ios', () => {
+      render(<UserLocationMarker coordinate={HOLDING_COORD} heading={42} />);
+      act(() => jest.advanceTimersByTime(200));
+      expect(getMarkerProps().tracksViewChanges).toBe(false);
+    });
+    jest.useRealTimers();
+  });
+
+  // ── Shared behaviour ──────────────────────────────────────────────
+
+  it('sets rotation to 0 when heading is null', () => {
     render(<UserLocationMarker coordinate={HOLDING_COORD} heading={null} />);
+    // On the default test platform (ios), Marker rotation is always 0.
+    // On Android it would be 0 because heading ?? 0 = 0. Either way, 0.
     expect(getMarkerProps().rotation).toBe(0);
   });
 
-  it('sets tracksViewChanges={false} so heading updates do NOT re-rasterise the marker', () => {
-    // The "jumping" bug was caused by the default true tracksViewChanges
-    // re-rasterising on every heading tick. Pin to false.
-    render(<UserLocationMarker coordinate={HOLDING_COORD} heading={42} />);
-    expect(getMarkerProps().tracksViewChanges).toBe(false);
-  });
-
-  it('inner content has NO `transform: rotate` style (rotation is on the Marker, not the View)', () => {
+  it('inner View has NO transform: rotate style', () => {
     const { toJSON } = render(
       <UserLocationMarker coordinate={HOLDING_COORD} heading={42} />,
     );
-    // The bug we're guarding: previously the inner View carried
-    //   transform: [{ rotate: '<heading>deg' }]
-    // which triggered the Marker bitmap to re-rasterise on every
-    // heading tick. The whole render output under UserLocationMarker
-    // must NOT contain any rotate transform at any depth.
     const tree = JSON.stringify(toJSON());
-    expect(tree).not.toMatch(/rotate/);
+    // SVG <G transform="rotate(…)"> is fine — it's a string prop on an SVG
+    // element, not a React Native View `transform` style array. We only
+    // guard against the View-level transform that caused the flicker bug.
+    expect(tree).not.toMatch(/"transform":\[.*rotate/);
   });
 
   it('omits the heading-cone Path when heading is null', () => {
     const { queryByTestId } = render(
       <UserLocationMarker coordinate={HOLDING_COORD} heading={null} />,
     );
-    // The cone Path is the only Path; the dot is a Circle.
     expect(queryByTestId('svg-path')).toBeNull();
     expect(queryByTestId('svg-circle')).toBeTruthy();
   });
@@ -107,26 +152,19 @@ describe('UserLocationMarker', () => {
     expect(getMarkerProps().coordinate).toEqual(HOLDING_COORD);
   });
 
-  it('flat={true} so rotation rotates on the map plane (not facing the camera)', () => {
+  it('flat={true} so rotation rotates on the map plane', () => {
     render(<UserLocationMarker coordinate={HOLDING_COORD} heading={42} />);
     expect(getMarkerProps().flat).toBe(true);
   });
 
-  it('rerendering with a new heading updates the Marker in place (no remount, no (0,0) flash)', () => {
-    // Regression guard for the iOS jumping bug. A remount on heading
-    // change would re-rasterise the bitmap and surface the (0,0) flash
-    // again. We assert the Marker host stays in the tree across renders
-    // and the new rotation propagates.
+  it('rerendering with a new heading reuses the Marker (no remount)', () => {
     const { rerender, getByTestId } = render(
       <UserLocationMarker coordinate={HOLDING_COORD} heading={10} />,
     );
     const firstMarker = getByTestId('mock-marker');
-    expect(getMarkerProps().rotation).toBe(10);
 
     rerender(<UserLocationMarker coordinate={HOLDING_COORD} heading={45} />);
     const secondMarker = getByTestId('mock-marker');
-    expect(getMarkerProps().rotation).toBe(45);
-    // Same host element (React reused the node — no unmount/remount).
     expect(secondMarker).toBe(firstMarker);
   });
 });

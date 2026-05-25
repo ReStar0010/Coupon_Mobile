@@ -143,7 +143,7 @@ def _serialize_shared_coupon(share: CouponShareRequest) -> dict:
         'store': coupon.store.name if coupon.store else '',
         'amount': int(coupon.estimated_savings) if coupon.estimated_savings is not None else 0,
         'sharer': (share.from_user.first_name or share.from_user.username or '')[:40],
-        'msg': '',
+        'msg': share.message,
         'label': label,
     }
 

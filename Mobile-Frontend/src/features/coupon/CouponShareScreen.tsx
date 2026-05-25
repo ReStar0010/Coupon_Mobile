@@ -9,12 +9,19 @@ import {
   SafeAreaView,
   Share,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  cancelAnimation,
+  Easing,
+} from 'react-native-reanimated';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import GemIcon from '@/src/components/icons/GemIcon';
 import { shareCoupon, shareCouponPublic } from '@/src/services/api/coupons';
-// Linking import kept available for future deep-link previews if needed.
 import { useWallet } from '@/src/state/WalletContext';
 import { track } from '@/src/services/analytics/posthog';
 import Coachmark from '@/src/features/onboarding/Coachmark';
@@ -53,62 +60,70 @@ export default function CouponShareScreen({
   const [target, setTarget] = useState<ShareTarget>(null);
   const [note, setNote] = useState('');
   const [success, setSuccess] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { refreshWallet } = useWallet();
 
+  // Upload animation — pulsing arrow loops while the API call is in-flight.
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    if (!uploading) return;
+    pulse.value = 0;
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(pulse);
+  }, [uploading, pulse]);
+
+  const uploadArrowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -8 * pulse.value }],
+    opacity: 0.5 + 0.5 * pulse.value,
+  }));
+
+  const noteEmpty = !note.trim();
+  const canConfirm = !!target && !noteEmpty && !isSubmitting;
+
   const handleConfirm = async (): Promise<void> => {
-    if (!target || success || isSubmitting) return;
+    if (!canConfirm || success) return;
     const id = params.id;
     if (!id) {
       setShareError('Missing coupon id');
-      console.warn('[CouponShareScreen] cannot share: params.id missing');
       return;
     }
     setIsSubmitting(true);
     setShareError(null);
     try {
       if (target === 'map') {
+        setUploading(true);
         await shareCouponPublic(id, note);
-        // Refresh so any share-related wallet changes are reflected. The
-        // actual +1 SHARE_REWARD lands when the recipient accepts (BE-driven).
-        await refreshWallet();
-        track('coupon.share_completed', { couponId: id, target });
+        // Share succeeded — wallet refresh is best-effort so a failure
+        // here never masks the completed share from the user.
+        setUploading(false);
         setSuccess(true);
+        refreshWallet().catch(() => {});
+        track('coupon.share_completed', { couponId: id, target });
         successTimerRef.current = setTimeout(() => {
           successTimerRef.current = null;
           onNavigate('home');
         }, 2500);
       } else {
-        // 'link' target: mint a private share + invoke the OS share sheet so
-        // the user can route the deep link through any installed app
-        // (LINE, Messages, AirDrop, etc.). Recipient opens the link and
-        // claims via app/collection/[token].tsx (Universal Link) or the
-        // `coupro://collection?token=` custom scheme.
         const minted = await shareCoupon(id);
         const url = minted.share_link_web ?? minted.share_link;
-        const message = note.trim()
-          ? `${note.trim()} \nCouPro 優惠券：${url}`
-          : `我分享了一張 CouPro 優惠券給你：${url}`;
+        const message = `${note.trim()} \nCouPro 優惠券：${url}`;
         const result = await Share.share({ message, url });
-        // Share.share resolves on dismiss too — `dismissedAction` means
-        // the user closed the OS sheet without picking a target, which
-        // is NOT a completed share. Treat only `sharedAction` as success
-        // so analytics + UI reflect reality.
         if (result.action === Share.sharedAction) {
           track('coupon.share_completed', { couponId: id, target });
-          // Don't auto-bounce home — the user has just left the app to
-          // the share-target; bouncing competes with the OS share UI.
           setSuccess(true);
         }
-        // else: stay on this screen so the user can retry. Cancel is a
-        // valid outcome, not an error.
       }
     } catch (err: unknown) {
+      setUploading(false);
       const msg = err instanceof Error ? err.message : 'Share failed';
       setShareError(msg);
-      console.warn('[CouponShareScreen] share failed:', msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -121,8 +136,13 @@ export default function CouponShareScreen({
     [],
   );
 
-  const confirmLabel =
-    target === 'map' ? '釋出到 CouMap' : target === 'link' ? '建立連結' : '選一個分享方式';
+  const confirmLabel = !target
+    ? '選一個分享方式'
+    : noteEmpty
+      ? '請輸入留言'
+      : target === 'map'
+        ? '釋出到 CouMap'
+        : '建立連結';
 
   return (
     <SafeAreaView style={s.root}>
@@ -147,31 +167,7 @@ export default function CouponShareScreen({
             </View>
           </View>
         </View>
-        <View style={s.noteSection}>
-          <View style={s.noteHeader}>
-            <Text style={s.noteLabel}>給領券的人留句話</Text>
-            <Text style={s.noteOptional}>選填</Text>
-          </View>
-          <View style={s.noteInputWrapper}>
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              placeholder="例如：我吃過很喜歡，希望你也會喜歡 ☕"
-              maxLength={80}
-              multiline
-              placeholderTextColor={colors.muted}
-              style={s.noteInput}
-            />
-            <Text style={s.noteCounter}>{note.length}/80</Text>
-          </View>
-          <View style={s.examplesRow}>
-            {EXAMPLES.map((ex, i) => (
-              <Pressable key={i} onPress={() => setNote(ex)} style={s.exampleChip}>
-                <Text style={s.exampleText}>{ex}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        {/* Step 1 — choose where to share */}
         <View style={s.targetSection}>
           <Text style={s.targetLabel}>選擇分享方式</Text>
           <View style={s.targetList}>
@@ -224,6 +220,32 @@ export default function CouponShareScreen({
             })}
           </View>
         </View>
+        {/* Step 2 — write your message (mandatory) */}
+        <View style={s.noteSection}>
+          <View style={s.noteHeader}>
+            <Text style={s.noteLabel}>給領券的人留句話</Text>
+            <Text style={s.noteRequired}>必填</Text>
+          </View>
+          <View style={s.noteInputWrapper}>
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="例如：我吃過很喜歡，希望你也會喜歡 ☕"
+              maxLength={80}
+              multiline
+              placeholderTextColor={colors.muted}
+              style={s.noteInput}
+            />
+            <Text style={s.noteCounter}>{note.length}/80</Text>
+          </View>
+          <View style={s.examplesRow}>
+            {EXAMPLES.map((ex) => (
+              <Pressable key={ex} onPress={() => setNote(ex)} style={s.exampleChip}>
+                <Text style={s.exampleText}>{ex}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
         <View style={s.confirmSection}>
           {shareError ? (
             <View style={s.errorBanner} testID="share-error">
@@ -231,19 +253,36 @@ export default function CouponShareScreen({
             </View>
           ) : null}
           <View style={s.confirmOuter}>
-            {target && <View style={s.confirmShadow} />}
+            {canConfirm && <View style={s.confirmShadow} />}
             <Pressable
               testID="confirm-btn"
               onPress={() => { void handleConfirm(); }}
-              disabled={!target || isSubmitting}
-              accessibilityState={{ disabled: !target || isSubmitting }}
-              style={[s.confirmBtn, !target && s.confirmBtnDisabled]}
+              disabled={!canConfirm}
+              accessibilityState={{ disabled: !canConfirm }}
+              style={[s.confirmBtn, !canConfirm && s.confirmBtnDisabled]}
             >
-              <Text style={[s.confirmText, !target && s.confirmTextDisabled]}>{confirmLabel}</Text>
+              <Text style={[s.confirmText, !canConfirm && s.confirmTextDisabled]}>{confirmLabel}</Text>
             </Pressable>
           </View>
         </View>
       </ScrollView>
+      {uploading && (
+        <View style={s.successOverlay} testID="upload-overlay">
+          <Animated.View style={[s.uploadIcon, uploadArrowStyle]}>
+            <Svg width={36} height={36} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M12 19V5M12 5l-6 6M12 5l6 6"
+                stroke={colors.purpleLight}
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </Animated.View>
+          <Text style={s.successTitle}>釋出中…</Text>
+          <Text style={s.successSub}>正在將優惠券分享到 CouMap</Text>
+        </View>
+      )}
       {success && (
         <View style={s.successOverlay}>
           <View style={s.successIcon}>
@@ -359,7 +398,7 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   noteLabel: { fontFamily: fontFamilies.bold, fontSize: 13, color: colors.fg },
-  noteOptional: { fontFamily: fontFamilies.regular, fontSize: 10, color: colors.muted },
+  noteRequired: { fontFamily: fontFamilies.bold, fontSize: 10, color: colors.purple },
   noteInputWrapper: { position: 'relative' },
   noteInput: {
     height: 70,
@@ -473,6 +512,17 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 30,
+  },
+  uploadIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: colors.purple,
+    borderWidth: 3,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   successIcon: {
     width: 80,

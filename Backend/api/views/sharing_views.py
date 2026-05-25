@@ -304,6 +304,11 @@ def share_coupon_public(request, coupon_id):
     if existing_public_share:
         raise ShareAlreadyPublic(developer_message="This coupon is already shared to the public pool.")
 
+    share_message = ''
+    raw_msg = request.data.get('message')
+    if isinstance(raw_msg, str):
+        share_message = raw_msg.strip()[:80]
+
     try:
         with transaction.atomic():
             # Create a unique token for tracking
@@ -316,7 +321,8 @@ def share_coupon_public(request, coupon_id):
                 to_user=None,  # No specific recipient for public shares
                 token=token,
                 is_public=True,
-                status='pending'
+                status='pending',
+                message=share_message,
             )
 
             # Immediately remove coupon from user's collection
@@ -384,6 +390,7 @@ def get_share_request(request, token):
         'coupon_name': share_request.coupon.coupon_name,
         'from_user_email': share_request.from_user.email,
         'status': share_request.status,
+        'message': share_request.message,
     }
     return Response(data)
 

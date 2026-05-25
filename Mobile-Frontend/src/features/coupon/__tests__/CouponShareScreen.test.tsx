@@ -32,6 +32,18 @@ const makeProps = (overrides = {}) => ({
   ...overrides,
 });
 
+const NOTE = '希望你會喜歡～～';
+
+/** Select target + fill mandatory note so the confirm button is enabled. */
+function fillForm(
+  helpers: ReturnType<typeof render>,
+  target: 'map' | 'link' = 'map',
+  note: string = NOTE,
+) {
+  fireEvent.press(helpers.getByTestId(`target-${target}`));
+  fireEvent.changeText(helpers.getByPlaceholderText(/我吃過很喜歡/), note);
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockShareCouponPublic.mockResolvedValue({ share_link: 'x', token: 't' });
@@ -40,43 +52,44 @@ beforeEach(() => {
 });
 
 describe('CouponShareScreen', () => {
-  it('share button is disabled when no target selected', () => {
-    const { getByTestId } = render(<CouponShareScreen {...makeProps()} />);
-    const btn = getByTestId('confirm-btn');
-    expect(btn.props.accessibilityState?.disabled).toBe(true);
+  it('share button disabled when no target selected', () => {
+    const h = render(<CouponShareScreen {...makeProps()} />);
+    expect(h.getByTestId('confirm-btn').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('selecting a target enables the share button', () => {
-    const { getByTestId } = render(<CouponShareScreen {...makeProps()} />);
-    fireEvent.press(getByTestId('target-map'));
-    const btn = getByTestId('confirm-btn');
-    expect(btn.props.accessibilityState?.disabled).toBe(false);
+  it('share button disabled when target set but note empty', () => {
+    const h = render(<CouponShareScreen {...makeProps()} />);
+    fireEvent.press(h.getByTestId('target-map'));
+    expect(h.getByTestId('confirm-btn').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('confirm with map target calls shareCouponPublic and refreshes wallet', async () => {
+  it('share button enabled when target and note are both set', () => {
+    const h = render(<CouponShareScreen {...makeProps()} />);
+    fillForm(h);
+    expect(h.getByTestId('confirm-btn').props.accessibilityState?.disabled).toBe(false);
+  });
+
+  it('confirm with map target calls shareCouponPublic with the note', async () => {
     jest.useFakeTimers();
     const onNavigate = jest.fn();
-    const { getByTestId } = render(<CouponShareScreen {...makeProps({ onNavigate })} />);
+    const h = render(<CouponShareScreen {...makeProps({ onNavigate })} />);
 
-    fireEvent.press(getByTestId('target-map'));
+    fillForm(h, 'map');
     await act(async () => {
-      fireEvent.press(getByTestId('confirm-btn'));
+      fireEvent.press(h.getByTestId('confirm-btn'));
     });
 
-    expect(mockShareCouponPublic).toHaveBeenCalledTimes(1);
-    expect(mockShareCouponPublic).toHaveBeenCalledWith('c-9', '');
-    await waitFor(() => {
-      expect(mockRefreshWallet).toHaveBeenCalledTimes(1);
-    });
+    expect(mockShareCouponPublic).toHaveBeenCalledWith('c-9', NOTE);
+    // refreshWallet is now fire-and-forget — resolve its pending promise.
+    await act(async () => {});
+    expect(mockRefreshWallet).toHaveBeenCalledTimes(1);
 
-    act(() => {
-      jest.advanceTimersByTime(3000);
-    });
+    act(() => jest.advanceTimersByTime(3000));
     expect(onNavigate).toHaveBeenCalledWith('home');
     jest.useRealTimers();
   });
 
-  it('confirm with link target mints a private share and opens the native share sheet', async () => {
+  it('confirm with link target mints a private share and opens native share sheet', async () => {
     mockShareCoupon.mockResolvedValueOnce({
       share_link: 'coupro://collection?token=abc',
       share_link_web: 'https://api.coupro.pro/collection/abc/?open_ext=1',
@@ -86,26 +99,24 @@ describe('CouponShareScreen', () => {
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: Share.sharedAction } as never);
 
-    const { getByTestId } = render(<CouponShareScreen {...makeProps()} />);
-    fireEvent.press(getByTestId('target-link'));
+    const h = render(<CouponShareScreen {...makeProps()} />);
+    fillForm(h, 'link');
     await act(async () => {
-      fireEvent.press(getByTestId('confirm-btn'));
+      fireEvent.press(h.getByTestId('confirm-btn'));
     });
 
-    // No public-pool call; instead a private share + RN's Share.share.
     expect(mockShareCouponPublic).not.toHaveBeenCalled();
     expect(mockShareCoupon).toHaveBeenCalledWith('c-9');
     expect(shareSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://api.coupro.pro/collection/abc/?open_ext=1' }),
+      expect.objectContaining({
+        url: 'https://api.coupro.pro/collection/abc/?open_ext=1',
+        message: expect.stringContaining(NOTE),
+      }),
     );
     shareSpy.mockRestore();
   });
 
-  it('does NOT mark success when the user dismisses the share sheet without sharing', async () => {
-    // Regression caught by code review: Share.share resolves with
-    // dismissedAction when the OS sheet is cancelled. Treating that as
-    // "shared" inflated analytics and incorrectly showed the success
-    // overlay.
+  it('does NOT mark success when user dismisses the share sheet', async () => {
     mockShareCoupon.mockResolvedValueOnce({
       share_link: 'coupro://collection?token=xyz',
       share_link_web: 'https://api.coupro.pro/collection/xyz/?open_ext=1',
@@ -115,43 +126,42 @@ describe('CouponShareScreen', () => {
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: Share.dismissedAction } as never);
 
-    const { getByTestId, queryByText } = render(<CouponShareScreen {...makeProps()} />);
-    fireEvent.press(getByTestId('target-link'));
+    const h = render(<CouponShareScreen {...makeProps()} />);
+    fillForm(h, 'link');
     await act(async () => {
-      fireEvent.press(getByTestId('confirm-btn'));
+      fireEvent.press(h.getByTestId('confirm-btn'));
     });
 
     expect(shareSpy).toHaveBeenCalled();
-    // Success overlay must NOT appear — the user cancelled.
-    expect(queryByText('已分享！')).toBeNull();
+    expect(h.queryByText('已分享！')).toBeNull();
     shareSpy.mockRestore();
   });
 
   it('shows error banner if shareCouponPublic fails', async () => {
     mockShareCouponPublic.mockRejectedValueOnce(new Error('share boom'));
-    const { getByTestId } = render(<CouponShareScreen {...makeProps()} />);
+    const h = render(<CouponShareScreen {...makeProps()} />);
 
-    fireEvent.press(getByTestId('target-map'));
+    fillForm(h, 'map');
     await act(async () => {
-      fireEvent.press(getByTestId('confirm-btn'));
+      fireEvent.press(h.getByTestId('confirm-btn'));
     });
 
     await waitFor(() => {
-      expect(getByTestId('share-error')).toBeTruthy();
+      expect(h.getByTestId('share-error')).toBeTruthy();
     });
     expect(mockRefreshWallet).not.toHaveBeenCalled();
   });
 
   it('shows error banner when params.id is missing', async () => {
     const props = makeProps({ params: { store: 'X' } });
-    const { getByTestId } = render(<CouponShareScreen {...props} />);
+    const h = render(<CouponShareScreen {...props} />);
 
-    fireEvent.press(getByTestId('target-map'));
+    fillForm(h, 'map');
     await act(async () => {
-      fireEvent.press(getByTestId('confirm-btn'));
+      fireEvent.press(h.getByTestId('confirm-btn'));
     });
 
-    expect(getByTestId('share-error')).toBeTruthy();
+    expect(h.getByTestId('share-error')).toBeTruthy();
     expect(mockShareCouponPublic).not.toHaveBeenCalled();
   });
 });

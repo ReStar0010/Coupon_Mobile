@@ -697,6 +697,7 @@ class CouponShareRequest(models.Model):
 
     # Flag for public pool sharing (EasyUse)
     is_public = models.BooleanField(default=False, help_text="If True, coupon is shared to public pool")
+    message = models.TextField(blank=True, default='', max_length=80, help_text="Optional note from the sharer")
 
     class Meta:
         constraints = [
