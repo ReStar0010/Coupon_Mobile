@@ -8,6 +8,12 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { colors } from '../../../theme/colors';
@@ -16,7 +22,9 @@ import type { UseCoopRoomResult } from './useCoopRoom';
 import type { PlayerSnapshot } from './coopProtocol';
 import ChargeMeter from './ChargeMeter';
 import { allFullyCharged, interpolateLocalCharge } from './charge';
-import RevealAnimation from './RevealAnimation';
+import ResultModal from '../ResultModal';
+import type { SpinResult } from '../ResultModal';
+import { MULTS } from '../constants';
 import { useForceUpdate } from './useForceUpdate';
 
 interface CoopRoomScreenProps {
@@ -51,6 +59,25 @@ export default function CoopRoomScreen({ coop, gems, onExit, onStartStaking }: C
 
   const meUserId = state.meUserId ?? '';
 
+  // Reveal result for the top-level ResultModal overlay
+  const reveal = state.phase === 'REVEAL' ? state.reveal : null;
+  const [revealDismissed, setRevealDismissed] = useState(false);
+  const prevRoundId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (reveal && reveal.roundId !== prevRoundId.current) {
+      prevRoundId.current = reveal.roundId;
+      setRevealDismissed(false);
+    }
+  }, [reveal]);
+
+  const myShare = reveal?.shares.find((s) => s.user_id === meUserId);
+  const myPoints = myShare ? myShare.floor + myShare.excess : 0;
+  const revealResult: SpinResult | null =
+    reveal && !revealDismissed
+      ? { mult: reveal.M, points: myPoints, color: multColor(reveal.M) }
+      : null;
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.header}>
@@ -78,6 +105,14 @@ export default function CoopRoomScreen({ coop, gems, onExit, onStartStaking }: C
       >
         <PhaseView coop={coop} userId={meUserId} gems={gems} onStartStaking={onStartStaking} />
       </ScrollView>
+
+      <ResultModal
+        result={revealResult}
+        onDismiss={() => {
+          setRevealDismissed(true);
+          if (reveal) coop.ackReveal(reveal.roundId);
+        }}
+      />
     </View>
   );
 }
@@ -98,6 +133,22 @@ function PhaseView({ coop, userId, gems, onStartStaking }: PhaseViewProps): Reac
     case 'SOLO':
     case 'LOBBY_OPEN':
       return <LobbyView coop={coop} onStartStaking={onStartStaking} />;
+    case 'STAKING':
+      return <StakingView coop={coop} userId={userId} gems={gems} />;
+    case 'READY':
+      return <ReadyView coop={coop} userId={userId} />;
+    case 'COUNTDOWN':
+      return <CountdownView coop={coop} />;
+    case 'CHARGING':
+      return <ChargingView coop={coop} userId={userId} />;
+    case 'SPINNING':
+      return <SpinningView />;
+    case 'REVEAL':
+      return <RevealView coop={coop} userId={userId} />;
+    case 'SETTLED':
+      return <SettledView coop={coop} userId={userId} />;
+    case 'ABORTED':
+      return <AbortedView coop={coop} />;
     default:
       return <Text style={styles.bodyText}>跳轉到轉盤中…</Text>;
   }
@@ -268,9 +319,24 @@ function ReadyView({ coop, userId }: { coop: UseCoopRoomResult; userId: string }
 }
 
 function CountdownView({ coop }: { coop: UseCoopRoomResult }) {
+  const { countdownStartedAt, countdownDurationMs } = coop.state;
+  const [tick, setTick] = useState(coop.state.countdownTick ?? 3);
+
+  useEffect(() => {
+    if (countdownStartedAt == null) return;
+    const update = () => {
+      const elapsed = Date.now() - countdownStartedAt;
+      const remaining = Math.max(0, countdownDurationMs - elapsed);
+      setTick(Math.max(1, Math.ceil(remaining / 1000)) as 1 | 2 | 3);
+    };
+    update();
+    const id = setInterval(update, 200);
+    return () => clearInterval(id);
+  }, [countdownStartedAt, countdownDurationMs]);
+
   return (
     <View testID="phase-countdown" style={styles.center}>
-      <Text style={styles.giant}>{coop.state.countdownTick ?? 3}</Text>
+      <Text style={styles.giant}>{tick}</Text>
       <Text style={styles.bodyText}>準備按住</Text>
     </View>
   );
@@ -285,12 +351,25 @@ function ChargingView({
 }): React.JSX.Element {
   const me = coop.state.players.find((p) => p.user_id === userId);
   const peers = coop.state.players.filter((p) => p.user_id !== userId);
-  const localEstimated = useLocalChargeProgress({
-    isCharging: !!me?.is_charging,
-    serverProgress: me?.progress ?? 0,
-    durationMs: coop.state.chargingDurationMs,
-  });
+  const serverProgress = me?.progress ?? 0;
+  const isCharging = !!me?.is_charging;
   const everyoneCharged = allFullyCharged(coop.state.players.map((p) => p.progress));
+
+  const fillAnim = useSharedValue(serverProgress);
+  const [displayPercent, setDisplayPercent] = useState(Math.round(serverProgress * 100));
+
+  useEffect(() => {
+    const target = Math.min(1, serverProgress);
+    fillAnim.value = withTiming(target, {
+      duration: isCharging ? 100 : 200,
+      easing: Easing.out(Easing.quad),
+    });
+    setDisplayPercent(Math.round(target * 100));
+  }, [serverProgress, isCharging, fillAnim]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${fillAnim.value * 100}%`,
+  }));
 
   return (
     <View testID="phase-charging">
@@ -301,14 +380,11 @@ function ChargingView({
         onPressOut={() => coop.pressOut()}
         style={styles.chargeBtn}
       >
-        <View
+        <Reanimated.View
           pointerEvents="none"
-          style={[
-            styles.chargeFill,
-            { width: `${Math.min(100, localEstimated * 100)}%` as `${number}%` },
-          ]}
+          style={[styles.chargeFill, fillStyle]}
         />
-        <Text style={styles.chargeBtnText}>{Math.round(localEstimated * 100)}%</Text>
+        <Text style={styles.chargeBtnText}>{displayPercent}%</Text>
       </Pressable>
       {everyoneCharged && (
         <Text testID="all-charged-cue" style={styles.allChargedCue}>
@@ -373,21 +449,31 @@ function SpinningView() {
   );
 }
 
+function multColor(m: number): string {
+  return MULTS.find((x) => x.v === m)?.color ?? MULTS[0].color;
+}
+
 function RevealView({ coop, userId }: { coop: UseCoopRoomResult; userId: string }) {
   const reveal = coop.state.reveal;
   if (!reveal) return <Text style={styles.bodyText}>等待結果…</Text>;
+
   return (
     <View testID="phase-reveal">
-      <Text style={styles.h2}>結果揭曉</Text>
-      <RevealAnimation
-        roundId={reveal.roundId}
-        M={reveal.M}
-        totalPayout={reveal.totalPayout}
-        shares={reveal.shares}
-        plan={reveal.plan}
-        meUserId={userId}
-        onAck={(rid) => coop.ackReveal(rid)}
-      />
+      <Text style={styles.h2}>個人分配</Text>
+      <Text style={styles.bodyText}>×{reveal.M} 倍率 · 共 {reveal.totalPayout} CouPoints</Text>
+      {reveal.shares.map((s) => (
+        <View
+          key={s.user_id}
+          style={[styles.breakdownRow, s.user_id === userId && styles.breakdownRowMe]}
+        >
+          <Text style={styles.breakdownSeat}>
+            Seat {s.seat}{s.user_id === userId ? ' (你)' : ''}
+          </Text>
+          <Text style={styles.breakdownPts}>
+            {s.floor + s.excess} pts
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -718,5 +804,17 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     letterSpacing: 1,
   },
-  // Reveal-specific styles moved into RevealAnimation.tsx.
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 4,
+  },
+  breakdownRowMe: { borderColor: colors.yellow },
+  breakdownSeat: { fontFamily: fontFamilies.bold, fontSize: 13, color: '#fff' },
+  breakdownPts: { fontFamily: fontFamilies.extraBold, fontSize: 15, color: colors.yellow },
 });

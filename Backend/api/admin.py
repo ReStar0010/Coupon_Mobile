@@ -48,7 +48,9 @@ class CouponInline(admin.TabularInline):
     verbose_name_plural = '優惠券（最近 10 筆）'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).order_by('-id')[:10]
+        qs = super().get_queryset(request)
+        recent_ids = qs.order_by('-id').values_list('id', flat=True)[:10]
+        return qs.filter(id__in=list(recent_ids)).order_by('-id')
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -65,7 +67,9 @@ class CouponTemplateInline(admin.TabularInline):
     verbose_name_plural = '優惠券範本（最近 5 筆）'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).order_by('-id')[:5]
+        qs = super().get_queryset(request)
+        recent_ids = qs.order_by('-id').values_list('id', flat=True)[:5]
+        return qs.filter(id__in=list(recent_ids)).order_by('-id')
 
     def has_add_permission(self, request, obj=None):
         return False
