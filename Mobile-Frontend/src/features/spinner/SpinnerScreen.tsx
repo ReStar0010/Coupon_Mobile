@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated, Easing as RNEasing } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, Easing as RNEasing, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Reanimated, {
   useSharedValue,
@@ -24,8 +24,7 @@ import { getCharge } from './constants';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
 import { useCoopContext } from './coop/CoopContext';
-import { interpolateLocalCharge } from './coop/charge';
-import { useForceUpdate } from './coop/useForceUpdate';
+import { MULTS } from './constants';
 
 interface SpinnerScreenProps {
   onNavigate: (screen: string) => void;
@@ -487,8 +486,23 @@ export default function SpinnerScreen({
   };
 
   const coopPhase = coop.state.phase;
-  const coopCountdown = coop.state.countdownTick;
   const coopCharging = coopPhase === 'CHARGING';
+
+  // Local countdown timer — server sends one frame with tick=3 + started_at (ms).
+  const [coopCountdown, setCoopCountdown] = useState<number>(coop.state.countdownTick ?? 3);
+  useEffect(() => {
+    const startedAt = coop.state.countdownStartedAt;
+    const durationMs = coop.state.countdownDurationMs;
+    if (coopPhase !== 'COUNTDOWN' || startedAt == null) return;
+    const update = () => {
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, durationMs - elapsed);
+      setCoopCountdown(Math.max(0, Math.ceil(remaining / 1000)));
+    };
+    update();
+    const id = setInterval(update, 200);
+    return () => clearInterval(id);
+  }, [coopPhase, coop.state.countdownStartedAt, coop.state.countdownDurationMs]);
   const mePlayer = coop.state.players.find((p) => p.user_id === (coop.state.meUserId ?? ''));
   const myCharging = mePlayer?.is_charging ?? false;
   const myServerProgress = mePlayer?.progress ?? 0;
@@ -515,33 +529,29 @@ export default function SpinnerScreen({
     }
   }, [isStuckPhase, coopPhase]);
 
-  // Local charge interpolation for smooth fill animation
-  const chargePressedAtRef = useRef<number | null>(null);
-  const chargeTick = useForceUpdate();
+  // Smooth charge fill via Reanimated — numeric pixel width, not string %.
+  const chargeBtnWidth = useRef(0);
+  const chargeFillAnim = useSharedValue(0);
+  const [chargePercent, setChargePercent] = useState(0);
+
+  const handleChargeBtnLayout = (e: LayoutChangeEvent) => {
+    chargeBtnWidth.current = e.nativeEvent.layout.width;
+  };
 
   useEffect(() => {
-    if (myCharging && chargePressedAtRef.current === null) {
-      chargePressedAtRef.current = Date.now();
-    } else if (!myCharging) {
-      chargePressedAtRef.current = null;
+    const p = Math.min(1, myServerProgress);
+    setChargePercent(Math.round(p * 100));
+    if (chargeBtnWidth.current > 0) {
+      chargeFillAnim.value = withTiming(p * chargeBtnWidth.current, {
+        duration: 100,
+        easing: Easing.out(Easing.quad),
+      });
     }
-  }, [myCharging]);
+  }, [myServerProgress]);
 
-  useEffect(() => {
-    if (!myCharging) return;
-    const id = setInterval(chargeTick, 33);
-    return () => clearInterval(id);
-  }, [myCharging, chargeTick]);
-
-  const chargeProgress = coopCharging
-    ? interpolateLocalCharge({
-        serverProgress: myServerProgress,
-        isCharging: myCharging,
-        pressedAtMs: chargePressedAtRef.current,
-        nowMs: Date.now(),
-        durationMs: coop.state.chargingDurationMs,
-      })
-    : 0;
+  const chargeFillStyle = useAnimatedStyle(() => ({
+    width: chargeFillAnim.value,
+  }));
 
   const spinBtnLabel = () => {
     if (isMultiplayer) {
@@ -556,7 +566,7 @@ export default function SpinnerScreen({
         return isHost ? '開始！' : '等待房主開始…';
       }
       if (coopPhase === 'COUNTDOWN') return `${coopCountdown ?? 3}`;
-      if (coopPhase === 'CHARGING') return `按住蓄力 ${Math.round(chargeProgress * 100)}%`;
+      if (coopPhase === 'CHARGING') return `按住蓄力 ${chargePercent}%`;
       if (coopPhase === 'SPINNING') return '轉啊轉…';
       if (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') return '查看結果';
     }
@@ -616,6 +626,18 @@ export default function SpinnerScreen({
       coopPhase === 'COUNTDOWN' ||
       coopPhase === 'SPINNING'
     : !canSpin;
+
+  const coopReveal = isMultiplayer && coopPhase === 'REVEAL' ? coop.state.reveal : null;
+  const coopRevealResult: import('./ResultModal').SpinResult | null = coopReveal
+    ? {
+        mult: coopReveal.M,
+        points: (() => {
+          const s = coopReveal.shares.find((sh) => sh.user_id === (coop.state.meUserId ?? ''));
+          return s ? s.floor + s.excess : 0;
+        })(),
+        color: MULTS.find((m) => m.v === coopReveal.M)?.color ?? '#2E2E2E',
+      }
+    : null;
 
   return (
     <View style={styles.screen}>
@@ -860,6 +882,7 @@ export default function SpinnerScreen({
             disabled={mainBtnDisabled}
             accessibilityRole="button"
             accessibilityState={{ disabled: mainBtnDisabled }}
+            onLayout={handleChargeBtnLayout}
             style={[
               styles.spinBtn,
               !mainBtnDisabled ? styles.spinBtnActive : styles.spinBtnDisabled,
@@ -867,12 +890,9 @@ export default function SpinnerScreen({
             ]}
           >
             {coopCharging && (
-              <View
+              <Reanimated.View
                 pointerEvents="none"
-                style={[
-                  styles.chargeFill,
-                  { width: `${Math.min(100, chargeProgress * 100)}%` as `${number}%` },
-                ]}
+                style={[styles.chargeFill, chargeFillStyle]}
               />
             )}
             <Text style={[styles.spinBtnText, mainBtnDisabled && styles.spinBtnTextDisabled]}>
@@ -900,7 +920,7 @@ export default function SpinnerScreen({
       </Reanimated.View>
 
       <ResultModal
-        result={result}
+        result={isMultiplayer ? null : result}
         onDismiss={dismissResult}
         canDismiss={phase === 'reveal' && result?.mult !== 5}
       />
@@ -914,40 +934,28 @@ export default function SpinnerScreen({
         onDismiss={dismissResult}
       />
 
-      {/* Co-op result overlay */}
-      {isMultiplayer && (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') && (
+      {/* Co-op result — reuses solo ResultModal for consistent spring animation */}
+      <ResultModal
+        result={coopRevealResult}
+        onDismiss={() => {
+          if (coopReveal) coop.ackReveal(coopReveal.roundId);
+        }}
+      />
+      {isMultiplayer && coopPhase === 'SETTLED' && (
         <View style={styles.coopResultOverlay}>
           <View style={styles.coopResultCard}>
-            <Text style={styles.coopResultTitle}>
-              {coopPhase === 'SETTLED' ? '已結算' : '結果揭曉'}
-            </Text>
-            {coop.state.reveal && (
-              <Text style={styles.coopResultMult}>×{coop.state.reveal.M}</Text>
-            )}
-            {coopPhase === 'SETTLED' && coop.state.credited && (
+            <Text style={styles.coopResultTitle}>已結算</Text>
+            {coop.state.credited && (
               <Text style={styles.coopResultCredit}>
                 你獲得 {coop.state.credited[coop.state.meUserId ?? ''] ?? 0} CouPoints
               </Text>
             )}
-            {coopPhase === 'REVEAL' && (
-              <Pressable
-                style={styles.coopResultBtn}
-                onPress={() => {
-                  const rid = coop.state.reveal?.roundId;
-                  if (rid) coop.ackReveal(rid);
-                }}
-              >
-                <Text style={styles.coopResultBtnText}>確認</Text>
-              </Pressable>
-            )}
-            {coopPhase === 'SETTLED' && (
-              <Pressable
-                style={styles.coopResultBtn}
-                onPress={() => coop.requestRematch()}
-              >
-                <Text style={styles.coopResultBtnText}>再玩一局</Text>
-              </Pressable>
-            )}
+            <Pressable
+              style={styles.coopResultBtn}
+              onPress={() => coop.requestRematch()}
+            >
+              <Text style={styles.coopResultBtnText}>再玩一局</Text>
+            </Pressable>
           </View>
         </View>
       )}
