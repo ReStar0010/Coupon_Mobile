@@ -20,7 +20,12 @@ import DrawModal from './DrawModal';
 import Coachmark from '@/src/features/onboarding/Coachmark';
 import { useWallet } from '@/src/state/WalletContext';
 import type { Coupon } from '@/src/services/api/coupons';
-import { listMyPublicShares, withdrawShare, type PublicShare } from '@/src/services/api/coupons';
+import {
+  listMyPublicShares,
+  withdrawShare,
+  getDailyDrawStatus,
+  type PublicShare,
+} from '@/src/services/api/coupons';
 
 interface NavParams {
   id?: string;
@@ -67,6 +72,10 @@ export default function HomeScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [publicShares, setPublicShares] = useState<PublicShare[]>([]);
   const [withdrawingId, setWithdrawingId] = useState<number | null>(null);
+  // Mirror of the server's once-per-day gate. Defaults to true so the card
+  // is usable while the first status fetch is in flight; the draw endpoint
+  // still rejects a second draw authoritatively if this is stale.
+  const [canDrawToday, setCanDrawToday] = useState(true);
   const { coupons, refreshWallet } = useWallet();
 
   const visibleCoupons = coupons.filter((c) => c.status === 'active');
@@ -81,7 +90,20 @@ export default function HomeScreen({
     }
   }, []);
 
-  useEffect(() => { void loadShares(); }, [loadShares]);
+  const loadDrawStatus = useCallback(async () => {
+    try {
+      const status = await getDailyDrawStatus();
+      setCanDrawToday(status.canDrawToday);
+    } catch {
+      // Fail-open: leave the card enabled; the BE enforces the limit.
+      setCanDrawToday(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadShares();
+    void loadDrawStatus();
+  }, [loadShares, loadDrawStatus]);
 
   const handleWithdraw = useCallback(async (share: PublicShare) => {
     Alert.alert(
@@ -111,11 +133,11 @@ export default function HomeScreen({
   const onRefresh = useCallback(async (): Promise<void> => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshWallet(), loadShares()]);
+      await Promise.all([refreshWallet(), loadShares(), loadDrawStatus()]);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshWallet, loadShares]);
+  }, [refreshWallet, loadShares, loadDrawStatus]);
 
   const header = (
     <>
@@ -159,12 +181,18 @@ export default function HomeScreen({
         </View>
       </View>
       <View style={s.drawOuter}>
-        <View style={s.drawShadow} />
-        <Pressable onPress={() => setShowDraw(true)} style={s.drawBtn}>
+        {canDrawToday && <View style={s.drawShadow} />}
+        <Pressable
+          onPress={() => setShowDraw(true)}
+          disabled={!canDrawToday}
+          style={[s.drawBtn, !canDrawToday && s.drawBtnDisabled]}
+        >
           <Text style={s.drawLabel}>DAILY DRAW</Text>
           <View style={s.drawMain}>
             <TicketIcon size={32} />
-            <Text style={s.drawTitle}>每日抽券</Text>
+            <Text style={[s.drawTitle, !canDrawToday && s.drawTitleDisabled]}>
+              {canDrawToday ? '每日抽券' : '今天已抽 · 明天再來'}
+            </Text>
           </View>
         </Pressable>
       </View>
@@ -250,7 +278,14 @@ export default function HomeScreen({
           ) : null
         }
       />
-      <DrawModal visible={showDraw} onClose={() => setShowDraw(false)} onDraw={() => {}} />
+      <DrawModal
+        visible={showDraw}
+        onClose={() => setShowDraw(false)}
+        onDraw={() => {
+          // Any completed draw (win, miss, or already-drawn) spends the day.
+          setCanDrawToday(false);
+        }}
+      />
       <Coachmark screen="home" />
     </View>
   );
@@ -403,6 +438,14 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 18,
     paddingHorizontal: 18,
+  },
+  drawBtnDisabled: {
+    backgroundColor: colors.subtle,
+    borderColor: colors.subtle,
+  },
+  drawTitleDisabled: {
+    color: colors.muted,
+    fontSize: 20,
   },
   drawLabel: {
     fontFamily: fontFamilies.monoRegular,

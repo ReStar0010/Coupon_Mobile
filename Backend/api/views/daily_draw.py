@@ -18,6 +18,15 @@ _sysrand = _secrets.SystemRandom()
 
 logger = logging.getLogger(__name__)
 
+
+def _drew_today(last_draw_time, now):
+    """True when ``last_draw_time`` falls on the same calendar day as ``now``
+    in the server's local timezone (Asia/Taipei). Enforces one draw per day."""
+    if not last_draw_time:
+        return False
+    return timezone.localtime(last_draw_time).date() == timezone.localtime(now).date()
+
+
 def generate_random_code(length=6):
     """Generate a random alphanumeric code for coupon redemption"""
     characters = string.ascii_uppercase + string.digits
@@ -73,47 +82,60 @@ def draw_coupon(request):
 
     try:
         now = timezone.now()
-        active_qs = CouponTemplate.objects.filter(
-            is_active=True,
-            remaining_quantity__gt=0,
-            start_date__lte=now,
-            expiry_date__gt=now,
-        ).select_related('store')
+        with transaction.atomic():
+            # Lock the profile row for the whole draw so two concurrent
+            # requests can't both clear the once-per-day gate (a double-draw
+            # race). The daily check, last_draw_time stamp, coupon creation
+            # and attempt record all run inside this single locked txn.
+            try:
+                student_profile = (
+                    StudentProfile.objects.select_for_update().get(user=request.user)
+                )
+            except StudentProfile.DoesNotExist:
+                logger.warning(
+                    "StudentProfile not found for authenticated user %s during daily draw",
+                    request.user.id,
+                )
+                raise UserNotFound(
+                    developer_message=(
+                        f"StudentProfile not found for authenticated user {request.user.id} during daily draw"
+                    )
+                )
 
-        if template_id:
-            template = active_qs.get(id=template_id)
-        else:
-            candidates = list(active_qs)
-            if not candidates:
+            # One draw per calendar day. A win OR a miss both consume the
+            # day, matching the fact that last_draw_time is stamped on every
+            # attempt below. Reject the second draw before any state changes.
+            if _drew_today(student_profile.last_draw_time, now):
                 return Response({
                     'success': False,
-                    'message': 'No coupons remaining',
-                }, status=status.HTTP_400_BAD_REQUEST)
-            weights = [t.draw_probability for t in candidates]
-            template = _sysrand.choices(candidates, weights=weights, k=1)[0]
+                    'already_drawn': True,
+                    'message': '今天已經抽過囉，明天再來！',
+                })
 
-        try:
-            student_profile = StudentProfile.objects.get(user=request.user)
-        except StudentProfile.DoesNotExist:
-            logger.warning(
-                "StudentProfile not found for authenticated user %s during daily draw",
-                request.user.id,
-            )
-            raise UserNotFound(
-                developer_message=(
-                    f"StudentProfile not found for authenticated user {request.user.id} during daily draw"
-                )
-            )
+            active_qs = CouponTemplate.objects.filter(
+                is_active=True,
+                remaining_quantity__gt=0,
+                start_date__lte=now,
+                expiry_date__gt=now,
+            ).select_related('store')
 
-        success = _sysrand.random() < template.draw_probability
-        with transaction.atomic():
-            # Update last_draw_time atomically with the coupon + attempt
-            # writes. Previously this was outside the atomic block, so a
-            # failed generate_coupon left an updated last_draw_time
-            # pointing at a draw that never produced an outcome — fixed
-            # in code-review.
-            student_profile.last_draw_time = timezone.now()
+            if template_id:
+                template = active_qs.get(id=template_id)
+            else:
+                candidates = list(active_qs)
+                if not candidates:
+                    return Response({
+                        'success': False,
+                        'message': 'No coupons remaining',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                weights = [t.draw_probability for t in candidates]
+                template = _sysrand.choices(candidates, weights=weights, k=1)[0]
+
+            # Stamp the attempt time now that we know a draw will occur.
+            student_profile.last_draw_time = now
             student_profile.save(update_fields=['last_draw_time'])
+
+            success = _sysrand.random() < template.draw_probability
             if success:
                 # Generate the coupon and assign to user
                 coupon = template.generate_coupon(recipient=request.user)
@@ -257,22 +279,28 @@ def get_last_draw_time(request):
         student_profile = StudentProfile.objects.get(user=request.user)
         last_draw_time = student_profile.last_draw_time
         
+        now = timezone.now()
+        can_draw = not _drew_today(last_draw_time, now)
         if last_draw_time:
-            # Format date as YYYY-MM-DD to match frontend expectations
-            last_draw_date = last_draw_time.date().isoformat()
+            # Local-date (Asia/Taipei) so it matches the once-per-day gate;
+            # a raw UTC .date() could roll over at the wrong local hour.
+            last_draw_date = timezone.localtime(last_draw_time).date().isoformat()
             return Response({
                 'last_draw_date': last_draw_date,
-                'last_draw_time': last_draw_time
+                'last_draw_time': last_draw_time,
+                'can_draw_today': can_draw,
             })
         else:
             return Response({
                 'last_draw_date': None,
-                'last_draw_time': None
+                'last_draw_time': None,
+                'can_draw_today': True,
             })
     except StudentProfile.DoesNotExist:
         return Response({
             'last_draw_date': None,
-            'last_draw_time': None
+            'last_draw_time': None,
+            'can_draw_today': True,
         })
     except Exception as e:
         return Response(

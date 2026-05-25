@@ -12,9 +12,14 @@ import {
 import { localizeError } from '@/src/services/api/errorMessages';
 import { useWallet } from '@/src/state/WalletContext';
 
-/** UI projection of a daily-draw outcome (win or miss). */
+/** UI projection of a daily-draw outcome (win, miss, or already-drawn). */
 interface DrawOutcome {
   success: boolean;
+  /**
+   * True when the server rejected because the user already drew today —
+   * shown differently from a losing roll, and still consumes the day.
+   */
+  alreadyDrawn: boolean;
   /** Display store name (empty for a miss). */
   store: string;
   /** Display detail (empty for a miss). */
@@ -83,6 +88,7 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
       if (response.success && response.coupon) {
         setResult({
           success: true,
+          alreadyDrawn: false,
           store: response.coupon.store_name,
           detail: response.coupon.detail,
           expires: formatExpiry(response.coupon.expiry_date),
@@ -93,6 +99,7 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
       } else {
         setResult({
           success: false,
+          alreadyDrawn: response.already_drawn === true,
           store: '',
           detail: '',
           expires: '',
@@ -197,11 +204,17 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
                   </View>
                 </View>
               </>
+            ) : result.alreadyDrawn ? (
+              <View style={styles.missCenter}>
+                <Text style={styles.missEmoji}>📅</Text>
+                <Text style={styles.missTitle}>今天已經抽過囉</Text>
+                <Text style={styles.missSub}>每天只能抽一次，明天再來！</Text>
+              </View>
             ) : (
               <View style={styles.missCenter}>
                 <Text style={styles.missEmoji}>😔</Text>
                 <Text style={styles.missTitle}>沒抽到</Text>
-                <Text style={styles.missSub}>這次運氣不好，再試一次吧！</Text>
+                <Text style={styles.missSub}>每天只能抽一次，明天再來！</Text>
               </View>
             )}
             <View style={styles.closeBtnWrapper}>

@@ -84,3 +84,64 @@ class DailyDrawEventsRoutesTest(TestCase):
             'template_id': self.template.id,
         }, format='json')
         self.assertIn(response.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND))
+
+
+class DailyDrawOncePerDayTest(TestCase):
+    """Regression: the daily draw must be limited to one attempt per
+    calendar day (Asia/Taipei), win or miss. Previously the endpoint
+    recorded last_draw_time but never checked it, so a user could draw
+    unbounded times."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='draw@test.com',
+            email='draw@test.com',
+            password='testpass123',
+        )
+        self.profile = StudentProfile.objects.create(user=self.user)
+        self.store = Store.objects.create(
+            owner=self.user, name='Draw Store', lat=25.0, lng=121.0, address='Test',
+        )
+        # draw_probability=1.0 → the first roll always wins, so the test is
+        # deterministic and isolates the once-per-day gate from RNG.
+        self.template = CouponTemplate.objects.create(
+            store=self.store,
+            coupon_name='Sure Win',
+            coupon_detail='Detail',
+            total_quantity=100,
+            remaining_quantity=100,
+            start_date=timezone.now() - timedelta(days=1),
+            expiry_date=timezone.now() + timedelta(days=30),
+            is_active=True,
+            draw_probability=1.0,
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def test_second_draw_same_day_is_rejected(self):
+        first = self.client.post('/api/coupon/daily-draw/', {'template_id': self.template.id}, format='json')
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertTrue(first.data['success'])
+
+        second = self.client.post('/api/coupon/daily-draw/', {'template_id': self.template.id}, format='json')
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertFalse(second.data['success'])
+        self.assertTrue(second.data.get('already_drawn'))
+
+    def test_last_draw_status_flips_after_drawing(self):
+        before = self.client.get('/api/last-draw/')
+        self.assertTrue(before.data['can_draw_today'])
+
+        self.client.post('/api/coupon/daily-draw/', {'template_id': self.template.id}, format='json')
+
+        after = self.client.get('/api/last-draw/')
+        self.assertFalse(after.data['can_draw_today'])
+
+    def test_draw_allowed_again_after_day_rollover(self):
+        # Simulate a draw that happened yesterday.
+        self.profile.last_draw_time = timezone.now() - timedelta(days=1)
+        self.profile.save(update_fields=['last_draw_time'])
+
+        again = self.client.post('/api/coupon/daily-draw/', {'template_id': self.template.id}, format='json')
+        self.assertEqual(again.status_code, status.HTTP_200_OK)
+        self.assertTrue(again.data['success'])

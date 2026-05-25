@@ -142,6 +142,12 @@ export interface DailyDrawTemplate {
 /** Normalized daily-draw result. */
 export interface DailyDrawResult {
   success: boolean;
+  /**
+   * True when the server rejected the draw because the user already drew
+   * today. Distinct from a `success: false` miss — the day is spent, not
+   * a losing roll.
+   */
+  already_drawn?: boolean;
   /** Present only when success === true. */
   coupon?: {
     id: number;
@@ -155,6 +161,13 @@ export interface DailyDrawResult {
     estimated_savings: number | null;
   };
   message: string;
+}
+
+/** Whether the user may still draw today (server-authoritative). */
+export interface DailyDrawStatus {
+  canDrawToday: boolean;
+  /** Local (Asia/Taipei) date of the last draw, `YYYY-MM-DD`, or null. */
+  lastDrawDate: string | null;
 }
 
 /** List the templates currently available for the daily draw. */
@@ -178,6 +191,27 @@ export async function dailyDraw(templateId?: number): Promise<DailyDrawResult> {
     const body = templateId !== undefined ? { template_id: templateId } : {};
     const response = await apiClient.post<DailyDrawResult>('/api/coupon/daily-draw/', body);
     return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+/**
+ * Whether the user can still draw today. The server (Asia/Taipei) is the
+ * source of truth for the once-per-day limit; the UI only mirrors it.
+ */
+export async function getDailyDrawStatus(): Promise<DailyDrawStatus> {
+  try {
+    const response = await apiClient.get<{
+      can_draw_today?: boolean;
+      last_draw_date?: string | null;
+    }>('/api/last-draw/');
+    return {
+      // Fail-open: if the flag is missing (older BE), let the user try —
+      // the draw endpoint still enforces the limit authoritatively.
+      canDrawToday: response.data.can_draw_today ?? true,
+      lastDrawDate: response.data.last_draw_date ?? null,
+    };
   } catch (error) {
     throw normalizeError(error);
   }

@@ -13,6 +13,15 @@ jest.mock('../../../state/WalletContext', () => ({
   }),
 }));
 
+// ── coupons API mock ─────────────────────────────────────────────────────────
+// HomeScreen fetches public shares + daily-draw status on mount; stub both so
+// no real request leaks past test teardown.
+jest.mock('../../../services/api/coupons', () => ({
+  listMyPublicShares: jest.fn().mockResolvedValue([]),
+  withdrawShare: jest.fn().mockResolvedValue(undefined),
+  getDailyDrawStatus: jest.fn().mockResolvedValue({ canDrawToday: true, lastDrawDate: null }),
+}));
+
 const SAMPLE_COUPONS: Coupon[] = [
   {
     id: '1',
