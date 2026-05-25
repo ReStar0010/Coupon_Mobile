@@ -467,23 +467,24 @@ def auto_start_countdown(room: Room, *, now_ms: int) -> TransitionResult:
 
 
 def complete_countdown(room: Room, *, now_ms: int) -> TransitionResult:
-    """Timer-triggered: COUNTDOWN → CHARGING."""
+    """Timer-triggered: COUNTDOWN → SPINNING (skips CHARGING).
+
+    Charging was removed because WebSocket latency made the simultaneous
+    button-hold feel laggy.  We set all players to fully charged and
+    immediately trigger the draw so the wheel spins right after the
+    3-2-1 countdown.
+    """
     if room.phase != Phase.COUNTDOWN:
         return TransitionResult(room=room)
+    charged_players = tuple(
+        p.with_changes(charge=1.0, is_charging=False) for p in room.players
+    )
     new_room = room.with_changes(
-        phase=Phase.CHARGING, charging_started_at_ms=now_ms
+        phase=Phase.CHARGING,
+        charging_started_at_ms=now_ms,
+        players=charged_players,
     )
-    new_room, event = _emit(
-        new_room,
-        "room.charging",
-        {
-            "players": [p.to_dict() for p in new_room.players],
-            "started_at": now_ms,
-            "duration_ms": CHARGING_DURATION_MS,
-            "state": new_room.phase.value,
-        },
-    )
-    return TransitionResult(room=new_room, events=(event,))
+    return complete_charging(new_room, now_ms=now_ms)
 
 
 # ---------------------------------------------------------------------------

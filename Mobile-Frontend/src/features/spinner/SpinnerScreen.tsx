@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated, Easing as RNEasing, LayoutChangeEvent } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, Easing as RNEasing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Reanimated, {
   useSharedValue,
@@ -17,6 +17,7 @@ import GemIcon from '../../components/icons/GemIcon';
 import CoinIcon from '../../components/icons/CoinIcon';
 import WheelDial from './WheelDial';
 import ResultModal from './ResultModal';
+import type { SpinResult } from './ResultModal';
 import MeltdownOverlay from './MeltdownOverlay';
 import Coachmark from '@/src/features/onboarding/Coachmark';
 import { useSpinLogic } from './useSpinLogic';
@@ -24,6 +25,8 @@ import { getCharge } from './constants';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
 import { useCoopContext } from './coop/CoopContext';
+import CoinRainReveal from './coop/CoinRainReveal';
+import type { PlayerResult } from './coop/CoinRainReveal';
 import { MULTS } from './constants';
 
 interface SpinnerScreenProps {
@@ -486,32 +489,31 @@ export default function SpinnerScreen({
   };
 
   const coopPhase = coop.state.phase;
-  const coopCharging = coopPhase === 'CHARGING';
 
-  // Local countdown timer — server sends one frame with tick=3 + started_at (ms).
-  const [coopCountdown, setCoopCountdown] = useState<number>(coop.state.countdownTick ?? 3);
+  // Local 3-second countdown. Ignores server's absolute `started_at` timestamp
+  // to avoid clock skew (server 4s ahead → countdown showed 7/6/5 instead of 3/2/1).
+  const [coopCountdown, setCoopCountdown] = useState(3);
+  const countdownLocalStart = useRef<number | null>(null);
   useEffect(() => {
-    const startedAt = coop.state.countdownStartedAt;
-    const durationMs = coop.state.countdownDurationMs;
-    if (coopPhase !== 'COUNTDOWN' || startedAt == null) return;
+    if (coopPhase !== 'COUNTDOWN') {
+      countdownLocalStart.current = null;
+      return;
+    }
+    countdownLocalStart.current = Date.now();
+    const durationMs = coop.state.countdownDurationMs || 3000;
+    setCoopCountdown(Math.ceil(durationMs / 1000));
     const update = () => {
-      const elapsed = Date.now() - startedAt;
+      const elapsed = Date.now() - (countdownLocalStart.current ?? Date.now());
       const remaining = Math.max(0, durationMs - elapsed);
-      setCoopCountdown(Math.max(0, Math.ceil(remaining / 1000)));
+      setCoopCountdown(Math.ceil(remaining / 1000));
     };
-    update();
     const id = setInterval(update, 200);
     return () => clearInterval(id);
-  }, [coopPhase, coop.state.countdownStartedAt, coop.state.countdownDurationMs]);
-  const mePlayer = coop.state.players.find((p) => p.user_id === (coop.state.meUserId ?? ''));
-  const myCharging = mePlayer?.is_charging ?? false;
-  const myServerProgress = mePlayer?.progress ?? 0;
+  }, [coopPhase, coop.state.countdownDurationMs]);
 
-  // Stuck-phase timeout: if SPINNING or CHARGING with an open WS but no
-  // frames arrive for 30s, surface a timeout banner so the user can retry.
+  // Stuck-phase timeout: if SPINNING with an open WS but no frames for 30s.
   const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isStuckPhase = isMultiplayer && wsOpen &&
-    (coopPhase === 'SPINNING' || coopPhase === 'CHARGING');
+  const isStuckPhase = isMultiplayer && wsOpen && coopPhase === 'SPINNING';
   const [stuckTimeout, setStuckTimeout] = useState(false);
 
   useEffect(() => {
@@ -529,30 +531,6 @@ export default function SpinnerScreen({
     }
   }, [isStuckPhase, coopPhase]);
 
-  // Smooth charge fill via Reanimated — numeric pixel width, not string %.
-  const chargeBtnWidth = useRef(0);
-  const chargeFillAnim = useSharedValue(0);
-  const [chargePercent, setChargePercent] = useState(0);
-
-  const handleChargeBtnLayout = (e: LayoutChangeEvent) => {
-    chargeBtnWidth.current = e.nativeEvent.layout.width;
-  };
-
-  useEffect(() => {
-    const p = Math.min(1, myServerProgress);
-    setChargePercent(Math.round(p * 100));
-    if (chargeBtnWidth.current > 0) {
-      chargeFillAnim.value = withTiming(p * chargeBtnWidth.current, {
-        duration: 100,
-        easing: Easing.out(Easing.quad),
-      });
-    }
-  }, [myServerProgress]);
-
-  const chargeFillStyle = useAnimatedStyle(() => ({
-    width: chargeFillAnim.value,
-  }));
-
   const spinBtnLabel = () => {
     if (isMultiplayer) {
       if (coopEnded) return '回到單人';
@@ -565,8 +543,7 @@ export default function SpinnerScreen({
       if (coopPhase === 'READY') {
         return isHost ? '開始！' : '等待房主開始…';
       }
-      if (coopPhase === 'COUNTDOWN') return `${coopCountdown ?? 3}`;
-      if (coopPhase === 'CHARGING') return `按住蓄力 ${chargePercent}%`;
+      if (coopPhase === 'COUNTDOWN') return `${coopCountdown}`;
       if (coopPhase === 'SPINNING') return '轉啊轉…';
       if (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') return '查看結果';
     }
@@ -612,12 +589,6 @@ export default function SpinnerScreen({
     handleSpin();
   };
 
-  const handleChargePressIn = () => {
-    if (isMultiplayer && coopCharging && wsOpen) coop.pressIn();
-  };
-  const handleChargePressOut = () => {
-    if (isMultiplayer && coopCharging && wsOpen) coop.pressOut();
-  };
 
   const mainBtnDisabled = isMultiplayer
     ? (!wsOpen && !coopDisconnected && !coopEnded) ||
@@ -627,17 +598,26 @@ export default function SpinnerScreen({
       coopPhase === 'SPINNING'
     : !canSpin;
 
-  const coopReveal = isMultiplayer && coopPhase === 'REVEAL' ? coop.state.reveal : null;
-  const coopRevealResult: import('./ResultModal').SpinResult | null = coopReveal
-    ? {
-        mult: coopReveal.M,
-        points: (() => {
-          const s = coopReveal.shares.find((sh) => sh.user_id === (coop.state.meUserId ?? ''));
-          return s ? s.floor + s.excess : 0;
-        })(),
-        color: MULTS.find((m) => m.v === coopReveal.M)?.color ?? '#2E2E2E',
-      }
-    : null;
+  const coopReveal = isMultiplayer && (coopPhase === 'REVEAL' || coopPhase === 'SETTLED')
+    ? coop.state.reveal : null;
+  const [coopRevealDismissed, setCoopRevealDismissed] = useState(false);
+  const prevRoundIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (coopReveal && coopReveal.roundId !== prevRoundIdRef.current) {
+      prevRoundIdRef.current = coopReveal.roundId;
+      setCoopRevealDismissed(false);
+    }
+  }, [coopReveal]);
+
+  const coopRevealResult: SpinResult | null =
+    coopReveal && !coopRevealDismissed
+      ? {
+          mult: coopReveal.M,
+          points: coopReveal.totalPayout,
+          color: MULTS.find((m) => m.v === coopReveal.M)?.color ?? '#2E2E2E',
+        }
+      : null;
 
   return (
     <View style={styles.screen}>
@@ -848,7 +828,7 @@ export default function SpinnerScreen({
       {isMultiplayer && coopPhase === 'COUNTDOWN' && (
         <View style={styles.countdownOverlay} pointerEvents="none">
           <Text style={styles.countdownNum}>{coopCountdown ?? 3}</Text>
-          <Text style={styles.countdownHint}>準備按住</Text>
+          <Text style={styles.countdownHint}>準備好了嗎？</Text>
         </View>
       )}
 
@@ -876,25 +856,15 @@ export default function SpinnerScreen({
         <Reanimated.View style={btnBreathStyle}>
           <Pressable
             testID="spin-button"
-            onPress={coopCharging ? undefined : handleMainButton}
-            onPressIn={coopCharging ? handleChargePressIn : undefined}
-            onPressOut={coopCharging ? handleChargePressOut : undefined}
+            onPress={handleMainButton}
             disabled={mainBtnDisabled}
             accessibilityRole="button"
             accessibilityState={{ disabled: mainBtnDisabled }}
-            onLayout={handleChargeBtnLayout}
             style={[
               styles.spinBtn,
               !mainBtnDisabled ? styles.spinBtnActive : styles.spinBtnDisabled,
-              coopCharging && styles.spinBtnChargeable,
             ]}
           >
-            {coopCharging && (
-              <Reanimated.View
-                pointerEvents="none"
-                style={[styles.chargeFill, chargeFillStyle]}
-              />
-            )}
             <Text style={[styles.spinBtnText, mainBtnDisabled && styles.spinBtnTextDisabled]}>
               {spinBtnLabel()}
             </Text>
@@ -934,29 +904,30 @@ export default function SpinnerScreen({
         onDismiss={dismissResult}
       />
 
-      {/* Co-op result — reuses solo ResultModal for consistent spring animation */}
+      {/* Co-op result — Phase 1: ResultModal with multiplier spring animation */}
       <ResultModal
         result={coopRevealResult}
         onDismiss={() => {
+          setCoopRevealDismissed(true);
           if (coopReveal) coop.ackReveal(coopReveal.roundId);
         }}
       />
-      {isMultiplayer && coopPhase === 'SETTLED' && (
+
+      {/* Co-op result — Phase 2: Lucky Rain per-player distribution */}
+      {isMultiplayer && coopRevealDismissed && coopReveal && (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') && (
         <View style={styles.coopResultOverlay}>
-          <View style={styles.coopResultCard}>
-            <Text style={styles.coopResultTitle}>已結算</Text>
-            {coop.state.credited && (
-              <Text style={styles.coopResultCredit}>
-                你獲得 {coop.state.credited[coop.state.meUserId ?? ''] ?? 0} CouPoints
-              </Text>
-            )}
-            <Pressable
-              style={styles.coopResultBtn}
-              onPress={() => coop.requestRematch()}
-            >
-              <Text style={styles.coopResultBtnText}>再玩一局</Text>
-            </Pressable>
-          </View>
+          <CoinRainReveal
+            multiplier={coopReveal.M}
+            totalPool={coopReveal.totalPayout}
+            players={coopReveal.shares.map((s): PlayerResult => ({
+              userId: s.user_id,
+              seat: s.seat,
+              displayName: `Seat ${s.seat}`,
+              points: s.share,
+              isMe: s.user_id === (coop.state.meUserId ?? ''),
+            }))}
+            onDone={() => coop.requestRematch()}
+          />
         </View>
       )}
 
@@ -1109,19 +1080,6 @@ const styles = StyleSheet.create({
   spinBtnDisabled: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderColor: 'rgba(255,255,255,0.15)',
-  },
-  spinBtnChargeable: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: colors.yellow,
-    overflow: 'hidden' as const,
-  },
-  chargeFill: {
-    position: 'absolute' as const,
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: colors.green,
-    borderRadius: 8,
   },
   spinBtnText: {
     fontFamily: fontFamilies.monoSemiBold,

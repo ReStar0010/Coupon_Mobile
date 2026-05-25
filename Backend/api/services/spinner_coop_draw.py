@@ -2,28 +2,23 @@
 Spinner Co-op — server-authoritative randomness.
 
 Pure functions only. No DB, no IO, no Django dependencies. The WS consumer
-(deliverable 3) wraps these calls in a single atomic transaction at the
-CHARGING -> SPINNING transition.
+wraps these calls in a single atomic transaction at the
+COUNTDOWN -> SPINNING transition (charging was removed).
 
-Math (locked spec):
+Math:
     G_i ∈ {1..5}              per-player gem stake
     G   = Σ G_i               total gems
     P                         number of players
     f   = max(𝟙[G≥3], P·𝟙[P≥2])    floor multiplier
     M   ∈ {f..5}              spinner multiplier (inverse-probability)
-    floor_i  = G_i · f
-    excess_i ≥ 0              from a multinomial draw, stake-weighted
-    share_i  = floor_i + excess_i
+    pool = G · M              total CouPoints
+    share_i                   randomly distributed (equal-weight multinomial)
 
 Invariants enforced before returning:
     Σ share_i        == G · M
-    share_i          == floor_i + excess_i
-    floor_i          == G_i · f
-    Σ excess_i       == G · (M − f)
-    excess_i         ≥ 0
+    share_i          ≥ 0
 
 References:
-- specs/spinner-coop/state-machine-and-events.md §2.3 (side effects), §3.3 (room.reveal)
 - Mobile-Frontend/src/features/spinner/constants.ts (mirrors MULTIPLIERS, getFloor)
 """
 
@@ -209,41 +204,33 @@ def compute_round(
     f = floor_multiplier(G, P)
     M = roll_multiplier(f, rng)
 
-    floors = [p.stake * f for p in normalized]
-    excess_total = G * (M - f)
-    excesses = multinomial_draw(
-        excess_total, [p.stake for p in normalized], rng
-    )
+    pool = G * M
+    random_shares = multinomial_draw(pool, [1] * P, rng)
 
     shares = tuple(
         PlayerShare(
             user_id=p.user_id,
             seat=p.seat,
             stake=p.stake,
-            floor=floor_val,
-            excess=excess_val,
-            share=floor_val + excess_val,
+            floor=0,
+            excess=share_val,
+            share=share_val,
         )
-        for p, floor_val, excess_val in zip(normalized, floors, excesses)
+        for p, share_val in zip(normalized, random_shares)
     )
 
-    expected_total = G * M
     actual_total = sum(s.share for s in shares)
-    if actual_total != expected_total:
+    if actual_total != pool:
         raise AssertionError(
-            f"payout invariant violated: Σshare={actual_total}, expected G·M={expected_total} "
+            f"payout invariant violated: Σshare={actual_total}, expected G·M={pool} "
             f"(G={G}, M={M}, f={f})"
         )
-    if any(s.excess < 0 for s in shares):
-        raise AssertionError(f"negative excess in {shares}")
-    if any(s.floor != s.stake * f for s in shares):
-        raise AssertionError(f"floor != stake·f in {shares}")
 
     return RoundResult(
         M=M,
         G_total=G,
         f=f,
         P=P,
-        total_payout=expected_total,
+        total_payout=pool,
         shares=shares,
     )
