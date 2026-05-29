@@ -2,7 +2,7 @@
   "expo": {
     "name": "CouPro",
     "slug": "Mobile-Frontend",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "scheme": [
       "coupro"
     ],
@@ -159,7 +159,7 @@
       "posthogSessionReplay": false,
       "coopWsUrl": "wss://coupon-mobile.onrender.com"
     },
-    "runtimeVersion": "1.0.3",
+    "runtimeVersion": "1.0.4",
     "updates": {
       "url": "https://u.expo.dev/ba247e6a-3cfa-4285-99f6-5867b5257c0e",
       "fallbackToCacheTimeout": 3000,
