@@ -1,0 +1,141 @@
+const CouponShareScreen = ({nav, params={}, gems, setGems}) => {
+  const [target,  setTarget]  = React.useState(null);
+  const [note,    setNote]    = React.useState('');
+  const [success, setSuccess] = React.useState(false);
+  const [obStep,  setObStep]  = React.useState(0);
+  const [obActive,setObActive]= React.useState(true);
+  const store  = params.store  || '阿明早餐店';
+  const amount = params.amount || 25;
+  const examples = ['我用不到了，希望你會喜歡 ☕','剛吃完真的不錯，推薦你試試！','送給有緣人～有空去逛逛'];
+
+  const handleConfirm = () => {
+    setSuccess(true);
+    setGems(g => g + 1);
+    setTimeout(()=>nav('home'), 2500);
+  };
+
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto',position:'relative'}}>
+      <StatusBar/>
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'2px 16px 10px'}}>
+        <button onClick={()=>nav('coupon-detail',params)} style={{width:36,height:36,background:C.card,
+          border:`2px solid ${C.border}`,boxShadow:sh(2),borderRadius:4,fontSize:20,
+          display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+        <span style={{fontWeight:800,fontSize:18,flex:1,letterSpacing:'-0.02em'}}>分享優惠券</span>
+        <HelpBtn onClick={()=>{setObStep(0);setObActive(true);}}/>
+      </div>
+      <div style={{margin:'0 16px 12px',padding:'14px',
+        background:C.purpleLight,border:`2.5px solid ${C.purple}`,boxShadow:sh(3),borderRadius:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{width:52,height:52,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <GemIcon size={46} color={C.purple}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:14,lineHeight:1.3}}>分享這張券，有人使用 → 你賺寶石</div>
+            <div style={{fontSize:11,color:C.fg,marginTop:4,lineHeight:1.5}}>
+              每張券回饋 <b style={{color:C.purple}}>1 顆寶石</b>，可在 Spinner 兌換獎品
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{margin:'0 16px 12px',padding:'10px 12px',
+        background:C.card,border:`2.5px solid ${C.border}`,boxShadow:sh(2),borderRadius:6,
+        display:'flex',alignItems:'center',gap:12}}>
+        <div style={{fontWeight:900,fontSize:26,fontFamily:"'JetBrains Mono',monospace",color:C.yellow,minWidth:52}}>${amount}</div>
+        <div style={{flex:1,fontSize:12}}>
+          <div style={{fontWeight:700}}>{store}</div>
+          <div style={{color:C.muted,fontSize:10}}>到期 {params.expires||'11/08'} · 中山店</div>
+        </div>
+        <div style={{fontSize:10,color:C.muted}}>準備分享…</div>
+      </div>
+      <div style={{margin:'0 16px 12px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:6}}>
+          <div style={{fontWeight:700,fontSize:13}}>給領券的人留句話</div>
+          <div style={{fontSize:10,color:C.muted}}>選填</div>
+        </div>
+        <div style={{position:'relative'}}>
+          <textarea value={note} onChange={e=>setNote(e.target.value)}
+            placeholder="例如：我吃過很喜歡，希望你也會喜歡 ☕" maxLength={80}
+            style={{width:'100%',height:70,resize:'none',border:`2px solid ${C.border}`,borderRadius:6,
+              padding:'8px 10px',fontSize:12,lineHeight:1.5,color:C.fg,background:C.bg,outline:'none',boxSizing:'border-box'}}/>
+          <div style={{position:'absolute',bottom:6,right:8,fontSize:9,color:C.muted,
+            fontFamily:"'JetBrains Mono',monospace"}}>{note.length}/80</div>
+        </div>
+        <div style={{display:'flex',gap:6,marginTop:6,flexWrap:'wrap'}}>
+          {examples.map((ex,i)=>(
+            <div key={i} onClick={()=>setNote(ex)}
+              style={{padding:'4px 8px',background:C.yellowLight,border:`1.5px solid ${C.border}`,
+                boxShadow:sh(1),borderRadius:4,fontSize:10,cursor:'pointer',fontWeight:500}}>{ex}</div>
+          ))}
+        </div>
+      </div>
+      <div style={{margin:'0 16px 14px'}}>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>選擇分享方式</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {[
+            {id:'map',icon:(
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path d="M12 22 Q5 14 5 9 A7 7 0 1 1 19 9 Q19 14 12 22 Z" fill={C.yellow} stroke="#fff" strokeWidth="1.4"/>
+                <circle cx="12" cy="9" r="2.6" fill="#fff"/>
+              </svg>
+            ),title:'釋出到 CouMap',sub:'附近的人都看得到 · 適合無特定對象'},
+            {id:'link',icon:(
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/>
+                <path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>
+              </svg>
+            ),title:'連結傳給朋友',sub:'複製連結，傳到 LINE / 訊息給特定的人'},
+          ].map(opt=>(
+            <div key={opt.id} onClick={()=>setTarget(opt.id)}
+              style={{padding:'12px',display:'flex',alignItems:'center',gap:12,cursor:'pointer',
+                background:target===opt.id?C.yellowLight:C.card,
+                border:`${target===opt.id?'2.5':'2'}px solid ${target===opt.id?C.yellow:C.border}`,
+                boxShadow:target===opt.id?sh(2):'none',borderRadius:6}}>
+              <div style={{width:46,height:46,borderRadius:6,background:C.fg,
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{opt.icon}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:14}}>{opt.title}</div>
+                <div style={{fontSize:10,color:C.muted,marginTop:2,lineHeight:1.4}}>{opt.sub}</div>
+              </div>
+              <div style={{width:20,height:20,borderRadius:'50%',
+                border:`2px solid ${target===opt.id?C.fg:C.subtle}`,
+                background:target===opt.id?C.fg:'transparent',
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                {target===opt.id && <div style={{width:8,height:8,borderRadius:'50%',background:'#fff'}}/>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{padding:'0 16px 18px'}}>
+        <button disabled={!target} onClick={handleConfirm} style={{width:'100%',padding:'14px',
+          background:target?C.purple:'#ddd',border:`2.5px solid ${target?C.border:C.subtle}`,
+          boxShadow:target?sh(3):'none',borderRadius:6,
+          fontWeight:800,fontSize:15,color:target?'#fff':C.muted,
+          cursor:target?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',gap:9}}>
+          <GemIcon size={18} color={target?C.purpleLight:C.muted}/>
+          {target==='map'?'釋出到 CouMap':target==='link'?'建立連結':'選一個分享方式'}
+        </button>
+        <div style={{fontSize:10,color:C.muted,textAlign:'center',marginTop:7}}>每張券限分享一次 · 領用後 3 天內可賺寶石</div>
+      </div>
+      {obActive && <OnboardingOverlay screenKey="coupon-share" step={obStep} onNext={()=>setObStep(s=>s+1)} onDone={()=>setObActive(false)}/>}
+      {/* Success overlay */}
+      {success && (
+        <div style={{position:'absolute',inset:0,background:'rgba(250,250,248,0.97)',
+          display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:30}}>
+          <div style={{width:80,height:80,borderRadius:8,background:C.purple,
+            border:`3px solid ${C.border}`,boxShadow:`6px 6px 0 ${C.border}`,
+            display:'flex',alignItems:'center',justifyContent:'center',marginBottom:16,
+            animation:'nbSuccessPop 0.6s cubic-bezier(.34,1.56,.64,1)'}}>
+            <GemIcon size={46} color={C.purpleLight}/>
+          </div>
+          <div style={{fontWeight:800,fontSize:22,letterSpacing:'-0.02em',color:C.fg}}>已分享！</div>
+          <div style={{fontSize:13,color:C.muted,marginTop:6}}>+1 顆寶石 已入帳</div>
+          <div style={{marginTop:8,fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:C.muted}}>返回首頁中…</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Settings ───────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 from django.utils import timezone
 from django.db import models, transaction
-from django.db.models import Case, F, Q, Value, When
+from django.db.models import Case, Count, F, Q, Value, When
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -72,9 +72,10 @@ def progress_trackers(request):
     """
     try:
         profile = request.user.student_profile
-        exclusive_count = CouponRedemption.objects.filter(
-            user=request.user, coupon_type='exclusive'
-        ).count()
+        coupon_counts = CouponRedemption.objects.filter(user=request.user).aggregate(
+            exclusive_count=Count('id', filter=Q(coupon_type='exclusive')),
+        )
+        exclusive_count = coupon_counts['exclusive_count']
         voucher_count = PlatformVoucherRedemption.objects.filter(
             user=request.user
         ).count()
@@ -115,7 +116,7 @@ def coupon_history(request):
         # Get all coupon redemptions for the current user
         redemptions = CouponRedemption.objects.filter(
             user=request.user
-        ).select_related('coupon', 'coupon__store').order_by('-redeemed_at')
+        ).select_related('coupon', 'coupon__store', 'coupon__template').order_by('-redeemed_at')
         
         # Format the response data
         history = []

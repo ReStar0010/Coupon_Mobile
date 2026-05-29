@@ -24,6 +24,8 @@ from api.exceptions import (
     SelfClaimNotAllowed,
 )
 from api.models import Coupon, CouponShareRequest, QRCodeSession
+from api.spinner_coop.models import WalletTransaction
+from api.spinner_coop.wallet_service import WalletService
 from api.utils import display_face_value
 
 logger = logging.getLogger(__name__)
@@ -302,6 +304,11 @@ def share_coupon_public(request, coupon_id):
     if existing_public_share:
         raise ShareAlreadyPublic(developer_message="This coupon is already shared to the public pool.")
 
+    share_message = ''
+    raw_msg = request.data.get('message')
+    if isinstance(raw_msg, str):
+        share_message = raw_msg.strip()[:80]
+
     try:
         with transaction.atomic():
             # Create a unique token for tracking
@@ -314,7 +321,8 @@ def share_coupon_public(request, coupon_id):
                 to_user=None,  # No specific recipient for public shares
                 token=token,
                 is_public=True,
-                status='pending'
+                status='pending',
+                message=share_message,
             )
 
             # Immediately remove coupon from user's collection
@@ -372,7 +380,9 @@ def get_share_request(request, token):
     Get info about a share request (for displaying accept/decline UI).
     """
     try:
-        share_request = CouponShareRequest.objects.get(token=token)
+        share_request = CouponShareRequest.objects.select_related(
+            'coupon', 'from_user'
+        ).get(token=token)
     except CouponShareRequest.DoesNotExist:
         raise ShareRequestNotFound(developer_message="Share request not found or expired.")
     data = {
@@ -380,6 +390,7 @@ def get_share_request(request, token):
         'coupon_name': share_request.coupon.coupon_name,
         'from_user_email': share_request.from_user.email,
         'status': share_request.status,
+        'message': share_request.message,
     }
     return Response(data)
 
@@ -478,6 +489,36 @@ def accept_share_request(request, token):
             "sibling_shares_cancelled": sibling_cancelled,
         }
     )
+
+    # Phase 2: +1 CouGem to the SHARER (original from_user) when their coupon
+    # is accepted. This replaces the FE-side local mutation in
+    # CouponShareScreen, where the gem was previously granted on share *creation*
+    # rather than on acceptance. Sharer == sharer; recipient receives the
+    # coupon, sharer receives the gem. Wallet-credit failures are logged but
+    # do NOT block the transfer.
+    sharer = share_request.from_user
+    if sharer and sharer != request.user:
+        try:
+            WalletService.ensure_wallet(sharer.id, initial_gems=0)
+            WalletService.mutate(
+                sharer.id,
+                delta_gems=+1,
+                kind=WalletTransaction.Kind.SHARE_REWARD,
+                related_coupon_id=coupon.id,
+                related_store_id=coupon.store_id,
+                note=f"{request.user.username} accepted your shared coupon",
+            )
+        except Exception as wallet_exc:  # noqa: BLE001 — log + continue
+            logger.warning(
+                "share_accept.gem_credit_failed",
+                extra={
+                    "sharer_id": sharer.id,
+                    "accepter_id": request.user.id,
+                    "coupon_id": coupon.id,
+                    "error": str(wallet_exc),
+                },
+            )
+
     return Response({
         'message': 'Coupon transferred successfully.',
         'coupon_id': coupon.id,

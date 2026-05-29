@@ -45,6 +45,9 @@ export default function CouponEditScreen() {
   const [quantity, setQuantity] = useState('1');
   const [notes, setNotes] = useState('');
   const [estimatedSavings, setEstimatedSavings] = useState('');
+  // 'store' (隨取即用) type is deprecated; new templates are always '專屬優惠' with finite quantity.
+  // Existing legacy rows may still load with total_quantity===0 — we keep the variable so the
+  // edit screen can still display them, but the user-facing selector has been removed.
   const [couponType, setCouponType] = useState<'隨取即用' | '專屬優惠'>('專屬優惠');
   const [limitPerDay, setLimitPerDay] = useState(false);
   const [drawProbability, setDrawProbability] = useState('50');
@@ -259,9 +262,12 @@ export default function CouponEditScreen() {
         return;
       }
     }
-    if (couponType === '專屬優惠' && !quantity) {
-      Alert.alert('錯誤', '請填寫優惠數量');
-      return;
+    if (couponType === '專屬優惠') {
+      const parsedQuantity = parseInt(quantity, 10);
+      if (!quantity || Number.isNaN(parsedQuantity) || parsedQuantity < 1) {
+        Alert.alert('錯誤', '請填寫優惠數量（至少 1 張）');
+        return;
+      }
     }
 
     // Edit 模式：驗證優惠數量不能比已核銷數量少
@@ -576,49 +582,6 @@ export default function CouponEditScreen() {
                   })}
                 </XStack>
               </YStack>
-
-              {/* 優惠類型 - 只在 Create 模式顯示 */}
-              {!isEditMode && (
-                <YStack gap="$2">
-                  <Text fontSize="$md" fontWeight="500" color={colors.textPrimary}>
-                    優惠類型(隨取即用、專屬優惠)
-                  </Text>
-                  <XStack gap="$3">
-                    <TouchableOpacity
-                      onPress={() => setCouponType('隨取即用')}
-                      style={[
-                        styles.radioButton,
-                        couponType === '隨取即用' && styles.radioButtonActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.radioText,
-                          couponType === '隨取即用' && styles.radioTextActive,
-                        ]}
-                      >
-                        隨取即用
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => setCouponType('專屬優惠')}
-                      style={[
-                        styles.radioButton,
-                        couponType === '專屬優惠' && styles.radioButtonActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.radioText,
-                          couponType === '專屬優惠' && styles.radioTextActive,
-                        ]}
-                      >
-                        專屬優惠
-                      </Text>
-                    </TouchableOpacity>
-                  </XStack>
-                </YStack>
-              )}
 
               {/* 中獎機率 - 只在專屬優惠類型時顯示 */}
               {couponType === '專屬優惠' && (

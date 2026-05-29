@@ -58,6 +58,10 @@ class StudentProfile(models.Model):
     # Phone verification (for phone-based registration)
     phone_verified = models.BooleanField(default=False, help_text="True if phone was verified via OTP")
 
+    # Profile presentation (consumer-facing display)
+    display_name = models.CharField(max_length=80, null=True, blank=True, help_text="Consumer display name")
+    avatar_url = models.CharField(max_length=255, null=True, blank=True, help_text="URL to consumer avatar image")
+
     # Statistics tracking fields
     coupons_used_count = models.IntegerField(default=0)
     total_savings = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # type: ignore
@@ -192,6 +196,7 @@ class MerchantProfile(models.Model):
     def __str__(self):
         return f"{self.user.email} - Merchant Profile"
 
+
 class Store(models.Model):
     STORE_TYPE_CHOICES = [
         ('restaurant', '餐飲'),
@@ -226,6 +231,37 @@ class Store(models.Model):
     def __str__(self):
         return self.name
 
+
+class StoreNews(models.Model):
+    """Per-store broadcast feed for the CouMap merchant bottom-sheet.
+
+    Short-form updates a merchant pushes to consumers viewing the merchant
+    bottom-sheet on CouMap. The MerchantSheet UI surfaces the latest entry
+    inline and supports an expand-to-see-all flow via the lens icon.
+
+    v1 lifecycle: merchant can create / list / delete their own news; no
+    editing (delete + repost is the supported pattern).
+    """
+
+    store = models.ForeignKey(
+        Store,
+        on_delete=models.CASCADE,
+        related_name='news',
+    )
+    body = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'store_news'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['store', '-created_at'], name='store_news_store_recent_idx'),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover (display only)
+        return f"StoreNews(store={self.store_id}, {self.body[:30]!r})"
+
+
 # ADD: Tags Model for Coupon
 class Tag(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -254,6 +290,7 @@ class CouponTemplate(models.Model):
     expiry_date = models.DateTimeField()
     
     # Daily drawing settings
+    gem_reward = models.PositiveIntegerField(default=1, help_text="Gems earned when this coupon is redeemed")
     draw_probability = models.FloatField(default=0.5, help_text="Probability (0-1) of successful draw")
     show_in_desk_qrcode = models.BooleanField(
         default=True,
@@ -297,6 +334,7 @@ class CouponTemplate(models.Model):
             coupon.tags.set(tpl.tags.all())
 
             # Decrease remaining quantity
+            # safe: row lock held via select_for_update() above
             tpl.remaining_quantity -= 1
             if tpl.remaining_quantity <= 0:
                 tpl.is_active = False
@@ -450,11 +488,12 @@ class WebRedemption(models.Model):
     def save(self, *args, **kwargs):
         if self.template_id:
             self.legacy_template_id = self.template_id
-            try:
-                tpl = CouponTemplate.objects.get(pk=self.template_id)
-                self.legacy_template_coupon_name = tpl.coupon_name
-            except CouponTemplate.DoesNotExist:
-                pass
+            if not self.legacy_template_coupon_name:
+                try:
+                    tpl = CouponTemplate.objects.only('coupon_name').get(pk=self.template_id)
+                    self.legacy_template_coupon_name = tpl.coupon_name
+                except CouponTemplate.DoesNotExist:
+                    pass
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -462,7 +501,47 @@ class WebRedemption(models.Model):
         return f"WebRedemption {self.id} - template {tid} - {self.redeemed_at}"
 
 
+class CouponQuerySet(models.QuerySet):
+    """Reusable chainable filters for the Coupon model.
+
+    Centralises the "what counts as an actionable coupon for this user
+    right now?" predicate that recurred ad-hoc across half a dozen
+    views. Using a QuerySet manager keeps the predicate definition in
+    one place — when business rules shift (e.g. add a `disabled` flag)
+    every caller picks up the change for free.
+    """
+
+    def exclusives(self) -> 'CouponQuerySet':
+        """Personal coupons held by individual users; NOT 'store'-type templates."""
+        return self.filter(coupon_type='exclusive')
+
+    def not_expired(self, *, now=None) -> 'CouponQuerySet':
+        """Coupons whose expiry is still in the future."""
+        from django.utils import timezone
+        cutoff = now or timezone.now()
+        return self.filter(expiry_date__gt=cutoff)
+
+    def held_by(self, user) -> 'CouponQuerySet':
+        # Defensive: AnonymousUser has pk=None, which Django would
+        # translate into `current_holder IS NULL` — the exact opposite
+        # of "coupons held by this user", and a potential info leak.
+        # Every current caller is behind @permission_classes([IsAuthenticated])
+        # so this guard only protects future sites that forget it.
+        if not getattr(user, 'is_authenticated', False):
+            return self.none()
+        return self.filter(current_holder=user)
+
+    def at_store(self, store) -> 'CouponQuerySet':
+        return self.filter(store=store)
+
+    def active_for_user(self, user, *, now=None) -> 'CouponQuerySet':
+        """Exclusive, not-expired, held by `user` — the merchant-sheet predicate."""
+        return self.held_by(user).exclusives().not_expired(now=now)
+
+
 class Coupon(models.Model):
+    objects = CouponQuerySet.as_manager()
+
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
     template = models.ForeignKey(CouponTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name='coupons')
 
@@ -618,6 +697,7 @@ class CouponShareRequest(models.Model):
 
     # Flag for public pool sharing (EasyUse)
     is_public = models.BooleanField(default=False, help_text="If True, coupon is shared to public pool")
+    message = models.TextField(blank=True, default='', max_length=80, help_text="Optional note from the sharer")
 
     class Meta:
         constraints = [
@@ -1152,3 +1232,14 @@ class ViolationRecord(models.Model):
 
     def __str__(self) -> str:
         return f"Violation #{self.id} - {self.merchant.username}"
+
+
+# ── Spinner Co-op (deliverable 3b) ──────────────────────────────────────────
+# Re-export so Django picks them up via app config.
+from api.spinner_coop.models import (  # noqa: E402, F401
+    Wallet,
+    SpinnerRound,
+    WalletTransaction,
+    DailyDrawAttempt,
+)
+

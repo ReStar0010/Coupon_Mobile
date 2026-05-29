@@ -37,24 +37,42 @@ admin.site.register(User, UserAdmin)
 # =============================================================================
 
 class CouponInline(admin.TabularInline):
-    """顯示店家的優惠券（限制顯示最近 10 筆）"""
+    """顯示店家最近 10 筆優惠券（完整列表請從 Coupon admin 查看）"""
     model = Coupon
     extra = 0
-    max_num = 10
+    max_num = 0
     fields = ['coupon_name', 'coupon_type', 'start_date', 'expiry_date', 'current_holder']
-    readonly_fields = ['current_holder']
+    readonly_fields = ['coupon_name', 'coupon_type', 'start_date', 'expiry_date', 'current_holder']
     can_delete = False
     show_change_link = True
+    verbose_name_plural = '優惠券（最近 10 筆）'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        recent_ids = qs.order_by('-id').values_list('id', flat=True)[:10]
+        return qs.filter(id__in=list(recent_ids)).order_by('-id')
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 class CouponTemplateInline(admin.TabularInline):
-    """顯示店家的優惠券範本（限制顯示最近 5 筆）"""
+    """顯示店家最近 5 筆優惠券範本"""
     model = CouponTemplate
     extra = 0
-    max_num = 5
+    max_num = 0
     fields = ['coupon_name', 'total_quantity', 'remaining_quantity', 'is_active', 'show_in_desk_qrcode']
     can_delete = False
     show_change_link = True
+    verbose_name_plural = '優惠券範本（最近 5 筆）'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        recent_ids = qs.order_by('-id').values_list('id', flat=True)[:5]
+        return qs.filter(id__in=list(recent_ids)).order_by('-id')
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 class ViolationRecordInline(admin.TabularInline):
@@ -140,8 +158,159 @@ class StudentProfileAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.activity_overview_view),
                 name='api_studentprofile_activity_overview',
             ),
+            # Per-user history & holdings. Each route is wrapped in admin_view
+            # so non-staff hits redirect to the admin login (covered by tests).
+            path(
+                '<int:profile_id>/draw-history/',
+                self.admin_site.admin_view(self.draw_history_view),
+                name='api_studentprofile_draw_history',
+            ),
+            path(
+                '<int:profile_id>/spin-history/',
+                self.admin_site.admin_view(self.spin_history_view),
+                name='api_studentprofile_spin_history',
+            ),
+            path(
+                '<int:profile_id>/holdings/',
+                self.admin_site.admin_view(self.holdings_view),
+                name='api_studentprofile_holdings',
+            ),
         ]
         return extra + urls
+
+    # ── Per-user history & holdings views ────────────────────────────────
+    #
+    # All three share the same shape: scope by profile, paginate at 50,
+    # return context for a small template. Permission gating comes from
+    # admin_view() in get_urls() above — non-staff users are redirected to
+    # the admin login.
+
+    _HISTORY_PAGE_SIZE = 50
+
+    def _get_profile_user(self, profile_id: int):
+        """Resolve the StudentProfile and target user, or raise 404."""
+        from django.shortcuts import get_object_or_404
+        from api.models import StudentProfile as _StudentProfile
+        profile = get_object_or_404(_StudentProfile.objects.select_related('user'), pk=profile_id)
+        return profile, profile.user
+
+    @staticmethod
+    def _audit_access(request, view_name: str, profile_id: int) -> None:
+        """One-line audit log when an admin opens a per-user history page.
+        Supports forensic investigation if a staff account is compromised.
+        Routes through the standard `api` logger so it lands in the same
+        sink as other backend events (console + Sentry breadcrumbs)."""
+        import logging
+        logging.getLogger('api').info(
+            'admin_history_view_accessed',
+            extra={
+                'admin_user_id': getattr(request.user, 'id', None),
+                'admin_user_email': getattr(request.user, 'email', None),
+                'target_profile_id': profile_id,
+                'view': view_name,
+            },
+        )
+
+    def draw_history_view(self, request, profile_id: int):
+        """Every daily-draw attempt by this user — wins AND misses."""
+        from django.core.paginator import Paginator
+        from api.models import DailyDrawAttempt
+        profile, user = self._get_profile_user(profile_id)
+        self._audit_access(request, 'draw_history', profile_id)
+        attempts_qs = (
+            DailyDrawAttempt.objects
+            .filter(user=user)
+            .select_related('template', 'template__store', 'awarded_coupon')
+            .order_by('-attempted_at')
+        )
+        paginator = Paginator(attempts_qs, self._HISTORY_PAGE_SIZE)
+        page_obj = paginator.get_page(request.GET.get('page'))
+        return render(
+            request,
+            'admin/api/studentprofile/draw_history.html',
+            {
+                'opts': self.model._meta,
+                'title': f'抽券紀錄 — {user.email}',
+                'profile': profile,
+                'target_user': user,
+                'page_obj': page_obj,
+                'paginator': paginator,
+            },
+        )
+
+    def spin_history_view(self, request, profile_id: int):
+        """Every spinner WalletTransaction by this user."""
+        from django.core.paginator import Paginator
+        from api.models import WalletTransaction
+        profile, user = self._get_profile_user(profile_id)
+        self._audit_access(request, 'spin_history', profile_id)
+        # Explicit list of "this is a real spinner draw" kinds. Avoids
+        # accidentally pulling in a future `spinner_refund` or similar that
+        # might share the prefix but mean something else. New genuine
+        # spinner kinds need an explicit add here — that's the point.
+        spinner_kinds = [
+            WalletTransaction.Kind.SPINNER_SOLO,
+            WalletTransaction.Kind.SPINNER_COOP,
+        ]
+        tx_qs = (
+            WalletTransaction.objects
+            .filter(user=user, kind__in=spinner_kinds)
+            .order_by('-created_at')
+        )
+        paginator = Paginator(tx_qs, self._HISTORY_PAGE_SIZE)
+        page_obj = paginator.get_page(request.GET.get('page'))
+        return render(
+            request,
+            'admin/api/studentprofile/spin_history.html',
+            {
+                'opts': self.model._meta,
+                'title': f'轉盤紀錄 — {user.email}',
+                'profile': profile,
+                'target_user': user,
+                'page_obj': page_obj,
+                'paginator': paginator,
+            },
+        )
+
+    def holdings_view(self, request, profile_id: int):
+        """Coupons + platform vouchers currently held by this user."""
+        from django.core.paginator import Paginator
+        from api.models import Coupon, PlatformVoucher
+        profile, user = self._get_profile_user(profile_id)
+        self._audit_access(request, 'holdings', profile_id)
+
+        coupons_qs = (
+            Coupon.objects
+            .filter(current_holder=user)
+            .select_related('store')
+            .order_by('-expiry_date', '-id')
+        )
+        vouchers_qs = (
+            PlatformVoucher.objects
+            .filter(current_holder=user)
+            .order_by('-expiry_date', '-id')
+        )
+
+        coupons_paginator = Paginator(coupons_qs, self._HISTORY_PAGE_SIZE)
+        vouchers_paginator = Paginator(vouchers_qs, self._HISTORY_PAGE_SIZE)
+        # Separate page params so the two tables paginate independently.
+        coupons_page = coupons_paginator.get_page(request.GET.get('coupons_page'))
+        vouchers_page = vouchers_paginator.get_page(request.GET.get('vouchers_page'))
+
+        return render(
+            request,
+            'admin/api/studentprofile/holdings.html',
+            {
+                'opts': self.model._meta,
+                'title': f'持有清單 — {user.email}',
+                'profile': profile,
+                'target_user': user,
+                'coupons_page': coupons_page,
+                'vouchers_page': vouchers_page,
+                'coupons_paginator': coupons_paginator,
+                'vouchers_paginator': vouchers_paginator,
+            },
+        )
 
     def activity_overview_view(self, request):
         sharing_0 = StudentProfile.objects.filter(sharing_progress_count=0).count()
@@ -2059,6 +2228,128 @@ class ViolationRecordAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related('merchant', 'report', 'action')
+
+
+# =============================================================================
+# Spinner / Daily-Draw Ledger Admin
+# =============================================================================
+#
+# Both ledgers are append-only — Django admin shows them read-only so an
+# accidental click in the admin can't corrupt the audit trail.
+
+from api.models import DailyDrawAttempt, Wallet, WalletTransaction
+from api.spinner_coop.wallet_service import WalletService
+
+
+@admin.register(Wallet)
+class WalletAdmin(admin.ModelAdmin):
+    list_display = ['user_id', 'user_email', 'gems', 'cou_points', 'version', 'updated_at']
+    search_fields = ['user__email', 'user__username']
+    list_select_related = ['user']
+    ordering = ['-updated_at']
+    fields = ['user', 'gems', 'cou_points', 'version', 'created_at', 'updated_at']
+    readonly_fields = ['user', 'version', 'created_at', 'updated_at']
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = '使用者'
+    user_email.admin_order_field = 'user__email'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            return
+        old = Wallet.objects.only('gems', 'cou_points').get(pk=obj.pk)
+        dg = obj.gems - old.gems
+        dp = obj.cou_points - old.cou_points
+        if dg == 0 and dp == 0:
+            messages.info(request, '餘額未變更')
+            return
+        kind = WalletTransaction.Kind.REFUND if (dg < 0 or dp < 0) else WalletTransaction.Kind.SEED
+        WalletService.mutate(
+            user_id=obj.pk,
+            delta_gems=dg,
+            delta_cou_points=dp,
+            kind=kind,
+            note=f'Admin adjust by {request.user.username}',
+        )
+        messages.success(request, f'已調整: gems {dg:+d}, couPoints {dp:+d}')
+
+
+@admin.register(WalletTransaction)
+class WalletTransactionAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'user_email', 'kind', 'delta_gems', 'delta_cou_points',
+        'balance_after_gems', 'balance_after_cou_points', 'note', 'created_at',
+    ]
+    list_filter = ['kind', 'created_at']
+    search_fields = ['user__email', 'user__username', 'related_round_id', 'note']
+    date_hierarchy = 'created_at'
+    list_select_related = ['user']
+    ordering = ['-created_at']
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = '使用者'
+    user_email.admin_order_field = 'user__email'
+
+    # Append-only ledger: lock down all writes from the admin UI.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DailyDrawAttempt)
+class DailyDrawAttemptAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'user_email', 'template_name', 'success', 'awarded_coupon_link',
+        'draw_probability', 'attempted_at',
+    ]
+    list_filter = ['success', 'attempted_at']
+    search_fields = [
+        'user__email', 'user__username', 'template__coupon_name', 'template__store__name'
+    ]
+    date_hierarchy = 'attempted_at'
+    list_select_related = ['user', 'template', 'template__store', 'awarded_coupon']
+    ordering = ['-attempted_at']
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = '使用者'
+    user_email.admin_order_field = 'user__email'
+
+    def template_name(self, obj):
+        if not obj.template:
+            return '—'
+        return f'{obj.template.coupon_name} ({obj.template.store.name})'
+    template_name.short_description = '抽券範本'
+    template_name.admin_order_field = 'template__coupon_name'
+
+    def awarded_coupon_link(self, obj):
+        if not obj.awarded_coupon:
+            return '—'
+        url = reverse('admin:api_coupon_change', args=[obj.awarded_coupon_id])
+        return format_html('<a href="{}">#{}</a>', url, obj.awarded_coupon_id)
+    awarded_coupon_link.short_description = '獲得優惠券'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 # =============================================================================

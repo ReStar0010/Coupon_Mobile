@@ -14,6 +14,7 @@ Covers:
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
@@ -58,6 +59,7 @@ class PrivateShareSiblingInvalidationTest(TestCase):
     """Two private share requests on the same coupon must not both be claimable."""
 
     def setUp(self) -> None:
+        cache.clear()
         self.client = APIClient()
         self.sharer = User.objects.create_user(
             username='sharer@test.com', email='sharer@test.com', password='pw',
@@ -147,6 +149,7 @@ class WebShareDetailStatusTest(TestCase):
     landing page can render an 'already claimed' state."""
 
     def setUp(self) -> None:
+        cache.clear()
         self.client = APIClient()
         self.sharer = User.objects.create_user(
             username='web-s@test.com', email='web-s@test.com', password='pw',

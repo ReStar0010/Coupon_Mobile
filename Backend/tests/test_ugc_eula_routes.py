@@ -8,6 +8,7 @@ api/privacy-policy/
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.utils import timezone
 from django.conf import settings
 from datetime import timedelta
@@ -24,6 +25,7 @@ class UGCEulaRoutesTest(TestCase):
     """Coverage for content reporting, blocking, EULA and public legal content."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(
             username='user@test.com',

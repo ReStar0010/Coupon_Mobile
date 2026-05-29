@@ -13,9 +13,12 @@ Django==5.2
 django-cors-headers==3.14.0
 djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
-dotenv==0.9.9
 drf-yasg==1.21.11
 frozenlist==1.8.0
+# gevent + greenlet + psycogreen removed: the prod stack moved off
+# WSGI/gevent workers to gunicorn + uvicorn.workers.UvicornWorker for
+# native ASGI/WebSocket support. psycogreen monkey-patches psycopg2
+# for gevent, which is incompatible with asyncio.
 gunicorn==23.0.0
 h11==0.16.0
 idna==3.10
@@ -46,3 +49,15 @@ django-storages[s3]==1.14.4
 boto3==1.35.0
 # Load test harness (optional; for run_stage.py and locust)
 locust>=2.20.0
+# Testing tooling
+pytest-django==4.9.0
+pytest-cov==6.1.0
+
+# Channels (spinner co-op WS — deliverable 3b)
+channels==4.1.0
+# Required for multi-worker production: RedisChannelLayer makes
+# broadcasts cross worker boundaries. InMemoryChannelLayer (the dev
+# default) is per-process and silently breaks WS broadcasts across
+# workers — see production_settings.CHANNEL_LAYERS.
+channels-redis==4.2.0
+daphne==4.1.2

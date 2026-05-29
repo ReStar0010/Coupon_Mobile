@@ -1,226 +1,139 @@
-import '../utils/i18n'; // 必須在所有其他 import 之前
-import '../tamagui-web.css';
-
-import { useEffect, useRef, useState } from 'react';
-import { Linking } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import * as Updates from 'expo-updates';
+import React, { useEffect } from 'react';
+import { Stack, useNavigationContainerRef } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { TamaguiProvider, Spinner, Text, YStack } from 'tamagui';
-import { PortalProvider } from '@tamagui/portal';
-import Toast from 'react-native-toast-message';
-import { config } from '../tamagui.config';
-import ThemeProvider from './components/providers/ThemeProvider';
-import AuthProvider from './components/providers/SessionProvider';
-import AuthOrchestrator from './components/providers/AuthOrchestrator';
-import ToastProvider from './components/providers/ToastProvider';
-import DismissedStoresProvider from './components/providers/DismissedStoresProvider';
-import { getApiConfig } from './config/api';
-import { parseDeepLinkUrl } from './utils/parseDeepLinkUrl';
-import BlockedMerchantsProvider from './components/providers/BlockedMerchantsProvider';
-import { toastConfig } from './config/toastConfig';
+import { StyleSheet } from 'react-native';
 import * as Sentry from '@sentry/react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import Constants from 'expo-constants';
+import FontProvider from '@/src/theme/FontProvider';
+import { AuthProvider } from '@/src/state/AuthContext';
+import { WalletProvider } from '@/src/state/WalletContext';
+import { tryApplyUpdate } from '@/src/services/updates/applyUpdates';
+import UpgradePrompt from '@/src/features/upgrade/UpgradePrompt';
+import { CoopProvider } from '@/src/features/spinner/coop/CoopContext';
+import ErrorBoundary from '@/src/components/ErrorBoundary';
+import { scrubBreadcrumb } from '@/src/services/sentry/scrubBreadcrumb';
+
+// Launch-time EAS Update budget. 5s gives the typical 3-5 MB bundle a
+// fair shot on healthy wifi while never trapping the user on a bad
+// network. Partial downloads persist in expo-updates' cache and finish
+// on the next cold start, so a 'timed-out' result still makes progress.
+const UPDATE_DEADLINE_MS = 5_000;
+
+// Sentry navigation integration is created at module scope so the
+// instance referenced by Sentry.init() is the same one we register
+// the navigation container against inside the component. Re-creating
+// it would break Fast Refresh's screen-transition span tracking.
+const navigationIntegration = Sentry.reactNavigationIntegration({
+  enableTimeToInitialDisplay: true,
+});
+
+// Helper: read app version from app.json so Sentry releases line up
+// with what UpgradePrompt's `Constants.expoConfig?.version` reads —
+// single source of truth.
+function resolveRelease(): string | undefined {
+  const version = Constants.expoConfig?.version;
+  return version ? `coupro-mobile@${version}` : undefined;
+}
+
+// `EXPO_PUBLIC_ENV` lets ops tag environments without rebuilding the
+// JS bundle for every channel switch. Falls back to NODE_ENV so a
+// dev/prod split is still visible if the env var isn't set yet.
+function resolveEnvironment(): string {
+  return process.env.EXPO_PUBLIC_ENV ?? (process.env.NODE_ENV === 'production' ? 'production' : 'development');
+}
 
 Sentry.init({
-  dsn: 'https://7e7d75e22f890cd1cb1f5c826402c1b7@o4510952144961536.ingest.us.sentry.io/4510952321843200',
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Disable SDK debug output in console so app logs stay clear (Sentry still captures/sends everything)
-  debug: false,
-
-  // Enable Logs
-  enableLogs: true,
-
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  enabled: process.env.NODE_ENV === 'production',
+  // Performance monitoring: 10% sample is the canonical starting point
+  // (Sentry docs). Lower than the BE default because mobile transaction
+  // volume is higher and the Sentry tier costs more per RN event.
+  tracesSampleRate: 0.1,
+  environment: resolveEnvironment(),
+  release: resolveRelease(),
+  integrations: [navigationIntegration],
+  // CRITICAL — JWT tokens flow through the spinner co-op WebSocket URL
+  // (`?token=…`). Without this scrub, the RN SDK captures the full URL
+  // as a breadcrumb and ships the token to Sentry. Token TTL is 10 min
+  // but Sentry retains breadcrumbs for weeks — defense in depth.
+  beforeBreadcrumb: scrubBreadcrumb,
 });
 
-export type InitStatus = 'checking' | 'downloading';
+SplashScreen.preventAutoHideAsync();
 
-/** JS 端更新檢查逾時（毫秒）。fallbackToCacheTimeout 僅處理 native 啟動，此處避免殭屍 Wi-Fi 導致 checkForUpdateAsync 永久掛起。 */
-const UPDATE_CHECK_TIMEOUT_MS = 3000;
+function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
 
-function timeoutReject(ms: number): Promise<never> {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('UPDATE_CHECK_TIMEOUT')), ms);
-  });
-}
-
-/**
- * Update Gate: 在正式環境檢查 OTA 更新，若有則下載並重載，避免使用者先看到舊版嵌入程式碼。
- * 以 Promise.race 加上 JS 逾時，避免殭屍 Wi-Fi 時 await 永久掛起卡在載入畫面。
- * onStatus 可選，用於更新畫面上的載入訊息（例如「正在檢查更新…」「正在下載最新版本…」）。
- */
-async function handleAppInitialization(onStatus?: (status: InitStatus) => void): Promise<void> {
-  if (__DEV__) return;
-  try {
-    onStatus?.('checking');
-    const update = await Promise.race([
-      Updates.checkForUpdateAsync(),
-      timeoutReject(UPDATE_CHECK_TIMEOUT_MS),
-    ]);
-    if (update.isAvailable) {
-      onStatus?.('downloading');
-      await Updates.fetchUpdateAsync();
-      await Updates.reloadAsync();
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message === 'UPDATE_CHECK_TIMEOUT') {
-      console.warn('OTA 更新檢查逾時，略過並繼續啟動');
-    } else {
-      console.error('OTA 更新檢查失敗', error);
-      Sentry.captureException(error, { data: { context: 'OTA update non-timeout failure' } });
-    }
-  }
-}
-
-// 在應用啟動時顯示後端配置
-if (__DEV__) {
-  const apiConfig = getApiConfig();
-  console.log('\n' + '='.repeat(50));
-  console.log('📱 應用啟動 - 後端配置');
-  console.log('='.repeat(50));
-  console.log(`Base URL: ${apiConfig.baseUrl}`);
-  console.log(`API URL: ${apiConfig.apiUrl}`);
-  console.log('='.repeat(50) + '\n');
-}
-
-/**
- * Handles all deep link formats: coupro:// custom scheme, Smart App Banner
- * path-style URLs, and https:// Universal Links.
- */
-function DeepLinkHandler() {
-  const router = useRouter();
-  const initialUrlHandled = useRef(false);
-
-  const handleUrl = (url: string | null) => {
-    const parsed = parseDeepLinkUrl(url);
-    if (!parsed) return false;
-    if (parsed.type === 'claim') {
-      router.replace(`/(tabs)/easyuse/qr-claim?token=${encodeURIComponent(parsed.token)}`);
-    } else if (parsed.type === 'voucher') {
-      router.replace(
-        `/(tabs)/collection?token=${encodeURIComponent(parsed.token)}&shareType=voucher`,
-      );
-    } else {
-      router.replace(`/(tabs)/collection?token=${encodeURIComponent(parsed.token)}`);
-    }
-    return true;
-  };
-
+  // Fire-and-forget update check. The deadline race inside tryApplyUpdate
+  // guarantees this never blocks the UI thread; we just kick it off on
+  // mount and let it either reload the app (if there's a new bundle)
+  // or no-op silently. Errors are swallowed by the helper.
+  //
+  // Dev note: this effect fires on every Fast Refresh re-mount of the
+  // root. That's harmless because `Updates.isEnabled === false` in Expo
+  // Go and the dev client, so the helper short-circuits to 'disabled'
+  // without touching the network. Production builds run this once at
+  // launch.
   useEffect(() => {
-    Linking.getInitialURL().then((url) => {
-      if (initialUrlHandled.current) return;
-      if (handleUrl(url)) {
-        initialUrlHandled.current = true;
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleUrl is stable, only run on mount
+    void tryApplyUpdate({ deadlineMs: UPDATE_DEADLINE_MS });
   }, []);
 
+  // Register the navigation container with the Sentry integration so
+  // screen transitions become performance spans. Idempotent — the SDK
+  // handles repeat registrations safely on Fast Refresh.
   useEffect(() => {
-    const sub = Linking.addEventListener('url', ({ url }) => {
-      handleUrl(url);
-    });
-    return () => sub.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleUrl is stable, listener only on mount
-  }, []);
+    if (navigationRef?.current) {
+      navigationIntegration.registerNavigationContainer(navigationRef);
+    }
+  }, [navigationRef]);
 
-  return null;
-}
-
-const INIT_MESSAGES: Record<InitStatus, string> = {
-  checking: '正在檢查更新…',
-  downloading: '正在下載最新版本…',
-};
-
-function InitializationLoadingScreen({ message }: { message: string }) {
   return (
-    <YStack
-      flex={1}
-      bg="$background"
-      style={{ justifyContent: 'center', alignItems: 'center', padding: 16 }}
-    >
-      <YStack gap="$4" style={{ alignItems: 'center', maxWidth: 280 }}>
-        <Spinner size="large" color="#FFAD31" />
-        <Text fontSize={16} color="$gray11" style={{ textAlign: 'center' }}>
-          {message}
-        </Text>
-      </YStack>
-    </YStack>
+    // ErrorBoundary sits just INSIDE GestureHandlerRootView so the
+    // fallback's <Pressable> reload button still has gesture-handler
+    // context on Android. (Previously the boundary wrapped GHRV and the
+    // reload button could be unreliable on some Android versions.) The
+    // tiny coverage loss — a render throw FROM GHRV itself — has never
+    // been observed in practice and is acceptable.
+    <GestureHandlerRootView style={styles.flex}>
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <FontProvider>
+            <AuthProvider>
+              <WalletProvider>
+              <CoopProvider>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    animation: 'none',
+                    // Swipe-back disabled globally: navigation is button-only
+                    // so an accidental horizontal drag can never pop the
+                    // screen. Every pushed screen renders its own explicit
+                    // back affordance (e.g. CouponDetailScreen's ← header
+                    // button), so no screen can trap the user. A screen that
+                    // genuinely wants edge-swipe back can opt in by setting
+                    // `gestureEnabled: true` on its own <Stack.Screen>.
+                    gestureEnabled: false,
+                    fullScreenGestureEnabled: false,
+                  }}
+                />
+                {/* Force/recommend upgrade prompt — overlays everything,
+                    fail-open if version-info request errors so a broken
+                    endpoint never traps the user. */}
+                <UpgradePrompt />
+              </CoopProvider>
+              </WalletProvider>
+            </AuthProvider>
+          </FontProvider>
+        </SafeAreaProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 
-export default Sentry.wrap(function RootLayout() {
-  const [isAppReady, setIsAppReady] = useState(__DEV__);
-  const [loadingMessage, setLoadingMessage] = useState<string>(INIT_MESSAGES.checking);
-
-  useEffect(() => {
-    if (__DEV__) return;
-
-    let cancelled = false;
-
-    (async () => {
-      await SplashScreen.preventAutoHideAsync();
-      await SplashScreen.hideAsync();
-
-      try {
-        await handleAppInitialization((status) => {
-          if (!cancelled) setLoadingMessage(INIT_MESSAGES[status]);
-        });
-      } finally {
-        if (!cancelled) {
-          setIsAppReady(true);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <SafeAreaProvider>
-      <TamaguiProvider config={config} defaultTheme="light">
-        {!isAppReady ? (
-          <InitializationLoadingScreen message={loadingMessage} />
-        ) : (
-          <PortalProvider shouldAddRootHost>
-            <ThemeProvider>
-              <DismissedStoresProvider>
-                <BlockedMerchantsProvider>
-                  <AuthProvider>
-                    <AuthOrchestrator>
-                      <ToastProvider>
-                        <DeepLinkHandler />
-                        <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
-                          <Stack.Screen name="index" />
-                          <Stack.Screen name="(auth)" />
-                          <Stack.Screen name="(tabs)" />
-                          <Stack.Screen name="options-menu" />
-                        </Stack>
-                        <StatusBar style="auto" />
-                        <Toast config={toastConfig} />
-                      </ToastProvider>
-                    </AuthOrchestrator>
-                  </AuthProvider>
-                </BlockedMerchantsProvider>
-              </DismissedStoresProvider>
-            </ThemeProvider>
-          </PortalProvider>
-        )}
-      </TamaguiProvider>
-    </SafeAreaProvider>
-  );
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
 });
+
+export default Sentry.wrap(RootLayout);

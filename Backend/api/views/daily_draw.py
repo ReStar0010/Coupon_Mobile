@@ -8,14 +8,24 @@ from django.utils import timezone
 from django.db import transaction
 from datetime import timedelta
 from drf_yasg.utils import swagger_auto_schema
-import random
-import string
+import secrets as _secrets
 
-from api.models import CouponTemplate, Coupon, StudentProfile, Log
+from api.models import CouponTemplate, Coupon, StudentProfile, Log, DailyDrawAttempt
 from api.exceptions import CouponTemplateNotFound, UserNotFound
 from ..serializers import DrawCouponSerializer
 
+_sysrand = _secrets.SystemRandom()
+
 logger = logging.getLogger(__name__)
+
+
+def _drew_today(last_draw_time, now):
+    """True when ``last_draw_time`` falls on the same calendar day as ``now``
+    in the server's local timezone (Asia/Taipei). Enforces one draw per day."""
+    if not last_draw_time:
+        return False
+    return timezone.localtime(last_draw_time).date() == timezone.localtime(now).date()
+
 
 def generate_random_code(length=6):
     """Generate a random alphanumeric code for coupon redemption"""
@@ -35,7 +45,7 @@ def get_daily_draw_templates(request):
         remaining_quantity__gt=0,
         start_date__lte=now,
         expiry_date__gt=now
-    )
+    ).select_related('store')
     
     result = []
     for template in active_templates:
@@ -47,7 +57,8 @@ def get_daily_draw_templates(request):
             'image_url': template.image_url,
             'estimated_savings': template.estimated_savings,
             'expiry_date': template.expiry_date,
-            'remaining_quantity': template.remaining_quantity
+            'remaining_quantity': template.remaining_quantity,
+            'draw_probability': template.draw_probability
         })
     
     return Response({
@@ -62,49 +73,90 @@ def get_daily_draw_templates(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def draw_coupon(request):
-    """Try to draw a coupon from a template based on probability"""
+    """Try to draw a coupon from a template based on probability.
+
+    When ``template_id`` is omitted, the server selects a template from the
+    active pool weighted by ``draw_probability``.
+    """
     template_id = request.data.get('template_id')
-    if not template_id:
-        return Response({'error': 'Template ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
-        # Get the template and verify it's active
         now = timezone.now()
-        template = CouponTemplate.objects.get(
-            id=template_id,
-            is_active=True,
-            remaining_quantity__gt=0,
-            start_date__lte=now,
-            expiry_date__gt=now
-        )
-          # Set user's last draw time in their StudentProfile
-        try:
-            student_profile = StudentProfile.objects.get(user=request.user)
-            student_profile.last_draw_time = timezone.now()
-            student_profile.save()
-        except StudentProfile.DoesNotExist:
-            logger.warning(
-                "StudentProfile not found for authenticated user %s during daily draw",
-                request.user.id,
-            )
-            raise UserNotFound(
-                developer_message=(
-                    f"StudentProfile not found for authenticated user {request.user.id} during daily draw"
-                )
-            )
-        
-        # Determine if user successfully draws the coupon based on probability
-        success = random.random() < template.draw_probability
         with transaction.atomic():
+            # Lock the profile row for the whole draw so two concurrent
+            # requests can't both clear the once-per-day gate (a double-draw
+            # race). The daily check, last_draw_time stamp, coupon creation
+            # and attempt record all run inside this single locked txn.
+            try:
+                student_profile = (
+                    StudentProfile.objects.select_for_update().get(user=request.user)
+                )
+            except StudentProfile.DoesNotExist:
+                logger.warning(
+                    "StudentProfile not found for authenticated user %s during daily draw",
+                    request.user.id,
+                )
+                raise UserNotFound(
+                    developer_message=(
+                        f"StudentProfile not found for authenticated user {request.user.id} during daily draw"
+                    )
+                )
+
+            # One draw per calendar day. A win OR a miss both consume the
+            # day, matching the fact that last_draw_time is stamped on every
+            # attempt below. Reject the second draw before any state changes.
+            if _drew_today(student_profile.last_draw_time, now):
+                return Response({
+                    'success': False,
+                    'already_drawn': True,
+                    'message': '今天已經抽過囉，明天再來！',
+                })
+
+            active_qs = CouponTemplate.objects.filter(
+                is_active=True,
+                remaining_quantity__gt=0,
+                start_date__lte=now,
+                expiry_date__gt=now,
+            ).select_related('store')
+
+            if template_id:
+                template = active_qs.get(id=template_id)
+            else:
+                candidates = list(active_qs)
+                if not candidates:
+                    return Response({
+                        'success': False,
+                        'message': 'No coupons remaining',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                weights = [t.draw_probability for t in candidates]
+                template = _sysrand.choices(candidates, weights=weights, k=1)[0]
+
+            # Stamp the attempt time now that we know a draw will occur.
+            student_profile.last_draw_time = now
+            student_profile.save(update_fields=['last_draw_time'])
+
+            success = _sysrand.random() < template.draw_probability
             if success:
                 # Generate the coupon and assign to user
                 coupon = template.generate_coupon(recipient=request.user)
-                
+
                 if coupon:
                     # Set acquisition method to 'draw'
                     coupon.acquisition_method = 'draw'
                     coupon.save()
-                    
+
+                    # Persist the attempt for admin/analytics visibility.
+                    # Snapshot draw_probability so a future template edit
+                    # can't rewrite history. Inside the same atomic block
+                    # as coupon creation — orphan attempts are impossible.
+                    DailyDrawAttempt.objects.create(
+                        user=request.user,
+                        template=template,
+                        success=True,
+                        awarded_coupon=coupon,
+                        draw_probability=template.draw_probability,
+                    )
+
                     # Log the successful draw
                     logger.info(
                         "Daily draw successful",
@@ -145,6 +197,15 @@ def draw_coupon(request):
                         'message': 'No coupons remaining'
                     }, status=status.HTTP_400_BAD_REQUEST)
             else:
+                # Persist the miss attempt (no awarded_coupon).
+                DailyDrawAttempt.objects.create(
+                    user=request.user,
+                    template=template,
+                    success=False,
+                    awarded_coupon=None,
+                    draw_probability=template.draw_probability,
+                )
+
                 # Log the unsuccessful draw
                 logger.info(
                     "Daily draw unsuccessful",
@@ -169,10 +230,11 @@ def draw_coupon(request):
             'success': False,
             'message': 'Coupon template not found or not active'
         }, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
+    except Exception:
+        logger.exception("Unexpected error during daily draw for user %s", request.user.id)
         return Response({
             'success': False,
-            'message': f'An error occurred: {str(e)}'
+            'message': 'An unexpected error occurred. Please try again later.',
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
@@ -180,11 +242,10 @@ def draw_coupon(request):
 def draw_history(request):
     """Get user's draw history"""
     
-    # Get all draw logs for the user
     draw_logs = Log.objects.filter(
         user=request.user,
-        action='draw'
-    ).order_by('-timestamp')
+        action='draw',
+    ).select_related('coupon__store').order_by('-timestamp')[:50]
     
     history = []
     for log in draw_logs:
@@ -218,22 +279,28 @@ def get_last_draw_time(request):
         student_profile = StudentProfile.objects.get(user=request.user)
         last_draw_time = student_profile.last_draw_time
         
+        now = timezone.now()
+        can_draw = not _drew_today(last_draw_time, now)
         if last_draw_time:
-            # Format date as YYYY-MM-DD to match frontend expectations
-            last_draw_date = last_draw_time.date().isoformat()
+            # Local-date (Asia/Taipei) so it matches the once-per-day gate;
+            # a raw UTC .date() could roll over at the wrong local hour.
+            last_draw_date = timezone.localtime(last_draw_time).date().isoformat()
             return Response({
                 'last_draw_date': last_draw_date,
-                'last_draw_time': last_draw_time
+                'last_draw_time': last_draw_time,
+                'can_draw_today': can_draw,
             })
         else:
             return Response({
                 'last_draw_date': None,
-                'last_draw_time': None
+                'last_draw_time': None,
+                'can_draw_today': True,
             })
     except StudentProfile.DoesNotExist:
         return Response({
             'last_draw_date': None,
-            'last_draw_time': None
+            'last_draw_time': None,
+            'can_draw_today': True,
         })
     except Exception as e:
         return Response(

@@ -12,27 +12,74 @@ from dotenv import load_dotenv
 
 load_dotenv()
 # BASE_DIR is set below; load Backend/.env after paths are available (see end of Paths section)
-import logging
 
 import sentry_sdk
+from sentry_sdk.scrubber import EventScrubber, DEFAULT_DENYLIST
 
-sentry_sdk.init(
-    dsn="https://c256c1e583795630acf160062b48dc0c@o4510952144961536.ingest.us.sentry.io/4510952203026432",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-    send_default_pii=True,
-    # Enable sending logs to Sentry
-    enable_logs=True,
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=1.0,
-    # Set profile_session_sample_rate to 1.0 to profile 100%
-    # of profile sessions.
-    profile_session_sample_rate=1.0,
-    # Set profile_lifecycle to "trace" to automatically
-    # run the profiler on when there is an active transaction
-    profile_lifecycle="trace",
-)
+# Belt-and-suspenders denylist on top of `send_default_pii=False`. The
+# default scrubber catches obvious keys; this list adds project-specific
+# ones we know flow through requests (JWTs, phone numbers, OTPs).
+_SENTRY_DENYLIST = DEFAULT_DENYLIST + [
+    "access_token",
+    "refresh_token",
+    "phone_number",
+    "phone",
+    "otp",
+    "verification_code",
+]
+
+# Guard against silent SDK regressions: if a future sentry-sdk upgrade
+# shrinks DEFAULT_DENYLIST (or someone vendors a stripped fork), our
+# composed list silently loses coverage. Pinned to the baseline at the
+# time of writing — bump the floor only after auditing the new contents.
+# Baseline: sentry-sdk==2.53.0 ships 32 entries in DEFAULT_DENYLIST.
+_SENTRY_DEFAULT_DENYLIST_MIN = 32
+if len(DEFAULT_DENYLIST) < _SENTRY_DEFAULT_DENYLIST_MIN:
+    raise RuntimeError(
+        f"sentry-sdk DEFAULT_DENYLIST shrank to {len(DEFAULT_DENYLIST)} entries "
+        f"(expected >= {_SENTRY_DEFAULT_DENYLIST_MIN}). Audit the new contents "
+        "before lowering this floor — silently shipping PII is the failure mode."
+    )
+
+# Guard empty DSN so a misconfigured dev env doesn't waste init cycles
+# constructing a client that immediately no-ops. SDK already no-ops on
+# empty DSN; this keeps the init line clean and visible.
+_SENTRY_DSN = os.environ.get("SENTRY_DSN")
+if _SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        # PII disabled: JWTs and phone numbers flow through requests.
+        send_default_pii=False,
+        # Enable sending logs to Sentry
+        enable_logs=True,
+        # Environment + release let the Sentry dashboard segment errors
+        # by deploy. RENDER_GIT_COMMIT is auto-provided by Render; falls
+        # back to None on other hosts.
+        environment=os.environ.get("SENTRY_ENVIRONMENT")
+        or os.environ.get("DJANGO_ENV", "development"),
+        release=os.environ.get("SENTRY_RELEASE")
+        or os.environ.get("RENDER_GIT_COMMIT")
+        or None,
+        # Sampling rates read from env so production_settings.py can lower them via .env.
+        # Defaults to 1.0 (100%) in dev; production should set these to ~0.1 via env vars.
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+        profile_session_sample_rate=float(
+            os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "1.0")
+        ),
+        # Set profile_lifecycle to "trace" to automatically
+        # run the profiler on when there is an active transaction
+        profile_lifecycle="trace",
+        # Additional defense-in-depth on top of send_default_pii=False.
+        # Denylist runs on every event before send; catches PII that
+        # might slip into custom contexts or breadcrumb data.
+        #
+        # `recursive=True` is O(event size). Events ship from a
+        # background transport thread, so the cost only lands on the
+        # synchronous `sentry_sdk.capture_*()` call path — measured
+        # negligible. Don't drop the recursion: PII frequently hides
+        # inside `breadcrumb.data` and nested `extra` payloads.
+        event_scrubber=EventScrubber(denylist=_SENTRY_DENYLIST, recursive=True),
+    )
 
 # -----------------------------------------------------------------------------
 # Paths & environment
@@ -41,7 +88,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')  # Backend/.env (optional, for local Postgres etc.)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-dev-only')
-DEBUG = True
+# Defensive default: a deployment that forgets to set DJANGO_SETTINGS_MODULE
+# to production_settings.py would previously inherit DEBUG=True from this
+# base file. Env-driven default=False means the worst-case fallback is
+# "harder to debug locally" rather than "leaks tracebacks to the public".
+# Local dev sets DEBUG=true in `.env`.
+DEBUG = os.getenv('DEBUG', 'false').lower() in ('true', '1', 'yes')
 COOKIE_DOMAIN = None
 
 # URLs (backend API, frontend, public app)
@@ -54,9 +106,13 @@ WEB_CONSUMER_FLOW_ENABLED = os.getenv('WEB_CONSUMER_FLOW_ENABLED', 'false').lowe
 # Email
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
+FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@coupro.pro')
 
-# Admin & support
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'duankayne@gmail.com')
+# Admin & support — defaults ship in source, so they must not point to
+# a personal address. `coupro707@gmail.com` is the project support inbox
+# and is the same default used for SUPPORT_EMAIL below. Real deployments
+# override both via env.
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'coupro707@gmail.com')
 SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'coupro707@gmail.com')
 SUPPORT_URL = os.getenv('SUPPORT_URL', 'https://coupro-terms.vercel.app/support.html')
 
@@ -75,6 +131,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '0.0.0.0',
     '192.168.0.136',
+    '192.168.200.231',
+    '100.93.164.83',  # Tailscale IP — for dev across networks
     '*.loca.lt',
     'coupro-123.loca.lt',
     'api.coupro.pro',
@@ -96,6 +154,9 @@ CSRF_TRUSTED_ORIGINS = [
 # Django core
 # -----------------------------------------------------------------------------
 INSTALLED_APPS = [
+    # Channels first so its app config is loaded before Django's native ASGI
+    'daphne',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -106,9 +167,23 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'storages',
     'api',
 ]
+
+# ── Channels (spinner co-op WS) ─────────────────────────────────────────────
+ASGI_APPLICATION = 'Backend.asgi.application'
+# Default to the in-memory layer for local dev and tests. The Channels docs
+# are explicit that this backend is per-process and cannot be used in any
+# multi-worker production deploy — `production_settings.py` overrides this
+# to `channels_redis.core.RedisChannelLayer` and fails loud if REDIS_URL
+# is missing.
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -143,29 +218,8 @@ TEMPLATES = [
 # -----------------------------------------------------------------------------
 # Database
 # -----------------------------------------------------------------------------
-# Use Postgres when DATABASE_URL is set and reachable; otherwise SQLite.
-def _postgres_available():
-    """Return True if DATABASE_URL points to a reachable PostgreSQL instance."""
-    if not os.environ.get('DATABASE_URL'):
-        return False
-    try:
-        import psycopg2
-        conn = psycopg2.connect(
-            os.environ.get('DATABASE_URL'),
-            connect_timeout=5,
-        )
-        conn.close()
-        return True
-    except Exception as e:
-        logging.getLogger(__name__).warning(
-            'PostgreSQL unreachable: %s (DATABASE_URL=%s); will use SQLite if configured.',
-            e,
-            os.environ.get('DATABASE_URL', '')[:50] + '...' if len(os.environ.get('DATABASE_URL', '')) > 50 else os.environ.get('DATABASE_URL', ''),
-        )
-        return False
-
-
-if _postgres_available():
+# Use Postgres when DATABASE_URL env var is set; otherwise fall back to SQLite.
+if os.environ.get('DATABASE_URL'):
     DATABASES = {
         'default': dj_database_url.config(
             default=os.environ.get('DATABASE_URL'),
@@ -174,10 +228,6 @@ if _postgres_available():
     }
     DATABASES['default'].setdefault('DISABLE_SERVER_SIDE_CURSORS', True)
 else:
-    if os.environ.get('DATABASE_URL'):
-        logging.getLogger(__name__).info(
-            'PostgreSQL unreachable (DATABASE_URL set); using SQLite.'
-        )
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -302,10 +352,27 @@ REST_FRAMEWORK = {
         'api.auth.CookieJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
-    'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
     'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/hour',
+        'user': '1000/hour',
         'phone_registration_lookup': '20/hour',
+        'redemption': '30/hour',
+        # Dedicated scope for the public version-info endpoint. Tighter
+        # than the global anon ceiling because this endpoint is hit on
+        # every cold start of every install and would otherwise be a
+        # cheap amplification target.
+        'version_info': '10/minute',
     },
+    'EXCEPTION_HANDLER': 'api.exceptions.couPro_exception_handler',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 SIMPLE_JWT = {
@@ -324,8 +391,22 @@ SIMPLE_JWT = {
 # -----------------------------------------------------------------------------
 # SMS (Twilio)
 # -----------------------------------------------------------------------------
-# True in dev: log OTP to console instead of sending SMS
-SMS_DEV_MODE = True
+# Defensive default: env-driven, default False — same reasoning as DEBUG
+# above. A deploy that forgets DJANGO_SETTINGS_MODULE=Backend.production_settings
+# previously inherited `SMS_DEV_MODE = True` from this base file and would
+# silently log OTPs to console instead of sending real SMS. Local dev sets
+# SMS_DEV_MODE=true in `.env`.
+SMS_DEV_MODE = os.getenv('SMS_DEV_MODE', 'false').lower() in ('true', '1', 'yes')
+
+# -----------------------------------------------------------------------------
+# Wallet / Spinner economy
+# -----------------------------------------------------------------------------
+# Starter gems granted on first /api/wallet/ read (writes a WalletTransaction
+# of kind='seed' so it shows up in user history).
+STARTER_GEMS = int(os.getenv('STARTER_GEMS', '3'))
+
+# Solo spinner rate limit — minimum seconds between draws per user.
+SOLO_SPINNER_RATE_LIMIT_SECONDS = int(os.getenv('SOLO_SPINNER_RATE_LIMIT_SECONDS', '2'))
 
 # -----------------------------------------------------------------------------
 # UGC compliance (Apple Guideline 1.2)

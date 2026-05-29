@@ -4,6 +4,7 @@ Feature: 002-phone-otp-verification
 """
 from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework import status
 from datetime import timedelta
@@ -18,6 +19,7 @@ class PhoneOTPTestBase(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         # Create test user
         self.user = User.objects.create_user(
             username='testuser@example.com',
@@ -518,6 +520,7 @@ class RegistrationPhoneLookupTests(TestCase):
     """Tests for POST /api/register/check-phone/ (lookup only, no SMS)."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.free_phone = "0912345678"
         self.registered_phone = "0911111111"
@@ -618,6 +621,7 @@ class RegistrationOTPSendTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
 
@@ -630,12 +634,12 @@ class RegistrationOTPSendTests(TestCase):
         # Validate 200 response schema
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('message', response.data)
-        self.assertIn('驗證碼已發送', response.data['message'])
+        self.assertIn('驗證碼將發送至', response.data['message'])
         self.assertIn('cooldown_seconds', response.data)
         self.assertEqual(response.data['cooldown_seconds'], 60)
         self.assertIn('expires_in_seconds', response.data)
         self.assertEqual(response.data['expires_in_seconds'], 600)
-        
+
         # Dev mode fields
         self.assertTrue(response.data.get('dev_mode'))
         self.assertIn('otp_code', response.data)
@@ -665,9 +669,8 @@ class RegistrationOTPSendTests(TestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn('error_code', response.data)
 
-    def test_send_registration_otp_duplicate_phone(self):
-        """T015: Test 409 response when phone already registered."""
-        # Create existing user with this phone
+    def test_send_registration_otp_duplicate_phone_returns_200(self):
+        """T015: Anti-enumeration — always 200 even for registered phones."""
         existing_user = User.objects.create_user(
             username='0911111111',
             password='testpass123'
@@ -682,8 +685,9 @@ class RegistrationOTPSendTests(TestCase):
             'phone_number': '0911111111'
         })
 
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(response.data['error_code'], 'PHONE_ALREADY_REGISTERED')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn('error_code', response.data)
+        self.assertNotIn('otp_code', response.data)
 
     def test_send_registration_otp_rate_limit(self):
         """T015: Test 429 response when rate limited."""
@@ -710,6 +714,7 @@ class RegistrationOTPVerifyTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
         self.test_password = 'testpass123'
@@ -808,6 +813,7 @@ class RegistrationIntegrationTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
         self.test_password = 'testpass123'
@@ -895,9 +901,8 @@ class RegistrationIntegrationTests(TestCase):
         self.assertEqual(pending.original_owner, user)
         self.assertIsNone(pending.pending_phone_number)
 
-    def test_registration_failure_duplicate_phone(self):
-        """T018: Test registration fails for duplicate phone (409)."""
-        # Create existing user
+    def test_registration_duplicate_phone_returns_200(self):
+        """T018: Anti-enumeration — send-otp returns 200 for registered phone."""
         existing_user = User.objects.create_user(
             username='0911111111',
             password=self.test_password
@@ -908,11 +913,10 @@ class RegistrationIntegrationTests(TestCase):
             phone_verified=True
         )
 
-        # Try to register with same phone
         response = self.client.post('/api/register/send-otp/', {
             'phone_number': '0911111111'
         })
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_registration_failure_invalid_format(self):
         """T018: Test registration fails for invalid phone format (400)."""
@@ -1002,10 +1006,11 @@ class PhoneLoginTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
         self.test_password = 'testpass123'
-        
+
         # Create a phone-registered user
         self.user = User.objects.create_user(
             username=self.test_phone,
@@ -1138,11 +1143,12 @@ class PasswordResetPhoneTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        cache.clear()
         self.client = APIClient()
         self.test_phone = '0912345678'
         self.test_password = 'oldpass123'
         self.new_password = 'newpass456'
-        
+
         # Create a phone-registered user
         self.user = User.objects.create_user(
             username=self.test_phone,
@@ -1163,11 +1169,11 @@ class PasswordResetPhoneTests(TestCase):
         # Validate 200 response schema
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('message', response.data)
-        self.assertIn('驗證碼已發送', response.data['message'])
+        self.assertIn('驗證碼將發送至', response.data['message'])
         self.assertIn('cooldown_seconds', response.data)
         self.assertEqual(response.data['cooldown_seconds'], 60)
         self.assertIn('expires_in_seconds', response.data)
-        
+
         # Dev mode fields
         self.assertTrue(response.data.get('dev_mode'))
         self.assertIn('otp_code', response.data)
@@ -1180,14 +1186,15 @@ class PasswordResetPhoneTests(TestCase):
         self.assertIsNotNone(otp_record)
         self.assertEqual(otp_record.user, self.user)
 
-    def test_send_password_reset_otp_unregistered_phone(self):
-        """T034: Test 404 response when phone not registered."""
+    def test_send_password_reset_otp_unregistered_phone_returns_200(self):
+        """T034: Anti-enumeration — always 200 even for unregistered phones."""
         response = self.client.post('/api/forgot-password/phone/send-otp/', {
             'phone_number': '0999999999'
         })
 
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data['error_code'], 'PHONE_NOT_REGISTERED')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn('error_code', response.data)
+        self.assertNotIn('otp_code', response.data)
 
     def test_send_password_reset_otp_invalid_format(self):
         """T034: Test 400 response for invalid phone format."""

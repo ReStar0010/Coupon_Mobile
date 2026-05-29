@@ -1,11 +1,12 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from api.throttles import RedemptionThrottle
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Exists, OuterRef, Prefetch
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q
 import logging
 import re
 from urllib.parse import unquote
@@ -20,6 +21,8 @@ from api.exceptions import (
 )
 from ..serializers import RedeemCouponSerializer, UnifiedRedemptionValidateSerializer
 from ..models import Coupon, Log, StudentProfile, CouponRedemption, CouponShareRequest, Store, BlockedMerchant, PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, QRCodeSession, StoreFixedSession
+from ..spinner_coop.models import WalletTransaction
+from ..spinner_coop.wallet_service import WalletService
 from ..utils import apply_referral_reward, display_face_value, increment_sharing_progress_for_redeemer
 
 logger = logging.getLogger(__name__)
@@ -353,6 +356,7 @@ def get_coupon_detail(request, id):
             "tags": [tag.display_name for tag in coupon.tags.all()],  # 返回標籤的顯示名稱
             "merchant_deleted": coupon.store.owner is None,
             "acquisition_method": getattr(coupon, "acquisition_method", None) or None,  # store coupons typically null
+            "gem_reward": coupon.template.gem_reward if coupon.template else 1,
         }
 
     else:
@@ -394,12 +398,14 @@ def get_coupon_detail(request, id):
             "tags": [tag.display_name for tag in coupon.tags.all()],  # 返回標籤的顯示名稱
             "merchant_deleted": coupon.store.owner is None,
             "acquisition_method": coupon.acquisition_method,
+            "gem_reward": coupon.template.gem_reward if coupon.template else 1,
         }
-    
+
     return Response(data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([RedemptionThrottle])
 @transaction.atomic
 def redeem_coupon(request, id):
     coupon = get_object_or_404(
@@ -492,12 +498,39 @@ def redeem_coupon(request, id):
     try:
         student_profile = request.user.student_profile
         student_profile.update_monthly_savings()
-        student_profile.coupons_used_count += 1
-        student_profile.total_savings += savings_amount
-        student_profile.monthly_savings += savings_amount
-        student_profile.save()
+        StudentProfile.objects.filter(pk=student_profile.pk).update(
+            coupons_used_count=F('coupons_used_count') + 1,
+            total_savings=F('total_savings') + savings_amount,
+            monthly_savings=F('monthly_savings') + savings_amount,
+        )
+        student_profile.refresh_from_db()
     except (StudentProfile.DoesNotExist, AttributeError):
         pass
+
+    # Phase 2: +1 CouGem for redeeming a coupon. This replaces the FE-side
+    # client mutation in CouponUseQRScreen. Wallet is lazily created so the
+    # mutate() below never raises WalletNotFoundError. Failures are logged
+    # but do NOT roll back the redemption — gems are an incentive, not a
+    # gate on the customer-merchant transaction.
+    try:
+        WalletService.ensure_wallet(request.user.id, initial_gems=0)
+        WalletService.mutate(
+            request.user.id,
+            delta_gems=+1,
+            kind=WalletTransaction.Kind.COUPON_REDEEM,
+            related_coupon_id=coupon.id,
+            related_store_id=coupon.store_id,
+            note=f"Redeemed at {coupon.store.name}",
+        )
+    except Exception as wallet_exc:  # noqa: BLE001 — log + continue
+        logger.warning(
+            "coupon_redeem.gem_credit_failed",
+            extra={
+                "user_id": request.user.id,
+                "coupon_id": coupon.id,
+                "error": str(wallet_exc),
+            },
+        )
 
     # === Progress Tracker updates (011-progress-tracker) ===
     if coupon.coupon_type == 'exclusive':
@@ -513,9 +546,10 @@ def redeem_coupon(request, id):
 
         # Metric 3 — first-ever exclusive redemption triggers referral reward for original owner.
         try:
-            exclusive_count = CouponRedemption.objects.filter(
-                user=request.user, coupon_type='exclusive'
-            ).count()
+            _redemption_agg = CouponRedemption.objects.filter(user=request.user).aggregate(
+                exclusive_count=Count('id', filter=Q(coupon_type='exclusive')),
+            )
+            exclusive_count = _redemption_agg['exclusive_count']
             voucher_count = PlatformVoucherRedemption.objects.filter(
                 user=request.user
             ).count()
@@ -537,6 +571,7 @@ def redeem_coupon(request, id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([RedemptionThrottle])
 def validate_unified_redemption_code(request, code):
     """
     Validate unified redemption code and return store info + consumer's available coupons.

@@ -16,7 +16,13 @@ import json
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.conf import settings
+import logging
+
 from ..models import CouponTemplate, QRCodeSession, Coupon, Store, QRCodeClaim
+from ..spinner_coop.models import WalletTransaction
+from ..spinner_coop.wallet_service import WalletService
+
+_logger = logging.getLogger(__name__)
 from ..serializers import (
     GenerateQRSessionSerializer,
     InvalidateSessionSerializer,
@@ -33,17 +39,7 @@ from ..exceptions import (
     QRSessionUnauthorized,
     QRSessionExpired,
 )
-
-
-def get_merchant_store(user):
-    """Get the store owned by the merchant user."""
-    try:
-        return Store.objects.get(owner=user)
-    except Store.DoesNotExist:
-        return None
-    except Store.MultipleObjectsReturned:
-        # If multiple stores, return the first one
-        return Store.objects.filter(owner=user).first()
+from ..utils import get_merchant_store
 
 
 @swagger_auto_schema(
@@ -162,6 +158,138 @@ def invalidate_qr_session(request, session_id):
         'message': 'QR code session invalidated successfully',
         'session_id': qr_session.id
     }, status=status.HTTP_200_OK)
+
+
+def claim_coupon_for_user(*, user, claim_token: str, idempotency_key: str = '') -> tuple[dict, int]:
+    """Shared service: claim a coupon from a session token on behalf of a user.
+
+    Returns (payload_dict, http_status). Raises CouProAPIException subclasses
+    on validation failure. Used by both /api/qr-claim/claim/ (claim-token branch)
+    and /api/coupon/receive/ (mobile scan-to-receive flow). Keeps the claim
+    pipeline in one place — no DRF Request mutation gymnastics.
+    """
+    try:
+        qr_session = QRCodeSession.objects.select_related('template').get(
+            session_token=claim_token,
+            is_active=True,
+        )
+    except QRCodeSession.DoesNotExist:
+        raise QRSessionExpired(developer_message="QR code session expired or invalid")
+
+    template = qr_session.template
+    template_id = template.id
+    session_token = claim_token
+    idempotency_key = (idempotency_key or '').strip()
+
+    # Pre-transaction idempotency check.
+    if idempotency_key:
+        try:
+            existing_claim = QRCodeClaim.objects.select_related('coupon', 'template').get(
+                idempotency_key=idempotency_key
+            )
+            return ({
+                'message': 'Coupon already claimed (idempotent retry)',
+                'coupon_id': existing_claim.coupon.id,
+                'coupon_name': existing_claim.coupon.coupon_name,
+                'template_id': existing_claim.template.id,
+                'remaining_quantity': existing_claim.template.remaining_quantity,
+                'acquisition_method': 'qr_claim',
+            }, status.HTTP_200_OK)
+        except QRCodeClaim.DoesNotExist:
+            pass
+
+    if template.expiry_date and template.expiry_date <= timezone.now():
+        raise CouponTemplateExpired(developer_message="Coupon template expired")
+    if template.remaining_quantity <= 0:
+        raise CouponTemplateOutOfStock(developer_message="Coupon template out of stock")
+
+    with transaction.atomic():
+        # Re-check inside the transaction (double-check pattern).
+        if idempotency_key:
+            try:
+                existing_claim = QRCodeClaim.objects.select_related('coupon', 'template').get(
+                    idempotency_key=idempotency_key
+                )
+                template.refresh_from_db()
+                return ({
+                    'message': 'Coupon already claimed (idempotent retry)',
+                    'coupon_id': existing_claim.coupon.id,
+                    'coupon_name': existing_claim.coupon.coupon_name,
+                    'template_id': existing_claim.template.id,
+                    'remaining_quantity': existing_claim.template.remaining_quantity,
+                    'acquisition_method': 'qr_claim',
+                }, status.HTTP_200_OK)
+            except QRCodeClaim.DoesNotExist:
+                pass
+
+        updated = CouponTemplate.objects.filter(
+            id=template_id,
+            remaining_quantity__gt=0,
+        ).update(remaining_quantity=F('remaining_quantity') - 1)
+        if updated == 0:
+            raise CouponTemplateOutOfStock(developer_message="Coupon template out of stock")
+
+        template.refresh_from_db()
+
+        coupon = Coupon.objects.create(
+            store=template.store,
+            template=template,
+            coupon_name=template.coupon_name,
+            coupon_detail=template.coupon_detail,
+            important_notes=template.important_notes,
+            start_date=template.start_date,
+            expiry_date=template.expiry_date,
+            image_url=template.image_url,
+            coupon_type='exclusive',
+            estimated_savings=template.estimated_savings,
+            original_owner=user,
+            last_holder=None,
+            current_holder=user,
+            redeem_code=template.template_redeem_code if template.template_redeem_code else None,
+            acquisition_method='qr_claim',
+        )
+        coupon.tags.set(template.tags.all())
+
+        if idempotency_key:
+            QRCodeClaim.objects.create(
+                idempotency_key=idempotency_key,
+                user=user,
+                template=template,
+                coupon=coupon,
+                session_token=session_token,
+            )
+
+    # +1 gem hook — gem credit is per-coupon-idempotent because the
+    # related_coupon_id is unique to this coupon. Repeated retries that hit
+    # the idempotency-cached branch above bypass this entirely.
+    try:
+        WalletService.ensure_wallet(user.id, initial_gems=0)
+        WalletService.mutate(
+            user.id,
+            delta_gems=+1,
+            kind=WalletTransaction.Kind.QR_CLAIM,
+            related_coupon_id=coupon.id,
+            related_store_id=template.store_id,
+            note=f"Claimed via QR at {template.store.name}",
+        )
+    except Exception as wallet_exc:  # noqa: BLE001
+        _logger.warning(
+            "qr_claim.gem_credit_failed",
+            extra={
+                "user_id": user.id,
+                "coupon_id": coupon.id,
+                "error": str(wallet_exc),
+            },
+        )
+
+    return ({
+        'message': 'Coupon claimed successfully',
+        'coupon_id': coupon.id,
+        'coupon_name': coupon.coupon_name,
+        'template_id': template.id,
+        'remaining_quantity': template.remaining_quantity,
+        'acquisition_method': 'qr_claim',
+    }, status.HTTP_201_CREATED)
 
 
 @swagger_auto_schema(
@@ -319,7 +447,30 @@ def claim_coupon_via_qr(request):
                 coupon=coupon,
                 session_token=session_token
             )
-    
+
+    # Phase 2: +1 CouGem for claiming a coupon via QR. Mirrors the on-redeem
+    # and on-share-accept credits. Wallet failures are logged but do NOT
+    # roll back the claim — the coupon belongs to the user regardless.
+    try:
+        WalletService.ensure_wallet(request.user.id, initial_gems=0)
+        WalletService.mutate(
+            request.user.id,
+            delta_gems=+1,
+            kind=WalletTransaction.Kind.QR_CLAIM,
+            related_coupon_id=coupon.id,
+            related_store_id=template.store_id,
+            note=f"Claimed via QR at {template.store.name}",
+        )
+    except Exception as wallet_exc:  # noqa: BLE001 — log + continue
+        _logger.warning(
+            "qr_claim.gem_credit_failed",
+            extra={
+                "user_id": request.user.id,
+                "coupon_id": coupon.id,
+                "error": str(wallet_exc),
+            },
+        )
+
     return Response({
         'message': 'Coupon claimed successfully',
         'coupon_id': coupon.id,

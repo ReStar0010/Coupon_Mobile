@@ -5,6 +5,7 @@ api/forgot-password/, api/reset-password/
 """
 from django.test import TestCase
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch
@@ -16,6 +17,7 @@ class AuthRoutesTest(TestCase):
     """Coverage for auth and token endpoints."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(
             username='user@test.com',
@@ -128,7 +130,7 @@ class AuthRoutesTest(TestCase):
 
     def test_forgot_password_accepts_email(self):
         """POST api/forgot-password/ accepts email and returns 200 or 4xx."""
-        with patch('api.views.authentication.send_mail'), patch('api.views.authentication.resend.Emails.send'):
+        with patch('api.services.email_service.resend'):
             response = self.client.post('/api/forgot-password/', {
                 'email': 'user@test.com',
             }, format='json')

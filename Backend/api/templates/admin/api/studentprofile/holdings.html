@@ -1,0 +1,114 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label='api' %}">api</a>
+  &rsaquo; <a href="{% url 'admin:api_studentprofile_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{% url 'admin:api_studentprofile_change' profile.id %}">{{ target_user.email }}</a>
+  &rsaquo; 持有清單
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p style="margin: 12px 0;">
+  <a class="button" href="{% url 'admin:api_studentprofile_draw_history' profile.id %}">📜 抽券紀錄</a>
+  <a class="button" href="{% url 'admin:api_studentprofile_spin_history' profile.id %}">🎡 轉盤紀錄</a>
+  <a class="button" href="{% url 'admin:api_studentprofile_change' profile.id %}">← 返回使用者</a>
+</p>
+
+<h2>優惠券 ({{ coupons_paginator.count }})</h2>
+<table id="holdings_coupon_list" class="result_list" style="width: 100%;">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>名稱</th>
+      <th>店家</th>
+      <th>類型</th>
+      <th>取得方式</th>
+      <th>到期</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for coupon in coupons_page.object_list %}
+    <tr class="{% cycle 'row1' 'row2' as cl1 %}">
+      <td>
+        <a href="{% url 'admin:api_coupon_change' coupon.id %}">#{{ coupon.id }}</a>
+      </td>
+      <td>{{ coupon.coupon_name }}</td>
+      <td>{{ coupon.store.name }}</td>
+      <td>{{ coupon.get_coupon_type_display }}</td>
+      <td>{{ coupon.get_acquisition_method_display|default:"—" }}</td>
+      <td>{{ coupon.expiry_date|date:"Y-m-d" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" style="text-align: center; color: #888;">（無持有優惠券）</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if coupons_paginator.num_pages > 1 %}
+<p class="paginator" style="margin-top: 12px;">
+  {% if coupons_page.has_previous %}
+    <a href="?coupons_page={{ coupons_page.previous_page_number }}">上一頁</a>
+  {% endif %}
+  第 {{ coupons_page.number }} / {{ coupons_paginator.num_pages }} 頁
+  {% if coupons_page.has_next %}
+    <a href="?coupons_page={{ coupons_page.next_page_number }}">下一頁</a>
+  {% endif %}
+</p>
+{% endif %}
+
+<h2 style="margin-top: 28px;">平台券 ({{ vouchers_paginator.count }})</h2>
+<table id="holdings_voucher_list" class="result_list" style="width: 100%;">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>兌換碼</th>
+      <th>面額</th>
+      <th>批次</th>
+      <th>取得方式</th>
+      <th>到期</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for voucher in vouchers_page.object_list %}
+    <tr class="{% cycle 'row1' 'row2' as cl2 %}">
+      <td>
+        <a href="{% url 'admin:api_platformvoucher_change' voucher.id %}">#{{ voucher.id }}</a>
+      </td>
+      <td>
+        {# Mask the bearer-credential redeem code to last 4 chars in the
+           per-user holdings view. Click the row link to reach the full
+           PlatformVoucherAdmin change page, which still shows the full
+           code to staff who need it for support cases. #}
+        {% if voucher.redeem_code %}
+          <code title="Click row to see full code">••••{{ voucher.redeem_code|slice:"-4:" }}</code>
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ voucher.face_value }} {{ voucher.currency_code }}</td>
+      <td>{{ voucher.batch_name|default:"—" }}</td>
+      <td>{{ voucher.acquisition_method|default:"—" }}</td>
+      <td>{{ voucher.expiry_date|date:"Y-m-d" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" style="text-align: center; color: #888;">（無持有平台券）</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if vouchers_paginator.num_pages > 1 %}
+<p class="paginator" style="margin-top: 12px;">
+  {% if vouchers_page.has_previous %}
+    <a href="?vouchers_page={{ vouchers_page.previous_page_number }}">上一頁</a>
+  {% endif %}
+  第 {{ vouchers_page.number }} / {{ vouchers_paginator.num_pages }} 頁
+  {% if vouchers_page.has_next %}
+    <a href="?vouchers_page={{ vouchers_page.next_page_number }}">下一頁</a>
+  {% endif %}
+</p>
+{% endif %}
+{% endblock %}

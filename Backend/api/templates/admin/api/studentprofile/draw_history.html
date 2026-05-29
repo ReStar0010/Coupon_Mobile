@@ -1,0 +1,80 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label='api' %}">api</a>
+  &rsaquo; <a href="{% url 'admin:api_studentprofile_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{% url 'admin:api_studentprofile_change' profile.id %}">{{ target_user.email }}</a>
+  &rsaquo; 抽券紀錄
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p style="margin: 12px 0;">
+  <a class="button" href="{% url 'admin:api_studentprofile_spin_history' profile.id %}">🎡 轉盤紀錄</a>
+  <a class="button" href="{% url 'admin:api_studentprofile_holdings' profile.id %}">🎟️ 持有清單</a>
+  <a class="button" href="{% url 'admin:api_studentprofile_change' profile.id %}">← 返回使用者</a>
+</p>
+
+<p>共 {{ paginator.count }} 筆紀錄</p>
+
+<table id="result_list" style="width: 100%;">
+  <thead>
+    <tr>
+      <th>時間</th>
+      <th>範本</th>
+      <th>結果</th>
+      <th>獲得優惠券</th>
+      <th>抽中機率</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for attempt in page_obj.object_list %}
+    <tr class="{% cycle 'row1' 'row2' %}">
+      <td>{{ attempt.attempted_at|date:"Y-m-d H:i:s" }}</td>
+      <td>
+        {% if attempt.template %}
+          {{ attempt.template.coupon_name }}
+          <span style="color: #888;">({{ attempt.template.store.name }})</span>
+        {% else %}
+          <span style="color: #b00;">— 範本已刪除 —</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if attempt.success %}
+          <strong style="color: #137333;">✅ 中獎</strong>
+        {% else %}
+          <span style="color: #b3261e;">❌ 未中</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if attempt.awarded_coupon %}
+          <a href="{% url 'admin:api_coupon_change' attempt.awarded_coupon.id %}">
+            #{{ attempt.awarded_coupon.id }} — {{ attempt.awarded_coupon.coupon_name }}
+          </a>
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ attempt.draw_probability|floatformat:4 }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" style="text-align: center; color: #888;">（無抽券紀錄）</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if paginator.num_pages > 1 %}
+<p class="paginator" style="margin-top: 12px;">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}">上一頁</a>
+  {% endif %}
+  第 {{ page_obj.number }} / {{ paginator.num_pages }} 頁
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">下一頁</a>
+  {% endif %}
+</p>
+{% endif %}
+{% endblock %}

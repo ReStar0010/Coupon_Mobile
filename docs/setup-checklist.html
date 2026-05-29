@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CouPro — Production setup checklist</title>
+<style>
+  :root {
+    --paper: #f3efe6;
+    --ink: #161311;
+    --line: #161311;
+    --accent: #ff5630;
+    --accent-2: #2e6cf6;
+    --ok: #2f8f4d;
+    --warn: #d97706;
+    --muted: #6e6862;
+    --card: #fffaf0;
+    --done: #e6f4ea;
+    --shadow: 6px 6px 0 0 var(--ink);
+    --shadow-sm: 3px 3px 0 0 var(--ink);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+    line-height: 1.55;
+    padding: 48px 24px 96px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+
+  /* Header */
+  header.hero {
+    border: 3px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 32px 28px;
+    box-shadow: var(--shadow);
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  header.hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(45deg, rgba(255,86,48,0.08) 0 12px, transparent 12px 24px);
+    pointer-events: none;
+  }
+  header.hero h1 {
+    margin: 0 0 8px;
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+  header.hero p { margin: 0; color: #ddd5c8; max-width: 70ch; }
+  header.hero .tag {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+  }
+  .progress {
+    margin-top: 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+  }
+  .progress .bar {
+    flex: 1;
+    height: 14px;
+    background: #222;
+    border: 2px solid var(--paper);
+    position: relative;
+  }
+  .progress .bar > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width .2s ease;
+  }
+  .progress .count { white-space: nowrap; font-weight: 700; }
+
+  /* Section */
+  section.group {
+    border: 3px solid var(--ink);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+  }
+  section.group > .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 3px solid var(--ink);
+    background: var(--paper);
+  }
+  section.group > .head h2 {
+    margin: 0;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  section.group > .head .pill {
+    font-size: 11px;
+    font-weight: 700;
+    border: 2px solid var(--ink);
+    padding: 2px 8px;
+    background: #fff;
+    text-transform: uppercase;
+  }
+  .pill.crit  { background: var(--accent); }
+  .pill.done  { background: var(--ok); color: #fff; }
+  .pill.warn  { background: var(--warn); color: #fff; }
+  .pill.info  { background: var(--accent-2); color: #fff; }
+
+  /* Step */
+  .step {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px dashed rgba(22,19,17,0.25);
+  }
+  .step:last-child { border-bottom: 0; }
+  .step input[type=checkbox] {
+    -webkit-appearance: none; appearance: none;
+    width: 26px; height: 26px;
+    border: 3px solid var(--ink);
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    margin-top: 2px;
+    position: relative;
+  }
+  .step input[type=checkbox]:checked {
+    background: var(--ok);
+  }
+  .step input[type=checkbox]:checked::after {
+    content: '';
+    position: absolute;
+    inset: 4px 6px;
+    border-right: 4px solid #fff;
+    border-bottom: 4px solid #fff;
+    transform: rotate(45deg) translate(-1px,-3px);
+  }
+  .step.done .body h3 { text-decoration: line-through; color: var(--muted); }
+  .step .body h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .step .body p {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: #2a2522;
+    max-width: 78ch;
+  }
+  .step .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .meta .chip {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border: 2px solid var(--ink);
+    background: #fff;
+  }
+  .chip.req { background: var(--accent); }
+  .chip.opt { background: #fff; }
+  .chip.sec { background: #ffe066; }
+  pre, code.inline {
+    font-family: inherit;
+  }
+  pre {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 12px;
+    margin: 6px 0 0;
+    border: 2px solid var(--ink);
+    box-shadow: var(--shadow-sm);
+    font-size: 12px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  code.inline {
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    padding: 1px 6px;
+    font-size: 12px;
+  }
+  details { margin-top: 6px; }
+  details summary {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  details > div { padding-top: 6px; }
+  a { color: var(--accent-2); text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: var(--accent); }
+
+  footer.foot {
+    margin-top: 32px;
+    border: 3px solid var(--ink);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    padding: 18px 22px;
+    font-size: 13px;
+  }
+  .foot kbd {
+    background: var(--ink); color: var(--paper);
+    padding: 1px 6px; border-radius: 2px;
+    font-family: inherit; font-size: 11px;
+  }
+
+  /* Done section visual */
+  section.group.completed { background: var(--done); }
+  section.group.completed > .head { background: #d9efde; }
+
+  @media (max-width: 640px) {
+    body { padding: 24px 14px 64px; }
+    header.hero { padding: 22px 18px; }
+    .step { grid-template-columns: 36px 1fr; padding: 14px; }
+    .step input[type=checkbox] { width: 22px; height: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <span class="tag">PROD READINESS</span>
+    <h1>CouPro production setup — what's left</h1>
+    <p>R2, Twilio, and Resend are in. This is everything else you'll have to touch by hand before the consumer + merchant apps work end-to-end. Boxes persist in localStorage.</p>
+    <div class="progress" aria-live="polite">
+      <div class="bar"><i id="pbar"></i></div>
+      <div class="count"><span id="pdone">0</span> / <span id="ptot">0</span> done</div>
+      <button id="reset" style="border:2px solid var(--paper);background:transparent;color:var(--paper);padding:4px 10px;font-family:inherit;font-size:11px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;">Reset</button>
+    </div>
+  </header>
+
+  <!-- =============== 0. RENDER SERVICE CONFIG =============== -->
+  <section class="group" data-key="g_render">
+    <div class="head">
+      <h2>0. Render service config — build &amp; start commands</h2>
+      <span class="pill crit">Most critical · most missed</span>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="render_start_cmd" />
+      <div class="body">
+        <h3>Set the <strong>Start Command</strong> exactly</h3>
+        <div class="meta"><span class="chip req">Required</span><span class="chip">Render service settings</span></div>
+<pre>python -m gunicorn Backend.asgi:application --config gunicorn.conf.py --bind 0.0.0.0:$PORT</pre>
+        <p>Four pieces that all matter:</p>
+        <ul style="margin:6px 0 0 18px;padding:0;font-size:13px;">
+          <li><code class="inline">Backend.asgi</code> — NOT <code class="inline">Backend.wsgi</code>. WSGI workers can't serve the spinner-coop WebSocket upgrade — <code class="inline">/ws/spinner/v1/</code> returns HTTP 400/426 silently in prod.</li>
+          <li><code class="inline">--config gunicorn.conf.py</code> — pulls in <code class="inline">worker_class = "uvicorn.workers.UvicornWorker"</code>. Without it, gunicorn uses sync workers which crash on the ASGI callable.</li>
+          <li><code class="inline">--bind 0.0.0.0:$PORT</code> — <code class="inline">gunicorn.conf.py</code> has no <code class="inline">bind</code> directive, so gunicorn defaults to <code class="inline">127.0.0.1:8000</code>, unreachable from Render's proxy.</li>
+          <li>Never add <code class="inline">-k gevent</code> — gevent is a WSGI worker, the spinner WS path will 426, and <code class="inline">psycogreen.gevent.patch_psycopg</code> is incompatible with asyncio.</li>
+        </ul>
+        <details><summary>Verify after deploy</summary><div>
+<pre># From your laptop, against prod:
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Version: 13" \
+  -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+  https://api.coupro.pro/ws/spinner/v1/
+# Expect: HTTP/1.1 101 Switching Protocols
+# If you see 400/426 → start command is wrong (WSGI entrypoint).</pre>
+        </div></details>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="render_build_cmd" />
+      <div class="body">
+        <h3>Set the <strong>Build Command</strong> to <code class="inline">./build.sh</code></h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p><code class="inline">Backend/build.sh</code> runs <code class="inline">pip install</code> → <code class="inline">collectstatic --no-input</code> → <code class="inline">migrate --no-input</code>. Render's default Python build command only runs the pip step — you'd ship without static files and without migrations applied.</p>
+<pre># Render dashboard → service → Settings → Build &amp; Deploy
+Build Command:  ./build.sh
+Start Command:  python -m gunicorn Backend.asgi:application --config gunicorn.conf.py --bind 0.0.0.0:$PORT
+Root Directory: Backend</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="render_settings_module" />
+      <div class="body">
+        <h3>Env: <code class="inline">DJANGO_SETTINGS_MODULE=Backend.production_settings</code></h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p><code class="inline">Backend/asgi.py:17</code> only calls <code class="inline">os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Backend.settings')</code> — without the override you ship the dev base config: no WhiteNoise, no HSTS, no Redis channel-layer guard, and DEBUG default behaviour. Set this in Render's env vars, not in <code class="inline">.env</code>.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="render_concurrency" />
+      <div class="body">
+        <h3>⚠️ Leave <code class="inline">WEB_CONCURRENCY=1</code> (or just don't set it)</h3>
+        <div class="meta"><span class="chip sec">Correctness bug if wrong</span></div>
+        <p><code class="inline">gunicorn.conf.py:40-54</code> defaults to <strong>1 worker</strong>, not cores+1. The spinner-coop <code class="inline">_ROOM_STORE</code> dict is per-process; with 2+ workers, two players in the "same" room hit different processes and see divergent state — the channel layer broadcasts events, but wallet debits run on whichever worker received the command. Opens a window for <strong>double-debit and missed-debit on gems</strong>.</p>
+        <p>Bumping this is fine only after the RoomStore is moved to Redis (tracked as H-5). Until then, treat the default as a load-bearing safety lock.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="render_health" />
+      <div class="body">
+        <h3>Set the <strong>Health Check Path</strong></h3>
+        <div class="meta"><span class="chip">Recommended</span></div>
+        <p>Point Render's health check at a lightweight endpoint (e.g. <code class="inline">/api/health/</code> if it exists, or <code class="inline">/api/version/</code>) so a slow auth/DB path doesn't fail the readiness probe and trigger restart loops.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="render_claudemd" />
+      <div class="body">
+        <h3>Fix stale CLAUDE.md note</h3>
+        <div class="meta"><span class="chip">Cleanup</span></div>
+        <p><code class="inline">CLAUDE.md:17</code> still says "Serving: Gunicorn + gevent workers" — that hasn't been true since the ASGI migration. Update to "Gunicorn + UvicornWorker (ASGI); WhiteNoise for static files" so the next person debugging this doesn't reach for <code class="inline">-k gevent</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 1. BOOT BLOCKERS =============== -->
+  <section class="group" data-key="g_boot">
+    <div class="head">
+      <h2>1. Boot blockers (Django prod env vars)</h2>
+      <span class="pill crit">Critical</span>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="boot_secret" />
+      <div class="body">
+        <h3>Generate &amp; set <code class="inline">SECRET_KEY</code></h3>
+        <div class="meta"><span class="chip req">Required</span><span class="chip sec">Secret</span></div>
+        <p>Used for Django sessions <em>and</em> JWT signing (<code class="inline">SIMPLE_JWT.SIGNING_KEY</code>). Rotating later logs every user out — pick a strong value once.</p>
+<pre>python -c "import secrets; print(secrets.token_urlsafe(50))"</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="boot_db" />
+      <div class="body">
+        <h3>Provision Postgres &amp; set <code class="inline">DATABASE_URL</code></h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p>Render Postgres / Supabase / Neon all work. Format: <code class="inline">postgres://user:pass@host:5432/dbname</code>. After setting, run <code class="inline">python manage.py migrate</code> from a Render shell.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="boot_redis" />
+      <div class="body">
+        <h3>Provision Redis &amp; set <code class="inline">REDIS_URL</code></h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p>Hard boot requirement — <code class="inline">production_settings.py:147</code> raises <code class="inline">RuntimeError</code> if missing whenever gunicorn/uvicorn/daphne starts. Used by Channels for spinner co-op WebSocket broadcasts across workers. Render Key-Value or Upstash both work.</p>
+        <details><summary>Verify after deploy</summary><div>
+<pre># From Render shell after deploy
+python -c "import os, redis; redis.from_url(os.environ['REDIS_URL']).ping()"</pre>
+        </div></details>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="boot_debug" />
+      <div class="body">
+        <h3>Confirm <code class="inline">DEBUG=false</code> on prod</h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p>Defaults to false now, but verify — DEBUG=true leaks tracebacks and disables CORS allow-list.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 2. DNS =============== -->
+  <section class="group" data-key="g_dns">
+    <div class="head">
+      <h2>2. DNS &amp; domains</h2>
+      <span class="pill warn">Half-day of waiting</span>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="dns_api" />
+      <div class="body">
+        <h3><code class="inline">api.coupro.pro</code> → Render backend</h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p>CNAME (or A) to the Render service. Already in <code class="inline">ALLOWED_HOSTS</code> + <code class="inline">CSRF_TRUSTED_ORIGINS</code>. Verify TLS provisioned (Render does it automatically once DNS resolves).</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="dns_app" />
+      <div class="body">
+        <h3><code class="inline">app.coupro.pro</code> → Web-Frontend host</h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p>Vercel/Netlify/Render Static — wherever you deploy <code class="inline">Web-Frontend/</code>. The mobile app expects deep links here (<code class="inline">app.json</code> → <code class="inline">associatedDomains</code> + Android intent filters).</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="dns_media" />
+      <div class="body">
+        <h3>R2 custom-domain CNAME (e.g. <code class="inline">media.coupro.pro</code>)</h3>
+        <div class="meta"><span class="chip opt">If you set R2_PUBLIC_MEDIA_URL</span></div>
+        <p>If <code class="inline">R2_PUBLIC_MEDIA_URL</code> is your-bucket.r2.dev that's fine but slower; mapping a custom domain via Cloudflare is one CNAME and one click in the R2 bucket settings.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="dns_resend" />
+      <div class="body">
+        <h3>Resend DNS records (SPF / DKIM / DMARC) green</h3>
+        <div class="meta"><span class="chip req">Required for delivery</span></div>
+        <p>Even with the API key configured, Resend won't send from <code class="inline">noreply@coupro.pro</code> until the domain shows "Verified" on the Domains tab. Check <a href="https://resend.com/domains" target="_blank" rel="noopener">resend.com/domains</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 3. OBSERVABILITY =============== -->
+  <section class="group" data-key="g_obs">
+    <div class="head">
+      <h2>3. Observability &amp; analytics</h2>
+      <span class="pill info">Recommended</span>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="obs_sentry_backend" />
+      <div class="body">
+        <h3>Sentry — backend project + <code class="inline">SENTRY_DSN</code></h3>
+        <div class="meta"><span class="chip">Optional but advised</span></div>
+        <p>Create a Python project under the <code class="inline">coupro</code> org. Empty DSN is fine (the SDK no-ops cleanly per the guard in <code class="inline">settings.py:48</code>) — but you lose backend error visibility.</p>
+<pre>SENTRY_DSN=https://...@oN.ingest.sentry.io/PROJECT_ID
+SENTRY_TRACES_SAMPLE_RATE=0.1
+SENTRY_PROFILES_SAMPLE_RATE=0.1
+SENTRY_ENVIRONMENT=production</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="obs_sentry_consumer" />
+      <div class="body">
+        <h3>Sentry — consumer project <code class="inline">consumer-frontend</code></h3>
+        <div class="meta"><span class="chip">Optional</span></div>
+        <p>Already wired in <code class="inline">Mobile-Frontend/app.json</code> under the <code class="inline">@sentry/react-native/expo</code> plugin. You just need the project to exist and to set <code class="inline">EXPO_PUBLIC_SENTRY_DSN</code> in <code class="inline">Mobile-Frontend/.env</code> (or per-profile in <code class="inline">eas.json</code>).</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="obs_sentry_merchant" />
+      <div class="body">
+        <h3>Sentry — merchant project <code class="inline">merchant-frontend</code></h3>
+        <div class="meta"><span class="chip">Optional</span></div>
+        <p>Same as above, for <code class="inline">Mobile-Merchant-Frontend</code>. There's no <code class="inline">.env</code> in that folder yet — create one.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="obs_sentry_token" />
+      <div class="body">
+        <h3><code class="inline">SENTRY_AUTH_TOKEN</code> for EAS source-map upload</h3>
+        <div class="meta"><span class="chip">Optional</span><span class="chip sec">Secret</span></div>
+        <p>Without it, crash reports show minified JS frames. Generate from Sentry → Settings → Auth Tokens (scope: <code class="inline">project:releases</code>), then store on EAS:</p>
+<pre>eas secret:create --scope project --name SENTRY_AUTH_TOKEN --value sntrys_...</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="obs_posthog_consumer" />
+      <div class="body">
+        <h3>PostHog (consumer) — paste API key into <code class="inline">Mobile-Frontend/app.json → extra.posthogApiKey</code></h3>
+        <div class="meta"><span class="chip req">Required to activate</span></div>
+        <p>Wrapper + PII strip + QR-image masking already shipped (<code class="inline">src/services/analytics/posthog.ts</code>). Keys are already in <code class="inline">extra</code> with placeholder empty strings — drop in the <code class="inline">phc_…</code> from your <strong>consumer-mobile</strong> PostHog project. Empty string keeps the SDK in silent no-op mode.</p>
+<pre>// Mobile-Frontend/app.json — already has the shape:
+"extra": {
+  "router": {},
+  "eas": { "projectId": "ba247e6a-..." },
+  "posthogApiKey": "",                          // ← paste phc_... here
+  "posthogHost": "https://us.i.posthog.com",
+  "posthogSessionReplay": false                 // flip to true only on dev-client builds
+}</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="obs_posthog_merchant" />
+      <div class="body">
+        <h3>PostHog (merchant) — paste API key into <code class="inline">Mobile-Merchant-Frontend/app.json → extra.posthogApiKey</code></h3>
+        <div class="meta"><span class="chip req">Required to activate</span></div>
+        <p>Wrapper ported to <code class="inline">Mobile-Merchant-Frontend/utils/analytics/posthog.ts</code> with the same PII strip + image mask contract. <code class="inline">identify()</code> wired on login (after merchant verification), <code class="inline">reset()</code> wired inside <code class="inline">clearTokens()</code> so it fires on logout, account deletion, refresh-token expiry, and merchant-403 fallbacks.</p>
+        <p>Use a <strong>separate PostHog project</strong> from consumer — different user populations and event vocab. Paste that project's <code class="inline">phc_…</code> here.</p>
+<pre>// Mobile-Merchant-Frontend/app.json:
+"extra": {
+  "router": {},
+  "eas": { "projectId": "f19a569d-..." },
+  "posthogApiKey": "",                          // ← paste merchant-project phc_... here
+  "posthogHost": "https://us.i.posthog.com",
+  "posthogSessionReplay": false
+}</pre>
+        <details><summary>Verify after key is in</summary><div>
+<pre># Log in once in dev build, then in PostHog UI:
+# Live → Events: should see $identify then any tracked events
+# with distinct_id = merchant user id (numeric string).
+# Persons → search the user id, confirm is_merchant: true on traits.</pre>
+        </div></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 4. MOBILE PLATFORM =============== -->
+  <section class="group" data-key="g_mobile">
+    <div class="head">
+      <h2>4. Mobile platform — Firebase, EAS, Maps</h2>
+      <span class="pill crit">Critical</span>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="mob_firebase_consumer" />
+      <div class="body">
+        <h3>Firebase project — consumer app</h3>
+        <div class="meta"><span class="chip req">Required if you forked</span></div>
+        <p>The committed <code class="inline">Mobile-Frontend/google-services.json</code> + <code class="inline">GoogleService-Info.plist</code> are tied to <em>someone else's</em> Firebase project. If you don't own that project, you'll get the wrong analytics destination and possibly build-time auth failures. Create a Firebase project, register Android (<code class="inline">com.cokayne.MobileFrontend</code>) and iOS (<code class="inline">com.cokayne.MobileFrontend</code>), download both files, replace them.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="mob_firebase_merchant" />
+      <div class="body">
+        <h3>Firebase project — merchant app</h3>
+        <div class="meta"><span class="chip req">Required if you forked</span></div>
+        <p>Same routine for <code class="inline">Mobile-Merchant-Frontend</code>, with bundle ID <code class="inline">com.cokayne.MobileMerchantFrontend</code>.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="mob_bundle" />
+      <div class="body">
+        <h3>Own / change bundle identifiers</h3>
+        <div class="meta"><span class="chip req">Required for store submission</span></div>
+        <p>If you don't own the <code class="inline">com.cokayne.*</code> Apple Team / Google Play account, change the IDs <strong>before</strong> first submission — they're hard to migrate later.</p>
+        <p>Touch points: <code class="inline">Mobile-Frontend/app.json</code> (<code class="inline">ios.bundleIdentifier</code>, <code class="inline">android.package</code>), <code class="inline">Mobile-Merchant-Frontend/app.json</code>, Firebase app registrations, backend <code class="inline">COUPRO_PLAY_STORE_ID</code> env.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="mob_eas" />
+      <div class="body">
+        <h3>EAS project IDs — <code class="inline">eas init</code> per app</h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p>Current IDs are tied to an existing Expo account:</p>
+<pre>Mobile-Frontend          ba247e6a-3cfa-4285-99f6-5867b5257c0e
+Mobile-Merchant-Frontend f19a569d-52b8-4052-9d9b-d8f009d33af2</pre>
+        <p>Run <code class="inline">eas init</code> in each folder under your own account.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="mob_maps_rotate" />
+      <div class="body">
+        <h3>⚠️ Rotate Google Maps API key (currently in git)</h3>
+        <div class="meta"><span class="chip sec">Security</span></div>
+        <p>The same key <code class="inline">AIzaSyACVfhHwjl0L5QWVRUxWOyle4UOysZPSbA</code> is committed in both <code class="inline">Mobile-Frontend/app.json:148</code> and <code class="inline">Mobile-Merchant-Frontend/app.json:93</code>. It's in your git history. Anyone with read access can pull it.</p>
+        <ol style="margin:6px 0 0 18px;padding:0;font-size:13px;">
+          <li>Google Cloud → APIs &amp; Services → Credentials → <strong>regenerate key</strong>.</li>
+          <li>Restrict the new key to your Android package + SHA-1 fingerprint AND your iOS bundle ID.</li>
+          <li>Replace the literal in both <code class="inline">app.json</code> files (or move to <code class="inline">app.config.ts</code> reading from <code class="inline">EXPO_PUBLIC_GOOGLE_MAPS_KEY</code>).</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="mob_env_consumer" />
+      <div class="body">
+        <h3>Create <code class="inline">Mobile-Frontend/.env</code></h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p>Currently only sets <code class="inline">EXPO_PUBLIC_API_URL</code>. Add:</p>
+<pre>EXPO_PUBLIC_API_URL=https://api.coupro.pro
+EXPO_PUBLIC_SENTRY_DSN=https://...@oN.ingest.sentry.io/PROJECT_ID
+EXPO_PUBLIC_ENV=production</pre>
+        <p>Note: <code class="inline">_layout.tsx:48</code> only enables Sentry when <code class="inline">NODE_ENV === 'production'</code>, which only true in production EAS builds — local <code class="inline">npm start</code> won't ship events.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <input type="checkbox" data-key="mob_env_merchant" />
+      <div class="body">
+        <h3>Create <code class="inline">Mobile-Merchant-Frontend/.env</code></h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+        <p>No <code class="inline">.env</code> exists yet — <code class="inline">utils/api.ts</code> falls back to the test URL via <code class="inline">jest.setup.js</code> for tests. For real builds:</p>
+<pre>EXPO_PUBLIC_API_URL=https://api.coupro.pro
+EXPO_PUBLIC_BACKEND_MODE=production
+EXPO_PUBLIC_SENTRY_DSN=https://...</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 5. DEEP LINKS =============== -->
+  <section class="group" data-key="g_links">
+    <div class="head">
+      <h2>5. Deep links / Universal Links</h2>
+      <span class="pill info">Required for share flow</span>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="link_ios_team" />
+      <div class="body">
+        <h3>Set <code class="inline">COUPRO_IOS_TEAM_ID</code> in backend env</h3>
+        <div class="meta"><span class="chip req">Required for iOS deep link</span></div>
+        <p>Used by the AASA (apple-app-site-association) endpoint. Find it in Apple Developer → Membership.</p>
+      </div>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="link_app_store" />
+      <div class="body">
+        <h3>Set <code class="inline">COUPRO_APP_STORE_ID</code> after first iOS submission</h3>
+        <div class="meta"><span class="chip">Required after submit</span></div>
+        <p>Numeric ID assigned by App Store Connect (e.g. <code class="inline">6470000000</code>). Used by the web app-store-handoff helper.</p>
+      </div>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="link_android_sha" />
+      <div class="body">
+        <h3>Set <code class="inline">COUPRO_ANDROID_SHA256</code></h3>
+        <div class="meta"><span class="chip req">Required for Android App Links</span></div>
+        <p>The signing cert SHA-256 fingerprint. From Google Play Console → App integrity → app signing certificate. Used by the <code class="inline">/.well-known/assetlinks.json</code> endpoint.</p>
+<pre># If you have the keystore locally
+keytool -list -v -keystore upload-keystore.jks -alias upload | grep SHA256</pre>
+      </div>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="link_play_store" />
+      <div class="body">
+        <h3>Confirm <code class="inline">COUPRO_PLAY_STORE_ID</code></h3>
+        <div class="meta"><span class="chip">Optional</span></div>
+        <p>Defaults to <code class="inline">com.cokayne.MobileFrontend</code>. Only matters if you changed the package name.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 6. WEB =============== -->
+  <section class="group" data-key="g_web">
+    <div class="head">
+      <h2>6. Web-Frontend (Next.js)</h2>
+      <span class="pill info">Required if deploying web</span>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="web_env" />
+      <div class="body">
+        <h3>Create <code class="inline">Web-Frontend/.env.local</code> (or host env)</h3>
+        <div class="meta"><span class="chip req">Required</span></div>
+<pre>NEXT_PUBLIC_API_URL=https://api.coupro.pro
+NEXT_PUBLIC_COUPRO_APP_STORE_ID=6470000000        # after iOS submit
+NEXT_PUBLIC_COUPRO_PLAY_STORE_ID=com.cokayne.MobileFrontend
+NEXT_PUBLIC_WEB_FLOW_POINTS_ENABLED=true          # if enabling web couPoints
+# Optional direct overrides:
+# NEXT_PUBLIC_APP_STORE_URL=https://apps.apple.com/app/id...
+# NEXT_PUBLIC_PLAY_STORE_URL=https://play.google.com/store/apps/details?id=...</pre>
+      </div>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="web_flag" />
+      <div class="body">
+        <h3>Flip <code class="inline">WEB_CONSUMER_FLOW_ENABLED=true</code> on backend</h3>
+        <div class="meta"><span class="chip">Optional</span></div>
+        <p>Once the Web-Frontend <code class="inline">/w/</code> routes are deployed, set this in the backend env so claim/collection landing pages redirect into the web flow.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 7. STORE SUBMISSION =============== -->
+  <section class="group" data-key="g_store">
+    <div class="head">
+      <h2>7. Store submission</h2>
+      <span class="pill warn">Slow — start early</span>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="store_apple_dev" />
+      <div class="body">
+        <h3>Apple Developer Program enrollment ($99/yr)</h3>
+        <p>Needed for App Store Connect, Team ID, and TestFlight. Allow 24–48h for approval.</p>
+      </div>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="store_play" />
+      <div class="body">
+        <h3>Google Play Console one-time $25</h3>
+        <p>Needed for app signing cert (which generates the SHA-256 you need above).</p>
+      </div>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="store_eas_submit" />
+      <div class="body">
+        <h3><code class="inline">eas submit</code> credentials wired up</h3>
+        <p>App Store: API key from App Store Connect → Keys → App Store Connect API. Play: a service-account JSON from Google Cloud with Play Developer API access, granted access in Play Console.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== 8. ALREADY DONE =============== -->
+  <section class="group completed" data-key="g_done">
+    <div class="head">
+      <h2>8. ✅ Already configured — verify before celebrating</h2>
+      <span class="pill done">Done (by you)</span>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="ver_r2" />
+      <div class="body">
+        <h3>R2 — smoke test the round trip</h3>
+<pre># From Render shell with prod env loaded
+python manage.py shell -c "
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+name = default_storage.save('debug/ping.txt', ContentFile(b'ok'))
+print('Saved:', name, 'URL:', default_storage.url(name))
+"</pre>
+        <p>Expected: URL points to your <code class="inline">R2_PUBLIC_MEDIA_URL</code> domain, and fetching it returns <code class="inline">ok</code>. If you get a 403, the bucket's not public — check the R2 custom-domain settings.</p>
+      </div>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="ver_twilio" />
+      <div class="body">
+        <h3>Twilio — send yourself a real OTP</h3>
+<pre># From Render shell
+python manage.py shell -c "
+from api.services.sms_service import send_otp_sms
+send_otp_sms('+886912345678', '123456')  # your number
+"</pre>
+        <p>Confirm <code class="inline">SMS_DEV_MODE</code> is not <code class="inline">true</code> in prod (otherwise it just logs and returns). If sending to Taiwan numbers, verify carrier registration in Twilio console.</p>
+      </div>
+    </div>
+    <div class="step">
+      <input type="checkbox" data-key="ver_resend" />
+      <div class="body">
+        <h3>Resend — send a real welcome email</h3>
+<pre># From Render shell
+python manage.py shell -c "
+from django.core.mail import send_mail
+send_mail('CouPro prod test', 'It works.', 'noreply@coupro.pro', ['you@yourdomain.com'])
+"</pre>
+        <p>If you get <code class="inline">EMAIL_BACKEND</code> = console, it didn't actually send. Confirm <code class="inline">EMAIL_BACKEND</code> in env points to a real Resend backend (e.g. <code class="inline">django_resend.backends.EmailBackend</code> if you use the Resend Django package, or the resend HTTP transport class your project ships).</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Path: <code class="inline">docs/setup-checklist.html</code> — open it again any time. Progress is stored in your browser's localStorage, scoped to this page URL. Press <kbd>Reset</kbd> in the header to clear.
+  </footer>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'coupro_setup_checklist_v1';
+  const boxes = Array.from(document.querySelectorAll('input[type=checkbox][data-key]'));
+  const bar = document.getElementById('pbar');
+  const pdone = document.getElementById('pdone');
+  const ptot = document.getElementById('ptot');
+  ptot.textContent = boxes.length;
+
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (e) {}
+
+  function refresh() {
+    let done = 0;
+    boxes.forEach(b => {
+      const step = b.closest('.step');
+      if (b.checked) { done++; step && step.classList.add('done'); }
+      else { step && step.classList.remove('done'); }
+    });
+    pdone.textContent = done;
+    bar.style.width = boxes.length ? (done / boxes.length * 100).toFixed(1) + '%' : '0%';
+  }
+
+  boxes.forEach(b => {
+    b.checked = !!saved[b.dataset.key];
+    b.addEventListener('change', () => {
+      saved[b.dataset.key] = b.checked;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      refresh();
+    });
+  });
+  refresh();
+
+  document.getElementById('reset').addEventListener('click', () => {
+    if (!confirm('Reset all checkboxes?')) return;
+    saved = {};
+    localStorage.removeItem(STORAGE_KEY);
+    boxes.forEach(b => b.checked = false);
+    refresh();
+  });
+})();
+</script>
+</body>
+</html>

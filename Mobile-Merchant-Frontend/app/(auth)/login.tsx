@@ -6,6 +6,7 @@ import { DismissKeyboardView } from '@/app/components/DismissKeyboardView';
 import { colors } from '@/constants/colors';
 import { LoginFormData } from '@/types';
 import { useAuth } from '@/app/components/providers/AuthProvider';
+import { identify } from '@/utils/analytics/posthog';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -79,6 +80,11 @@ export default function LoginScreen() {
           setShowErrorModal(true);
           return;
         }
+
+        // Bind this device to the merchant's distinct id so subsequent
+        // events attribute to the user instead of the anonymous bucket.
+        // The wrapper PII-strips traits and no-ops without an API key.
+        identify(String(userInfo.id), { is_merchant: true });
       } catch (userInfoError: any) {
         console.error('[Login] Failed to verify merchant status:', userInfoError);
         // If we can't verify merchant status, still allow login but log warning

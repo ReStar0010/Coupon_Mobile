@@ -4,7 +4,18 @@ DRF throttles keyed by request attributes other than IP.
 
 import re
 
-from rest_framework.throttling import SimpleRateThrottle
+from rest_framework.throttling import SimpleRateThrottle, UserRateThrottle
+
+
+class RedemptionThrottle(UserRateThrottle):
+    """
+    Rate limit redemption endpoints to prevent brute-force attacks on 6-digit codes.
+
+    Scope rate comes from REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['redemption'].
+    Applied to: redeem_coupon, merchant_redeem, validate_unified_redemption_code.
+    """
+
+    scope = "redemption"
 
 
 class PhoneRegistrationLookupThrottle(SimpleRateThrottle):

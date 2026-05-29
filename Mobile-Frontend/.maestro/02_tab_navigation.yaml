@@ -1,0 +1,27 @@
+appId: com.cokayne.MobileFrontend
+---
+- launchApp
+
+- assertVisible: "我的券"
+
+# Navigate to Map tab
+- tapOn:
+    id: "tab-map"
+- assertVisible: "CouMap"
+
+# Navigate to Spinner tab
+- tapOn:
+    id: "tab-spinner"
+- assertVisible:
+    id: "spin-button"
+
+# Back to Home tab
+- tapOn:
+    id: "tab-home"
+- assertVisible: "我的券"
+
+# Open Settings from Home header
+- tapOn:
+    id: "settings-btn"
+- assertVisible:
+    id: "profile-name"

@@ -117,6 +117,17 @@ export const clearTokens = async () => {
   } catch {
     // Fallback to in-memory storage
   }
+
+  // Anonymize the PostHog distinct id whenever auth state ends — covers
+  // explicit logout, account deletion, refresh-token expiry, and the
+  // merchant-authorization 403 fallback. `reset()` is a silent no-op
+  // when PostHog isn't configured, so this is safe to call unguarded.
+  try {
+    const { reset } = await import('./analytics/posthog');
+    reset();
+  } catch {
+    // Telemetry must never break sign-out.
+  }
 };
 
 // Check if endpoint is public

@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CouPro — FE ↔ BE Integration Plan</title>
+<style>
+  /* ───────── tokens ───────── */
+  :root {
+    --bg: #f5efe1;
+    --paper: #ffffff;
+    --fg: #0c0c0c;
+    --muted: #5a5247;
+    --subtle: #c8c0ad;
+    --border: #0c0c0c;
+    --yellow: #ffd34d;
+    --yellow-deep: #f0b400;
+    --purple: #c0a3ff;
+    --purple-deep: #7a55d3;
+    --green: #6ee094;
+    --red: #ff6c5a;
+    --card: #ffffff;
+    --shadow: #0c0c0c;
+    --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); }
+  body { padding: clamp(20px, 4vw, 56px) clamp(16px, 4vw, 64px) 240px; line-height: 1.55; }
+
+  /* ───────── header ───────── */
+  header.hero {
+    border: 3px solid var(--border);
+    background: var(--yellow);
+    padding: 28px 28px 22px;
+    position: relative;
+    margin-bottom: 28px;
+    box-shadow: 8px 8px 0 0 var(--shadow);
+  }
+  header.hero h1 {
+    margin: 0 0 6px;
+    font-size: clamp(28px, 4.6vw, 48px);
+    letter-spacing: -1.4px;
+    line-height: 1.02;
+    font-weight: 900;
+  }
+  header.hero .sub {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--fg);
+    opacity: 0.7;
+  }
+  header.hero .tag {
+    position: absolute;
+    top: -14px;
+    right: 18px;
+    background: var(--fg);
+    color: var(--yellow);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 6px 10px;
+    text-transform: uppercase;
+  }
+  .meta-row {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .meta-chip {
+    background: var(--paper);
+    border: 2px solid var(--border);
+    padding: 4px 10px;
+  }
+
+  /* ───────── section ───────── */
+  section { margin-bottom: 28px; }
+  h2 {
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    margin: 0 0 14px;
+    display: inline-block;
+    padding: 6px 14px;
+    background: var(--fg);
+    color: var(--bg);
+  }
+  h3 { font-size: 17px; margin: 0 0 8px; letter-spacing: -0.3px; }
+  p { margin: 0 0 10px; }
+
+  /* ───────── current state table ───────── */
+  .map-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--paper);
+    border: 3px solid var(--border);
+    box-shadow: 6px 6px 0 0 var(--shadow);
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .map-table th, .map-table td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1.5px solid var(--subtle);
+    vertical-align: top;
+  }
+  .map-table th {
+    background: var(--purple);
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    border-bottom: 3px solid var(--border);
+  }
+  .map-table tr:last-child td { border-bottom: 0; }
+  .map-table code { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 1px 6px; border: 1px solid var(--subtle); }
+  .status-ok { color: #0a7a36; font-weight: 700; }
+  .status-warn { color: #b35c00; font-weight: 700; }
+  .status-miss { color: #b32100; font-weight: 700; }
+
+  /* ───────── phase cards ───────── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 18px;
+  }
+  .phase {
+    background: var(--paper);
+    border: 3px solid var(--border);
+    box-shadow: 6px 6px 0 0 var(--shadow);
+    padding: 16px 18px 18px;
+    position: relative;
+  }
+  .phase .head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    border-bottom: 2px dashed var(--subtle);
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+  }
+  .phase .badge {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--fg);
+    color: var(--yellow);
+    padding: 3px 8px;
+    letter-spacing: 1.5px;
+  }
+  .phase[data-key="A"] .badge { background: var(--purple-deep); color: #fff; }
+  .phase[data-key="B"] .badge { background: var(--yellow-deep); color: var(--fg); }
+  .phase[data-key="C"] .badge { background: var(--green); color: var(--fg); }
+  .phase[data-key="D"] .badge { background: var(--red); color: #fff; }
+  .phase[data-key="E"] .badge { background: var(--purple); color: var(--fg); }
+  .phase[data-key="F"] .badge { background: var(--fg); color: var(--yellow); }
+  .phase[data-key="G"] .badge { background: var(--subtle); color: var(--fg); }
+
+  .phase h3 { flex: 1; }
+  .phase .est {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1.2px;
+  }
+
+  .phase-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ───────── checkbox ───────── */
+  .check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    cursor: pointer;
+    border-bottom: 1px solid var(--bg);
+  }
+  .check:last-child { border-bottom: 0; }
+  .check input {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    background: var(--paper);
+    margin: 2px 0 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .check input:checked { background: var(--yellow); }
+  .check input:checked::after {
+    content: "✓";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 14px;
+    color: var(--fg);
+  }
+  .check .label { font-size: 14px; }
+  .check .label code { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 1px 5px; border: 1px solid var(--subtle); }
+  .check.master {
+    border-bottom: 0;
+    margin-bottom: 4px;
+  }
+  .check.master .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ───────── risks ───────── */
+  .risks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .risk {
+    border: 3px solid var(--border);
+    padding: 12px 14px;
+    background: var(--paper);
+    box-shadow: 4px 4px 0 0 var(--shadow);
+  }
+  .risk.high { background: #ffe2dd; }
+  .risk.med { background: #fff3cf; }
+  .risk.low { background: #e6f7e8; }
+  .risk .sev {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: inline-block;
+    padding: 2px 6px;
+    background: var(--fg);
+    color: #fff;
+  }
+  .risk .sev.high-tag { background: var(--red); }
+  .risk .sev.med-tag { background: var(--yellow-deep); color: var(--fg); }
+  .risk .sev.low-tag { background: var(--green); color: var(--fg); }
+  .risk p { font-size: 13px; margin: 0; }
+
+  /* ───────── notes ───────── */
+  .notes textarea {
+    width: 100%;
+    min-height: 110px;
+    padding: 12px 14px;
+    border: 3px solid var(--border);
+    background: var(--paper);
+    box-shadow: 4px 4px 0 0 var(--shadow);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+  }
+  .notes textarea:focus { background: #fff8dd; }
+
+  .order-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .order-row label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--paper);
+    border: 2px solid var(--border);
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .order-row input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    background: var(--paper);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .order-row input[type="radio"]:checked { background: var(--yellow); box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 7px var(--fg); }
+
+  /* ───────── action bar ───────── */
+  .action-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--fg);
+    border-top: 4px solid var(--yellow);
+    padding: 14px clamp(16px, 4vw, 64px);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    z-index: 50;
+    box-shadow: 0 -8px 0 0 rgba(0,0,0,0.15);
+  }
+  .status-text {
+    flex: 1;
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    min-width: 220px;
+  }
+  .status-text strong { color: var(--yellow); font-size: 15px; }
+
+  .btn {
+    background: var(--yellow);
+    color: var(--fg);
+    border: 3px solid var(--yellow);
+    font-family: var(--sans);
+    font-weight: 900;
+    font-size: 15px;
+    letter-spacing: -0.2px;
+    padding: 12px 22px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 0 #000;
+    transition: transform 80ms, box-shadow 80ms;
+  }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 0 #000; }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 0 #000; }
+  .btn.secondary {
+    background: transparent;
+    color: var(--yellow);
+    border-color: var(--yellow);
+    box-shadow: 4px 4px 0 0 rgba(255,211,77,0.3);
+  }
+
+  /* ───────── prompt panel ───────── */
+  .prompt-panel {
+    margin-top: 20px;
+    border: 3px solid var(--border);
+    background: #0c0c0c;
+    color: #e8e8e8;
+    box-shadow: 8px 8px 0 0 var(--yellow);
+    padding: 18px 20px;
+    display: none;
+  }
+  .prompt-panel.open { display: block; }
+  .prompt-panel .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .prompt-panel .head h3 { color: var(--yellow); margin: 0; font-family: var(--mono); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+  .prompt-panel pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+    max-height: 50vh;
+    overflow-y: auto;
+    color: #f5efe1;
+  }
+  .prompt-panel .ack {
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: 1px;
+    opacity: 0;
+    transition: opacity 200ms;
+  }
+  .prompt-panel .ack.show { opacity: 1; }
+
+  .copy-mini {
+    background: var(--yellow);
+    color: var(--fg);
+    border: 2px solid var(--yellow);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    padding: 6px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .copy-mini:hover { background: #fff; }
+
+  /* ───────── tiny utilities ───────── */
+  .row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 13px; }
+  details summary { cursor: pointer; font-family: var(--mono); font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); padding: 6px 0; }
+
+  @media (max-width: 640px) {
+    header.hero { padding: 22px 18px; box-shadow: 5px 5px 0 0 var(--shadow); }
+    .phase, .map-table, .notes textarea { box-shadow: 4px 4px 0 0 var(--shadow); }
+    h2 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="tag">Plan · 2026-05-14</span>
+  <h1>FE ↔ BE Integration Plan</h1>
+  <div class="sub">Coupon_Mobile_Frontend · branch refactor/frontend</div>
+  <div class="meta-row">
+    <span class="meta-chip">Backend: Django 5.2 + DRF + Channels</span>
+    <span class="meta-chip">Frontend: Expo 54 / RN 0.81</span>
+    <span class="meta-chip">Local commits only — no merge, no push</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════ current state ═══════════════════════════════════════ -->
+<section>
+  <h2>Current state map</h2>
+  <p class="muted">FE service modules call paths that the BE doesn't yet match. Most screens still render <code>SAMPLE_*</code> arrays and never hit <code>apiClient</code>. Only <code>AuthContext</code> and <code>WalletContext</code> actually fetch.</p>
+  <table class="map-table">
+    <thead>
+      <tr><th>FE expects</th><th>BE reality</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>GET /api/coupons/</code> (list mine)</td><td>Only public <code>/api/store-coupons/</code>, <code>/api/exclusive-coupons/</code></td><td><span class="status-miss">MISSING</span></td></tr>
+      <tr><td><code>GET /api/coupons/{id}/</code></td><td><code>get_coupon_detail</code> exists</td><td><span class="status-ok">OK</span></td></tr>
+      <tr><td><code>POST /api/coupons/{id}/redeem/</code></td><td>BE path is <code>/api/redeem/&lt;id&gt;/</code></td><td><span class="status-warn">PATH MISMATCH</span></td></tr>
+      <tr><td><code>POST /api/coupons/{id}/share/</code></td><td>BE path is <code>/api/coupon/&lt;id&gt;/share/</code></td><td><span class="status-warn">PATH MISMATCH</span></td></tr>
+      <tr><td><code>GET /api/merchants/nearby/</code></td><td>None — Store has lat/lng though</td><td><span class="status-miss">MISSING</span></td></tr>
+      <tr><td><code>GET /api/merchants/{id}/</code></td><td>No public detail (only merchant-self)</td><td><span class="status-miss">MISSING</span></td></tr>
+      <tr><td><code>POST /api/merchants/{id}/flag|block/</code></td><td>Different shape under <code>/api/content/</code> and <code>/api/user/blocked-merchants/</code></td><td><span class="status-warn">PATH MISMATCH</span></td></tr>
+      <tr><td><code>GET/PATCH/DELETE /api/profile/</code></td><td>Split across <code>/api/auth/user-info/</code>, <code>/api/user/phone/</code>, <code>/api/account/delete/</code></td><td><span class="status-warn">SPLIT</span></td></tr>
+      <tr><td><code>GET /api/wallet/</code></td><td>Gems + couPoints on <code>StudentProfile</code>, no endpoint</td><td><span class="status-miss">MISSING</span></td></tr>
+      <tr><td><code>POST /api/spinner/draw/</code></td><td><code>/api/coupon/daily-draw/</code>, template-based, no gems param</td><td><span class="status-warn">CONTRACT MISMATCH</span></td></tr>
+      <tr><td><code>GET /api/spinner/</code> state</td><td>—</td><td><span class="status-miss">MISSING</span></td></tr>
+      <tr><td><code>POST /api/feedback/</code></td><td>Exists</td><td><span class="status-ok">OK</span></td></tr>
+      <tr><td>Spinner co-op <code>ws/spinner/v1/</code></td><td>Channels consumer fully built</td><td><span class="status-ok">OK</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════ phases ═══════════════════════════════════════ -->
+<section>
+  <h2>Phases — pick what to ship</h2>
+  <p class="muted">Tick the phase to include it in the prompt. Tick individual tasks to scope tighter. Toggle the whole phase from the master row.</p>
+
+  <div class="grid" id="phaseGrid">
+
+    <!-- Phase A -->
+    <div class="phase" data-key="A">
+      <div class="head">
+        <span class="badge">PHASE A</span>
+        <h3>Wallet + Profile rationalization</h3>
+        <span class="est">BE · ~M</span>
+      </div>
+      <label class="check master"><input type="checkbox" class="phase-master" data-phase="A" checked /><span class="label">Include entire phase</span></label>
+      <label class="check"><input type="checkbox" data-phase="A" data-task="A1" checked /><span class="label"><strong>A1</strong> — Add <code>GET/PATCH/DELETE /api/profile/</code> thin wrappers around existing user-info / phone / consumer delete views</span></label>
+      <label class="check"><input type="checkbox" data-phase="A" data-task="A2" checked /><span class="label"><strong>A2</strong> — Add <code>GET /api/wallet/</code> returning <code>{ gems, couPoints }</code> from <code>StudentProfile</code></span></label>
+      <label class="check"><input type="checkbox" data-phase="A" data-task="A3" checked /><span class="label"><strong>A3</strong> — Add <code>GET /api/coupons/</code> returning the authenticated user's owned coupons in FE shape (project ids/dates/tier on BE)</span></label>
+    </div>
+
+    <!-- Phase B -->
+    <div class="phase" data-key="B">
+      <div class="head">
+        <span class="badge">PHASE B</span>
+        <h3>Coupon redeem / share path alignment</h3>
+        <span class="est">BE · ~S</span>
+      </div>
+      <label class="check master"><input type="checkbox" class="phase-master" data-phase="B" checked /><span class="label">Include entire phase</span></label>
+      <label class="check"><input type="checkbox" data-phase="B" data-task="B4" checked /><span class="label"><strong>B4</strong> — Alias routes <code>/api/coupons/&lt;id&gt;/redeem/</code> and <code>/api/coupons/&lt;id&gt;/share/</code> forwarding to existing views (don't rename — internal callers untouched)</span></label>
+    </div>
+
+    <!-- Phase C -->
+    <div class="phase" data-key="C">
+      <div class="head">
+        <span class="badge">PHASE C</span>
+        <h3>Merchant discovery + sheet data</h3>
+        <span class="est">BE · ~M</span>
+      </div>
+      <label class="check master"><input type="checkbox" class="phase-master" data-phase="C" checked /><span class="label">Include entire phase</span></label>
+      <label class="check"><input type="checkbox" data-phase="C" data-task="C5" checked /><span class="label"><strong>C5</strong> — <code>GET /api/merchants/nearby/?lat&amp;lng&amp;radius</code> with bounding-box prefilter then Haversine; excludes blocked stores for authenticated users</span></label>
+      <label class="check"><input type="checkbox" data-phase="C" data-task="C6" checked /><span class="label"><strong>C6</strong> — <code>GET /api/merchants/&lt;id&gt;/</code> returns metadata + <code>myCoupons</code>, <code>sharedCoupons</code>, <code>news</code> for the bottom sheet</span></label>
+      <label class="check"><input type="checkbox" data-phase="C" data-task="C7" checked /><span class="label"><strong>C7</strong> — New <code>StoreNews</code> model + migration #54 (store FK, body, created_at). Return latest 5 per store; merchant CRUD later.</span></label>
+      <label class="check"><input type="checkbox" data-phase="C" data-task="C8" checked /><span class="label"><strong>C8</strong> — Thin wrappers <code>/api/merchants/&lt;id&gt;/flag|block/</code> forwarding to existing moderation endpoints</span></label>
+    </div>
+
+    <!-- Phase D -->
+    <div class="phase" data-key="D">
+      <div class="head">
+        <span class="badge">PHASE D</span>
+        <h3>Scan-to-receive flow</h3>
+        <span class="est">BE + FE · ~M</span>
+      </div>
+      <label class="check master"><input type="checkbox" class="phase-master" data-phase="D" checked /><span class="label">Include entire phase</span></label>
+      <label class="check"><input type="checkbox" data-phase="D" data-task="D9" checked /><span class="label"><strong>D9</strong> — <code>POST /api/qr-claim/receive/</code> taking the scanned table QR payload and claiming a coupon (delegate to existing <code>claim_coupon_via_qr</code>)</span></label>
+      <label class="check"><input type="checkbox" data-phase="D" data-task="D10" checked /><span class="label"><strong>D10</strong> — Wire <code>CouponReceiveQRScreen.handleScan</code> to call the new endpoint and reflect success/error</span></label>
+    </div>
+
+    <!-- Phase E -->
+    <div class="phase" data-key="E">
+      <div class="head">
+        <span class="badge">PHASE E</span>
+        <h3>Spinner solo-draw HTTP</h3>
+        <span class="est">BE + FE · ~S</span>
+      </div>
+      <label class="check master"><input type="checkbox" class="phase-master" data-phase="E" checked /><span class="label">Include entire phase</span></label>
+      <label class="check"><input type="checkbox" data-phase="E" data-task="E11" checked /><span class="label"><strong>E11</strong> — <code>GET /api/spinner/</code> + <code>POST /api/spinner/draw/</code> accepting <code>{ gems }</code>; mirrors daily-draw semantics with the FE reward table</span></label>
+      <label class="check"><input type="checkbox" data-phase="E" data-task="E12" checked /><span class="label"><strong>E12</strong> — Wire <code>SpinnerScreen.spin</code> to <code>drawCoupon(gems)</code>; keep local animation, reconcile final result from server</span></label>
+    </div>
+
+    <!-- Phase F -->
+    <div class="phase" data-key="F">
+      <div class="head">
+        <span class="badge">PHASE F</span>
+        <h3>Frontend screen wiring</h3>
+        <span class="est">FE · ~L</span>
+      </div>
+      <label class="check master"><input type="checkbox" class="phase-master" data-phase="F" checked /><span class="label">Include entire phase</span></label>
+      <label class="check"><input type="checkbox" data-phase="F" data-task="F1" checked /><span class="label"><strong>F1</strong> — Verify <code>WalletContext</code> refresh-on-focus + error boundary</span></label>
+      <label class="check"><input type="checkbox" data-phase="F" data-task="F2" checked /><span class="label"><strong>F2</strong> — <code>HomeScreen</code> → <code>listMyCoupons()</code></span></label>
+      <label class="check"><input type="checkbox" data-phase="F" data-task="F3" checked /><span class="label"><strong>F3</strong> — <code>MapScreen</code> → <code>listNearby(lat, lng)</code> + <code>getMerchant(id)</code> on pin tap to populate the sheet</span></label>
+      <label class="check"><input type="checkbox" data-phase="F" data-task="F4" checked /><span class="label"><strong>F4</strong> — <code>MerchantSheet</code> "領取" CTA pushes <code>CouponReceiveQRScreen</code></span></label>
+      <label class="check"><input type="checkbox" data-phase="F" data-task="F5" checked /><span class="label"><strong>F5</strong> — <code>CouponDetail</code> / <code>UseQR</code> / <code>Share</code> → <code>getCoupon</code>, <code>redeemCoupon</code>, <code>shareCoupon</code></span></label>
+      <label class="check"><input type="checkbox" data-phase="F" data-task="F6" checked /><span class="label"><strong>F6</strong> — <code>SpinnerScreen</code> → <code>drawCoupon</code></span></label>
+      <label class="check"><input type="checkbox" data-phase="F" data-task="F7" checked /><span class="label"><strong>F7</strong> — Settings modals → <code>updateProfile</code>, <code>deleteAccount</code>, <code>submitFeedback</code>, blocked merchants, phone OTP</span></label>
+    </div>
+
+    <!-- Phase G -->
+    <div class="phase" data-key="G">
+      <div class="head">
+        <span class="badge">PHASE G</span>
+        <h3>Tests</h3>
+        <span class="est">~M</span>
+      </div>
+      <label class="check master"><input type="checkbox" class="phase-master" data-phase="G" checked /><span class="label">Include entire phase</span></label>
+      <label class="check"><input type="checkbox" data-phase="G" data-task="G13" checked /><span class="label"><strong>G13</strong> — Backend pytest cases for each new endpoint (nearby radius, merchant detail with news/shared/owned, wallet, profile, receive)</span></label>
+      <label class="check"><input type="checkbox" data-phase="G" data-task="G14" checked /><span class="label"><strong>G14</strong> — Frontend service tests + screen-level tests mocking service modules (pattern from <code>WalletContext.test.tsx</code>)</span></label>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ risks ═══════════════════════════════════════ -->
+<section>
+  <h2>Risks</h2>
+  <div class="risks">
+    <div class="risk high">
+      <span class="sev high-tag">HIGH</span>
+      <p>FE <code>Coupon</code> uses string <code>id</code>, formatted <code>expires</code> string, and <code>tier</code> field. BE <code>Coupon</code> uses int id + datetime + no tier. <strong>Project on BE</strong> in the new <code>/api/coupons/</code> view.</p>
+    </div>
+    <div class="risk high">
+      <span class="sev high-tag">HIGH</span>
+      <p><code>StoreNews</code> migration #54 must not collide with the freshly added #53 <code>spinner_coop_wallet_round</code>. Run <code>makemigrations</code> + sanity-check graph before commit.</p>
+    </div>
+    <div class="risk med">
+      <span class="sev med-tag">MEDIUM</span>
+      <p>FE expects <code>gems</code> as a draw cost; BE <code>daily_draw</code> is template-based. Phase E reconciles by computing reward distribution server-side keyed by gem count.</p>
+    </div>
+    <div class="risk med">
+      <span class="sev med-tag">MEDIUM</span>
+      <p><code>listNearby</code> performance — must use an indexed bounding-box filter before Haversine, not raw distance on every row.</p>
+    </div>
+    <div class="risk med">
+      <span class="sev med-tag">MEDIUM</span>
+      <p>Touching wallet plumbing in Phase A must not break spinner-coop wallet round atomicity (migration 0053). Keep <code>SpinnerCoopWalletRound</code> writes inside their existing transaction.</p>
+    </div>
+    <div class="risk low">
+      <span class="sev low-tag">LOW</span>
+      <p>Path aliases (Phase B) may confuse Swagger — fine for now, document in <code>docs/RUNBOOK.md</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ decisions ═══════════════════════════════════════ -->
+<section>
+  <h2>Decisions</h2>
+
+  <details open>
+    <summary>Execution order</summary>
+    <div class="order-row" id="orderRow">
+      <label><input type="radio" name="order" value="phases-as-listed" checked />Phases as listed (A → G)</label>
+      <label><input type="radio" name="order" value="backend-first" />All backend (A–E) first, then FE (F), then tests (G)</label>
+      <label><input type="radio" name="order" value="slice-by-feature" />Slice by feature — Wallet, Coupon, Merchant, Spinner, Receive</label>
+      <label><input type="radio" name="order" value="ask-first" />Stop after each phase and check in</label>
+    </div>
+  </details>
+
+  <details open style="margin-top: 14px;">
+    <summary>Branch policy</summary>
+    <p class="muted" style="margin-top: 6px;">Locked: stay on <code>refactor/frontend</code>, local commits only, no <code>git push</code>, no <code>git merge</code>. Per the standing instruction in project memory.</p>
+  </details>
+
+  <details open class="notes" style="margin-top: 14px;">
+    <summary>Extra notes / overrides to include in the prompt</summary>
+    <textarea id="notes" placeholder="e.g. 'Skip Phase G for now', 'Coordinate StoreNews schema with the merchant frontend repo first', 'Use TDD for Phase A endpoints', …"></textarea>
+  </details>
+</section>
+
+<!-- ═══════════════════════════════════════ action bar ═══════════════════════════════════════ -->
+<div class="action-bar">
+  <div class="status-text">
+    <strong id="counter">0/0</strong> tasks selected · <span id="phaseCounter">0</span> phases
+  </div>
+  <button class="btn secondary" id="resetBtn">Reset selections</button>
+  <button class="btn" id="sendBtn">Generate prompt → copy to clipboard</button>
+</div>
+
+<!-- ═══════════════════════════════════════ prompt output ═══════════════════════════════════════ -->
+<section class="prompt-panel" id="promptPanel">
+  <div class="head">
+    <h3>Prompt for Claude Code</h3>
+    <button class="copy-mini" id="copyMini">Copy again</button>
+  </div>
+  <pre id="promptOut"></pre>
+  <div class="ack" id="copyAck">Copied to clipboard — paste into Claude Code.</div>
+</section>
+
+<script>
+(() => {
+  const phaseGrid = document.getElementById('phaseGrid');
+  const taskBoxes = () => Array.from(phaseGrid.querySelectorAll('input[type="checkbox"][data-task]'));
+  const phaseMasters = () => Array.from(phaseGrid.querySelectorAll('.phase-master'));
+  const counter = document.getElementById('counter');
+  const phaseCounter = document.getElementById('phaseCounter');
+  const notes = document.getElementById('notes');
+  const promptPanel = document.getElementById('promptPanel');
+  const promptOut = document.getElementById('promptOut');
+  const copyAck = document.getElementById('copyAck');
+
+  // Master-checkbox wiring
+  phaseMasters().forEach(master => {
+    master.addEventListener('change', () => {
+      const phase = master.dataset.phase;
+      const tasks = taskBoxes().filter(b => b.dataset.phase === phase);
+      tasks.forEach(t => { t.checked = master.checked; });
+      updateCounters();
+    });
+  });
+
+  // Task-checkbox wiring (keeps master in sync)
+  taskBoxes().forEach(box => {
+    box.addEventListener('change', () => {
+      const phase = box.dataset.phase;
+      const siblings = taskBoxes().filter(b => b.dataset.phase === phase);
+      const master = phaseMasters().find(m => m.dataset.phase === phase);
+      const allOn = siblings.every(s => s.checked);
+      const noneOn = siblings.every(s => !s.checked);
+      master.checked = allOn;
+      master.indeterminate = !allOn && !noneOn;
+      updateCounters();
+    });
+  });
+
+  function updateCounters() {
+    const tasks = taskBoxes();
+    const selected = tasks.filter(t => t.checked);
+    counter.textContent = `${selected.length}/${tasks.length}`;
+    const phases = new Set(selected.map(t => t.dataset.phase));
+    phaseCounter.textContent = phases.size;
+  }
+  updateCounters();
+
+  // Reset
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    taskBoxes().forEach(t => { t.checked = true; });
+    phaseMasters().forEach(m => { m.checked = true; m.indeterminate = false; });
+    notes.value = '';
+    document.querySelector('input[name="order"][value="phases-as-listed"]').checked = true;
+    updateCounters();
+    promptPanel.classList.remove('open');
+  });
+
+  // Build prompt
+  function buildPrompt() {
+    const phaseDefs = {
+      A: { title: 'Wallet + Profile rationalization (BE)', tasks: {
+        A1: 'Add GET/PATCH/DELETE /api/profile/ thin wrappers around existing user-info, phone, consumer-delete views.',
+        A2: 'Add GET /api/wallet/ returning { gems, couPoints } from StudentProfile.',
+        A3: 'Add GET /api/coupons/ returning the authenticated user\'s owned coupons in the FE Coupon shape (id, store, detail, expires, amount, status, tier). Project ids/dates/tier on BE.',
+      }},
+      B: { title: 'Coupon redeem/share path alignment (BE)', tasks: {
+        B4: 'Add alias routes /api/coupons/<id>/redeem/ and /api/coupons/<id>/share/ that forward to existing redeem_coupon and share_coupon views. Do not rename the originals.',
+      }},
+      C: { title: 'Merchant discovery + sheet data (BE)', tasks: {
+        C5: 'Add GET /api/merchants/nearby/?lat&lng&radius using an indexed bounding-box prefilter then Haversine. Exclude blocked stores for authenticated users.',
+        C6: 'Add GET /api/merchants/<id>/ returning store metadata plus myCoupons, sharedCoupons, news arrays shaped for MerchantSheet.',
+        C7: 'Add a new StoreNews model + migration (store FK, body, created_at). Return latest 5 per store. Merchant CRUD is out of scope for now.',
+        C8: 'Add thin wrappers /api/merchants/<id>/flag/ and /api/merchants/<id>/block/ forwarding to the existing moderation endpoints.',
+      }},
+      D: { title: 'Scan-to-receive flow (BE + FE)', tasks: {
+        D9: 'Add POST /api/qr-claim/receive/ that takes the scanned merchant-table QR payload and claims a coupon, delegating to the existing claim_coupon_via_qr machinery.',
+        D10: 'Wire CouponReceiveQRScreen.handleScan to call the new endpoint and reflect success/error in the UI.',
+      }},
+      E: { title: 'Spinner solo-draw HTTP (BE + FE)', tasks: {
+        E11: 'Add GET /api/spinner/ and POST /api/spinner/draw/ accepting { gems }. Mirror daily-draw semantics but with the FE reward table the frontend already encodes.',
+        E12: 'Wire SpinnerScreen.spin to drawCoupon(gems). Keep the local animation but reconcile the final result from the server.',
+      }},
+      F: { title: 'Frontend screen wiring (FE)', tasks: {
+        F1: 'Verify WalletContext refresh-on-focus and add an error boundary.',
+        F2: 'HomeScreen — replace SAMPLE_COUPONS with listMyCoupons().',
+        F3: 'MapScreen — replace SAMPLE_MERCHANTS with listNearby(lat, lng); fetch getMerchant(id) on pin tap to populate MerchantSheet.',
+        F4: 'MerchantSheet — "領取" CTA pushes CouponReceiveQRScreen.',
+        F5: 'CouponDetailScreen / CouponUseQRScreen / CouponShareScreen — wire getCoupon, redeemCoupon, shareCoupon.',
+        F6: 'SpinnerScreen — wire drawCoupon.',
+        F7: 'Settings modals — wire updateProfile, deleteAccount, submitFeedback, blocked-merchants list, phone OTP (requestOtp / verifyOtp).',
+      }},
+      G: { title: 'Tests', tasks: {
+        G13: 'Backend pytest for each new endpoint: nearby radius, merchant detail (news/shared/owned), wallet, profile, qr receive.',
+        G14: 'Frontend service tests + screen-level tests mocking service modules (pattern from WalletContext.test.tsx).',
+      }},
+    };
+
+    const selectedTasks = taskBoxes().filter(t => t.checked);
+    const grouped = {};
+    selectedTasks.forEach(t => {
+      const p = t.dataset.phase;
+      grouped[p] = grouped[p] || [];
+      grouped[p].push(t.dataset.task);
+    });
+
+    const order = document.querySelector('input[name="order"]:checked').value;
+    const orderText = {
+      'phases-as-listed': 'Run phases in the order they are listed (A → G).',
+      'backend-first': 'Backend phases (A–E) first, then frontend wiring (F), then tests (G).',
+      'slice-by-feature': 'Slice work by feature: Wallet, Coupon, Merchant, Spinner, Receive — backend + frontend together per feature.',
+      'ask-first': 'Stop and check in after each phase before proceeding to the next.',
+    }[order];
+
+    const lines = [];
+    lines.push('Continue the FE ↔ BE integration plan we agreed on for Coupon_Mobile_Frontend (branch: refactor/frontend).');
+    lines.push('');
+    lines.push('## Constraints');
+    lines.push('- Stay on branch refactor/frontend. No git merge, no git push, local commits only.');
+    lines.push('- Backend lives in Backend/ (Django 5.2 + DRF + Channels). Activate Backend/.venv before running manage.py.');
+    lines.push('- Frontend lives in Mobile-Frontend/ (Expo 54, RN 0.81, TS strict).');
+    lines.push('- Use design tokens from src/theme/ only; Chinese UI copy on consumer-facing strings.');
+    lines.push('- Project the BE Coupon shape to match the FE Coupon interface in any new list endpoint (string id, formatted expires, status, tier).');
+    lines.push('');
+    lines.push('## Execution order');
+    lines.push('- ' + orderText);
+    lines.push('');
+    lines.push('## Selected phases and tasks');
+
+    Object.keys(phaseDefs).forEach(key => {
+      const tasks = grouped[key];
+      if (!tasks || tasks.length === 0) return;
+      lines.push('');
+      lines.push(`### Phase ${key} — ${phaseDefs[key].title}`);
+      tasks.forEach(taskId => {
+        lines.push(`- **${taskId}** — ${phaseDefs[key].tasks[taskId]}`);
+      });
+    });
+
+    if (selectedTasks.length === 0) {
+      lines.push('');
+      lines.push('(no tasks selected — please re-check the plan before continuing)');
+    }
+
+    lines.push('');
+    lines.push('## Risk reminders');
+    lines.push('- FE Coupon vs BE Coupon shape mismatch — handle in BE serializer.');
+    lines.push('- StoreNews migration must not collide with migration 0053 (spinner_coop_wallet_round).');
+    lines.push('- Do not break SpinnerCoopWalletRound atomicity when adding the wallet endpoint.');
+    lines.push('- listNearby must bounding-box prefilter before Haversine.');
+
+    const noteText = notes.value.trim();
+    if (noteText) {
+      lines.push('');
+      lines.push('## Additional notes from me');
+      lines.push(noteText);
+    }
+
+    lines.push('');
+    lines.push('Begin with the first selected phase. Confirm the migration number before writing it. Run the relevant test suite after each phase.');
+
+    return lines.join('\n');
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fallback for older browsers / file:// origins
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch {}
+      document.body.removeChild(ta);
+      return ok;
+    }
+  }
+
+  async function generate() {
+    const text = buildPrompt();
+    promptOut.textContent = text;
+    promptPanel.classList.add('open');
+    const ok = await copyToClipboard(text);
+    copyAck.textContent = ok ? 'Copied to clipboard — paste into Claude Code.' : 'Could not access clipboard — select the text and copy manually.';
+    copyAck.classList.add('show');
+    promptPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => copyAck.classList.remove('show'), 3500);
+  }
+
+  document.getElementById('sendBtn').addEventListener('click', generate);
+  document.getElementById('copyMini').addEventListener('click', async () => {
+    const ok = await copyToClipboard(promptOut.textContent);
+    copyAck.textContent = ok ? 'Copied again.' : 'Copy failed — select manually.';
+    copyAck.classList.add('show');
+    setTimeout(() => copyAck.classList.remove('show'), 2500);
+  });
+})();
+</script>
+
+</body>
+</html>

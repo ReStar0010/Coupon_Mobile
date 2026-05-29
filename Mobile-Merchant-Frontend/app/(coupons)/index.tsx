@@ -31,12 +31,11 @@ export interface Coupon {
 
 type CouponStatus = 'all' | 'active' | 'ended' | 'upcoming' | 'inactive';
 type DateFilter = 'all' | 'today' | 'thisWeek' | 'thisMonth';
-/** 優惠類型：全部 / 隨取即用 (total_quantity=0) / 專屬優惠 (total_quantity>0) */
-type TypeFilter = 'all' | 'store' | 'exclusive';
+/** 優惠類型：全部 / 專屬優惠 (legacy 隨取即用 / store 已棄用) */
+type TypeFilter = 'all' | 'exclusive';
 
 const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
   { value: 'all', label: '全部' },
-  { value: 'store', label: '隨取即用' },
   { value: 'exclusive', label: '專屬優惠' },
 ];
 
@@ -192,11 +191,10 @@ export default function CouponsScreen() {
     const matchesSearch = coupon.coupon_name.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
 
-    // Type filter: 隨取即用 = total_quantity 0, 專屬優惠 = total_quantity > 0
-    if (typeFilter !== 'all') {
+    // Type filter: 專屬優惠 = total_quantity > 0 (legacy store 已棄用)
+    if (typeFilter === 'exclusive') {
       const isExclusive = (coupon.total_quantity ?? 0) > 0;
-      if (typeFilter === 'store' && isExclusive) return false;
-      if (typeFilter === 'exclusive' && !isExclusive) return false;
+      if (!isExclusive) return false;
     }
 
     // Status filter

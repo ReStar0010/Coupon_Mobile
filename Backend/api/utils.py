@@ -143,20 +143,31 @@ def increment_sharing_progress_for_redeemer(user) -> None:
     Same rules as exclusive coupon redemption in redeem_coupon.
     """
     from django.apps import apps
+    from django.db.models import F
 
     StudentProfile = apps.get_model('api', 'StudentProfile')
     try:
         redeemer_profile = user.student_profile
     except (StudentProfile.DoesNotExist, AttributeError):
         return
-    redeemer_profile.sharing_progress_count += 1
+
+    # Atomically increment sharing_progress_count to avoid race conditions
+    StudentProfile.objects.filter(pk=redeemer_profile.pk).update(
+        sharing_progress_count=F('sharing_progress_count') + 1
+    )
+    redeemer_profile.refresh_from_db()
+
     n = redeemer_profile.sharing_progress_count
     vouchers = n // 3
     for _ in range(vouchers):
         grant_reward_voucher(user, 10, 'Sharing Reward')
-    redeemer_profile.sharing_rewards_earned += vouchers
-    redeemer_profile.sharing_progress_count = n % 3
-    redeemer_profile.save(update_fields=['sharing_progress_count', 'sharing_rewards_earned'])
+
+    # Atomically update both counters after reward calculation
+    StudentProfile.objects.filter(pk=redeemer_profile.pk).update(
+        sharing_rewards_earned=F('sharing_rewards_earned') + vouchers,
+        sharing_progress_count=n % 3,
+    )
+    redeemer_profile.refresh_from_db()
 
 
 def apply_referral_reward(referrer) -> None:
@@ -171,10 +182,15 @@ def apply_referral_reward(referrer) -> None:
     Args:
         referrer: Django User instance whose referral counter should increment.
     """
+    from django.db.models import F
+
     try:
         profile = referrer.student_profile
-        profile.referral_progress_count += 1
-        profile.save(update_fields=['referral_progress_count'])
+        # Atomically increment referral_progress_count to avoid race conditions
+        type(profile).objects.filter(pk=profile.pk).update(
+            referral_progress_count=F('referral_progress_count') + 1
+        )
+        profile.refresh_from_db()
         count = profile.referral_progress_count
         if count == 1:
             grant_reward_voucher(referrer, 5, 'Referral Reward')
@@ -182,6 +198,24 @@ def apply_referral_reward(referrer) -> None:
             grant_reward_voucher(referrer, 10, 'Referral Reward')
     except Exception:
         pass
+
+
+def get_merchant_store(user):
+    """
+    Return the Store owned by the given merchant user.
+
+    Returns the first store when a merchant has multiple stores (edge case).
+    Returns None when no store exists for the user.
+    """
+    from django.apps import apps
+
+    Store = apps.get_model('api', 'Store')
+    try:
+        return Store.objects.get(owner=user)
+    except Store.DoesNotExist:
+        return None
+    except Store.MultipleObjectsReturned:
+        return Store.objects.filter(owner=user).first()
 
 
 def get_store_today(store) -> date:
@@ -268,12 +302,14 @@ def validate_uploaded_image_file(image_file) -> tuple[str, str]:
 def save_uploaded_image(image_file) -> str:
     """
     Save an uploaded image file to default storage and return its URL.
+
+    The filename stored on disk is fully random (32-character hex string + validated
+    extension).  The original user-supplied filename is intentionally discarded to
+    prevent path traversal attacks and to avoid leaking business information.
     """
-    file_name, file_extension = validate_uploaded_image_file(image_file)
-    timestamp = int(datetime.now().timestamp())
-    random_str = secrets.token_hex(4)
-    original_filename = Path(file_name).stem
-    unique_filename = f"{timestamp}_{random_str}_{original_filename}{file_extension}"
+    _file_name, file_extension = validate_uploaded_image_file(image_file)
+    # Use a cryptographically random name — never include any user-supplied path component.
+    unique_filename = f"{secrets.token_hex(16)}{file_extension}"
     path = default_storage.save(unique_filename, image_file)
     return default_storage.url(path)
 

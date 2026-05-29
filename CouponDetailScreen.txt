@@ -1,0 +1,95 @@
+const CouponDetailScreen = ({nav, params={}}) => {
+  const store   = params.store   || '阿明早餐店';
+  const detail  = params.detail  || '$25 現金折抵';
+  const expires = params.expires || '11/08';
+  const amount  = params.amount  || 25;
+  const [obStep,   setObStep]   = React.useState(0);
+  const [obActive, setObActive] = React.useState(true);
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',paddingBottom:24,overflowY:'auto',position:'relative'}}>
+      <StatusBar/>
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'2px 16px 12px'}}>
+        <button onClick={()=>nav('home')} style={{width:36,height:36,background:C.card,border:`2px solid ${C.border}`,
+          boxShadow:sh(2),borderRadius:4,fontSize:20,display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+        <span style={{fontWeight:800,fontSize:18,flex:1,letterSpacing:'-0.02em'}}>優惠券</span>
+        <HelpBtn onClick={()=>{setObStep(0);setObActive(true);}}/>
+      </div>
+      <div style={{padding:'0 16px 14px'}}>
+        <div style={{background:C.yellow,border:`3px solid ${C.border}`,boxShadow:sh(5),
+          borderRadius:8,padding:'20px 20px 16px',position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',top:12,right:12,background:C.red,border:`2px solid ${C.border}`,
+            borderRadius:4,padding:'2px 8px',fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,color:'#fff'}}>⚡ 7天內到期</div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,letterSpacing:'0.1em',
+            textTransform:'uppercase',color:'rgba(51,51,51,0.65)',marginBottom:8}}>{store}</div>
+          <div style={{display:'flex',alignItems:'flex-start',gap:4,lineHeight:1,marginBottom:6}}>
+            <span style={{fontSize:28,fontWeight:900,color:C.fg,marginTop:10}}>$</span>
+            <span style={{fontSize:72,fontWeight:900,letterSpacing:'-0.05em',color:C.fg}}>{amount}</span>
+          </div>
+          <div style={{fontWeight:700,fontSize:14,color:C.fg}}>現金折抵券</div>
+          <div style={{position:'relative',margin:'16px -20px'}}>
+            <div style={{borderTop:'2.5px dashed rgba(51,51,51,0.25)',marginLeft:20,marginRight:20}}/>
+            <div style={{position:'absolute',left:-8,top:'50%',transform:'translateY(-50%)',
+              width:20,height:20,borderRadius:'50%',background:C.bg,border:`2px solid ${C.border}`}}/>
+            <div style={{position:'absolute',right:-8,top:'50%',transform:'translateY(-50%)',
+              width:20,height:20,borderRadius:'50%',background:C.bg,border:`2px solid ${C.border}`}}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
+            <div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,textTransform:'uppercase',
+                letterSpacing:'0.08em',color:'rgba(51,51,51,0.6)',marginBottom:3}}>到期日</div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,color:C.fg}}>2026 / {expires}</div>
+            </div>
+            <div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,textTransform:'uppercase',
+                letterSpacing:'0.08em',color:'rgba(51,51,51,0.6)',marginBottom:3}}>分享獎勵</div>
+              <div style={{display:'flex',gap:3}}>
+                {[0,1,2].map(i=><GemIcon key={i} size={18} color={C.purpleLight}/>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:'0 16px 12px'}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>使用說明</div>
+        <ul style={{paddingLeft:20,fontSize:12,color:C.fg,lineHeight:1.8}}>
+          <li>結帳時出示 QR Code 給店員掃描</li>
+          <li>不可與其他優惠合併使用</li>
+          <li>店內、外帶皆可使用 · 限本人使用</li>
+        </ul>
+      </div>
+      <div style={{margin:'0 16px 80px',padding:'10px 12px',
+        background:C.purpleLight,border:`2px dashed ${C.purple}`,borderRadius:6,
+        display:'flex',alignItems:'center',gap:10}}>
+        <GemIcon size={22} color={C.purple}/>
+        <div style={{fontSize:12,lineHeight:1.5}}>
+          <b>用不到？分享出去</b><br/>
+          <span style={{color:C.muted}}>有人領用後，你可賺 <b>+3 顆寶石</b></span>
+        </div>
+      </div>
+      <div style={{position:'absolute',left:0,right:0,bottom:0,padding:'10px 16px 18px',
+        background:`linear-gradient(180deg,transparent,${C.bg} 30%)`,display:'flex',gap:10}}>
+        <button onClick={()=>nav('coupon-share',{store,detail,expires,amount})} style={{flex:1,padding:'14px 10px',background:C.yellow,
+          border:`2.5px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+          fontWeight:800,fontSize:13,color:C.fg,display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 3L11 13"/><path d="M21 3L14 21L11 13L3 10Z"/>
+          </svg>
+          分享賺寶石
+        </button>
+        <button onClick={()=>nav('coupon-qr',{store,detail,expires,amount})} style={{flex:1,padding:'14px 10px',background:C.fg,
+          border:`2.5px solid ${C.border}`,boxShadow:sh(3),borderRadius:6,
+          fontWeight:800,fontSize:13,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <path d="M14 14h3v3h-3zM18 14h3M14 18v3" strokeLinecap="round"/>
+          </svg>
+          立即使用
+        </button>
+      </div>
+      {obActive && <OnboardingOverlay screenKey="coupon-detail" step={obStep} onNext={()=>setObStep(s=>s+1)} onDone={()=>setObActive(false)}/>}
+    </div>
+  );
+};
+
+// ── Coupon QR Screen ───────────────────────────────────────────────────────────

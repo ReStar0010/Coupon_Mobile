@@ -70,6 +70,23 @@ SESSION_COOKIE_SAMESITE = 'None'
 CSRF_COOKIE_SAMESITE = 'None'
 
 # -----------------------------------------------------------------------------
+# HTTP security headers
+# -----------------------------------------------------------------------------
+# Render terminates TLS at the edge and forwards plain HTTP via the
+# X-Forwarded-Proto header — Django needs the proxy hint to recognise
+# the request as secure and emit HSTS. Without SECURE_PROXY_SSL_HEADER,
+# SECURE_SSL_REDIRECT would loop because Django sees http:// and
+# redirects to https:// over and over.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = True
+SECURE_HSTS_SECONDS = 60 * 60 * 24 * 7  # 1 week; bump to 1 year after a few clean cycles
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = False  # leave preload off until the long HSTS window is in place
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+X_FRAME_OPTIONS = 'DENY'
+
+# -----------------------------------------------------------------------------
 # Static & media storage
 # -----------------------------------------------------------------------------
 # R2 / default media storage is configured in base settings.py (env-driven), so
@@ -93,22 +110,11 @@ DATABASES['default']['CONN_MAX_AGE'] = 600  # reuse connections for 10 min inste
 # -----------------------------------------------------------------------------
 # Observability – production overrides
 # -----------------------------------------------------------------------------
-# Base settings initialises Sentry with traces_sample_rate=1.0 and
-# profile_session_sample_rate=1.0, which is too expensive on 0.5 CPU / 512 MB.
-# Override here to 50 % so tracing remains useful without saturating the CPU.
-import sentry_sdk  # noqa: E402
-
-sentry_sdk.init(
-    dsn=os.environ.get(
-        "SENTRY_DSN",
-        "https://c256c1e583795630acf160062b48dc0c@o4510952144961536.ingest.us.sentry.io/4510952203026432",
-    ),
-    send_default_pii=True,
-    enable_logs=True,
-    traces_sample_rate=0.5,
-    profile_session_sample_rate=0.5,
-    profile_lifecycle="trace",
-)
+# Sentry is initialized in settings.py via SENTRY_DSN env var.
+# Lower sampling rates for production cost control — set these in your production .env:
+#   SENTRY_TRACES_SAMPLE_RATE=0.1
+#   SENTRY_PROFILES_SAMPLE_RATE=0.1
+# settings.py reads these env vars at startup (defaults to 1.0 when unset).
 
 # -----------------------------------------------------------------------------
 # SMS (Twilio) – production
@@ -117,3 +123,42 @@ SMS_DEV_MODE = os.getenv('SMS_DEV_MODE', 'false').lower() in ('true', '1', 'yes'
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
+
+# -----------------------------------------------------------------------------
+# Channels — Redis channel layer (multi-worker safe)
+# -----------------------------------------------------------------------------
+# `InMemoryChannelLayer` is per-process; a broadcast from worker A never
+# reaches a player connected to worker B. Production MUST use Redis.
+#
+# The fail-loud guard fires ONLY when this module is loaded by a server
+# entry point (gunicorn / uvicorn / daphne / runserver) — NOT during
+# `manage.py migrate`, `collectstatic`, `createsuperuser`, or a Django
+# shell session. Those management commands never instantiate the channel
+# layer, so requiring REDIS_URL for them would break the entire CI
+# pipeline. They simply inherit the base `InMemoryChannelLayer` config,
+# which is harmless for non-serving processes.
+import sys as _sys
+
+_invocation = ' '.join(_sys.argv).lower()
+_is_serving = any(kw in _invocation for kw in ('gunicorn', 'uvicorn', 'daphne', 'runserver'))
+
+_REDIS_URL = os.environ.get('REDIS_URL')
+
+if _is_serving and not _REDIS_URL:
+    raise RuntimeError(
+        'REDIS_URL is required when serving HTTP/WebSocket traffic — Channels '
+        'needs a Redis channel layer for multi-worker WebSocket broadcasts. '
+        'Set REDIS_URL in the deploy env (Render KeyValue / Upstash both work).'
+    )
+
+if _REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [_REDIS_URL],
+            },
+        },
+    }
+# else: CHANNEL_LAYERS stays inherited from base settings.py (InMemory).
+# Only management commands take this branch — they never touch Channels.
