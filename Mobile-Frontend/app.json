@@ -157,7 +157,7 @@
       "posthogApiKey": "phc_D3dE4nTXuEv3ceaKLPr2KHKREMLjmUnBhJcDgh3MGmoW",
       "posthogHost": "https://us.i.posthog.com",
       "posthogSessionReplay": false,
-      "coopWsUrl": "wss://coupon-mobile-dev.onrender.com"
+      "coopWsUrl": "wss://coupon-mobile.onrender.com"
     },
     "runtimeVersion": "1.0.3",
     "updates": {

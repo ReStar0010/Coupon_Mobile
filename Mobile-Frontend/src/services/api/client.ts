@@ -7,9 +7,11 @@ import { ApiRequestError, normalizeError } from './errors';
 // We use a dynamic require at call time inside the interceptor.
 type RefreshTokenFn = (refresh: string) => Promise<{ access: string; refresh: string }>;
 
-// Hardcoded to staging for refactor/frontend → dev push. Restore env-var read
-// before promoting to prod.
-const BASE_URL = 'https://coupon-mobile-dev.onrender.com';
+// `EXPO_PUBLIC_API_URL` is injected per-profile by `eas.json` (development,
+// preview, production all set the prod host today). The fallback covers
+// `npm start` / web without an env file — point at prod so a misconfigured
+// dev shell can't silently corrupt a different environment's data.
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://coupon-mobile.onrender.com';
 
 // Endpoints whose 401 means "bad credentials" or "bad refresh token", NOT
 // "access token expired". Running them through the refresh-and-retry flow
