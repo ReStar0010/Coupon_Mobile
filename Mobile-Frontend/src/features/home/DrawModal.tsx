@@ -158,7 +158,6 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
                       <Text style={styles.poolDetail}>{t.coupon_name}</Text>
                     </View>
                     <View style={styles.poolMeta}>
-                      <Text style={styles.probText}>{Math.round(t.draw_probability * 100)}%</Text>
                       <Text style={styles.qtyText}>{t.remaining_quantity} 張</Text>
                     </View>
                   </View>
@@ -318,11 +317,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.regular,
     fontSize: 13,
     color: colors.muted,
-  },
-  probText: {
-    fontFamily: fontFamilies.monoSemiBold,
-    fontSize: 12,
-    color: colors.fg,
   },
   qtyText: {
     fontFamily: fontFamilies.monoRegular,

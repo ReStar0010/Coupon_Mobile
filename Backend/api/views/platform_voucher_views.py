@@ -14,7 +14,7 @@ from django.db import transaction
 
 from ..models import PlatformVoucher, PlatformVoucherRedemption, PlatformVoucherShareRequest, Store, CouponRedemption
 from ..serializers import PlatformVoucherRedeemRequestSerializer
-from ..utils import apply_referral_reward, display_face_value
+from ..utils import apply_referral_reward, assert_nickname_set_for_public_share, display_face_value
 from .merchant_profile import get_merchant_store
 from ..exceptions import (
     CouponAlreadyRedeemed,
@@ -228,6 +228,12 @@ def share_platform_voucher_public(request, voucher_id):
         return Response({"error": "Voucher is expired or not yet valid."}, status=status.HTTP_400_BAD_REQUEST)
     if PlatformVoucherRedemption.objects.filter(voucher=voucher).exists():
         return Response({"error": "Voucher has already been redeemed."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Require a nickname before releasing to the public pool so the recipient
+    # sees a chosen name rather than PII. Mirrors share_coupon_public; the FE
+    # catches NICKNAME_REQUIRED and prompts the user to set one.
+    assert_nickname_set_for_public_share(request.user)
+
     if PlatformVoucherShareRequest.objects.filter(voucher=voucher, is_public=True, status='pending').exists():
         return Response({"error": "Voucher is already in the public pool."}, status=status.HTTP_400_BAD_REQUEST)
 

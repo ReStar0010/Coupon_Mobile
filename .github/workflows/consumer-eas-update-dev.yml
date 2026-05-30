@@ -1,4 +1,4 @@
-name: Consumer app - EAS Update (Preview)
+name: Consumer app - EAS Update (Dev)
 
 on:
   push:
@@ -27,4 +27,4 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - run: eas update --branch preview --message "${{ github.event.head_commit.message }}"
+      - run: eas update --branch development --message "${{ github.event.head_commit.message }}"

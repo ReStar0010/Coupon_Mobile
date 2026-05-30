@@ -12,7 +12,7 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from api.models import Store, CouponTemplate, Coupon, CouponShareRequest
+from api.models import Store, CouponTemplate, Coupon, CouponShareRequest, StudentProfile
 
 
 class SharingRoutesTest(TestCase):
@@ -26,6 +26,11 @@ class SharingRoutesTest(TestCase):
             email='user@test.com',
             password='testpass123',
         )
+        # Public sharing is gated on a nickname (display_name); set one so the
+        # success-path tests below pass the gate.
+        self.profile, _ = StudentProfile.objects.get_or_create(user=self.user)
+        self.profile.display_name = '測試暱稱'
+        self.profile.save(update_fields=['display_name'])
         self.store = Store.objects.create(
             owner=self.user,
             name='Test Store',
@@ -89,6 +94,34 @@ class SharingRoutesTest(TestCase):
         """POST api/coupon/<id>/share-public/ without auth returns 401."""
         response = self.client.post(f'/api/coupon/{self.coupon.id}/share-public/', {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_share_public_requires_nickname(self):
+        """POST share-public without a nickname returns 409 NICKNAME_REQUIRED."""
+        self.coupon.current_holder = self.user
+        self.coupon.save(update_fields=['current_holder'])
+        # Clear the nickname set in setUp to hit the gate.
+        self.profile.display_name = None
+        self.profile.save(update_fields=['display_name'])
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            f'/api/coupon/{self.coupon.id}/share-public/', {}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.json().get('error_code'), 'NICKNAME_REQUIRED')
+        # Coupon must remain with the user — a blocked share can't strip it.
+        self.coupon.refresh_from_db()
+        self.assertEqual(self.coupon.current_holder, self.user)
+
+    def test_share_public_succeeds_with_nickname(self):
+        """POST share-public succeeds once a nickname is set (gate satisfied)."""
+        self.coupon.current_holder = self.user
+        self.coupon.save(update_fields=['current_holder'])
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            f'/api/coupon/{self.coupon.id}/share-public/', {}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data.get('share_id'))
 
     def test_share_token_get(self):
         """GET api/coupon/share/<token>/ returns 200 or 4xx."""

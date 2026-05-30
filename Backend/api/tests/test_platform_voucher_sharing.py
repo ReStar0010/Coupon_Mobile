@@ -10,7 +10,7 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from api.models import PlatformVoucher, PlatformVoucherShareRequest
+from api.models import PlatformVoucher, PlatformVoucherShareRequest, StudentProfile
 from api.utils import generate_platform_voucher_redeem_code
 
 
@@ -30,6 +30,9 @@ class PlatformVoucherSharingTest(TestCase):
             email="other@test.com",
             password="testpass123",
         )
+        # Public sharing is gated on a nickname (display_name); set one so the
+        # success-path tests pass the gate.
+        self.profile = StudentProfile.objects.create(user=self.user, display_name="測試暱稱")
         now = timezone.now()
         self.voucher = PlatformVoucher.objects.create(
             face_value=100,
@@ -111,6 +114,24 @@ class PlatformVoucherSharingTest(TestCase):
         self.assertIsNone(self.voucher.current_holder_id)
         self.assertTrue(
             PlatformVoucherShareRequest.objects.filter(voucher=self.voucher, is_public=True, status="pending").exists()
+        )
+
+    def test_share_public_requires_nickname(self):
+        """POST share-public without a nickname returns 409 NICKNAME_REQUIRED; voucher not stripped."""
+        # Remove the nickname set in setUp to hit the gate.
+        self.profile.display_name = None
+        self.profile.save(update_fields=["display_name"])
+        self.client.force_authenticate(user=self.user)
+        resp = self.client.post(
+            f"/api/platform-voucher/{self.voucher.id}/share-public/", {}, format="json"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(resp.data.get("error_code"), "NICKNAME_REQUIRED")
+        # A blocked share must leave the voucher with its holder.
+        self.voucher.refresh_from_db()
+        self.assertEqual(self.voucher.current_holder_id, self.user.id)
+        self.assertFalse(
+            PlatformVoucherShareRequest.objects.filter(voucher=self.voucher, is_public=True).exists()
         )
 
     def test_my_public_voucher_shares_returns_list(self):

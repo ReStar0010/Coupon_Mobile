@@ -5,10 +5,10 @@
   },
   "build": {
     "development": {
-      "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
       "env": {
+        "APP_VARIANT": "development",
         "EXPO_PUBLIC_BACKEND_MODE": "production",
         "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com"
       },
@@ -27,6 +27,7 @@
       "autoIncrement": true,
       "environment": "production",
       "env": {
+        "APP_VARIANT": "production",
         "EXPO_PUBLIC_BACKEND_MODE": "production",
         "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com"
       },

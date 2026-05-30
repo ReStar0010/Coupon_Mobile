@@ -31,9 +31,14 @@ describe('EditProfileModal', () => {
 
   it('displays all three field labels', () => {
     const { getByText } = render(<EditProfileModal {...defaultProps} />);
-    expect(getByText('顯示名稱')).toBeTruthy();
+    expect(getByText('暱稱')).toBeTruthy();
     expect(getByText('電子信箱')).toBeTruthy();
     expect(getByText('手機號碼')).toBeTruthy();
+  });
+
+  it('shows the public-visibility hint for the nickname field', () => {
+    const { getByText } = render(<EditProfileModal {...defaultProps} />);
+    expect(getByText('此暱稱會顯示給領取你分享優惠券的人')).toBeTruthy();
   });
 
   it('populates inputs with the provided initial values', () => {

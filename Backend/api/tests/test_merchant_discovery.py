@@ -24,6 +24,7 @@ from api.models import (
     CouponShareRequest,
     Store,
     StoreNews,
+    StudentProfile,
 )
 
 
@@ -264,6 +265,60 @@ class TestMerchantDetail:
         assert body["sharedCoupons"][0]["amount"] == 10
         assert len(body["news"]) == 1
         assert body["news"][0]["body"] == "新品試賣中"
+
+    def test_shared_coupon_sharer_uses_nickname_never_phone(self, client, consumer, store):
+        """sharer shows the sharer's nickname (display_name), never their phone/username."""
+        # Sharer registered by phone → username IS the phone number.
+        phone = "0912345678"
+        other = User.objects.create_user(username=phone, password="x")
+        StudentProfile.objects.create(user=other, display_name="省錢達人")
+        shared = Coupon.objects.create(
+            store=store,
+            coupon_name="shared coup",
+            coupon_detail="$10 off",
+            start_date=timezone.now() - timedelta(days=1),
+            expiry_date=timezone.now() + timedelta(days=5),
+            coupon_type='exclusive',
+            estimated_savings=10,
+            original_owner=other,
+            current_holder=None,
+        )
+        CouponShareRequest.objects.create(
+            coupon=shared, from_user=other, token='t-nick', is_public=True, status='pending'
+        )
+
+        body = client.get(f"/api/merchants/{store.id}/").json()
+        assert len(body["sharedCoupons"]) == 1
+        sharer = body["sharedCoupons"][0]["sharer"]
+        assert sharer == "省錢達人"
+        assert phone not in sharer
+
+    def test_shared_coupon_sharer_falls_back_when_no_nickname(self, client, consumer, store):
+        """A legacy sharer without a nickname shows a generic label, never the phone."""
+        phone = "0987654321"
+        other = User.objects.create_user(username=phone, password="x")
+        # Profile exists but display_name is unset (legacy share before the gate).
+        StudentProfile.objects.create(user=other, display_name=None)
+        shared = Coupon.objects.create(
+            store=store,
+            coupon_name="legacy coup",
+            coupon_detail="$8 off",
+            start_date=timezone.now() - timedelta(days=1),
+            expiry_date=timezone.now() + timedelta(days=5),
+            coupon_type='exclusive',
+            estimated_savings=8,
+            original_owner=other,
+            current_holder=None,
+        )
+        CouponShareRequest.objects.create(
+            coupon=shared, from_user=other, token='t-legacy', is_public=True, status='pending'
+        )
+
+        body = client.get(f"/api/merchants/{store.id}/").json()
+        assert len(body["sharedCoupons"]) == 1
+        sharer = body["sharedCoupons"][0]["sharer"]
+        assert sharer == "熱心鄉民"
+        assert phone not in sharer
 
 
 # ── /api/merchants/blocked/ ──────────────────────────────────────────────────

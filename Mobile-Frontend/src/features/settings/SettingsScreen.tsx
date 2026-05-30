@@ -19,6 +19,7 @@ import BlockedMerchantsModal from './modals/BlockedMerchantsModal';
 import VerifyModal from './modals/VerifyModal';
 import LegalTextModal from './modals/LegalTextModal';
 import Coachmark from '@/src/features/onboarding/Coachmark';
+import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
 
 type ModalKey =
   | 'edit-profile'
@@ -133,7 +134,7 @@ export default function SettingsScreen({
 
         {/* Profile card */}
         <View style={styles.section}>
-          <View style={styles.profileCardWrapper}>
+          <OnboardingAnchor id={ANCHOR.settingsProfile} style={styles.profileCardWrapper}>
             <View style={styles.profileCardShadow} />
             <View style={styles.profileCard}>
               <View style={styles.profileInfo}>
@@ -160,7 +161,7 @@ export default function SettingsScreen({
                 </Pressable>
               </View>
             </View>
-          </View>
+          </OnboardingAnchor>
         </View>
 
         {/* Account verification */}

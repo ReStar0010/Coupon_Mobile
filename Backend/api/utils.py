@@ -170,6 +170,32 @@ def increment_sharing_progress_for_redeemer(user) -> None:
     redeemer_profile.refresh_from_db()
 
 
+def assert_nickname_set_for_public_share(user) -> None:
+    """
+    Guard for public-pool sharing: require a nickname (StudentProfile.display_name)
+    so the recipient sees a chosen name instead of the sharer's phone/username.
+
+    Raises ``NicknameRequired`` (HTTP 409, error_code NICKNAME_REQUIRED) when the
+    user has no usable nickname. Shared by share_coupon_public and
+    share_platform_voucher_public so the gate stays consistent across both pools.
+    """
+    from django.apps import apps
+    from .exceptions import NicknameRequired
+
+    StudentProfile = apps.get_model('api', 'StudentProfile')
+    display_name = (
+        StudentProfile.objects
+        .filter(user=user)
+        .values_list('display_name', flat=True)
+        .first()
+    )
+    if not (display_name or '').strip():
+        raise NicknameRequired(
+            developer_message="User must set a nickname (display_name) before public sharing.",
+            context={'hint': '/api/profile/'},
+        )
+
+
 def apply_referral_reward(referrer) -> None:
     """
     Increment the referrer's referral_progress_count and grant a reward voucher
