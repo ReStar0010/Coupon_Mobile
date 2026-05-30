@@ -50,6 +50,16 @@ function formatExpiry(iso: string): string {
   return m ? `${m[1]}/${m[2]}` : '';
 }
 
+/**
+ * Render a 0–1 draw probability as a human percent, keeping tiny
+ * grand-prize odds legible (e.g. 0.005 → "0.5%", 0.05 → "5%", 0.5 → "50%").
+ */
+function formatPct(p: number): string {
+  if (!Number.isFinite(p)) return '';
+  const decimals = p < 0.01 ? 2 : p < 0.1 ? 1 : 0;
+  return `${+(p * 100).toFixed(decimals)}%`;
+}
+
 export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps): React.JSX.Element {
   const [templates, setTemplates] = useState<DailyDrawTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -123,6 +133,13 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
 
   const canDraw = !drawing && !loadingTemplates && templates.length > 0;
 
+  // Feature the rarest prizes first — a low draw_probability reads as a
+  // "grand prize". This is only a highlight slice of the pool, never the
+  // full set the server draws from.
+  const featured = [...templates]
+    .sort((a, b) => a.draw_probability - b.draw_probability)
+    .slice(0, 5);
+
   return (
     <BottomSheet visible={visible} onClose={handleClose}>
       <View style={styles.sheet}>
@@ -131,37 +148,61 @@ export default function DrawModal({ visible, onClose, onDraw }: DrawModalProps):
           <>
             <Text style={styles.title}>抽券</Text>
             <Text style={styles.subtitle}>
-              {loadingTemplates ? '載入中…' : '免費抽券 · 從以下店家中隨機抽取'}
+              {loadingTemplates ? '載入中…' : '免費抽券 · 每日一次，隨機抽取'}
             </Text>
             {error ? (
               <Text style={styles.errorText} testID="draw-error">
                 {error}
               </Text>
             ) : null}
+            {!loadingTemplates && featured.length > 0 ? (
+              <Text style={styles.poolCaption}>精選大獎 · 還有更多好券等你抽</Text>
+            ) : null}
             <View style={styles.poolList} testID="draw-pool">
               {loadingTemplates ? (
                 <View style={styles.poolEmpty}>
                   <ActivityIndicator color={colors.muted} />
                 </View>
-              ) : templates.length === 0 ? (
+              ) : featured.length === 0 ? (
                 <View style={styles.poolEmpty}>
                   <Text style={styles.poolEmptyText}>目前沒有可抽的優惠券</Text>
                 </View>
               ) : (
-                templates.slice(0, 5).map((t) => (
-                  <View key={t.id} style={styles.poolRow} testID={`draw-row-${t.id}`}>
-                    <Text style={styles.poolAmt}>
-                      {t.estimated_savings ? `$${Math.floor(Number(t.estimated_savings))}` : '—'}
-                    </Text>
-                    <View style={styles.poolInfo}>
-                      <Text style={styles.poolStore}>{t.store_name}</Text>
-                      <Text style={styles.poolDetail}>{t.coupon_name}</Text>
+                featured.map((t, idx) => {
+                  const isGrand = idx === 0;
+                  return (
+                    <View
+                      key={t.id}
+                      style={[styles.poolRow, isGrand && styles.poolRowGrand]}
+                      testID={`draw-row-${t.id}`}
+                    >
+                      <Text style={styles.poolAmt}>
+                        {t.estimated_savings ? `$${Math.floor(Number(t.estimated_savings))}` : '—'}
+                      </Text>
+                      <View style={styles.poolInfo}>
+                        <View style={styles.poolStoreRow}>
+                          {isGrand ? (
+                            <View style={styles.grandTag}>
+                              <Text style={styles.grandTagText}>大獎</Text>
+                            </View>
+                          ) : null}
+                          <Text style={styles.poolStore} numberOfLines={1}>
+                            {t.store_name}
+                          </Text>
+                        </View>
+                        <Text style={styles.poolDetail} numberOfLines={1}>
+                          {t.coupon_name}
+                        </Text>
+                      </View>
+                      <View style={styles.poolMeta}>
+                        <Text style={styles.probLabel}>中獎機率</Text>
+                        <Text style={[styles.probText, isGrand && styles.probTextGrand]}>
+                          {formatPct(t.draw_probability)}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.poolMeta}>
-                      <Text style={styles.qtyText}>{t.remaining_quantity} 張</Text>
-                    </View>
-                  </View>
-                ))
+                  );
+                })
               )}
             </View>
             <View style={styles.drawBtnWrapper}>
@@ -273,6 +314,13 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginBottom: 20,
   },
+  poolCaption: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: -10,
+    marginBottom: 10,
+  },
   poolList: {
     gap: 6,
     marginBottom: 20,
@@ -286,6 +334,25 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.border,
     borderRadius: 5,
+  },
+  poolRowGrand: {
+    backgroundColor: colors.yellowLight,
+  },
+  poolStoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  grandTag: {
+    backgroundColor: colors.purple,
+    borderRadius: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  grandTagText: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 9,
+    color: colors.card,
   },
   poolAmt: {
     fontFamily: fontFamilies.extraBold,
@@ -318,10 +385,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
   },
-  qtyText: {
-    fontFamily: fontFamilies.monoRegular,
+  probLabel: {
+    fontFamily: fontFamilies.regular,
     fontSize: 9,
     color: colors.muted,
+  },
+  probText: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 13,
+    color: colors.fg,
+  },
+  probTextGrand: {
+    color: colors.purple,
   },
   errorText: {
     fontFamily: fontFamilies.regular,
