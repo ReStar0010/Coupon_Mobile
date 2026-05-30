@@ -26,7 +26,6 @@ export default function CouPointsCard({
   const nextTier =
     VOUCHER_TIERS.find((t) => t.cost > couPoints) ?? VOUCHER_TIERS[VOUCHER_TIERS.length - 1];
   const progress = Math.min(100, Math.round((couPoints / nextTier.cost) * 100));
-  const remaining = Math.max(0, nextTier.cost - couPoints);
 
   return (
     <View style={styles.wrapper}>
@@ -41,11 +40,6 @@ export default function CouPointsCard({
             {couPoints}
           </Text>
         </View>
-        {remaining > 0 && (
-          <Text style={styles.hint}>
-            再 {remaining} 點可兌換 ${nextTier.amt} 級距
-          </Text>
-        )}
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress}%` as `${number}%` }]} />
         </View>
@@ -112,12 +106,6 @@ const styles = StyleSheet.create({
     lineHeight: 58,
     letterSpacing: -2.32,
     color: '#fff',
-  },
-  hint: {
-    fontFamily: fontFamilies.regular,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    marginBottom: 10,
   },
   progressTrack: {
     height: 6,

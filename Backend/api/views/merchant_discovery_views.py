@@ -214,9 +214,12 @@ def list_nearby_merchants(request):
 
     blocked_ids = BlockedMerchant.objects.filter(user=request.user).values_list('store_id', flat=True)
 
+    # `is_visible_on_map` is the partnership gate — pins are only rendered for
+    # stores we have a signed agreement with, regardless of distance / coords.
+    # See migration 0061 for the launch-partner backfill.
     qs = (
         Store.objects
-        .filter(lat__isnull=False, lng__isnull=False)
+        .filter(lat__isnull=False, lng__isnull=False, is_visible_on_map=True)
         .exclude(id__in=blocked_ids)
         .only('id', 'name', 'lat', 'lng', 'address', 'store_type', 'image_url', 'owner_id')
     )

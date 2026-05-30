@@ -610,10 +610,16 @@ class PasswordResetProfileAdmin(admin.ModelAdmin):
 @admin.register(Store)
 class StoreAdmin(admin.ModelAdmin):
     list_display = [
-        'id', 'name', 'owner_email', 'store_type', 
-        'address', 'has_location', 'unified_redeem_code', 'fixed_session_url'
+        'id', 'name', 'owner_email', 'store_type',
+        'address', 'has_location', 'is_visible_on_map',
+        'unified_redeem_code', 'fixed_session_url'
     ]
-    list_filter = ['store_type']
+    # `list_editable` lets ops flip the partnership gate inline from the list
+    # view — onboarding a new partner takes one click instead of opening the
+    # detail page. The PK column ('id') stays first to avoid the Django
+    # 'list_editable requires list_display[0] to not be editable' check.
+    list_editable = ['is_visible_on_map']
+    list_filter = ['store_type', 'is_visible_on_map']
     search_fields = ['name', 'owner__email', 'address', 'unified_redeem_code']
     readonly_fields = ['unified_redeem_code']
     inlines = [CouponTemplateInline, CouponInline]
@@ -628,6 +634,7 @@ class StoreAdmin(admin.ModelAdmin):
         ('營運設定', {
             'fields': (
                 'average_order_value', 'unified_redeem_code', 'accepts_platform_vouchers',
+                'is_visible_on_map',
                 'timezone', 'currency_code'
             )
         }),

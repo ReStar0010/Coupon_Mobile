@@ -227,6 +227,13 @@ class Store(models.Model):
     currency_code = models.CharField(max_length=10, null=True, blank=True)
     # Platform cash voucher: when True, store accepts platform voucher redemptions
     accepts_platform_vouchers = models.BooleanField(default=False)
+    # CouMap visibility: pins are only rendered for stores we have a signed
+    # partnership with. New stores default to hidden so a freshly-registered
+    # merchant doesn't leak onto the consumer map before sign-off.
+    is_visible_on_map = models.BooleanField(
+        default=False,
+        help_text='Show this store as a pin on CouMap (requires signed partnership).',
+    )
 
     def __str__(self):
         return self.name
