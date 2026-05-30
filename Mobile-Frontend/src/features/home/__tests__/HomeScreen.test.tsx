@@ -1,7 +1,9 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import HomeScreen from '../HomeScreen';
-import type { Coupon } from '../../../services/api/coupons';
+import type { Coupon, MyShare } from '../../../services/api/coupons';
+import { listMyShares, withdrawShare } from '../../../services/api/coupons';
 
 // ── WalletContext mock ───────────────────────────────────────────────────────
 const mockRefreshWallet = jest.fn().mockResolvedValue(undefined);
@@ -14,13 +16,36 @@ jest.mock('../../../state/WalletContext', () => ({
 }));
 
 // ── coupons API mock ─────────────────────────────────────────────────────────
-// HomeScreen fetches public shares + daily-draw status on mount; stub both so
-// no real request leaks past test teardown.
+// HomeScreen fetches the user's pending shares + daily-draw status on mount;
+// stub both so no real request leaks past test teardown.
 jest.mock('../../../services/api/coupons', () => ({
-  listMyPublicShares: jest.fn().mockResolvedValue([]),
+  listMyShares: jest.fn().mockResolvedValue([]),
   withdrawShare: jest.fn().mockResolvedValue(undefined),
   getDailyDrawStatus: jest.fn().mockResolvedValue({ canDrawToday: true, lastDrawDate: null }),
 }));
+
+const mockListMyShares = listMyShares as jest.Mock;
+const mockWithdrawShare = withdrawShare as jest.Mock;
+
+const makePublicShare = (overrides: Partial<MyShare> = {}): MyShare => ({
+  share_id: 100,
+  coupon_id: 1,
+  coupon_name: '$25 現金折抵',
+  store_name: '阿明早餐店',
+  image_url: null,
+  is_public: true,
+  status: 'pending',
+  created_at: '2026-05-31T00:00:00Z',
+  ...overrides,
+});
+
+/** Auto-confirm the next Alert by invoking its destructive ("收回") button. */
+function autoConfirmAlert() {
+  jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+    const confirm = (buttons ?? []).find((b) => b.style === 'destructive');
+    confirm?.onPress?.();
+  });
+}
 
 const SAMPLE_COUPONS: Coupon[] = [
   {
@@ -30,6 +55,7 @@ const SAMPLE_COUPONS: Coupon[] = [
     expires: '11/08',
     amount: 25,
     status: 'active',
+    gem_reward: 0,
   },
   {
     id: '2',
@@ -38,6 +64,7 @@ const SAMPLE_COUPONS: Coupon[] = [
     expires: '11/30',
     amount: 10,
     status: 'active',
+    gem_reward: 0,
   },
 ];
 
@@ -89,6 +116,7 @@ describe('HomeScreen', () => {
         expires: '12/01',
         amount: 5,
         status: 'redeemed',
+        gem_reward: 0,
       },
     ];
     const { getAllByTestId } = render(<HomeScreen {...makeProps()} />);
@@ -110,5 +138,48 @@ describe('HomeScreen', () => {
     const { getByTestId } = render(<HomeScreen {...makeProps({ onNavigate })} />);
     fireEvent.press(getByTestId('settings-btn'));
     expect(onNavigate).toHaveBeenCalledWith('settings');
+  });
+
+  describe('withdraw shared coupons', () => {
+    it('renders the CouMap section with a withdraw button for a pending public share', async () => {
+      mockListMyShares.mockResolvedValueOnce([makePublicShare({ share_id: 100 })]);
+      const { findByTestId, getByText } = render(<HomeScreen {...makeProps()} />);
+
+      expect(await findByTestId('withdraw-btn-100')).toBeTruthy();
+      expect(getByText('已釋出到 CouMap')).toBeTruthy();
+    });
+
+    it('withdraws a public share after confirmation', async () => {
+      autoConfirmAlert();
+      mockListMyShares.mockResolvedValueOnce([makePublicShare({ share_id: 100 })]);
+      const { findByTestId } = render(<HomeScreen {...makeProps()} />);
+
+      fireEvent.press(await findByTestId('withdraw-btn-100'));
+
+      await waitFor(() => expect(mockWithdrawShare).toHaveBeenCalledWith(100));
+    });
+
+    it('shows a "分享中" badge + withdraw on an active coupon with a pending LINK share', async () => {
+      // coupon "1" is active in the wallet; a private (link) share points at it.
+      mockListMyShares.mockResolvedValueOnce([
+        makePublicShare({ share_id: 200, coupon_id: 1, is_public: false }),
+      ]);
+      const { findAllByTestId, getByText } = render(<HomeScreen {...makeProps()} />);
+
+      expect((await findAllByTestId('coupon-withdraw-btn')).length).toBe(1);
+      expect(getByText('分享中')).toBeTruthy();
+    });
+
+    it('withdraws a link share from the coupon card after confirmation', async () => {
+      autoConfirmAlert();
+      mockListMyShares.mockResolvedValueOnce([
+        makePublicShare({ share_id: 200, coupon_id: 1, is_public: false }),
+      ]);
+      const { findAllByTestId } = render(<HomeScreen {...makeProps()} />);
+
+      fireEvent.press((await findAllByTestId('coupon-withdraw-btn'))[0]);
+
+      await waitFor(() => expect(mockWithdrawShare).toHaveBeenCalledWith(200));
+    });
   });
 });
