@@ -339,7 +339,7 @@ class StudentProfileAdmin(admin.ModelAdmin):
         }
         return render(request, 'admin/api/studentprofile/activity_overview.html', context)
     readonly_fields = [
-        'email_verification_token', 'last_draw_time', 'last_logged_in',
+        'email_verification_token', 'last_logged_in',
         'last_savings_reset', 'coupons_used_count', 'total_savings', 'monthly_savings',
         'sharing_progress_count', 'sharing_rewards_earned', 'referral_progress_count'
     ]
