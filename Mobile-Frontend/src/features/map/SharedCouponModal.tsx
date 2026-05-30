@@ -4,6 +4,7 @@ import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
 import { acceptShare } from '@/src/services/api/sharing';
+import { useWallet } from '@/src/state/WalletContext';
 
 export interface SharedCoupon {
   token: string;
@@ -28,6 +29,7 @@ export default function SharedCouponModal({
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const claimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { refreshWallet } = useWallet();
 
   const handleClaim = async () => {
     if (!coupon || claiming) return;
@@ -35,6 +37,11 @@ export default function SharedCouponModal({
     setError(null);
     try {
       await acceptShare(coupon.token);
+      // The claim transferred the coupon to this user on the server. Pull the
+      // canonical wallet so the new coupon shows up on the Home tab — which
+      // otherwise stays mounted and never re-fetches on tab switch. Mirrors
+      // DrawModal: fire-and-forget while the success animation plays.
+      void refreshWallet().catch(() => undefined);
       setClaimed(true);
       claimTimerRef.current = setTimeout(() => {
         claimTimerRef.current = null;

@@ -16,6 +16,28 @@ jest.mock('react-native-svg', () => {
   };
 });
 
+// ── WalletContext mock ────────────────────────────────────────────────────────
+// The modal pulls refreshWallet() after a successful claim so the freshly
+// claimed coupon shows up on the Home tab. Mock it so we can both render the
+// modal outside a provider and assert the refresh fires.
+const mockRefreshWallet = jest.fn().mockResolvedValue(undefined);
+jest.mock('@/src/state/WalletContext', () => ({
+  useWallet: () => ({ refreshWallet: mockRefreshWallet }),
+}));
+
+// ── sharing API mock ──────────────────────────────────────────────────────────
+const mockAcceptShare = jest.fn();
+jest.mock('@/src/services/api/sharing', () => ({
+  acceptShare: (...args: unknown[]) => mockAcceptShare(...args),
+}));
+
+/** Press the claim button and flush the async acceptShare → setClaimed chain. */
+async function pressClaim(getByText: (t: string) => unknown): Promise<void> {
+  await act(async () => {
+    fireEvent.press(getByText('確認領取 →') as never);
+  });
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const sampleCoupon: SharedCoupon = {
@@ -37,6 +59,8 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof SharedCouponMo
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  mockAcceptShare.mockResolvedValue(undefined);
+  mockRefreshWallet.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -96,36 +120,61 @@ describe('SharedCouponModal', () => {
     expect(onClaim).not.toHaveBeenCalled();
   });
 
-  it('pressing claim button shows success state immediately', () => {
+  it('shows success state after a successful claim', async () => {
     const { getByText } = render(<SharedCouponModal {...makeProps()} />);
-    fireEvent.press(getByText('確認領取 →'));
+    await pressClaim(getByText);
     expect(getByText('領取成功！')).toBeTruthy();
   });
 
-  it('success state shows coupon amount', () => {
+  it('success state shows coupon amount', async () => {
     const { getByText } = render(<SharedCouponModal {...makeProps()} />);
-    fireEvent.press(getByText('確認領取 →'));
+    await pressClaim(getByText);
     expect(getByText('$50')).toBeTruthy();
   });
 
-  it('calls onClaim after 1200 ms when claim is pressed', () => {
+  it('calls acceptShare with the coupon token on claim', async () => {
+    const { getByText } = render(<SharedCouponModal {...makeProps()} />);
+    await pressClaim(getByText);
+    expect(mockAcceptShare).toHaveBeenCalledWith('tok-sample');
+  });
+
+  it('refreshes the wallet after a successful claim so Home shows the new coupon', async () => {
+    const { getByText } = render(<SharedCouponModal {...makeProps()} />);
+    await pressClaim(getByText);
+    expect(mockRefreshWallet).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not refresh the wallet or show success when the claim fails', async () => {
+    mockAcceptShare.mockRejectedValueOnce(new Error('領取失敗'));
+    const { getByText, queryByText } = render(<SharedCouponModal {...makeProps()} />);
+    await pressClaim(getByText);
+    expect(mockRefreshWallet).not.toHaveBeenCalled();
+    expect(queryByText('領取成功！')).toBeNull();
+    expect(getByText('領取失敗')).toBeTruthy();
+  });
+
+  it('calls onClaim after 1200 ms when claim is pressed', async () => {
     const onClaim = jest.fn();
     const { getByText } = render(<SharedCouponModal {...makeProps({ onClaim })} />);
-    fireEvent.press(getByText('確認領取 →'));
+    await pressClaim(getByText);
 
     expect(onClaim).not.toHaveBeenCalled();
 
-    act(() => { jest.advanceTimersByTime(1200); });
+    act(() => {
+      jest.advanceTimersByTime(1200);
+    });
 
     expect(onClaim).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call onClaim before 1200 ms have elapsed', () => {
+  it('does not call onClaim before 1200 ms have elapsed', async () => {
     const onClaim = jest.fn();
     const { getByText } = render(<SharedCouponModal {...makeProps({ onClaim })} />);
-    fireEvent.press(getByText('確認領取 →'));
+    await pressClaim(getByText);
 
-    act(() => { jest.advanceTimersByTime(1199); });
+    act(() => {
+      jest.advanceTimersByTime(1199);
+    });
 
     expect(onClaim).not.toHaveBeenCalled();
   });
@@ -137,26 +186,20 @@ describe('SharedCouponModal', () => {
   });
 
   it('renders nothing when visible is false', () => {
-    const { queryByText } = render(
-      <SharedCouponModal {...makeProps({ visible: false })} />,
-    );
+    const { queryByText } = render(<SharedCouponModal {...makeProps({ visible: false })} />);
     expect(queryByText('有人分享了一張券給你')).toBeNull();
   });
 
   it('renders coupon with optional label when provided', () => {
     const couponWithLabel: SharedCoupon = { ...sampleCoupon, label: 'VIP' };
-    const { getByText } = render(
-      <SharedCouponModal {...makeProps({ coupon: couponWithLabel })} />,
-    );
+    const { getByText } = render(<SharedCouponModal {...makeProps({ coupon: couponWithLabel })} />);
     // Label field is defined but not rendered in UI; ensure other fields still show
     expect(getByText('阿明早餐店')).toBeTruthy();
   });
 
   it('renders different store name correctly', () => {
     const otherCoupon: SharedCoupon = { ...sampleCoupon, store: '鼎泰豐', amount: 100 };
-    const { getByText } = render(
-      <SharedCouponModal {...makeProps({ coupon: otherCoupon })} />,
-    );
+    const { getByText } = render(<SharedCouponModal {...makeProps({ coupon: otherCoupon })} />);
     expect(getByText('鼎泰豐')).toBeTruthy();
     expect(getByText('100')).toBeTruthy();
   });

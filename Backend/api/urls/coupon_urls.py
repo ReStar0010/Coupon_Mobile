@@ -21,7 +21,8 @@ from api.views.sharing_views import (
     accept_share_request,
     share_coupon_public,
     get_my_public_shares,
-    withdraw_public_share,
+    get_my_shares,
+    withdraw_share,
 )
 from api.views.daily_draw import (
     get_daily_draw_templates, draw_coupon, draw_history, get_last_draw_time,
@@ -76,7 +77,12 @@ urlpatterns = [
     path('coupon/share/<str:token>/', get_share_request, name='get_share_request'),
     path('coupon/share/<str:token>/accept/', accept_share_request, name='accept_share_request'),
     path('my-public-shares/', get_my_public_shares, name='get_my_public_shares'),
-    path('coupon/share-public/<int:share_id>/withdraw/', withdraw_public_share, name='withdraw_public_share'),
+    # Unified: lists + withdraws BOTH public (CouMap) and private (link) shares.
+    path('my-shares/', get_my_shares, name='get_my_shares'),
+    path('coupon/share/<int:share_id>/withdraw/', withdraw_share, name='withdraw_share'),
+    # Legacy alias — older clients still hit the public-only path; the generalized
+    # view is a superset, so it serves them correctly.
+    path('coupon/share-public/<int:share_id>/withdraw/', withdraw_share, name='withdraw_public_share'),
 
     # Tags
     path('tags/', get_all_tags, name='get_all_tags'),

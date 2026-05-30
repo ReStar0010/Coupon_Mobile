@@ -33,10 +33,12 @@ import {
   listMyCoupons,
   redeemCoupon,
   shareCoupon,
+  withdrawShare,
+  listMyShares,
   listDailyDrawTemplates,
   dailyDraw,
 } from '../coupons';
-import type { Coupon, DailyDrawTemplate, DailyDrawResult } from '../coupons';
+import type { Coupon, DailyDrawTemplate, DailyDrawResult, MyShare } from '../coupons';
 
 const mockAxiosInstance = (axios.create as jest.Mock)();
 const mockGet = mockAxiosInstance.get as jest.Mock;
@@ -49,6 +51,7 @@ const sampleCoupon: Coupon = {
   expires: '12/31',
   amount: 10,
   status: 'active',
+  gem_reward: 0,
 };
 
 describe('coupons API', () => {
@@ -116,6 +119,62 @@ describe('coupons API', () => {
     });
   });
 
+  describe('withdrawShare', () => {
+    it('posts to the unified withdraw route (handles public + private)', async () => {
+      mockPost.mockResolvedValueOnce({ data: { message: 'Share withdrawn.' } });
+
+      await withdrawShare(42);
+
+      expect(mockPost).toHaveBeenCalledWith('/api/coupon/share/42/withdraw/');
+    });
+
+    it('propagates errors via normalizeError', async () => {
+      const axiosError = Object.assign(new Error('Bad request'), {
+        isAxiosError: true,
+        response: { status: 400, data: { error_code: 'SHARE_NOT_PENDING_FOR_WITHDRAW' } },
+      });
+      mockPost.mockRejectedValueOnce(axiosError);
+
+      await expect(withdrawShare(42)).rejects.toMatchObject({
+        name: 'ApiRequestError',
+        status: 400,
+      });
+    });
+  });
+
+  describe('listMyShares', () => {
+    it('GETs /api/my-shares/ and returns both public and private shares', async () => {
+      const fixture: MyShare[] = [
+        {
+          share_id: 1,
+          coupon_id: 10,
+          coupon_name: '現金折抵 $25',
+          store_name: '阿明早餐店',
+          image_url: null,
+          is_public: true,
+          status: 'pending',
+          created_at: '2026-05-31T00:00:00Z',
+        },
+        {
+          share_id: 2,
+          coupon_id: 11,
+          coupon_name: '買一送一',
+          store_name: '鼎泰豐',
+          image_url: null,
+          is_public: false,
+          status: 'pending',
+          created_at: '2026-05-31T01:00:00Z',
+        },
+      ];
+      mockGet.mockResolvedValueOnce({ data: fixture });
+
+      const result = await listMyShares();
+
+      expect(mockGet).toHaveBeenCalledWith('/api/my-shares/');
+      expect(result).toEqual(fixture);
+    });
+  });
+
   // ── Daily draw (Phase: locate/daily-draw/swipe-back sub-sprint) ───────────
 
   describe('listDailyDrawTemplates', () => {
@@ -130,6 +189,7 @@ describe('coupons API', () => {
           estimated_savings: 25,
           expiry_date: '2026-12-31T00:00:00Z',
           remaining_quantity: 50,
+          draw_probability: 0,
         },
         {
           id: 2,
@@ -140,6 +200,7 @@ describe('coupons API', () => {
           estimated_savings: 50,
           expiry_date: '2026-12-31T00:00:00Z',
           remaining_quantity: 30,
+          draw_probability: 0,
         },
       ];
       mockGet.mockResolvedValueOnce({ data: { active_templates: fixture } });

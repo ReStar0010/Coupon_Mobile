@@ -143,27 +143,35 @@ export async function shareCouponPublic(id: string, msg?: string): Promise<Share
   }
 }
 
-/** Withdraw a coupon from the public CouMap pool back to the user's wallet. */
+/**
+ * Withdraw (undo) a pending share — works for both CouMap (public) and link
+ * (private) shares. The unified BE route restores the coupon for public shares
+ * and invalidates the link token for private ones.
+ */
 export async function withdrawShare(shareId: number): Promise<void> {
   try {
-    await apiClient.post(`/api/coupon/share-public/${shareId}/withdraw/`);
+    await apiClient.post(`/api/coupon/share/${shareId}/withdraw/`);
   } catch (error) {
     throw normalizeError(error);
   }
 }
 
-export interface PublicShare {
+/** A pending share the user created — `is_public` distinguishes CouMap vs link. */
+export interface MyShare {
   share_id: number;
   coupon_id: number;
   coupon_name: string;
   store_name: string | null;
+  image_url: string | null;
+  is_public: boolean;
   status: 'pending' | 'accepted' | 'cancelled';
   created_at: string;
 }
 
-export async function listMyPublicShares(): Promise<PublicShare[]> {
+/** All of the user's pending shares (public + private), newest first. */
+export async function listMyShares(): Promise<MyShare[]> {
   try {
-    const response = await apiClient.get<PublicShare[]>('/api/my-public-shares/');
+    const response = await apiClient.get<MyShare[]>('/api/my-shares/');
     return response.data;
   } catch (error) {
     throw normalizeError(error);

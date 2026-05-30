@@ -20,12 +20,12 @@ import DrawModal from './DrawModal';
 import Coachmark from '@/src/features/onboarding/Coachmark';
 import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
 import { useWallet } from '@/src/state/WalletContext';
-import type { Coupon } from '@/src/services/api/coupons';
 import {
-  listMyPublicShares,
+  listMyShares,
   withdrawShare,
   getDailyDrawStatus,
-  type PublicShare,
+  type Coupon,
+  type MyShare,
 } from '@/src/services/api/coupons';
 
 interface NavParams {
@@ -71,7 +71,7 @@ export default function HomeScreen({
 }: ScreenProps): React.JSX.Element {
   const [showDraw, setShowDraw] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [publicShares, setPublicShares] = useState<PublicShare[]>([]);
+  const [shares, setShares] = useState<MyShare[]>([]);
   const [withdrawingId, setWithdrawingId] = useState<number | null>(null);
   // Mirror of the server's once-per-day gate. Defaults to true so the card
   // is usable while the first status fetch is in flight; the draw endpoint
@@ -80,14 +80,25 @@ export default function HomeScreen({
   const { coupons, refreshWallet } = useWallet();
 
   const visibleCoupons = coupons.filter((c) => c.status === 'active');
-  const pendingShares = publicShares.filter((s) => s.status === 'pending');
+  // listMyShares already returns pending-only, but filter defensively.
+  const pendingShares = shares.filter((s) => s.status === 'pending');
+  // CouMap (public) shares live in the footer; the coupon left the wallet.
+  const pendingPublicShares = pendingShares.filter((s) => s.is_public);
+  // Link (private) shares keep the coupon in the wallet, so we attach a badge
+  // + withdraw onto the matching active coupon card. BE coupon_id is numeric;
+  // wallet coupon ids are strings — key by String() so the lookup matches.
+  const privateShareByCouponId = new Map<string, MyShare>(
+    pendingShares
+      .filter((s) => !s.is_public)
+      .map((s) => [String(s.coupon_id), s]),
+  );
 
   const loadShares = useCallback(async () => {
     try {
-      const shares = await listMyPublicShares();
-      setPublicShares(shares);
+      const next = await listMyShares();
+      setShares(next);
     } catch {
-      setPublicShares([]);
+      setShares([]);
     }
   }, []);
 
@@ -106,29 +117,28 @@ export default function HomeScreen({
     void loadDrawStatus();
   }, [loadShares, loadDrawStatus]);
 
-  const handleWithdraw = useCallback(async (share: PublicShare) => {
-    Alert.alert(
-      '收回優惠券',
-      `確定要從 CouMap 收回「${share.coupon_name}」嗎？`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '收回',
-          style: 'destructive',
-          onPress: async () => {
-            setWithdrawingId(share.share_id);
-            try {
-              await withdrawShare(share.share_id);
-              await Promise.all([refreshWallet(), loadShares()]);
-            } catch {
-              Alert.alert('收回失敗', '請稍後再試');
-            } finally {
-              setWithdrawingId(null);
-            }
-          },
+  const handleWithdraw = useCallback((share: MyShare) => {
+    const [title, message] = share.is_public
+      ? ['收回優惠券', `確定要從 CouMap 收回「${share.coupon_name}」嗎？`]
+      : ['收回分享連結', `確定要收回「${share.coupon_name}」的分享連結嗎？對方將無法再領取。`];
+    Alert.alert(title, message, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '收回',
+        style: 'destructive',
+        onPress: async () => {
+          setWithdrawingId(share.share_id);
+          try {
+            await withdrawShare(share.share_id);
+            await Promise.all([refreshWallet(), loadShares()]);
+          } catch {
+            Alert.alert('收回失敗', '請稍後再試');
+          } finally {
+            setWithdrawingId(null);
+          }
         },
-      ],
-    );
+      },
+    ]);
   }, [refreshWallet, loadShares]);
 
   const onRefresh = useCallback(async (): Promise<void> => {
@@ -224,6 +234,7 @@ export default function HomeScreen({
           />
         }
         renderItem={({ item, index }) => {
+          const linkShare = privateShareByCouponId.get(item.id);
           const row = (
             <CouponRow
               store={item.store}
@@ -232,6 +243,9 @@ export default function HomeScreen({
               amount={item.amount}
               urgency={getUrgency(item)}
               gems={item.gem_reward}
+              sharing={!!linkShare}
+              withdrawing={!!linkShare && withdrawingId === linkShare.share_id}
+              onWithdraw={linkShare ? () => handleWithdraw(linkShare) : undefined}
               onPress={() =>
                 onNavigate('coupon-detail', {
                   id: item.id,
@@ -265,10 +279,10 @@ export default function HomeScreen({
           );
         }}
         ListFooterComponent={
-          pendingShares.length > 0 ? (
+          pendingPublicShares.length > 0 ? (
             <View style={s.sharedSection}>
               <Text style={s.sharedTitle}>已釋出到 CouMap</Text>
-              {pendingShares.map((sh) => (
+              {pendingPublicShares.map((sh) => (
                 <View key={sh.share_id} style={s.sharedRow}>
                   <View style={s.sharedInfo}>
                     <Text style={s.sharedName}>{sh.coupon_name}</Text>

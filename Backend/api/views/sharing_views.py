@@ -561,39 +561,85 @@ def get_my_public_shares(request):
     return Response(data)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_my_shares(request):
+    """
+    All of the user's *pending* shares — public (CouMap) and private (link)
+    alike — so the client can list and withdraw each. `is_public` lets the UI
+    label them ("CouMap" vs "連結") and pick the right withdraw copy.
+
+    Only pending shares are returned: accepted/cancelled shares are terminal
+    and have nothing to withdraw. This is the unified successor to
+    `get_my_public_shares` (kept as a public-only alias for older clients).
+    """
+    shares = CouponShareRequest.objects.filter(
+        from_user=request.user,
+        status='pending',
+    ).select_related('coupon', 'coupon__store').order_by('-created_at')
+
+    data = [
+        {
+            'share_id': share.id,
+            'coupon_id': share.coupon.id,
+            'coupon_name': share.coupon.coupon_name,
+            'store_name': share.coupon.store.name if share.coupon.store else None,
+            'image_url': share.coupon.image_url,
+            'is_public': share.is_public,
+            'status': share.status,
+            'created_at': share.created_at,
+        }
+        for share in shares
+    ]
+    return Response(data)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def withdraw_public_share(request, share_id):
+def withdraw_share(request, share_id):
     """
-    Withdraw a coupon from the public pool. Only the user who shared it (from_user)
-    can withdraw. Valid only for pending public shares. Restores coupon to the user.
-    """
-    share_request = get_object_or_404(
-        CouponShareRequest,
-        id=share_id,
-        from_user=request.user,
-        is_public=True,
-    )
-    if share_request.status != 'pending':
-        raise ShareNotPendingForWithdraw(
-            developer_message="Only pending public shares can be withdrawn."
-        )
+    Withdraw (undo) a pending coupon share. Works for BOTH public (CouMap) and
+    private (link) shares. Only the original sharer (from_user) may withdraw,
+    and only while the share is still pending.
 
+    - Public share: the coupon left the wallet when shared (current_holder was
+      set to None), so withdrawing restores current_holder to the sharer.
+    - Private share: the coupon never left the wallet; withdrawing only marks
+      the request 'cancelled', which invalidates the token — `accept_share_request`
+      rejects any non-pending request, so the recipient can no longer collect.
+
+    The share row is locked with select_for_update so a concurrent
+    accept-vs-withdraw serializes on it: whichever commits first wins and the
+    loser sees a non-pending status and aborts.
+    """
     with transaction.atomic():
+        share_request = get_object_or_404(
+            CouponShareRequest.objects.select_for_update().select_related('coupon'),
+            id=share_id,
+            from_user=request.user,
+        )
+        if share_request.status != 'pending':
+            raise ShareNotPendingForWithdraw(
+                developer_message="Only pending shares can be withdrawn."
+            )
+
         share_request.status = 'cancelled'
         share_request.responded_at = timezone.now()
-        share_request.save()
+        share_request.save(update_fields=['status', 'responded_at'])
 
         coupon = share_request.coupon
-        coupon.current_holder = request.user
-        coupon.save(update_fields=['current_holder'])
+        if share_request.is_public:
+            # Public share emptied the wallet slot — give the coupon back.
+            coupon.current_holder = request.user
+            coupon.save(update_fields=['current_holder'])
 
     logger.info(
-        "Public share withdrawn",
+        "Share withdrawn",
         extra={
             "user_id": request.user.id,
             "share_id": share_id,
             "coupon_id": coupon.id,
+            "is_public": share_request.is_public,
         },
     )
-    return Response({'message': 'Coupon withdrawn from public pool.'}, status=status.HTTP_200_OK)
+    return Response({'message': 'Share withdrawn.'}, status=status.HTTP_200_OK)

@@ -1170,6 +1170,7 @@ class CouponPublicPoolFilter(admin.SimpleListFilter):
 
 @admin.register(Coupon)
 class CouponAdmin(admin.ModelAdmin):
+    change_list_template = 'admin/api/coupon/change_list.html'
     list_display = [
         'id', 'coupon_name', 'store_name', 'store_owner_email', 'coupon_type',
         'holder_info', 'expiry_date', 'is_expired', 'redemption_info'
@@ -1221,8 +1222,90 @@ class CouponAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.assign_to_user_view),
                 name='api_coupon_assign_user',
             ),
+            # Look up every coupon a queried user currently holds, by
+            # email / username / phone. admin_view() gates on staff.
+            path(
+                'by-user/',
+                self.admin_site.admin_view(self.coupons_by_user_view),
+                name='api_coupon_by_user',
+            ),
         ]
         return extra + urls
+
+    def coupons_by_user_view(self, request):
+        """Search a user (email / username / phone) and list the exclusive
+        coupons they currently hold. A single match renders the holdings
+        table directly; multiple matches render a disambiguation list."""
+        import re
+        import logging
+        from django.core.paginator import Paginator
+
+        User = get_user_model()
+        q = request.GET.get('q', '').strip()
+        target_user = None
+        candidates: list = []
+
+        if q:
+            digits = re.sub(r'\D', '', q)
+            user_filter = (
+                Q(email__icontains=q)
+                | Q(username__icontains=q)
+                | Q(student_profile__phone_number__icontains=q)
+            )
+            if digits and len(digits) >= 2:
+                user_filter |= Q(student_profile__phone_number__icontains=digits)
+            matches = list(
+                User.objects.filter(user_filter)
+                .select_related('student_profile')
+                .distinct()
+                .order_by('email')[:25]
+            )
+            if len(matches) == 1:
+                target_user = matches[0]
+            else:
+                candidates = matches
+
+        coupons_page = None
+        paginator = None
+        profile_id = None
+        if target_user is not None:
+            logging.getLogger('api').info(
+                'admin_coupons_by_user_viewed',
+                extra={
+                    'admin_user_id': getattr(request.user, 'id', None),
+                    'admin_user_email': getattr(request.user, 'email', None),
+                    'target_user_id': target_user.id,
+                },
+            )
+            redeemed_exists = CouponRedemption.objects.filter(coupon_id=OuterRef('pk'))
+            coupons_qs = (
+                Coupon.objects
+                .filter(current_holder=target_user)
+                .select_related('store', 'store__owner')
+                .annotate(redeemed_flag=Exists(redeemed_exists))
+                .order_by('-expiry_date', '-id')
+            )
+            paginator = Paginator(coupons_qs, 50)
+            coupons_page = paginator.get_page(request.GET.get('page'))
+            try:
+                profile_id = target_user.student_profile.id
+            except StudentProfile.DoesNotExist:
+                profile_id = None
+
+        return render(
+            request,
+            'admin/api/coupon/coupons_by_user.html',
+            {
+                'opts': self.model._meta,
+                'title': '依使用者查持有券',
+                'query': q,
+                'target_user': target_user,
+                'candidates': candidates,
+                'coupons_page': coupons_page,
+                'paginator': paginator,
+                'profile_id': profile_id,
+            },
+        )
 
     def assign_to_user_view(self, request):
         from django import forms

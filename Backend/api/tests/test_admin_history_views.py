@@ -364,3 +364,88 @@ class HoldingsAdminViewTest(TestCase):
         resp = self.client.get(self.url)
         self.assertEqual(len(resp.context["coupons_page"].object_list), 50)
         self.assertTrue(resp.context["coupons_page"].has_next())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. /admin/api/coupon/by-user/  — look up coupons held by a queried user
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class CouponsByUserAdminViewTest(TestCase):
+    def setUp(self):
+        self.admin = _make_user("admin4", is_staff=True, is_superuser=True)
+        self.user_a = _make_user("byu_a")
+        self.user_b = _make_user("byu_b")
+        StudentProfile.objects.create(user=self.user_a, phone_number="0900000040")
+        StudentProfile.objects.create(user=self.user_b, phone_number="0900000041")
+        merchant = _make_user("byu_m")
+        self.store = _make_store(merchant)
+        now = timezone.now()
+        for i in range(2):
+            Coupon.objects.create(
+                store=self.store,
+                coupon_name=f"A held {i}",
+                coupon_detail="x",
+                start_date=now - timezone.timedelta(days=1),
+                expiry_date=now + timezone.timedelta(days=7),
+                coupon_type="exclusive",
+                original_owner=self.user_a,
+                current_holder=self.user_a,
+                acquisition_method="draw",
+            )
+        Coupon.objects.create(
+            store=self.store,
+            coupon_name="B held",
+            coupon_detail="x",
+            start_date=now - timezone.timedelta(days=1),
+            expiry_date=now + timezone.timedelta(days=7),
+            coupon_type="exclusive",
+            original_owner=self.user_b,
+            current_holder=self.user_b,
+            acquisition_method="draw",
+        )
+        self.url = reverse("admin:api_coupon_by_user")
+
+    def test_requires_staff(self):
+        self.client.force_login(_make_user("nobody4"))
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/admin/login", resp["Location"])
+
+    def test_no_query_renders_form_without_results(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.context["target_user"])
+        self.assertEqual(list(resp.context["candidates"]), [])
+
+    def test_single_email_match_lists_only_that_users_coupons(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(self.url, {"q": "byu_a@test.com"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["target_user"].id, self.user_a.id)
+        coupons = list(resp.context["coupons_page"].object_list)
+        self.assertEqual(len(coupons), 2)
+        self.assertTrue(all(c.current_holder_id == self.user_a.id for c in coupons))
+        names = {c.coupon_name for c in coupons}
+        self.assertNotIn("B held", names)
+
+    def test_phone_query_resolves_user(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(self.url, {"q": "0900000040"})
+        self.assertEqual(resp.context["target_user"].id, self.user_a.id)
+
+    def test_ambiguous_query_returns_candidate_list(self):
+        # "byu_" matches both byu_a and byu_b usernames → disambiguation.
+        self.client.force_login(self.admin)
+        resp = self.client.get(self.url, {"q": "byu_"})
+        self.assertIsNone(resp.context["target_user"])
+        candidate_ids = {u.id for u in resp.context["candidates"]}
+        self.assertIn(self.user_a.id, candidate_ids)
+        self.assertIn(self.user_b.id, candidate_ids)
+
+    def test_unknown_query_finds_nothing(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(self.url, {"q": "no-such-user-xyz"})
+        self.assertIsNone(resp.context["target_user"])
+        self.assertEqual(list(resp.context["candidates"]), [])

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
 import GemIcon from '../icons/GemIcon';
@@ -14,6 +14,12 @@ interface CouponRowProps {
   onShare?: () => void;
   urgency?: 'expiring' | 'new' | null;
   gems?: number;
+  /** True when the coupon has a pending link share — shows a "分享中" badge. */
+  sharing?: boolean;
+  /** Spinner state while a withdraw request for this coupon is in flight. */
+  withdrawing?: boolean;
+  /** When provided (coupon has a pending link share), renders a 收回 button. */
+  onWithdraw?: () => void;
 }
 
 const URGENCY_COLORS = {
@@ -35,6 +41,9 @@ export default function CouponRow({
   onShare,
   urgency,
   gems = 0,
+  sharing = false,
+  withdrawing = false,
+  onWithdraw,
 }: CouponRowProps): React.JSX.Element {
   const urColor = urgency ? URGENCY_COLORS[urgency] : null;
   const urLabel = urgency ? URGENCY_LABELS[urgency] : null;
@@ -53,6 +62,11 @@ export default function CouponRow({
               {urLabel && urColor && (
                 <View style={[styles.urgencyBadge, { backgroundColor: urColor }]}>
                   <Text style={styles.urgencyText}>{urLabel}</Text>
+                </View>
+              )}
+              {sharing && (
+                <View testID="sharing-badge" style={styles.sharingBadge}>
+                  <Text style={styles.sharingText}>分享中</Text>
                 </View>
               )}
               {gems > 0 && (
@@ -81,6 +95,26 @@ export default function CouponRow({
                 <PaperPlaneIcon size={22} color={colors.fg} />
               </Pressable>
             </View>
+            {onWithdraw && (
+              <Pressable
+                testID="coupon-withdraw-btn"
+                onPress={(e) => {
+                  e?.stopPropagation?.();
+                  onWithdraw();
+                }}
+                disabled={withdrawing}
+                style={styles.rowWithdrawBtn}
+                accessibilityRole="button"
+                accessibilityLabel="收回分享連結"
+                hitSlop={8}
+              >
+                {withdrawing ? (
+                  <ActivityIndicator size="small" color={colors.fg} />
+                ) : (
+                  <Text style={styles.rowWithdrawText}>收回</Text>
+                )}
+              </Pressable>
+            )}
           </View>
         </View>
       </Pressable>
@@ -170,11 +204,42 @@ const styles = StyleSheet.create({
   rightCol: {
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     borderLeftWidth: 2,
     borderLeftColor: colors.subtle,
     borderStyle: 'dashed',
     paddingLeft: 12,
     minWidth: 60,
+  },
+  sharingBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 2,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.purple,
+  },
+  sharingText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    color: '#FFFFFF',
+  },
+  rowWithdrawBtn: {
+    minWidth: 44,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: colors.subtle,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowWithdrawText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 12,
+    color: colors.fg,
   },
   shareBtnWrapper: {
     position: 'relative',
