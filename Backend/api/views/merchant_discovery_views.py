@@ -24,7 +24,7 @@ import logging
 import math
 
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -200,6 +200,18 @@ def _resolve_merchant_store(user) -> Store | None:
     return user.owned_stores.first() if user.is_authenticated else None
 
 
+def _valid_public_share_filter(now) -> Q:
+    """Public, pending share whose underlying coupon is within its valid time
+    window — already started AND not expired. CouMap must not surface shared
+    coupons that are expired or not yet active."""
+    return Q(
+        is_public=True,
+        status='pending',
+        coupon__start_date__lte=now,
+        coupon__expiry_date__gt=now,
+    )
+
+
 # ── Consumer endpoints ───────────────────────────────────────────────────────
 
 
@@ -279,9 +291,8 @@ def list_nearby_merchants(request):
     shared_counts = dict(
         CouponShareRequest.objects
         .filter(
+            _valid_public_share_filter(now),
             coupon__store_id__in=store_ids,
-            is_public=True,
-            status='pending',
         )
         .exclude(from_user=request.user)
         .values('coupon__store_id')
@@ -330,8 +341,7 @@ def get_merchant_detail(request, id: int):
     shared_coupons_qs = (
         CouponShareRequest.objects
         .filter(
-            is_public=True,
-            status='pending',
+            _valid_public_share_filter(now),
             coupon__store=store,
         )
         .exclude(from_user=request.user)
@@ -347,9 +357,8 @@ def get_merchant_detail(request, id: int):
     my_public_shares_qs = (
         CouponShareRequest.objects
         .filter(
+            _valid_public_share_filter(now),
             from_user=request.user,
-            is_public=True,
-            status='pending',
             coupon__store=store,
         )
         .select_related('coupon', 'coupon__store', 'from_user', 'from_user__student_profile')
