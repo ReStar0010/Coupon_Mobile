@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, Keyboard, ScrollView } from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
@@ -30,6 +30,7 @@ export default function NicknamePromptModal({
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   // Reset to a clean slate each time the sheet opens — we never pre-fill,
   // because the profile's displayName may currently be a phone-derived
@@ -40,6 +41,31 @@ export default function NicknamePromptModal({
       setError(null);
       setSaving(false);
     }
+  }, [visible]);
+
+  // Lift the sheet body up by the keyboard's reported height. The input
+  // autoFocuses, so the keyboard opens immediately and would otherwise cover
+  // the field and save button. We track the live keyboard height and add a
+  // spacer instead of KeyboardAvoidingView — the latter is unreliable inside
+  // a Modal on Android (Expo SDK 54), same rationale as FeedbackModal.
+  //
+  // Gated on `visible` so we don't leak subscriptions while closed and so
+  // `kbHeight` resets to 0 on every reopen.
+  const [kbHeight, setKbHeight] = useState(0);
+  useEffect(() => {
+    if (!visible) {
+      setKbHeight(0);
+      return;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKbHeight(e.endCoordinates.height);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, [visible]);
 
   const trimmed = value.trim();
@@ -59,44 +85,54 @@ export default function NicknamePromptModal({
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <View style={styles.sheet}>
-        <View style={styles.accentStrip} />
-        <View style={styles.handle} />
-        <Text style={styles.title}>先取個暱稱吧</Text>
-        <Text style={styles.subtitle}>
-          領取你分享優惠券的人會看到這個暱稱，不會看到你的電話號碼。
-        </Text>
-        <TextInput
-          testID="nickname-input"
-          style={styles.input}
-          value={value}
-          onChangeText={setValue}
-          placeholder="例如：揪好康的阿明"
-          placeholderTextColor={colors.muted}
-          maxLength={MAX_NICKNAME_LEN}
-          autoFocus
-        />
-        {error ? (
-          <Text testID="nickname-error" style={styles.errorText}>
-            {error}
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={styles.sheet}>
+          <View style={styles.accentStrip} />
+          <View style={styles.handle} />
+          <Text style={styles.title}>先取個暱稱吧</Text>
+          <Text style={styles.subtitle}>
+            領取你分享優惠券的人會看到這個暱稱，不會看到你的電話號碼。
           </Text>
-        ) : null}
-        <View style={styles.btnWrapper}>
-          {canSave && <View style={styles.btnShadow} />}
-          <Pressable
-            testID="nickname-save-btn"
-            onPress={() => {
-              void handleSave();
-            }}
-            disabled={!canSave}
-            style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
-          >
-            <Text style={[styles.saveBtnText, !canSave && styles.saveBtnTextDisabled]}>
-              {saving ? '儲存中…' : '儲存並分享'}
+          <TextInput
+            testID="nickname-input"
+            style={styles.input}
+            value={value}
+            onChangeText={setValue}
+            placeholder="例如：揪好康的阿明"
+            placeholderTextColor={colors.muted}
+            maxLength={MAX_NICKNAME_LEN}
+            autoFocus
+          />
+          {error ? (
+            <Text testID="nickname-error" style={styles.errorText}>
+              {error}
             </Text>
-          </Pressable>
+          ) : null}
+          <View style={styles.btnWrapper}>
+            {canSave && <View style={styles.btnShadow} />}
+            <Pressable
+              testID="nickname-save-btn"
+              onPress={() => {
+                void handleSave();
+              }}
+              disabled={!canSave}
+              style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
+            >
+              <Text style={[styles.saveBtnText, !canSave && styles.saveBtnTextDisabled]}>
+                {saving ? '儲存中…' : '儲存並分享'}
+              </Text>
+            </Pressable>
+          </View>
+          {/* Keyboard spacer — height tracks the live keyboard height so the
+            input and save button stay above the keyboard top edge. */}
+          <View testID="nickname-keyboard-spacer" style={{ height: kbHeight }} />
         </View>
-      </View>
+      </ScrollView>
     </BottomSheet>
   );
 }
