@@ -6,9 +6,21 @@ import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import GemIcon from '@/src/components/icons/GemIcon';
 import { getCoupon } from '@/src/services/api/coupons';
-import type { Coupon } from '@/src/services/api/coupons';
+import type { CouponDetail } from '@/src/services/api/coupons';
 import { track } from '@/src/services/analytics/posthog';
 import Coachmark from '@/src/features/onboarding/Coachmark';
+
+// BE returns expiry_date as ISO datetime; the ticket UI shows "2026 / MM/DD".
+// Format defensively — a bad date string falls back to the legacy 'MM/DD'
+// param so navigation from older screens still renders something.
+function formatExpiryMMDD(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${mm}/${dd}`;
+}
 
 interface NavParams {
   id?: string;
@@ -30,7 +42,7 @@ export default function CouponDetailScreen({
   onNavigate,
   params,
 }: CouponScreenProps): React.JSX.Element {
-  const [fetched, setFetched] = useState<Coupon | null>(null);
+  const [fetched, setFetched] = useState<CouponDetail | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(params.id));
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -65,12 +77,29 @@ export default function CouponDetailScreen({
     };
   }, [params.id]);
 
-  const store = fetched?.store ?? params.store ?? '阿明早餐店';
-  const detail = fetched?.detail ?? params.detail ?? '$25 現金折抵';
-  const expires = fetched?.expires ?? params.expires ?? '11/08';
-  const amount = fetched?.amount ?? params.amount ?? 25;
-  const isCash = amount > 0;
+  const store = fetched?.store_name ?? params.store ?? '阿明早餐店';
+  // Title (big text) — was the dollar amount; users couldn't tell coupons apart
+  // because savings is a secondary attribute and the name is the primary one.
+  const couponName = fetched?.coupon_name ?? '優惠券';
+  // Description (medium text) — short pitch of what the coupon does.
+  const couponDetailText = fetched?.coupon_detail ?? params.detail ?? '';
+  const expires =
+    formatExpiryMMDD(fetched?.expiry_date) ?? params.expires ?? '11/08';
+  // BE returns estimated_savings as Decimal → JSON string. Coerce defensively;
+  // an unparseable value hides the badge instead of rendering "$NaN".
+  const savingsRaw = fetched?.estimated_savings;
+  const savings =
+    savingsRaw === null || savingsRaw === undefined || savingsRaw === ''
+      ? null
+      : Number(savingsRaw);
+  const hasSavings = savings !== null && Number.isFinite(savings) && savings > 0;
+  const typeLabel =
+    fetched?.coupon_type === 'exclusive' ? '專屬優惠' : '隨取即用';
   const gemReward = fetched?.gem_reward ?? 1;
+  // Legacy params shape kept for downstream screens (coupon-share / coupon-qr).
+  // They still read {store, detail, expires, amount} — populate `amount` from
+  // savings so existing renders that condition on it stay correct.
+  const legacyAmount = hasSavings ? (savings as number) : params.amount ?? 0;
 
   if (isLoading) {
     return (
@@ -106,15 +135,18 @@ export default function CouponDetailScreen({
               <Text style={s.expiryText}>⚡ 7天內到期</Text>
             </View>
             <Text style={s.storeLabel}>{store}</Text>
-            {isCash ? (
-              <View style={s.amountRow}>
-                <Text style={s.dollarSign}>$</Text>
-                <Text style={s.amountNum}>{amount}</Text>
-              </View>
-            ) : (
-              <Text style={s.nonCashDetail}>{detail}</Text>
-            )}
-            <Text style={s.detailLabel}>{isCash ? '現金折抵券' : '優惠券'}</Text>
+            <Text style={s.couponName} numberOfLines={2}>
+              {couponName}
+            </Text>
+            {couponDetailText ? (
+              <Text style={s.couponDetailText} numberOfLines={3}>
+                {couponDetailText}
+              </Text>
+            ) : null}
+            {hasSavings ? (
+              <Text style={s.savingsHint}>可省 ${Math.round(savings as number)}</Text>
+            ) : null}
+            <Text style={s.detailLabel}>{typeLabel}</Text>
             <View style={s.tearLine}>
               <View style={s.tearCircleLeft} />
               <View style={s.dashed} />
@@ -158,7 +190,7 @@ export default function CouponDetailScreen({
               testID="share-btn"
               onPress={() => {
                 track('coupon.share_started', { couponId: params.id });
-                onNavigate('coupon-share', { id: params.id, store, detail, expires, amount });
+                onNavigate('coupon-share', { id: params.id, store, detail: couponDetailText, expires, amount: legacyAmount });
               }}
               style={[s.ctaBtn, s.ctaBtnShare]}
             >
@@ -180,7 +212,7 @@ export default function CouponDetailScreen({
               testID="use-btn"
               onPress={() => {
                 track('coupon.redeem_started', { couponId: params.id });
-                onNavigate('coupon-qr', { id: params.id, store, detail, expires, amount });
+                onNavigate('coupon-qr', { id: params.id, store, detail: couponDetailText, expires, amount: legacyAmount });
               }}
               style={[s.ctaBtn, s.ctaBtnUse]}
             >
@@ -293,26 +325,31 @@ const s = StyleSheet.create({
     color: 'rgba(51,51,51,0.65)',
     marginBottom: 8,
   },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 4,
-    lineHeight: 1,
-    marginBottom: 6,
-  },
-  dollarSign: { fontFamily: fontFamilies.extraBold, fontSize: 28, color: colors.fg, marginTop: 10 },
-  amountNum: {
+  couponName: {
     fontFamily: fontFamilies.extraBold,
-    fontSize: 72,
-    letterSpacing: -3.6,
+    fontSize: 32,
+    letterSpacing: -1.2,
     color: colors.fg,
+    lineHeight: 38,
+    marginBottom: 8,
   },
-  nonCashDetail: {
-    fontFamily: fontFamilies.extraBold,
-    fontSize: 38,
-    letterSpacing: -1.5,
+  couponDetailText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: 'rgba(51,51,51,0.82)',
+    marginBottom: 8,
+  },
+  savingsHint: {
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 12,
+    letterSpacing: 0.4,
     color: colors.fg,
-    lineHeight: 46,
+    backgroundColor: 'rgba(51,51,51,0.10)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
     marginBottom: 6,
   },
   detailLabel: { fontFamily: fontFamilies.bold, fontSize: 14, color: colors.fg },

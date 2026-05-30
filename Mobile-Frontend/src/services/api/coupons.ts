@@ -12,6 +12,50 @@ export interface Coupon {
   gem_reward: number;
 }
 
+/**
+ * Detail shape returned by GET /api/coupons/{id}/ (api/views/coupon_views.py:283).
+ * The list endpoint pre-formats fields for the home screen; the detail endpoint
+ * returns the raw model fields plus a few computed ones, so the FE consumes the
+ * BE field names directly here instead of reusing the simplified list shape.
+ *
+ * Optional fields differ by `coupon_type`:
+ *   - 'store':    no `redeem_code`, no `is_redeemed`, no `estimated_savings`,
+ *                 has `active_coupon_count`, `total_redemptions`, `unique_users`,
+ *                 `can_use_today`.
+ *   - 'exclusive': has `redeem_code`, `is_redeemed`, `estimated_savings`,
+ *                  `original_owner_email`, `last_holder_email`.
+ */
+export interface CouponDetail {
+  id: number;
+  store_name: string;
+  store_id: number;
+  store_location?: { lat: number | null; lng: number | null };
+  address?: string | null;
+  coupon_name: string;
+  coupon_detail: string;
+  important_notes: string | null;
+  start_date: string;
+  expiry_date: string;
+  coupon_type: 'store' | 'exclusive';
+  image_url: string | null;
+  template_id: number | null;
+  tags?: string[];
+  merchant_deleted?: boolean;
+  acquisition_method?: string | null;
+  gem_reward: number;
+  // store-only
+  active_coupon_count?: number;
+  total_redemptions?: number;
+  unique_users?: number;
+  can_use_today?: boolean;
+  // exclusive-only
+  redeem_code?: string | null;
+  is_redeemed?: boolean;
+  original_owner_email?: string | null;
+  last_holder_email?: string | null;
+  estimated_savings?: number | string | null;
+}
+
 export interface RedeemResponse {
   message: string;
   coupon_name: string;
@@ -47,9 +91,9 @@ export async function listMyCoupons(): Promise<Coupon[]> {
   }
 }
 
-export async function getCoupon(id: string): Promise<Coupon> {
+export async function getCoupon(id: string): Promise<CouponDetail> {
   try {
-    const response = await apiClient.get<Coupon>(`/api/coupons/${id}/`);
+    const response = await apiClient.get<CouponDetail>(`/api/coupons/${id}/`);
     return response.data;
   } catch (error) {
     throw normalizeError(error);
