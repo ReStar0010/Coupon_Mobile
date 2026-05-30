@@ -10,8 +10,6 @@ import { fontFamilies } from '../../theme/typography';
 const APP_LOGO = require('@/assets/adaptive-icon.png');
 import NeoBrutMap, { NeoBrutMapHandle } from './NeoBrutMap';
 import NeoTeardropPin from './NeoTeardropPin';
-import UserLocationMarker from './UserLocationMarker';
-import { shouldUpdateHeading } from './heading';
 import FlagStoreModal from './FlagStoreModal';
 import BlockStoreModal from './BlockStoreModal';
 import SharedCouponModal, { SharedCoupon } from './SharedCouponModal';
@@ -80,20 +78,14 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [locating, setLocating] = useState<boolean>(false);
-  // Live user position + heading. The native `showsUserLocation` blue dot
-  // does not surface heading on Android until the user moves; we render our
-  // own marker for parity with Google Maps.
+  // Live user position — kept so the post-claim nearby re-fetch can recenter
+  // on the user. The visible "you are here" indicator is the map's own native
+  // dot (showsUserLocation), gated on location permission having been granted
+  // — we no longer draw a custom marker.
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(
     null,
   );
-  const [userHeading, setUserHeading] = useState<number | null>(null);
-  // Last value passed to setUserHeading. The watcher fires at ~10 Hz and
-  // most ticks differ by far less than a degree; pushing each one would
-  // re-render the whole MapScreen subtree 10× per second for no visible
-  // effect. Tracked in a ref so the watcher closure can compare without
-  // adding userHeading to its dep array (which would tear down the
-  // subscription on every update).
-  const prevHeadingRef = useRef<number | null>(null);
+  const [hasLocationPermission, setHasLocationPermission] = useState(false);
   // Ref-based in-flight guard. Using state in the callback's deps would
   // re-memoise on every transition (and the rapid-press guard would be
   // ordering-dependent on the disabled prop arriving before the next
@@ -112,13 +104,12 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
     };
   }, []);
 
-  // Live location + heading subscriptions for the "you are here" marker.
-  // expo-location returns subscriptions whose .remove() we MUST call on
-  // unmount; if we don't, the OS keeps the GPS/compass radios hot in the
-  // background and burns battery.
+  // Live position subscription so the post-claim re-fetch can recenter on the
+  // user, and permission gate for the map's native "you are here" dot.
+  // expo-location returns a subscription whose .remove() we MUST call on
+  // unmount; if we don't, the OS keeps the GPS radio hot and burns battery.
   useEffect(() => {
     let positionSub: { remove: () => void } | null = null;
-    let headingSub: { remove: () => void } | null = null;
     let cancelled = false;
 
     (async () => {
@@ -129,6 +120,8 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
         // already granted in this or a previous session.
         const perm = await Location.getForegroundPermissionsAsync();
         if (cancelled || !perm.granted) return;
+        // Permission already granted — let the map render its native user dot.
+        setHasLocationPermission(true);
         positionSub = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
@@ -143,29 +136,15 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
             });
           },
         );
-        headingSub = await Location.watchHeadingAsync((reading) => {
-          if (cancelled) return;
-          // Prefer trueHeading when the compass is calibrated (≥ 0); fall
-          // back to magnetic heading otherwise. Below-zero trueHeading is
-          // the documented "not yet available" sentinel.
-          const next = reading.trueHeading >= 0 ? reading.trueHeading : reading.magHeading;
-          const value = typeof next === 'number' ? next : null;
-          // Throttle to ≥1° deltas (see `./heading.ts` for full rules).
-          if (!shouldUpdateHeading(prevHeadingRef.current, value)) return;
-          prevHeadingRef.current = value;
-          setUserHeading(value);
-        });
       } catch {
         // Permission denied or hardware unavailable — fall through silently.
-        // The fallback marker (native blue dot) is already disabled; the
-        // user simply sees no "me" indicator until they hit the locate btn.
+        // The native dot stays off; the user can still hit the locate button.
       }
     })();
 
     return () => {
       cancelled = true;
       positionSub?.remove();
-      headingSub?.remove();
     };
   }, []);
 
@@ -266,6 +245,7 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
         return;
       }
       setLocationDeniedPermanent(false);
+      setHasLocationPermission(true);
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -316,7 +296,11 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
     const m = activeDetail;
     setActiveDetail(null);
     if (!m) return;
+    // Pass the real coupon id so this lands on the same detail page as the
+    // CouPro home entry. Without it the route wrapper falls back to the store
+    // name as the id and the detail fetch fails.
     onNavigate('coupon-detail', {
+      id: c.id,
       store: m.name,
       detail: c.detail,
       expires: c.expires,
@@ -384,7 +368,7 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
   return (
     <View style={styles.root}>
       <View style={styles.mapContainer}>
-        <NeoBrutMap ref={mapRef}>
+        <NeoBrutMap ref={mapRef} showsUserLocation={hasLocationPermission}>
           {merchants
             .filter((m) => m.active)
             .map((m) => (
@@ -397,9 +381,6 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
                 onPress={() => handlePinPress(m)}
               />
             ))}
-          {userLocation && (
-            <UserLocationMarker coordinate={userLocation} heading={userHeading} />
-          )}
         </NeoBrutMap>
 
         {/* Search bar — pushed below the notch */}
