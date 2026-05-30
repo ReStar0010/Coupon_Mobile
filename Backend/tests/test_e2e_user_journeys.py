@@ -577,7 +577,8 @@ class SharingJourneyE2ETest(TestCase):
             email='pub_a@test.com',
             password='testpass123',
         )
-        StudentProfile.objects.create(user=user_a, verified=True)
+        # Public sharing requires a nickname (display_name).
+        StudentProfile.objects.create(user=user_a, verified=True, display_name='阿明')
         user_b = User.objects.create_user(
             username='pub_b@test.com',
             email='pub_b@test.com',

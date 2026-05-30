@@ -22,9 +22,13 @@ import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import GemIcon from '@/src/components/icons/GemIcon';
 import { shareCoupon, shareCouponPublic } from '@/src/services/api/coupons';
+import { updateProfile } from '@/src/services/api/profile';
 import { useWallet } from '@/src/state/WalletContext';
+import { useAuth } from '@/src/state/AuthContext';
 import { track } from '@/src/services/analytics/posthog';
 import Coachmark from '@/src/features/onboarding/Coachmark';
+import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
+import NicknamePromptModal from './NicknamePromptModal';
 
 interface NavParams {
   id?: string;
@@ -63,8 +67,12 @@ export default function CouponShareScreen({
   const [uploading, setUploading] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Public sharing requires a nickname; when the BE rejects with
+  // NICKNAME_REQUIRED we open this prompt instead of surfacing a raw error.
+  const [showNickname, setShowNickname] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { refreshWallet } = useWallet();
+  const { refreshAuth } = useAuth();
 
   // Upload animation — pulsing arrow loops while the API call is in-flight.
   const pulse = useSharedValue(0);
@@ -122,11 +130,26 @@ export default function CouponShareScreen({
       }
     } catch (err: unknown) {
       setUploading(false);
-      const msg = err instanceof Error ? err.message : 'Share failed';
-      setShareError(msg);
+      // No nickname yet → prompt for one instead of showing an error; the
+      // user can set it inline and we retry the share immediately.
+      if ((err as { code?: string })?.code === 'NICKNAME_REQUIRED') {
+        setShowNickname(true);
+      } else {
+        const msg = err instanceof Error ? err.message : 'Share failed';
+        setShareError(msg);
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleNicknameSubmit = async (nickname: string): Promise<void> => {
+    // Persist the nickname, refresh the cached user, then retry the share.
+    // Errors propagate to NicknamePromptModal, which shows them inline.
+    await updateProfile({ displayName: nickname });
+    await refreshAuth();
+    setShowNickname(false);
+    await handleConfirm();
   };
 
   useEffect(
@@ -156,7 +179,7 @@ export default function CouponShareScreen({
         <Text style={s.headerTitle}>分享優惠券</Text>
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        <View style={s.gemBannerOuter}>
+        <OnboardingAnchor id={ANCHOR.shareReward} style={s.gemBannerOuter}>
           <View style={s.gemBannerShadow} />
           <View style={s.gemBanner}>
             <Text style={s.gemBannerLabel}>被使用</Text>
@@ -166,9 +189,9 @@ export default function CouponShareScreen({
               <GemIcon size={26} color={colors.purple} />
             </View>
           </View>
-        </View>
+        </OnboardingAnchor>
         {/* Step 1 — choose where to share */}
-        <View style={s.targetSection}>
+        <OnboardingAnchor id={ANCHOR.shareTarget} style={s.targetSection}>
           <Text style={s.targetLabel}>選擇分享方式</Text>
           <View style={s.targetList}>
             {SHARE_OPTIONS.map((opt) => {
@@ -219,9 +242,9 @@ export default function CouponShareScreen({
               );
             })}
           </View>
-        </View>
+        </OnboardingAnchor>
         {/* Step 2 — write your message (mandatory) */}
-        <View style={s.noteSection}>
+        <OnboardingAnchor id={ANCHOR.shareNote} style={s.noteSection}>
           <View style={s.noteHeader}>
             <Text style={s.noteLabel}>給領券的人留句話</Text>
             <Text style={s.noteRequired}>必填</Text>
@@ -245,14 +268,14 @@ export default function CouponShareScreen({
               </Pressable>
             ))}
           </View>
-        </View>
+        </OnboardingAnchor>
         <View style={s.confirmSection}>
           {shareError ? (
             <View style={s.errorBanner} testID="share-error">
               <Text style={s.errorText}>{shareError}</Text>
             </View>
           ) : null}
-          <View style={s.confirmOuter}>
+          <OnboardingAnchor id={ANCHOR.shareConfirm} style={s.confirmOuter}>
             {canConfirm && <View style={s.confirmShadow} />}
             <Pressable
               testID="confirm-btn"
@@ -263,7 +286,7 @@ export default function CouponShareScreen({
             >
               <Text style={[s.confirmText, !canConfirm && s.confirmTextDisabled]}>{confirmLabel}</Text>
             </Pressable>
-          </View>
+          </OnboardingAnchor>
         </View>
       </ScrollView>
       {uploading && (
@@ -301,6 +324,11 @@ export default function CouponShareScreen({
           <Text style={s.successReturn}>返回首頁中…</Text>
         </View>
       )}
+      <NicknamePromptModal
+        visible={showNickname}
+        onSubmit={handleNicknameSubmit}
+        onClose={() => setShowNickname(false)}
+      />
       <Coachmark screen="coupon-share" />
     </SafeAreaView>
   );

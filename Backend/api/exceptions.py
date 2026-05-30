@@ -350,6 +350,16 @@ class ShareNotPendingForWithdraw(CouProAPIException):
     error_code = "SHARE_NOT_PENDING_FOR_WITHDRAW"
 
 
+class NicknameRequired(CouProAPIException):
+    """
+    Public sharing requires a nickname (display_name) so the recipient sees
+    a chosen name instead of the sharer's phone/username. Raised when a user
+    attempts a public share without having set one.
+    """
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "NICKNAME_REQUIRED"
+
+
 # ---------------------------------------------------------------------------
 # QR Code sessions
 # ---------------------------------------------------------------------------

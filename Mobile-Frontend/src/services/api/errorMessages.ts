@@ -11,6 +11,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   NOT_AUTHENTICATED: '請先登入',
   AUTHENTICATION_FAILED: '驗證失敗，請重新登入',
   INTERNAL: '系統忙碌，請稍後再試',
+  NICKNAME_REQUIRED: '請先設定暱稱，才能分享到 CouMap',
 };
 
 export function localizeError(err: unknown, fallback?: string): string {

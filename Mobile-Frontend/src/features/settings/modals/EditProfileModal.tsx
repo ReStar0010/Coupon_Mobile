@@ -19,12 +19,14 @@ function FieldRow({
   onChangeText,
   keyboardType,
   placeholder,
+  hint,
 }: {
   label: string;
   value: string;
   onChangeText: (t: string) => void;
   keyboardType?: 'default' | 'email-address' | 'phone-pad';
   placeholder?: string;
+  hint?: string;
 }) {
   return (
     <View style={styles.field}>
@@ -38,6 +40,7 @@ function FieldRow({
         placeholderTextColor={colors.muted}
         autoCapitalize="none"
       />
+      {hint ? <Text style={styles.fieldHint}>{hint}</Text> : null}
     </View>
   );
 }
@@ -87,7 +90,13 @@ export default function EditProfileModal({
           <View style={styles.dragHandle} />
           <ScrollView>
             <Text style={styles.title}>編輯個人資料</Text>
-            <FieldRow label="顯示名稱" value={n} onChangeText={setN} />
+            <FieldRow
+              label="暱稱"
+              value={n}
+              onChangeText={setN}
+              placeholder="取個暱稱吧"
+              hint="此暱稱會顯示給領取你分享優惠券的人"
+            />
             <FieldRow
               label="電子信箱"
               value={e}
@@ -160,6 +169,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 5,
+  },
+  fieldHint: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 5,
+    lineHeight: 15,
   },
   input: {
     fontFamily: fontFamilies.semiBold,

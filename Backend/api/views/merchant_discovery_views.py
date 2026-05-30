@@ -38,10 +38,16 @@ from api.models import (
     CouponShareRequest,
     Store,
     StoreNews,
+    StudentProfile,
 )
 from api.utils import display_face_value
 
 logger = logging.getLogger(__name__)
+
+# Shown as the sharer name when a public share's owner has not set a nickname
+# (display_name). Public sharing now requires a nickname (see share_coupon_public),
+# so this only covers legacy shares created before that gate — never a phone number.
+_ANON_SHARER_NAME = '熱心鄉民'
 
 
 # ── Errors ───────────────────────────────────────────────────────────────────
@@ -134,6 +140,23 @@ def _serialize_merchant_coupon(c: Coupon) -> dict:
     }
 
 
+def _sharer_display_name(user) -> str:
+    """
+    Resolve the sharer's chosen nickname (StudentProfile.display_name) for
+    public display.
+
+    NEVER falls back to ``first_name``/``username`` — for phone-registered
+    users ``username`` is the phone number, so exposing it here leaked PII to
+    every coupon recipient. Users without a nickname show as ``_ANON_SHARER_NAME``.
+    """
+    try:
+        profile = user.student_profile
+    except StudentProfile.DoesNotExist:
+        profile = None
+    name = ((getattr(profile, 'display_name', None)) or '').strip()
+    return (name or _ANON_SHARER_NAME)[:40]
+
+
 def _serialize_shared_coupon(share: CouponShareRequest) -> dict:
     """FE SharedCoupon shape — public-pool share request rendered as a tile."""
     coupon = share.coupon
@@ -142,7 +165,7 @@ def _serialize_shared_coupon(share: CouponShareRequest) -> dict:
         'token': share.token,
         'store': coupon.store.name if coupon.store else '',
         'amount': int(coupon.estimated_savings) if coupon.estimated_savings is not None else 0,
-        'sharer': (share.from_user.first_name or share.from_user.username or '')[:40],
+        'sharer': _sharer_display_name(share.from_user),
         'msg': share.message,
         'label': label,
     }
@@ -312,7 +335,7 @@ def get_merchant_detail(request, id: int):
             coupon__store=store,
         )
         .exclude(from_user=request.user)
-        .select_related('coupon', 'coupon__store', 'from_user')
+        .select_related('coupon', 'coupon__store', 'from_user', 'from_user__student_profile')
         .order_by('-created_at')[:20]
     )
 
@@ -329,7 +352,7 @@ def get_merchant_detail(request, id: int):
             status='pending',
             coupon__store=store,
         )
-        .select_related('coupon', 'coupon__store', 'from_user')
+        .select_related('coupon', 'coupon__store', 'from_user', 'from_user__student_profile')
         .order_by('-created_at')[:20]
     )
 

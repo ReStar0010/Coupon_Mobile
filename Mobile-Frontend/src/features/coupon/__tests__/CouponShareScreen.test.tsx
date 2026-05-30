@@ -11,9 +11,19 @@ jest.mock('../../../services/api/coupons', () => ({
   shareCouponPublic: (...args: unknown[]) => mockShareCouponPublic(...args),
 }));
 
+const mockUpdateProfile = jest.fn();
+jest.mock('../../../services/api/profile', () => ({
+  updateProfile: (...args: unknown[]) => mockUpdateProfile(...args),
+}));
+
 const mockRefreshWallet = jest.fn();
 jest.mock('../../../state/WalletContext', () => ({
   useWallet: () => ({ refreshWallet: mockRefreshWallet }),
+}));
+
+const mockRefreshAuth = jest.fn();
+jest.mock('../../../state/AuthContext', () => ({
+  useAuth: () => ({ user: { displayName: null }, refreshAuth: mockRefreshAuth }),
 }));
 
 const makeProps = (overrides = {}) => ({
@@ -49,6 +59,8 @@ beforeEach(() => {
   mockShareCouponPublic.mockResolvedValue({ share_link: 'x', token: 't' });
   mockShareCoupon.mockResolvedValue({ share_link: 'x', token: 't' });
   mockRefreshWallet.mockResolvedValue(undefined);
+  mockUpdateProfile.mockResolvedValue(undefined);
+  mockRefreshAuth.mockResolvedValue(undefined);
 });
 
 describe('CouponShareScreen', () => {
@@ -163,5 +175,51 @@ describe('CouponShareScreen', () => {
 
     expect(h.getByTestId('share-error')).toBeTruthy();
     expect(mockShareCouponPublic).not.toHaveBeenCalled();
+  });
+
+  it('prompts for a nickname (not an error) when sharing is gated', async () => {
+    // BE rejects the first attempt with NICKNAME_REQUIRED.
+    mockShareCouponPublic.mockRejectedValueOnce(
+      Object.assign(new Error('nickname required'), { code: 'NICKNAME_REQUIRED' }),
+    );
+    const h = render(<CouponShareScreen {...makeProps()} />);
+
+    fillForm(h, 'map');
+    await act(async () => {
+      fireEvent.press(h.getByTestId('confirm-btn'));
+    });
+
+    // The nickname prompt opens instead of the error banner.
+    await waitFor(() => {
+      expect(h.getByTestId('nickname-input')).toBeTruthy();
+    });
+    expect(h.queryByTestId('share-error')).toBeNull();
+  });
+
+  it('saves the nickname then retries the share', async () => {
+    mockShareCouponPublic
+      .mockRejectedValueOnce(
+        Object.assign(new Error('nickname required'), { code: 'NICKNAME_REQUIRED' }),
+      )
+      .mockResolvedValueOnce({ share_link: 'x', token: 't' });
+    const h = render(<CouponShareScreen {...makeProps()} />);
+
+    fillForm(h, 'map');
+    await act(async () => {
+      fireEvent.press(h.getByTestId('confirm-btn'));
+    });
+    await waitFor(() => expect(h.getByTestId('nickname-input')).toBeTruthy());
+
+    fireEvent.changeText(h.getByTestId('nickname-input'), '揪好康的阿明');
+    await act(async () => {
+      fireEvent.press(h.getByTestId('nickname-save-btn'));
+    });
+
+    expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: '揪好康的阿明' });
+    expect(mockRefreshAuth).toHaveBeenCalled();
+    // Share attempted twice: the gated first try + the post-nickname retry.
+    await waitFor(() => {
+      expect(mockShareCouponPublic).toHaveBeenCalledTimes(2);
+    });
   });
 });

@@ -26,7 +26,7 @@ from api.exceptions import (
 from api.models import Coupon, CouponShareRequest, QRCodeSession
 from api.spinner_coop.models import WalletTransaction
 from api.spinner_coop.wallet_service import WalletService
-from api.utils import display_face_value
+from api.utils import assert_nickname_set_for_public_share, display_face_value
 
 logger = logging.getLogger(__name__)
 
@@ -293,6 +293,11 @@ def share_coupon_public(request, coupon_id):
     # Check if coupon is already redeemed
     if coupon.is_redeemed():
         raise CouponAlreadyRedeemed(developer_message="This coupon has already been redeemed.")
+
+    # Require a nickname before releasing to the public pool so the recipient's
+    # "collect coupon" modal shows a chosen name, never the phone-derived
+    # username. The FE catches NICKNAME_REQUIRED and prompts the user to set one.
+    assert_nickname_set_for_public_share(request.user)
 
     # Check if there's already a pending public share for this coupon
     existing_public_share = CouponShareRequest.objects.filter(
