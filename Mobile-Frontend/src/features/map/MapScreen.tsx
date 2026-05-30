@@ -29,6 +29,7 @@ import {
 } from '@/src/services/api/merchants';
 import { track } from '@/src/services/analytics/posthog';
 import Coachmark from '@/src/features/onboarding/Coachmark';
+import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
 
 interface MapScreenProps {
   onNavigate: (screen: string, params?: object) => void;
@@ -402,7 +403,7 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
         </NeoBrutMap>
 
         {/* Search bar — pushed below the notch */}
-        <View style={[styles.searchBar, { top: insets.top + 8 }]}>
+        <OnboardingAnchor id={ANCHOR.mapSearch} style={[styles.searchBar, { top: insets.top + 8 }]}>
           <View style={[styles.searchLogoBox, { overflow: 'hidden' }]}>
             <Image
               source={APP_LOGO}
@@ -422,7 +423,7 @@ export default function MapScreen({ onNavigate }: MapScreenProps): React.JSX.Ele
             <Circle cx={11} cy={11} r={7} stroke={colors.muted} strokeWidth={2} />
             <Path d="M16 16 L21 21" stroke={colors.muted} strokeWidth={2} strokeLinecap="round" />
           </Svg>
-        </View>
+        </OnboardingAnchor>
 
         {/* Search results dropdown — sits just under the search bar */}
         {filteredMerchants.length > 0 && (

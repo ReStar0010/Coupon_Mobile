@@ -18,6 +18,7 @@ import HomeHeader from './HomeHeader';
 import CouPointsCard from './CouPointsCard';
 import DrawModal from './DrawModal';
 import Coachmark from '@/src/features/onboarding/Coachmark';
+import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
 import { useWallet } from '@/src/state/WalletContext';
 import type { Coupon } from '@/src/services/api/coupons';
 import {
@@ -142,12 +143,14 @@ export default function HomeScreen({
   const header = (
     <>
       <HomeHeader onSettings={() => onNavigate('settings')} />
-      <CouPointsCard
-        couPoints={couPoints}
-        onUse={() => onNavigate('coupoint-use')}
-        onHistory={() => onNavigate('coupoint-history')}
-      />
-      <View style={s.gemBannerOuter}>
+      <OnboardingAnchor id={ANCHOR.homeWallet}>
+        <CouPointsCard
+          couPoints={couPoints}
+          onUse={() => onNavigate('coupoint-use')}
+          onHistory={() => onNavigate('coupoint-history')}
+        />
+      </OnboardingAnchor>
+      <OnboardingAnchor id={ANCHOR.homeGem} style={s.gemBannerOuter}>
         <View style={s.gemBannerShadow} />
         <Pressable onPress={() => onNavigate('spinner')} style={s.gemBanner}>
           <View style={s.gemInfo}>
@@ -166,7 +169,7 @@ export default function HomeScreen({
             <Text style={s.gemCta}>抽獎 →</Text>
           </View>
         </Pressable>
-      </View>
+      </OnboardingAnchor>
       <View style={s.sectionHeader}>
         <View style={s.sectionLeft}>
           <TicketIcon size={18} />
@@ -220,8 +223,8 @@ export default function HomeScreen({
             tintColor={colors.fg}
           />
         }
-        renderItem={({ item }) => (
-          <View style={s.rowWrap}>
+        renderItem={({ item, index }) => {
+          const row = (
             <CouponRow
               store={item.store}
               detail={item.detail}
@@ -248,8 +251,19 @@ export default function HomeScreen({
                 })
               }
             />
-          </View>
-        )}
+          );
+          return (
+            <View style={s.rowWrap}>
+              {/* Anchor only the first row so the coach-mark spotlight has a
+                  stable target; later rows render unwrapped. */}
+              {index === 0 ? (
+                <OnboardingAnchor id={ANCHOR.homeCoupon}>{row}</OnboardingAnchor>
+              ) : (
+                row
+              )}
+            </View>
+          );
+        }}
         ListFooterComponent={
           pendingShares.length > 0 ? (
             <View style={s.sharedSection}>

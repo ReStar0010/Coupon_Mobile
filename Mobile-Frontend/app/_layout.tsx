@@ -12,6 +12,7 @@ import { WalletProvider } from '@/src/state/WalletContext';
 import { tryApplyUpdate } from '@/src/services/updates/applyUpdates';
 import UpgradePrompt from '@/src/features/upgrade/UpgradePrompt';
 import { CoopProvider } from '@/src/features/spinner/coop/CoopContext';
+import { OnboardingAnchorProvider } from '@/src/components/onboarding/onboardingAnchors';
 import ErrorBoundary from '@/src/components/ErrorBoundary';
 import { scrubBreadcrumb } from '@/src/services/sentry/scrubBreadcrumb';
 
@@ -103,6 +104,7 @@ function RootLayout() {
             <AuthProvider>
               <WalletProvider>
               <CoopProvider>
+                <OnboardingAnchorProvider>
                 <Stack
                   screenOptions={{
                     headerShown: false,
@@ -122,6 +124,7 @@ function RootLayout() {
                     fail-open if version-info request errors so a broken
                     endpoint never traps the user. */}
                 <UpgradePrompt />
+                </OnboardingAnchorProvider>
               </CoopProvider>
               </WalletProvider>
             </AuthProvider>

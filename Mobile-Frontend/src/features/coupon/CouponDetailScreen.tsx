@@ -9,6 +9,7 @@ import { getCoupon } from '@/src/services/api/coupons';
 import type { CouponDetail } from '@/src/services/api/coupons';
 import { track } from '@/src/services/analytics/posthog';
 import Coachmark from '@/src/features/onboarding/Coachmark';
+import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
 
 // BE returns expiry_date as ISO datetime; the ticket UI shows "2026 / MM/DD".
 // Format defensively — a bad date string falls back to the legacy 'MM/DD'
@@ -128,7 +129,7 @@ export default function CouponDetailScreen({
             <Text style={s.errorText}>{loadError}</Text>
           </View>
         ) : null}
-        <View style={s.ticketOuter}>
+        <OnboardingAnchor id={ANCHOR.detailTicket} style={s.ticketOuter}>
           <View style={s.ticketShadow} />
           <View style={s.ticket}>
             <View style={s.expiryBadge}>
@@ -167,7 +168,7 @@ export default function CouponDetailScreen({
               </View>
             </View>
           </View>
-        </View>
+        </OnboardingAnchor>
         <View style={s.usageSection}>
           <Text style={s.usageTitle}>使用說明</Text>
           <Text style={s.usageItem}>· 結帳時出示 QR Code 給店員掃描</Text>
@@ -184,7 +185,7 @@ export default function CouponDetailScreen({
           </View>
         </View>
         <View style={s.ctaRow}>
-          <View style={s.ctaOuter}>
+          <OnboardingAnchor id={ANCHOR.detailShare} style={s.ctaOuter}>
             <View style={s.ctaShadow} />
             <Pressable
               testID="share-btn"
@@ -205,8 +206,8 @@ export default function CouponDetailScreen({
               </Svg>
               <Text style={s.ctaBtnTextDark}>分享賺寶石</Text>
             </Pressable>
-          </View>
-          <View style={s.ctaOuter}>
+          </OnboardingAnchor>
+          <OnboardingAnchor id={ANCHOR.detailUse} style={s.ctaOuter}>
             <View style={[s.ctaShadow, s.ctaShadowDark]} />
             <Pressable
               testID="use-btn"
@@ -229,7 +230,7 @@ export default function CouponDetailScreen({
               </Svg>
               <Text style={s.ctaBtnTextLight}>立即使用</Text>
             </Pressable>
-          </View>
+          </OnboardingAnchor>
         </View>
       </ScrollView>
       <Coachmark screen="coupon-detail" />

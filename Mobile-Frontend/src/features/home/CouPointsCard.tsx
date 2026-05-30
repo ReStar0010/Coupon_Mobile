@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import CoinIcon from '@/src/components/icons/CoinIcon';
+import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
 
 interface CouPointsCardProps {
   couPoints: number;
@@ -32,21 +33,25 @@ export default function CouPointsCard({
       <View style={styles.shadow} />
       <View style={styles.card}>
         <Text style={styles.label}>CouPoint 餘額</Text>
-        <View style={styles.balanceRow}>
-          <View style={styles.balanceIconWrap}>
-            <CoinIcon size={40} />
+        <OnboardingAnchor id={ANCHOR.homeBalance}>
+          <View style={styles.balanceRow}>
+            <View style={styles.balanceIconWrap}>
+              <CoinIcon size={40} />
+            </View>
+            <Text testID="coupoints-balance" style={styles.balanceNum}>
+              {couPoints}
+            </Text>
           </View>
-          <Text testID="coupoints-balance" style={styles.balanceNum}>
-            {couPoints}
-          </Text>
-        </View>
+        </OnboardingAnchor>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress}%` as `${number}%` }]} />
         </View>
         <View style={styles.btnRow}>
-          <Pressable onPress={onUse} style={styles.redeemBtn}>
-            <Text style={styles.redeemBtnText}>掃碼使用</Text>
-          </Pressable>
+          <OnboardingAnchor id={ANCHOR.homeRedeem} style={styles.redeemAnchor}>
+            <Pressable onPress={onUse} style={styles.redeemBtn}>
+              <Text style={styles.redeemBtnText}>掃碼使用</Text>
+            </Pressable>
+          </OnboardingAnchor>
           <Pressable onPress={onHistory} style={styles.historyBtn}>
             <Text style={styles.historyBtnText}>歷史紀錄</Text>
           </Pressable>
@@ -122,6 +127,9 @@ const styles = StyleSheet.create({
   btnRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  redeemAnchor: {
+    flex: 1,
   },
   redeemBtn: {
     flex: 1,

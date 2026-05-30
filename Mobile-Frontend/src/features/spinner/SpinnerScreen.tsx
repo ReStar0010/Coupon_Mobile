@@ -20,6 +20,7 @@ import ResultModal from './ResultModal';
 import type { SpinResult } from './ResultModal';
 import MeltdownOverlay from './MeltdownOverlay';
 import Coachmark from '@/src/features/onboarding/Coachmark';
+import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
 import { useSpinLogic } from './useSpinLogic';
 import { getCharge } from './constants';
 import { colors } from '../../theme/colors';
@@ -726,7 +727,7 @@ export default function SpinnerScreen({
       {/* Wheel area — zoom + shake */}
       <Reanimated.View style={[styles.wheelArea, shakeStyle]}>
         {/* Player slots */}
-        <View style={styles.slots}>
+        <OnboardingAnchor id={ANCHOR.spinnerSlots} style={styles.slots}>
           {Array.from({ length: displayPlayers }).map((_, i) => {
             const slot = slotType(i);
             const player = isMultiplayer ? coopPlayers[i] : null;
@@ -760,10 +761,10 @@ export default function SpinnerScreen({
               </Reanimated.View>
             );
           })}
-        </View>
+        </OnboardingAnchor>
 
         {/* Wheel */}
-        <View style={styles.wheelWrapper}>
+        <OnboardingAnchor id={ANCHOR.spinnerWheel} style={styles.wheelWrapper}>
           <WheelDial
             size={260}
             floor={floor}
@@ -776,7 +777,7 @@ export default function SpinnerScreen({
             phase={phase}
             upcomingColor={phase === 'pause' ? pendingColor : null}
           />
-        </View>
+        </OnboardingAnchor>
 
         {/* Particles — burst from wheel center */}
         <View style={[StyleSheet.absoluteFill, styles.particleContainer]} pointerEvents="none">
@@ -834,9 +835,9 @@ export default function SpinnerScreen({
 
       {/* Controls panel */}
       <View style={styles.controls}>
-        <View testID="gem-pips-container">
+        <OnboardingAnchor id={ANCHOR.spinnerBet} testID="gem-pips-container">
           <GemPips count={5} filled={bet} />
-        </View>
+        </OnboardingAnchor>
         <View style={styles.steppers}>
           <Stepper
             label="寶石"
@@ -849,10 +850,13 @@ export default function SpinnerScreen({
           {!isMultiplayer && (
             <>
               <View style={styles.divider} />
-              <Stepper label="揪友" value={players} min={1} max={3} onChange={setPlayers} />
+              <OnboardingAnchor id={ANCHOR.spinnerInvite} style={styles.stepperAnchor}>
+                <Stepper label="揪友" value={players} min={1} max={3} onChange={setPlayers} />
+              </OnboardingAnchor>
             </>
           )}
         </View>
+        <OnboardingAnchor id={ANCHOR.spinnerSpin}>
         <Reanimated.View style={btnBreathStyle}>
           <Pressable
             testID="spin-button"
@@ -870,6 +874,7 @@ export default function SpinnerScreen({
             </Text>
           </Pressable>
         </Reanimated.View>
+        </OnboardingAnchor>
       </View>
 
       {/* Vignette overlay */}
@@ -1052,6 +1057,11 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'center',
     marginBottom: 10,
+  },
+  // Keeps the wrapped 揪友 Stepper filling its flex slot in the row so the
+  // onboarding anchor doesn't collapse the control to content width.
+  stepperAnchor: {
+    flex: 1,
   },
   divider: {
     width: 1,
