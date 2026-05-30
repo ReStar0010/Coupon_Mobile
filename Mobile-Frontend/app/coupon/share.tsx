@@ -1,6 +1,7 @@
 import React from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useWallet } from '@/src/state/WalletContext';
+import { goHome } from '@/src/services/navigation/goHome';
 import CouponShareScreen from '@/src/features/coupon/CouponShareScreen';
 
 export default function CouponShareRoute() {
@@ -19,7 +20,7 @@ export default function CouponShareRoute() {
   return (
     <CouponShareScreen
       onNavigate={(screen) => {
-        if (screen === 'home') router.push('/(tabs)/home');
+        if (screen === 'home') goHome(router);
         else if (screen === 'coupon-detail') router.back();
         else router.back();
       }}
