@@ -79,7 +79,12 @@ export default function HomeScreen({
   const [canDrawToday, setCanDrawToday] = useState(true);
   const { coupons, refreshWallet } = useWallet();
 
-  const visibleCoupons = coupons.filter((c) => c.status === 'active');
+  // 'shared' = held by the user with an outstanding LINK share, still theirs
+  // until the recipient collects it. Keep these visible (they carry a 分享中
+  // badge + 收回 control); they only drop off once collected/withdrawn.
+  const visibleCoupons = coupons.filter(
+    (c) => c.status === 'active' || c.status === 'shared',
+  );
   // listMyShares already returns pending-only, but filter defensively.
   const pendingShares = shares.filter((s) => s.status === 'pending');
   // CouMap (public) shares live in the footer; the coupon left the wallet.

@@ -128,6 +128,30 @@ describe('CouponShareScreen', () => {
     shareSpy.mockRestore();
   });
 
+  it('navigates home after a successful link share (not stuck on the overlay)', async () => {
+    jest.useFakeTimers();
+    mockShareCoupon.mockResolvedValueOnce({
+      share_link: 'coupro://collection?token=lnk',
+      share_link_web: 'https://api.coupro.pro/collection/lnk/?open_ext=1',
+      token: 'lnk',
+    });
+    const shareSpy = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: Share.sharedAction } as never);
+    const onNavigate = jest.fn();
+    const h = render(<CouponShareScreen {...makeProps({ onNavigate })} />);
+
+    fillForm(h, 'link');
+    await act(async () => {
+      fireEvent.press(h.getByTestId('confirm-btn'));
+    });
+
+    act(() => jest.advanceTimersByTime(3000));
+    expect(onNavigate).toHaveBeenCalledWith('home');
+    shareSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
   it('does NOT mark success when user dismisses the share sheet', async () => {
     mockShareCoupon.mockResolvedValueOnce({
       share_link: 'coupro://collection?token=xyz',
