@@ -33,6 +33,11 @@ interface SharedCouponModalProps {
   onClose: () => void;
 }
 
+/**
+ * CouMap "collect a shared coupon" bottom sheet: shows the coupon info ticket
+ * (store, name, detail, savings, type, expiry, share-reward gem) and lets the
+ * recipient accept it into their wallet.
+ */
 export default function SharedCouponModal({
   visible, coupon, onClaim, onClose,
 }: SharedCouponModalProps): React.JSX.Element {
