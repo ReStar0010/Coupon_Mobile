@@ -158,7 +158,10 @@ def _sharer_display_name(user) -> str:
 
 
 def _serialize_shared_coupon(share: CouponShareRequest) -> dict:
-    """FE SharedCoupon shape — public-pool share request rendered as a tile."""
+    """FE SharedCoupon shape — public-pool share request rendered as a tile in
+    the merchant sheet and as a full info ticket in the collect modal. Carries
+    the coupon's name/detail/type/expiry/gem so the collect modal shows real
+    coupon info rather than a bare money figure."""
     coupon = share.coupon
     label = coupon.coupon_name or '折抵'
     return {
@@ -168,6 +171,10 @@ def _serialize_shared_coupon(share: CouponShareRequest) -> dict:
         'sharer': _sharer_display_name(share.from_user),
         'msg': share.message,
         'label': label,
+        'detail': coupon.coupon_detail or '',
+        'type': coupon.coupon_type,
+        'expires': coupon.expiry_date.strftime('%Y/%m/%d') if coupon.expiry_date else '',
+        'gem_reward': coupon.template.gem_reward if coupon.template else 1,
     }
 
 
@@ -345,7 +352,7 @@ def get_merchant_detail(request, id: int):
             coupon__store=store,
         )
         .exclude(from_user=request.user)
-        .select_related('coupon', 'coupon__store', 'from_user', 'from_user__student_profile')
+        .select_related('coupon', 'coupon__store', 'coupon__template', 'from_user', 'from_user__student_profile')
         .order_by('-created_at')[:20]
     )
 
@@ -361,7 +368,7 @@ def get_merchant_detail(request, id: int):
             from_user=request.user,
             coupon__store=store,
         )
-        .select_related('coupon', 'coupon__store', 'from_user', 'from_user__student_profile')
+        .select_related('coupon', 'coupon__store', 'coupon__template', 'from_user', 'from_user__student_profile')
         .order_by('-created_at')[:20]
     )
 

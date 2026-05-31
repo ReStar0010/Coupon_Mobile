@@ -46,6 +46,11 @@ const sampleCoupon: SharedCoupon = {
   amount: 50,
   sharer: '小明',
   msg: '這家真的很好吃！',
+  label: '購買任一便當 折5元',
+  detail: '限內用 · 不可與其他優惠合併',
+  type: 'exclusive',
+  expires: '2026/06/30',
+  gem_reward: 1,
 };
 
 const makeProps = (overrides: Partial<React.ComponentProps<typeof SharedCouponModal>> = {}) => ({
@@ -80,9 +85,23 @@ describe('SharedCouponModal', () => {
     expect(getByText('阿明早餐店')).toBeTruthy();
   });
 
-  it('renders the coupon amount', () => {
-    const { getByText } = render(<SharedCouponModal {...makeProps()} />);
-    expect(getByText('50')).toBeTruthy();
+  it('renders coupon info (name, detail, savings, type, expiry) — not a money hero', () => {
+    const { getByText, queryByText } = render(<SharedCouponModal {...makeProps()} />);
+    expect(getByText('購買任一便當 折5元')).toBeTruthy(); // title (name)
+    expect(getByText('限內用 · 不可與其他優惠合併')).toBeTruthy(); // detail line
+    expect(getByText('可省 $50')).toBeTruthy(); // small savings badge
+    expect(getByText('專屬優惠')).toBeTruthy(); // type label
+    expect(getByText('2026/06/30')).toBeTruthy(); // 到期日
+    expect(getByText('到期日')).toBeTruthy();
+    expect(getByText('分享獎勵')).toBeTruthy();
+    // The old giant "$ amount + 現金折抵券" hero must be gone.
+    expect(queryByText('現金折抵券')).toBeNull();
+  });
+
+  it('shows 隨取即用 for store-type shared coupons', () => {
+    const storeCoupon: SharedCoupon = { ...sampleCoupon, type: 'store' };
+    const { getByText } = render(<SharedCouponModal {...makeProps({ coupon: storeCoupon })} />);
+    expect(getByText('隨取即用')).toBeTruthy();
   });
 
   it('renders the sharer name', () => {
@@ -126,10 +145,11 @@ describe('SharedCouponModal', () => {
     expect(getByText('領取成功！')).toBeTruthy();
   });
 
-  it('success state shows coupon amount', async () => {
-    const { getByText } = render(<SharedCouponModal {...makeProps()} />);
+  it('success state names the coupon (no money figure)', async () => {
+    const { getByText, queryByText } = render(<SharedCouponModal {...makeProps()} />);
     await pressClaim(getByText);
-    expect(getByText('$50')).toBeTruthy();
+    expect(getByText(/購買任一便當 折5元/)).toBeTruthy();
+    expect(queryByText('$50')).toBeNull();
   });
 
   it('calls acceptShare with the coupon token on claim', async () => {
@@ -190,17 +210,22 @@ describe('SharedCouponModal', () => {
     expect(queryByText('有人分享了一張券給你')).toBeNull();
   });
 
-  it('renders coupon with optional label when provided', () => {
-    const couponWithLabel: SharedCoupon = { ...sampleCoupon, label: 'VIP' };
+  it('renders the coupon name (label) as the title', () => {
+    const couponWithLabel: SharedCoupon = { ...sampleCoupon, label: '買一送一' };
     const { getByText } = render(<SharedCouponModal {...makeProps({ coupon: couponWithLabel })} />);
-    // Label field is defined but not rendered in UI; ensure other fields still show
-    expect(getByText('阿明早餐店')).toBeTruthy();
+    expect(getByText('買一送一')).toBeTruthy();
   });
 
   it('renders different store name correctly', () => {
     const otherCoupon: SharedCoupon = { ...sampleCoupon, store: '鼎泰豐', amount: 100 };
     const { getByText } = render(<SharedCouponModal {...makeProps({ coupon: otherCoupon })} />);
     expect(getByText('鼎泰豐')).toBeTruthy();
-    expect(getByText('100')).toBeTruthy();
+    expect(getByText('可省 $100')).toBeTruthy();
+  });
+
+  it('hides the savings badge when there is no estimated savings', () => {
+    const noSavings: SharedCoupon = { ...sampleCoupon, amount: 0 };
+    const { queryByText } = render(<SharedCouponModal {...makeProps({ coupon: noSavings })} />);
+    expect(queryByText(/可省/)).toBeNull();
   });
 });
