@@ -159,7 +159,7 @@ export default function CouponDetailScreen({
                 <Text style={s.metaVal}>2026 / {expires}</Text>
               </View>
               <View>
-                <Text style={s.metaKey}>分享獎勵</Text>
+                <Text style={s.metaKey}>使用獎勵</Text>
                 <View style={s.gemRow}>
                   {Array.from({ length: Math.min(gemReward, 5) }).map((_, i) => (
                     <GemIcon key={i} size={18} color={colors.purpleLight} />
@@ -180,7 +180,7 @@ export default function CouponDetailScreen({
           <View style={s.shareBannerText}>
             <Text style={s.shareBannerBold}>用不到? 分享出去</Text>
             <Text style={s.shareBannerSub}>
-              有人使用後，你可以賺到 <Text style={s.shareBold}>{gemReward} 顆 CouGem</Text> !
+              有人使用後，你可以賺到 <Text style={s.shareBold}>1 顆 CouGem</Text> !
             </Text>
           </View>
         </View>

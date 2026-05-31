@@ -93,7 +93,7 @@ describe('SharedCouponModal', () => {
     expect(getByText('專屬優惠')).toBeTruthy(); // type label
     expect(getByText('2026/06/30')).toBeTruthy(); // 到期日
     expect(getByText('到期日')).toBeTruthy();
-    expect(getByText('分享獎勵')).toBeTruthy();
+    expect(getByText('使用獎勵')).toBeTruthy();
     // The old giant "$ amount + 現金折抵券" hero must be gone.
     expect(queryByText('現金折抵券')).toBeNull();
   });

@@ -409,7 +409,9 @@ def get_coupon_detail(request, id):
 @transaction.atomic
 def redeem_coupon(request, id):
     coupon = get_object_or_404(
-        Coupon.objects.select_related('store', 'template', 'original_owner'),
+        Coupon.objects.select_related(
+            'store', 'template', 'original_owner', 'last_holder', 'current_holder'
+        ),
         id=id,
     )
 
@@ -507,30 +509,66 @@ def redeem_coupon(request, id):
     except (StudentProfile.DoesNotExist, AttributeError):
         pass
 
-    # Phase 2: +1 CouGem for redeeming a coupon. This replaces the FE-side
-    # client mutation in CouponUseQRScreen. Wallet is lazily created so the
-    # mutate() below never raises WalletNotFoundError. Failures are logged
-    # but do NOT roll back the redemption — gems are an incentive, not a
-    # gate on the customer-merchant transaction.
-    try:
-        WalletService.ensure_wallet(request.user.id, initial_gems=0)
-        WalletService.mutate(
-            request.user.id,
-            delta_gems=+1,
-            kind=WalletTransaction.Kind.COUPON_REDEEM,
-            related_coupon_id=coupon.id,
-            related_store_id=coupon.store_id,
-            note=f"Redeemed at {coupon.store.name}",
-        )
-    except Exception as wallet_exc:  # noqa: BLE001 — log + continue
-        logger.warning(
-            "coupon_redeem.gem_credit_failed",
-            extra={
-                "user_id": request.user.id,
-                "coupon_id": coupon.id,
-                "error": str(wallet_exc),
-            },
-        )
+    # CouGem for redeeming a coupon. The redeemer earns the coupon's linked
+    # gem_reward (configurable per template, default 1) — not a flat +1. This
+    # replaces the FE-side client mutation in CouponUseQRScreen. Wallet is
+    # lazily created so the mutate() below never raises WalletNotFoundError.
+    # Failures are logged but do NOT roll back the redemption — gems are an
+    # incentive, not a gate on the customer-merchant transaction.
+    redeemer_gem_reward = coupon.template.gem_reward if coupon.template else 1
+    # gem_reward is a PositiveIntegerField that admits 0 (a template that
+    # grants no redeemer gems). Skip the credit entirely in that case —
+    # mutate() rejects a zero delta, so calling it would only spam warnings.
+    if redeemer_gem_reward > 0:
+        try:
+            WalletService.ensure_wallet(request.user.id, initial_gems=0)
+            WalletService.mutate(
+                request.user.id,
+                delta_gems=+redeemer_gem_reward,
+                kind=WalletTransaction.Kind.COUPON_REDEEM,
+                related_coupon_id=coupon.id,
+                related_store_id=coupon.store_id,
+                note=f"Redeemed at {coupon.store.name}",
+            )
+        except Exception as wallet_exc:  # noqa: BLE001 — log + continue
+            logger.warning(
+                "coupon_redeem.gem_credit_failed",
+                extra={
+                    "user_id": request.user.id,
+                    "coupon_id": coupon.id,
+                    "error": str(wallet_exc),
+                },
+            )
+
+    # +1 CouGem to the SHARER when the coupon they shared is actually *used*.
+    # The sharer is the previous holder (coupon.last_holder), set when the
+    # coupon was transferred via a share/claim. This is the rewardable event:
+    # collecting a coupon earns the sharer nothing; only redemption does.
+    # Self-redemption (last_holder is None or the redeemer) earns no reward.
+    # Per-coupon idempotent via the wallet_tx_unique_coupon_event constraint,
+    # so a retry never double-credits. Failures are logged, never block redeem.
+    sharer = coupon.last_holder
+    if sharer and sharer != request.user:
+        try:
+            WalletService.ensure_wallet(sharer.id, initial_gems=0)
+            WalletService.mutate(
+                sharer.id,
+                delta_gems=+1,
+                kind=WalletTransaction.Kind.SHARE_REWARD,
+                related_coupon_id=coupon.id,
+                related_store_id=coupon.store_id,
+                note=f"{request.user.username} used your shared coupon",
+            )
+        except Exception as wallet_exc:  # noqa: BLE001 — log + continue
+            logger.warning(
+                "coupon_redeem.share_reward_credit_failed",
+                extra={
+                    "sharer_id": sharer.id,
+                    "redeemer_id": request.user.id,
+                    "coupon_id": coupon.id,
+                    "error": str(wallet_exc),
+                },
+            )
 
     # === Progress Tracker updates (011-progress-tracker) ===
     if coupon.coupon_type == 'exclusive':

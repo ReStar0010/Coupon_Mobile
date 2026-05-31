@@ -39,7 +39,7 @@ export interface SharedCouponSummary {
   type?: string;
   /** Pre-formatted expiry (e.g. '2026/06/30') for the 到期日 row. */
   expires?: string;
-  /** Gems the sharer earns when the coupon is used — shown as 分享獎勵. */
+  /** Gems the holder earns when they redeem the coupon — shown as 使用獎勵. */
   gem_reward?: number;
 }
 

@@ -22,7 +22,7 @@ export interface SharedCoupon {
   type?: string;
   /** Pre-formatted expiry (e.g. '2026/06/30') for the 到期日 row. */
   expires?: string;
-  /** Gems the sharer earns when this coupon is used — shown as 分享獎勵. */
+  /** Gems the holder earns when they redeem this coupon — shown as 使用獎勵. */
   gem_reward?: number;
 }
 
@@ -35,7 +35,7 @@ interface SharedCouponModalProps {
 
 /**
  * CouMap "collect a shared coupon" bottom sheet: shows the coupon info ticket
- * (store, name, detail, savings, type, expiry, share-reward gem) and lets the
+ * (store, name, detail, savings, type, expiry, use-reward gem) and lets the
  * recipient accept it into their wallet.
  */
 export default function SharedCouponModal({
@@ -129,7 +129,7 @@ export default function SharedCouponModal({
                   <Text style={styles.metaVal}>{coupon.expires ?? '—'}</Text>
                 </View>
                 <View>
-                  <Text style={styles.metaKey}>分享獎勵</Text>
+                  <Text style={styles.metaKey}>使用獎勵</Text>
                   <View style={styles.gemRow}>
                     {Array.from({ length: Math.min(coupon.gem_reward ?? 1, 5) }).map((_, i) => (
                       <GemIcon key={i} size={18} color={colors.purpleLight} />
