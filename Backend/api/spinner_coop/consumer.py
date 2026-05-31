@@ -33,6 +33,7 @@ from django.contrib.auth.models import User
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
+from api.services.spinner_config import get_coop_weights
 from . import transitions as T
 from .events import Event, TransitionError, TransitionResult
 from .executor import SideEffectExecutor
@@ -446,9 +447,20 @@ class SpinnerCoopConsumer(AsyncJsonWebsocketConsumer):
         if kind == "auto_countdown":
             result = T.auto_start_countdown(room, now_ms=now)
         elif kind == "countdown_complete":
-            result = T.complete_countdown(room, now_ms=now)
+            # The draw happens here (live path). Pull the admin-tunable co-op
+            # odds from the DB (kept out of the pure transition layer) and inject
+            # them. Always refetched per round so odds changes take effect.
+            weights_map = await database_sync_to_async(get_coop_weights)()
+            self._round_weights = weights_map
+            result = T.complete_countdown(room, now_ms=now, weights_map=weights_map)
         elif kind == "charge_tick":
-            result = T.tick_charge_progress(room, now_ms=now)
+            # Legacy charging path. Fetch the odds once per charge phase and reuse
+            # them — not on every 10Hz tick — to avoid a per-tick DB read.
+            weights_map = getattr(self, "_round_weights", None)
+            if weights_map is None:
+                weights_map = await database_sync_to_async(get_coop_weights)()
+                self._round_weights = weights_map
+            result = T.tick_charge_progress(room, now_ms=now, weights_map=weights_map)
             # Re-schedule another tick if still charging
             if (
                 result.room.phase == Phase.CHARGING

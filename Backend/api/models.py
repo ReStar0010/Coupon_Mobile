@@ -1264,9 +1264,19 @@ class SpinnerConfig(models.Model):
 
     base_weights = models.JSONField(
         default=dict,
+        blank=True,
         help_text=(
-            '每個倍率的相對權重，例如 {"0":1.0,"1":0.5,...,"5":0.1667}。'
-            '數字越大越容易抽中。留空則回退為 1/(v+1) 公式。'
+            '單人 CouSino 每個倍率的相對權重，例如 {"0":1.0,"1":0.5,...,"5":0.1667}。'
+            '數字越大越容易抽中。留空則回退為 1/(v+1) 公式（不可全部設為 0）。'
+        ),
+    )
+    coop_base_weights = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            '共玩 CouSino 的倍率權重（格式同上）。'
+            '留空則沿用單人權重（不可全部設為 0）。注意：共玩的 floor 會隨人數提高，'
+            '低於 floor 的倍率（如 2 人時的 x0/x1）無論權重都不會出現。'
         ),
     )
     updated_at = models.DateTimeField(auto_now=True)
@@ -1277,7 +1287,7 @@ class SpinnerConfig(models.Model):
         verbose_name_plural = 'CouSino 機率設定'
 
     def __str__(self) -> str:
-        return f"SpinnerConfig(weights={self.base_weights})"
+        return f"SpinnerConfig(solo={self.base_weights}, coop={self.coop_base_weights})"
 
     def save(self, *args, **kwargs):
         # Pin to a single row so this stays a singleton regardless of caller.
@@ -1291,32 +1301,43 @@ class SpinnerConfig(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self):
+        # `base_weights` must be usable (or empty → formula fallback);
+        # `coop_base_weights` may be empty (→ follow solo) but if set must be valid.
+        self._validate_weights('base_weights', self.base_weights, allow_empty=True)
+        self._validate_weights('coop_base_weights', self.coop_base_weights, allow_empty=True)
+
+    @classmethod
+    def _validate_weights(cls, field_name, weights, *, allow_empty):
         from django.core.exceptions import ValidationError
 
-        weights = self.base_weights or {}
+        weights = weights or {}
         if not isinstance(weights, dict):
-            raise ValidationError({'base_weights': 'Must be a JSON object of value→weight.'})
+            raise ValidationError({field_name: 'Must be a JSON object of value→weight.'})
+        if not weights:
+            if allow_empty:
+                return
+            raise ValidationError({field_name: 'At least one weight must be provided.'})
 
         positive = 0
         for key, raw in weights.items():
             try:
                 value = int(key)
             except (TypeError, ValueError):
-                raise ValidationError({'base_weights': f'Key {key!r} is not an integer multiplier.'})
-            if value not in self.ALLOWED_VALUES:
+                raise ValidationError({field_name: f'Key {key!r} is not an integer multiplier.'})
+            if value not in cls.ALLOWED_VALUES:
                 raise ValidationError(
-                    {'base_weights': f'Multiplier {value} is not one of {list(self.ALLOWED_VALUES)}.'}
+                    {field_name: f'Multiplier {value} is not one of {list(cls.ALLOWED_VALUES)}.'}
                 )
             try:
                 weight = float(raw)
             except (TypeError, ValueError):
-                raise ValidationError({'base_weights': f'Weight for {key} is not a number.'})
+                raise ValidationError({field_name: f'Weight for {key} is not a number.'})
             if weight < 0:
-                raise ValidationError({'base_weights': f'Weight for {key} must be >= 0.'})
+                raise ValidationError({field_name: f'Weight for {key} must be >= 0.'})
             if weight > 0:
                 positive += 1
-        if weights and positive == 0:
-            raise ValidationError({'base_weights': 'At least one weight must be greater than 0.'})
+        if positive == 0:
+            raise ValidationError({field_name: 'At least one weight must be greater than 0.'})
 
 
 # ── Spinner Co-op (deliverable 3b) ──────────────────────────────────────────
