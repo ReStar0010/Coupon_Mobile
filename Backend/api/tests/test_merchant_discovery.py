@@ -219,6 +219,33 @@ class TestMerchantDetail:
         resp = APIClient().get(f"/api/merchants/{store.id}/")
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
+    def test_shared_coupon_carries_ticket_info(self, client, store):
+        """The collect modal renders a full info ticket, so each shared coupon
+        must carry detail / type / expires / gem_reward (not just amount)."""
+        other = User.objects.create_user(username="sharer_info", password="x")
+        shared = Coupon.objects.create(
+            store=store,
+            coupon_name="購買任一便當 折5元",
+            coupon_detail="限內用",
+            start_date=timezone.now() - timedelta(days=1),
+            expiry_date=timezone.now() + timedelta(days=20),
+            coupon_type='exclusive',
+            estimated_savings=5,
+            original_owner=other,
+            current_holder=None,
+        )
+        CouponShareRequest.objects.create(
+            coupon=shared, from_user=other, token='t-info', is_public=True, status='pending'
+        )
+        body = client.get(f"/api/merchants/{store.id}/").json()
+        assert len(body["sharedCoupons"]) == 1
+        sc = body["sharedCoupons"][0]
+        assert sc["label"] == "購買任一便當 折5元"
+        assert sc["detail"] == "限內用"
+        assert sc["type"] == "exclusive"
+        assert sc["expires"] == shared.expiry_date.strftime('%Y/%m/%d')
+        assert "gem_reward" in sc
+
     def test_404_when_missing(self, client):
         resp = client.get("/api/merchants/99999/")
         assert resp.status_code == 404

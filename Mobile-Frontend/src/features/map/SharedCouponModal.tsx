@@ -3,16 +3,27 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import BottomSheet from '@/src/components/ui/BottomSheet';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/typography';
+import GemIcon from '@/src/components/icons/GemIcon';
 import { acceptShare } from '@/src/services/api/sharing';
 import { useWallet } from '@/src/state/WalletContext';
 
 export interface SharedCoupon {
   token: string;
   store: string;
+  /** estimated savings — rendered as a small 可省 $ badge, not a money hero. */
   amount: number;
   sharer: string;
   msg: string;
+  /** coupon_name — the ticket title. */
   label?: string;
+  /** coupon_detail — secondary line under the title. */
+  detail?: string;
+  /** 'exclusive' | 'store' — drives the 專屬優惠 / 隨取即用 label. */
+  type?: string;
+  /** Pre-formatted expiry (e.g. '2026/06/30') for the 到期日 row. */
+  expires?: string;
+  /** Gems the sharer earns when this coupon is used — shown as 分享獎勵. */
+  gem_reward?: number;
 }
 
 interface SharedCouponModalProps {
@@ -22,6 +33,11 @@ interface SharedCouponModalProps {
   onClose: () => void;
 }
 
+/**
+ * CouMap "collect a shared coupon" bottom sheet: shows the coupon info ticket
+ * (store, name, detail, savings, type, expiry, share-reward gem) and lets the
+ * recipient accept it into their wallet.
+ */
 export default function SharedCouponModal({
   visible, coupon, onClaim, onClose,
 }: SharedCouponModalProps): React.JSX.Element {
@@ -80,7 +96,7 @@ export default function SharedCouponModal({
             </View>
             <Text style={styles.successTitle}>領取成功！</Text>
             <Text style={styles.successSub}>
-              <Text style={styles.amount}>${coupon.amount}</Text> 優惠券已加入你的錢包
+              「{coupon.label ?? '優惠券'}」已加入你的錢包
             </Text>
           </View>
         ) : (
@@ -88,11 +104,39 @@ export default function SharedCouponModal({
             <Text style={styles.heading}>有人分享了一張券給你</Text>
             <View style={styles.couponCard}>
               <Text style={styles.storeName}>{coupon.store}</Text>
-              <View style={styles.amountRow}>
-                <Text style={styles.dollarSign}>$</Text>
-                <Text style={styles.amountNum}>{coupon.amount}</Text>
+              <Text style={styles.couponName} numberOfLines={2}>
+                {coupon.label ?? '優惠券'}
+              </Text>
+              {coupon.detail ? (
+                <Text style={styles.couponDetail} numberOfLines={2}>
+                  {coupon.detail}
+                </Text>
+              ) : null}
+              {coupon.amount > 0 ? (
+                <Text style={styles.savingsHint}>可省 ${coupon.amount}</Text>
+              ) : null}
+              <Text style={styles.typeLabel}>
+                {coupon.type === 'store' ? '隨取即用' : '專屬優惠'}
+              </Text>
+              <View style={styles.tearLine}>
+                <View style={styles.tearCircleLeft} />
+                <View style={styles.dashed} />
+                <View style={styles.tearCircleRight} />
               </View>
-              <Text style={styles.couponLabel}>現金折抵券</Text>
+              <View style={styles.metaGrid}>
+                <View>
+                  <Text style={styles.metaKey}>到期日</Text>
+                  <Text style={styles.metaVal}>{coupon.expires ?? '—'}</Text>
+                </View>
+                <View>
+                  <Text style={styles.metaKey}>分享獎勵</Text>
+                  <View style={styles.gemRow}>
+                    {Array.from({ length: Math.min(coupon.gem_reward ?? 1, 5) }).map((_, i) => (
+                      <GemIcon key={i} size={18} color={colors.purpleLight} />
+                    ))}
+                  </View>
+                </View>
+              </View>
             </View>
             <View style={styles.messageCard}>
               <View style={styles.avatar}>
@@ -147,10 +191,41 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.monoRegular, fontSize: 10, letterSpacing: 1,
     textTransform: 'uppercase', color: 'rgba(51,51,51,0.6)', marginBottom: 6,
   },
-  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginBottom: 4 },
-  dollarSign: { fontFamily: fontFamilies.bold, fontSize: 22, color: colors.fg },
-  amountNum: { fontFamily: fontFamilies.bold, fontSize: 52, color: colors.fg, letterSpacing: -2, lineHeight: 56 },
-  couponLabel: { fontFamily: fontFamilies.semiBold, fontSize: 13, color: colors.fg },
+  couponName: {
+    fontFamily: fontFamilies.extraBold, fontSize: 24, letterSpacing: -0.6,
+    lineHeight: 30, color: colors.fg, marginBottom: 4,
+  },
+  couponDetail: {
+    fontFamily: fontFamilies.regular, fontSize: 14, color: colors.fg, marginBottom: 8,
+  },
+  savingsHint: {
+    alignSelf: 'flex-start',
+    fontFamily: fontFamilies.bold, fontSize: 13, color: colors.fg,
+    backgroundColor: 'rgba(51,51,51,0.12)', borderRadius: 4,
+    paddingHorizontal: 8, paddingVertical: 2, marginBottom: 8,
+    overflow: 'hidden',
+  },
+  typeLabel: { fontFamily: fontFamilies.bold, fontSize: 14, color: colors.fg },
+  tearLine: { flexDirection: 'row', alignItems: 'center', marginVertical: 14 },
+  tearCircleLeft: {
+    width: 16, height: 16, borderRadius: 8, backgroundColor: colors.bg,
+    borderWidth: 2, borderColor: colors.border, marginLeft: -24,
+  },
+  tearCircleRight: {
+    width: 16, height: 16, borderRadius: 8, backgroundColor: colors.bg,
+    borderWidth: 2, borderColor: colors.border, marginRight: -24,
+  },
+  dashed: {
+    flex: 1, borderBottomWidth: 2, borderColor: colors.border,
+    borderStyle: 'dashed', marginHorizontal: 8,
+  },
+  metaGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  metaKey: {
+    fontFamily: fontFamilies.monoRegular, fontSize: 10, letterSpacing: 1,
+    textTransform: 'uppercase', color: 'rgba(51,51,51,0.6)', marginBottom: 4,
+  },
+  metaVal: { fontFamily: fontFamilies.bold, fontSize: 16, color: colors.fg },
+  gemRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   messageCard: {
     backgroundColor: colors.card, borderWidth: 2, borderColor: colors.border,
     borderRadius: 6, padding: 10, paddingHorizontal: 12, marginBottom: 16,
@@ -190,5 +265,4 @@ const styles = StyleSheet.create({
   checkMark: { fontSize: 28, color: colors.fg },
   successTitle: { fontFamily: fontFamilies.bold, fontSize: 20, color: colors.fg, marginBottom: 6 },
   successSub: { fontFamily: fontFamilies.monoRegular, fontSize: 13, color: colors.muted },
-  amount: { color: colors.fg, fontFamily: fontFamilies.bold },
 });

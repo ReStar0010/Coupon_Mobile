@@ -4,6 +4,8 @@ on:
   push:
     branches: [dev]
     paths: [Mobile-Frontend/**]
+  # Allow manual re-publish (e.g. after a CI fix) without a code change.
+  workflow_dispatch:
 
 jobs:
   update:
@@ -27,4 +29,11 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - run: eas update --branch development --message "${{ github.event.head_commit.message }}"
+      # Pass the commit message via an env var, NOT inline `${{ }}` in the
+      # shell — a multi-line message or one with $/"/+ chars otherwise breaks
+      # the command (and is a script-injection vector). Falls back to the SHA
+      # on manual dispatch (no head_commit).
+      - name: Publish dev OTA update
+        run: eas update --branch development --message "$EAS_MESSAGE"
+        env:
+          EAS_MESSAGE: ${{ github.event.head_commit.message || format('manual dispatch ({0})', github.sha) }}

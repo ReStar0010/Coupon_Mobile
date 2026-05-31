@@ -33,6 +33,14 @@ export interface SharedCouponSummary {
   sharer: string;
   msg: string;
   label: string;
+  /** coupon_detail — secondary line under the title in the collect modal. */
+  detail?: string;
+  /** 'exclusive' | 'store' — drives the 專屬優惠 / 隨取即用 label. */
+  type?: string;
+  /** Pre-formatted expiry (e.g. '2026/06/30') for the 到期日 row. */
+  expires?: string;
+  /** Gems the sharer earns when the coupon is used — shown as 分享獎勵. */
+  gem_reward?: number;
 }
 
 export interface MerchantNewsItem {

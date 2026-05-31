@@ -4,6 +4,7 @@ on:
   push:
     branches: [dev]
     paths: [Mobile-Merchant-Frontend/**]
+  workflow_dispatch:
 
 jobs:
   update:
@@ -27,4 +28,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - run: eas update --branch preview --message "${{ github.event.head_commit.message }}"
+      # Commit message via env var (injection-safe; see consumer dev workflow note).
+      - name: Publish preview OTA update
+        run: eas update --branch preview --message "$EAS_MESSAGE"
+        env:
+          EAS_MESSAGE: ${{ github.event.head_commit.message || format('manual dispatch ({0})', github.sha) }}
