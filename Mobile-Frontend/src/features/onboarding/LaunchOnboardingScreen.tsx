@@ -11,15 +11,18 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { Image } from 'expo-image';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
 import GemIcon from '@/src/components/icons/GemIcon';
-import LogoIcon from '@/src/components/icons/LogoIcon';
 import TicketIcon from '@/src/components/icons/TicketIcon';
 import { markLaunchOnboardingSeen } from '@/src/services/onboarding/onboardingState';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+// Same asset as the CouPro home-screen top-left logo (the app's adaptive icon).
+const APP_LOGO = require('@/assets/adaptive-icon.png');
 
 interface OnboardingPage {
   /** Short hero title in Chinese — matches the consumer-app voice. */
@@ -39,8 +42,14 @@ const PAGES: readonly OnboardingPage[] = [
     body: '把附近的優惠變成你的優惠券錢包。\n附近店家、附近的人，都在這裡。',
     hero: () => (
       <View style={styles.heroPad}>
-        <View style={styles.heroBox}>
-          <LogoIcon size={72} />
+        <View style={[styles.heroBox, styles.heroBoxLogo]}>
+          <Image
+            source={APP_LOGO}
+            style={styles.heroLogo}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            accessibilityLabel="CouPro"
+          />
         </View>
       </View>
     ),
@@ -224,6 +233,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 0,
     elevation: 6,
+  },
+  // Page 1 shows the adaptive-icon image filling the box, so clip it to the
+  // rounded frame (matches the home-screen top-left logo treatment).
+  heroBoxLogo: {
+    overflow: 'hidden',
+  },
+  heroLogo: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontFamily: fontFamilies.extraBold,
