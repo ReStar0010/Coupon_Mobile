@@ -20,6 +20,7 @@ import VerifyModal from './modals/VerifyModal';
 import LegalTextModal from './modals/LegalTextModal';
 import Coachmark from '@/src/features/onboarding/Coachmark';
 import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
+import { resetAllOnboarding } from '@/src/services/onboarding/onboardingState';
 
 type ModalKey =
   | 'edit-profile'
@@ -88,6 +89,12 @@ export default function SettingsScreen({
 }: SettingsScreenProps): React.JSX.Element {
   const { user, refreshAuth } = useAuth();
   const [modal, setModal] = useState<ModalKey>(null);
+
+  // Replay the whole tutorial: clear the launch-intro + coach-mark flags
+  // (which also pings mounted coach-marks to re-show), then open the intro.
+  const handleReplayOnboarding = (): void => {
+    void resetAllOnboarding().then(() => onNavigate('onboarding'));
+  };
 
   const profileName = user?.displayName ?? '';
   const profileEmail = user?.email ?? '';
@@ -208,6 +215,18 @@ export default function SettingsScreen({
             sub="管理不想看到的商家"
             right={<Text style={styles.chevron}>›</Text>}
             onPress={() => setModal('blocked')}
+          />
+        </View>
+
+        {/* Tutorial replay */}
+        <View style={styles.section}>
+          <SectionLabel label="教學" />
+          <SettingsRow
+            testID="replay-onboarding-row"
+            label="🎬 重看新手教學"
+            sub="從頭播放 App 導覽與各頁提示"
+            right={<Text style={styles.chevron}>›</Text>}
+            onPress={handleReplayOnboarding}
           />
         </View>
 

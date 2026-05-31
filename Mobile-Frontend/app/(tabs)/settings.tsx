@@ -9,7 +9,12 @@ export default function SettingsRoute() {
 
   return (
     <SettingsScreen
-      onNavigate={(screen) => router.push(`/(tabs)/${screen}` as any)}
+      onNavigate={(screen) => {
+        // The launch tutorial lives at the root-level `/onboarding` route,
+        // not under the tab group — route it explicitly.
+        if (screen === 'onboarding') router.push('/onboarding');
+        else router.push(`/(tabs)/${screen}` as any);
+      }}
       gems={gems}
       couPoints={couPoints}
     />

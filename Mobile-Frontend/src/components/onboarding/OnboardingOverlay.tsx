@@ -38,7 +38,7 @@ const ONBOARDING: Record<ScreenKey, OnboardingStep[]> = {
     { text: '歡迎使用 CouPro！這是你的優惠券錢包。', anchor: ANCHOR.homeWallet },
     { text: '這裡顯示你的 CouPoint 餘額，累積可換現金券。', anchor: ANCHOR.homeBalance },
     { text: '點「兌換 →」，用 CouPoints 選擇面額換現金券。', anchor: ANCHOR.homeRedeem },
-    { text: '有寶石嗎？點這裡去 Spinner 用寶石抽積分！', anchor: ANCHOR.homeGem },
+    { text: '有寶石嗎？點這裡去 CouSino 用寶石抽積分！', anchor: ANCHOR.homeGem },
     { text: '點✈送出優惠券分享給別人，或點券本身查看詳情。', anchor: ANCHOR.homeCoupon },
   ],
   map: [
@@ -52,7 +52,7 @@ const ONBOARDING: Record<ScreenKey, OnboardingStep[]> = {
     { text: '按「領取」掃描店家 QR Code 取得實體優惠券。' },
   ],
   spinner: [
-    { text: '歡迎來到 Spinner！用寶石來抽 CouPoints。', anchor: ANCHOR.spinnerWheel, radius: 160 },
+    { text: '歡迎來到 CouSino！用寶石來抽 CouPoints。', anchor: ANCHOR.spinnerWheel, radius: 160 },
     { text: '調整寶石數量，越多寶石 = 更高的最低倍率 (FLOOR)。', anchor: ANCHOR.spinnerBet },
     { text: '揪友加入！人數越多，FLOOR 也會提升。', anchor: ANCHOR.spinnerInvite },
     { text: '點 + 讓朋友加入後才能開始，圓圈變綠就準備好了。', anchor: ANCHOR.spinnerSlots, radius: 24 },

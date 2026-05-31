@@ -5,9 +5,17 @@ import SettingsScreen from '../SettingsScreen';
 // ── Service mocks ────────────────────────────────────────────────────────────
 const mockUpdateProfile = jest.fn();
 const mockRefreshAuth = jest.fn();
+const mockResetAllOnboarding = jest.fn();
 
 jest.mock('@/src/services/api/profile', () => ({
   updateProfile: (...args: unknown[]) => mockUpdateProfile(...args),
+}));
+
+// Preserve the rest of the module (the real Coachmark still reads it); only
+// stub the replay reset so we can assert the "重看新手教學" row triggers it.
+jest.mock('@/src/services/onboarding/onboardingState', () => ({
+  ...jest.requireActual('@/src/services/onboarding/onboardingState'),
+  resetAllOnboarding: () => mockResetAllOnboarding(),
 }));
 
 jest.mock('@/src/state/AuthContext', () => ({
@@ -376,6 +384,17 @@ describe('SettingsScreen — logout modal', () => {
     fireEvent.press(getByTestId('btn-logout'));
     fireEvent.press(getByTestId('logout-confirm'));
     expect(queryByTestId('logout-modal')).toBeNull();
+  });
+
+  it('replay-tutorial row resets onboarding then navigates to /onboarding', async () => {
+    mockResetAllOnboarding.mockResolvedValueOnce(undefined);
+    const onNavigate = jest.fn();
+    const { getByTestId } = render(<SettingsScreen {...defaultProps} onNavigate={onNavigate} />);
+
+    fireEvent.press(getByTestId('replay-onboarding-row'));
+
+    expect(mockResetAllOnboarding).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('onboarding'));
   });
 });
 
