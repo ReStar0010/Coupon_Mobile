@@ -92,6 +92,17 @@ class TestSoloRollUsesConfig:
             assert _roll_base_multiplier(2) >= 2
 
 
+class TestShippedDefaultOdds:
+    def test_migration_tunes_solo_and_coop(self):
+        """Migration 0064 boosts x4 and rarefies x5 for both solo and co-op."""
+        cfg = SpinnerConfig.objects.get(pk=SpinnerConfig.SINGLETON_ID)
+        tuned = {"0": 41, "1": 20, "2": 13, "3": 11, "4": 11, "5": 4}
+        assert cfg.base_weights == tuned
+        assert cfg.coop_base_weights == tuned
+        # x4 boosted above its default share and strictly more likely than x5.
+        assert cfg.base_weights["4"] > cfg.base_weights["5"]
+
+
 class TestCoopConfigAccessor:
     def test_uses_coop_weights_when_set(self):
         SpinnerConfig.objects.all().delete()
