@@ -10,6 +10,7 @@ jest.mock('@/src/services/onboarding/onboardingState', () => ({
 }));
 
 import { useCoachmark } from '../useCoachmark';
+import { notifyOnboardingReset } from '@/src/services/onboarding/onboardingResetBus';
 
 function Harness({ screen }: { screen: 'home' | 'map' }) {
   const { visible, step, next, done } = useCoachmark(screen);
@@ -72,5 +73,26 @@ describe('useCoachmark', () => {
     });
     expect(mockMarkSeen).toHaveBeenCalledWith('home');
     expect(getByTestId('visible').props.children).toBe('false');
+  });
+
+  it('re-shows after an onboarding reset, even for an already-seen screen', async () => {
+    // Initially seen → hidden.
+    mockHasSeen.mockResolvedValueOnce(true);
+    const { getByTestId } = render(<Harness screen="home" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getByTestId('visible').props.children).toBe('false');
+
+    // "Re-watch tutorial": flag cleared + bus notified → the mounted
+    // coach-mark must re-evaluate and re-show without a remount.
+    mockHasSeen.mockResolvedValueOnce(false);
+    await act(async () => {
+      notifyOnboardingReset();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(getByTestId('visible').props.children).toBe('true'));
+    // Step counter restarts from the top.
+    expect(getByTestId('step').props.children).toBe('0');
   });
 });

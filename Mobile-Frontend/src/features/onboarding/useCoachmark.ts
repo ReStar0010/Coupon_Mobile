@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import {
   hasSeenCoachmark,
   markCoachmarkSeen,
   type CoachmarkScreen,
 } from '@/src/services/onboarding/onboardingState';
+import {
+  getOnboardingResetEpoch,
+  subscribeOnboardingReset,
+} from '@/src/services/onboarding/onboardingResetBus';
 
 interface CoachmarkState {
   visible: boolean;
@@ -29,15 +33,26 @@ export function useCoachmark(screen: CoachmarkScreen): CoachmarkState {
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
 
+  // Re-runs the seen-check whenever the screen changes OR an onboarding reset
+  // bumps the epoch (the "re-watch tutorial" flow), so an already-mounted tab
+  // re-shows its coach-mark without needing a remount.
+  const resetEpoch = useSyncExternalStore(
+    subscribeOnboardingReset,
+    getOnboardingResetEpoch,
+    getOnboardingResetEpoch,
+  );
+
   useEffect(() => {
     let cancelled = false;
+    // Restart from the first step on (re)evaluation so a replay begins at 0.
+    setStep(0);
     hasSeenCoachmark(screen).then((seen) => {
-      if (!cancelled && !seen) setVisible(true);
+      if (!cancelled) setVisible(!seen);
     });
     return () => {
       cancelled = true;
     };
-  }, [screen]);
+  }, [screen, resetEpoch]);
 
   const next = useCallback(() => setStep((s) => s + 1), []);
 

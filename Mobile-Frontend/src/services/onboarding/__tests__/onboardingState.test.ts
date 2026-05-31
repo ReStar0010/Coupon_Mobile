@@ -32,6 +32,8 @@ import {
   hasSeenCoachmark,
   markCoachmarkSeen,
   resetAllCoachmarks,
+  resetLaunchOnboarding,
+  resetAllOnboarding,
   COACHMARK_KEYS,
 } from '../onboardingState';
 
@@ -88,6 +90,30 @@ describe('onboardingState', () => {
     it('hasSeenCoachmark never throws — falls back to "not seen"', async () => {
       mockGetItem.mockRejectedValueOnce(new Error('storage offline'));
       await expect(hasSeenCoachmark('spinner')).resolves.toBe(false);
+    });
+  });
+
+  describe('reset for replay', () => {
+    it('resetLaunchOnboarding removes the versioned launch key', async () => {
+      await resetLaunchOnboarding();
+      expect(mockRemoveItem).toHaveBeenCalledTimes(1);
+      expect(mockRemoveItem.mock.calls[0][0]).toMatch(/^onboarding_v\d+_seen$/);
+    });
+
+    it('resetAllOnboarding clears the launch flag AND every coach-mark', async () => {
+      await resetAllOnboarding();
+      // launch key + one per coach-mark screen
+      expect(mockRemoveItem).toHaveBeenCalledTimes(COACHMARK_KEYS.length + 1);
+      const keys = mockRemoveItem.mock.calls.map((c) => c[0]);
+      expect(keys.some((k) => /^onboarding_v\d+_seen$/.test(k))).toBe(true);
+      for (const screen of COACHMARK_KEYS) {
+        expect(keys.some((k) => k === `coach_v1_${screen}`)).toBe(true);
+      }
+    });
+
+    it('resetLaunchOnboarding never throws on storage failure', async () => {
+      mockRemoveItem.mockRejectedValueOnce(new Error('storage offline'));
+      await expect(resetLaunchOnboarding()).resolves.toBeUndefined();
     });
   });
 });

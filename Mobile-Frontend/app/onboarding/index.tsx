@@ -1,17 +1,26 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/src/state/AuthContext';
 import LaunchOnboardingScreen from '@/src/features/onboarding/LaunchOnboardingScreen';
 
 /**
- * First-launch onboarding route. Mounted by app/index.tsx when the user
- * is unauthenticated AND has not yet seen the launch intro.
+ * Launch-intro route. Two entry paths:
+ *   1. First launch — app/index.tsx mounts this when the user is
+ *      unauthenticated AND hasn't seen the intro. On completion → login.
+ *   2. Replay — a logged-in user taps "重看新手教學" in Settings (which
+ *      resets the onboarding flags and pushes here). On completion → home.
  *
- * On completion (skip or final-page tap) the screen writes the
- * "seen" flag via the onboarding-state service, then we route to
- * /(auth)/login. Returning users with a stored token go straight to
- * the tabs via app/index.tsx — they never enter this route.
+ * So `onDone` routes by auth state: authenticated → tabs/home, otherwise
+ * → login.
  */
 export default function OnboardingRoute(): React.JSX.Element {
   const router = useRouter();
-  return <LaunchOnboardingScreen onDone={() => router.replace('/(auth)/login')} />;
+  const { isAuthenticated } = useAuth();
+  return (
+    <LaunchOnboardingScreen
+      onDone={() =>
+        router.replace(isAuthenticated ? '/(tabs)/home' : '/(auth)/login')
+      }
+    />
+  );
 }

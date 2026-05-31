@@ -9,6 +9,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notifyOnboardingReset } from './onboardingResetBus';
 
 const ONBOARDING_VERSION = 1;
 const COACHMARK_VERSION = 1;
@@ -76,4 +77,23 @@ export async function resetAllCoachmarks(): Promise<void> {
   await Promise.all(
     COACHMARK_KEYS.map((s) => AsyncStorage.removeItem(coachKey(s)).catch(() => undefined)),
   );
+}
+
+/** Clear the launch-intro "seen" flag so the 3-page intro plays again. */
+export async function resetLaunchOnboarding(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(LAUNCH_KEY);
+  } catch {
+    // Swallow — a failed reset just means the replay won't trigger; never crash.
+  }
+}
+
+/**
+ * Full "re-watch the tutorial" reset — clears the launch intro flag AND every
+ * per-screen coach-mark, so the user sees the whole onboarding flow again.
+ */
+export async function resetAllOnboarding(): Promise<void> {
+  await Promise.all([resetLaunchOnboarding(), resetAllCoachmarks()]);
+  // Tell any mounted coach-marks to re-evaluate now (replay in-session).
+  notifyOnboardingReset();
 }
