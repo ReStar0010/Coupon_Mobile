@@ -9,7 +9,7 @@ describe('TabBar', () => {
     );
     expect(getByText('CouPro')).toBeTruthy();
     expect(getByText('CouMap')).toBeTruthy();
-    expect(getByText('Spinner')).toBeTruthy();
+    expect(getByText('CouSino')).toBeTruthy();
   });
 
   it('calls onTabPress with correct tab when home is pressed', () => {
