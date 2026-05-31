@@ -407,3 +407,60 @@ class TestMerchantNews:
         resp = merchant_client.delete(f"/api/merchant/news/{row.id}/")
         assert resp.status_code == 404
         assert StoreNews.objects.filter(id=row.id).exists()
+
+
+# ── Shared-coupon time-range validity ─────────────────────────────────────────
+
+
+class TestSharedCouponValidity:
+    """CouMap must only surface shared coupons within their valid time window
+    (already started AND not expired). Expired or not-yet-started public shares
+    must not appear in the sheet's sharedCoupons / myPublicShares, nor count
+    toward the nearby pin badge."""
+
+    def _make_public_share(self, store, sharer, *, start_days, expiry_days, token):
+        coupon = Coupon.objects.create(
+            store=store,
+            coupon_name="shared",
+            coupon_detail="$10 off",
+            start_date=timezone.now() + timedelta(days=start_days),
+            expiry_date=timezone.now() + timedelta(days=expiry_days),
+            coupon_type='exclusive',
+            estimated_savings=10,
+            original_owner=sharer,
+            current_holder=None,
+        )
+        return CouponShareRequest.objects.create(
+            coupon=coupon, from_user=sharer, token=token, is_public=True, status='pending',
+        )
+
+    def test_detail_excludes_expired_shared_coupon(self, client, store):
+        other = User.objects.create_user(username="exp_sharer", password="x")
+        self._make_public_share(store, other, start_days=-10, expiry_days=-1, token='exp')
+        body = client.get(f"/api/merchants/{store.id}/").json()
+        assert body["sharedCoupons"] == []
+
+    def test_detail_excludes_not_yet_started_shared_coupon(self, client, store):
+        other = User.objects.create_user(username="future_sharer", password="x")
+        self._make_public_share(store, other, start_days=2, expiry_days=10, token='fut')
+        body = client.get(f"/api/merchants/{store.id}/").json()
+        assert body["sharedCoupons"] == []
+
+    def test_detail_includes_valid_shared_coupon(self, client, store):
+        other = User.objects.create_user(username="valid_sharer", password="x")
+        self._make_public_share(store, other, start_days=-1, expiry_days=5, token='val')
+        body = client.get(f"/api/merchants/{store.id}/").json()
+        assert len(body["sharedCoupons"]) == 1
+
+    # NOTE: list_nearby_merchants' shared_counts gets the same
+    # _valid_public_share_filter, but the TestNearby HTTP suite is
+    # pre-existing-broken in this local SQLite env (the store row is absent
+    # from /merchants/nearby/ regardless of these changes), so a trustworthy
+    # green nearby assertion can't be added here. The detail-sheet tests cover
+    # the validity behaviour end-to-end.
+
+    def test_detail_excludes_expired_own_public_share(self, client, consumer, store):
+        # The consumer's OWN expired public share must drop out of myPublicShares.
+        self._make_public_share(store, consumer, start_days=-10, expiry_days=-1, token='ownexp')
+        body = client.get(f"/api/merchants/{store.id}/").json()
+        assert body.get("myPublicShares", []) == []

@@ -12,16 +12,12 @@ jest.mock('react-native-safe-area-context', () => ({
 const mockRequestPermission = jest.fn();
 const mockGetPermission = jest.fn();
 const mockGetCurrentPosition = jest.fn();
-const mockWatchHeading = jest.fn();
 const mockWatchPosition = jest.fn();
-const mockHeadingRemove = jest.fn();
 const mockPositionRemove = jest.fn();
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: () => mockRequestPermission(),
   getForegroundPermissionsAsync: () => mockGetPermission(),
   getCurrentPositionAsync: (opts: unknown) => mockGetCurrentPosition(opts),
-  watchHeadingAsync: (cb: (h: { trueHeading: number; magHeading: number }) => void) =>
-    mockWatchHeading(cb),
   watchPositionAsync: (
     opts: unknown,
     cb: (p: { coords: { latitude: number; longitude: number } }) => void,
@@ -121,8 +117,21 @@ jest.mock('@/src/components/icons/CoinIcon', () => {
 jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const MapView = ({ children }: { children?: React.ReactNode }) =>
-    React.createElement(View, { testID: 'map-view' }, children);
+  const MapView = ({
+    children,
+    showsUserLocation,
+  }: {
+    children?: React.ReactNode;
+    showsUserLocation?: boolean;
+  }) =>
+    React.createElement(
+      View,
+      { testID: 'map-view' },
+      // Surface the native "you are here" dot as a probe node so tests can
+      // assert it toggles with location permission.
+      showsUserLocation ? React.createElement(View, { testID: 'native-user-location' }) : null,
+      children,
+    );
   const Marker = ({ children, onPress }: { children?: React.ReactNode; onPress?: () => void }) =>
     React.createElement(
       View,
@@ -416,12 +425,9 @@ beforeEach(() => {
     coords: { latitude: 25.0333, longitude: 121.5654, accuracy: 10 },
     timestamp: Date.now(),
   });
-  mockHeadingRemove.mockReset();
   mockPositionRemove.mockReset();
-  mockWatchHeading.mockReset();
   mockWatchPosition.mockReset();
-  // Default: subscriptions return a remover, no automatic emissions.
-  mockWatchHeading.mockResolvedValue({ remove: mockHeadingRemove });
+  // Default: the position subscription returns a remover, no auto emissions.
   mockWatchPosition.mockResolvedValue({ remove: mockPositionRemove });
 });
 
@@ -663,6 +669,7 @@ describe('MapScreen — pin press opens MerchantSheet', () => {
     await openPinSheet(utils, 'pin-active-25.0478');
     fireEvent.press(utils.getByTestId('sheet-use-first'));
     expect(onNavigate).toHaveBeenCalledWith('coupon-detail', {
+      id: 'mc1-1',
       store: '阿明早餐店',
       detail: '$25 現金折抵',
       expires: '11/08',
@@ -688,41 +695,38 @@ describe('MapScreen — pin press opens MerchantSheet', () => {
   });
 });
 
-describe('MapScreen — user heading marker', () => {
-  it('subscribes to heading + position on mount and removes both on unmount', async () => {
+describe('MapScreen — native user-location indicator', () => {
+  it('subscribes to position on mount and removes it on unmount', async () => {
     const utils = await renderMap();
-    // Both subscriptions were started on mount.
-    expect(mockWatchHeading).toHaveBeenCalled();
     expect(mockWatchPosition).toHaveBeenCalled();
-    // The subscriptions resolve to objects with .remove; mount → unmount must
-    // call them. We unmount and let the async cleanup run via act().
     await act(async () => {
       utils.unmount();
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(mockHeadingRemove).toHaveBeenCalledTimes(1);
     expect(mockPositionRemove).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the user-location marker once a position fix arrives', async () => {
-    let positionCb: ((p: { coords: { latitude: number; longitude: number } }) => void) | null = null;
-    mockWatchPosition.mockImplementationOnce(
-      (_opts: unknown, cb: (p: { coords: { latitude: number; longitude: number } }) => void) => {
-        positionCb = cb;
-        return Promise.resolve({ remove: mockPositionRemove });
-      },
-    );
-
+  it('enables the map native user-location dot when permission is granted', async () => {
+    // Default beforeEach grants permission, so the effect flips showsUserLocation on.
     const utils = await renderMap();
-    // Before any position emission, no marker.
-    expect(utils.queryByTestId('user-location-marker')).toBeNull();
+    await waitFor(() => expect(utils.queryByTestId('native-user-location')).toBeTruthy());
+  });
 
+  it('does NOT show the native dot when permission is not granted', async () => {
+    mockGetPermission.mockResolvedValue({ status: 'denied', granted: false });
+    const utils = await renderMap();
+    expect(utils.queryByTestId('native-user-location')).toBeNull();
+  });
+
+  it('turns the native dot on after the locate button grants permission', async () => {
+    mockGetPermission.mockResolvedValue({ status: 'denied', granted: false });
+    const utils = await renderMap();
+    expect(utils.queryByTestId('native-user-location')).toBeNull();
     await act(async () => {
-      positionCb?.({ coords: { latitude: 25.0478, longitude: 121.5318 } });
+      fireEvent.press(utils.getByTestId('locate-btn'));
       await Promise.resolve();
     });
-
-    expect(utils.getByTestId('user-location-marker')).toBeTruthy();
+    await waitFor(() => expect(utils.queryByTestId('native-user-location')).toBeTruthy());
   });
 });

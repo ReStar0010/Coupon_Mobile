@@ -126,6 +126,13 @@ export default function CouponShareScreen({
         if (result.action === Share.sharedAction) {
           track('coupon.share_completed', { couponId: id, target });
           setSuccess(true);
+          // Mirror the map path: auto-return home so the success overlay
+          // doesn't strand the user. The coupon stays in their wallet (with a
+          // 分享中 badge) until the recipient collects the link.
+          successTimerRef.current = setTimeout(() => {
+            successTimerRef.current = null;
+            onNavigate('home');
+          }, 2500);
         }
       }
     } catch (err: unknown) {

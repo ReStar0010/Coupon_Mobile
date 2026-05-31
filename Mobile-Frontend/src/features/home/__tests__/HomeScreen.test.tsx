@@ -140,6 +140,35 @@ describe('HomeScreen', () => {
     expect(onNavigate).toHaveBeenCalledWith('settings');
   });
 
+  describe('link-shared coupons stay visible', () => {
+    const SHARED_COUPON: Coupon = {
+      id: '1',
+      store: '阿明早餐店',
+      detail: '$25 現金折抵',
+      expires: '11/08',
+      amount: 25,
+      status: 'shared',
+      gem_reward: 0,
+    };
+
+    it('keeps a link-shared coupon (status "shared") in the wallet list', () => {
+      mockCoupons = [SHARED_COUPON];
+      const { getAllByTestId } = render(<HomeScreen {...makeProps()} />);
+      // The coupon must NOT vanish just because it has an outstanding link share.
+      expect(getAllByTestId('coupon-row').length).toBe(1);
+    });
+
+    it('badges a link-shared coupon with 分享中 + a withdraw control', async () => {
+      mockCoupons = [SHARED_COUPON];
+      mockListMyShares.mockResolvedValueOnce([
+        makePublicShare({ share_id: 200, coupon_id: 1, is_public: false }),
+      ]);
+      const { findAllByTestId, getByText } = render(<HomeScreen {...makeProps()} />);
+      expect((await findAllByTestId('coupon-withdraw-btn')).length).toBe(1);
+      expect(getByText('分享中')).toBeTruthy();
+    });
+  });
+
   describe('withdraw shared coupons', () => {
     it('renders the CouMap section with a withdraw button for a pending public share', async () => {
       mockListMyShares.mockResolvedValueOnce([makePublicShare({ share_id: 100 })]);

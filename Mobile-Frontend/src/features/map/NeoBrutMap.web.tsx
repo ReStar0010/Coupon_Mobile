@@ -5,6 +5,8 @@ import { fontFamilies } from '../../theme/typography';
 
 interface NeoBrutMapProps {
   children?: React.ReactNode;
+  /** Accepted for prop-parity with the native map; web shows no live map. */
+  showsUserLocation?: boolean;
 }
 
 export default function NeoBrutMap({ children: _children }: NeoBrutMapProps): React.JSX.Element {
