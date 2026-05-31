@@ -115,7 +115,7 @@ export default function ResultModal({
           </Text>
         )}
 
-        {canDismiss ? (
+        {canDismiss && (
           <Pressable
             testID="result-continue-btn"
             onPress={onDismiss}
@@ -123,8 +123,6 @@ export default function ResultModal({
           >
             <Text style={styles.continueBtnText}>繼續</Text>
           </Pressable>
-        ) : (
-          <Text style={styles.meltdownHint}>🔥 MELTDOWN 啟動中…</Text>
         )}
       </Animated.View>
     </Animated.View>
@@ -217,12 +215,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: colors.fg,
-  },
-  meltdownHint: {
-    marginTop: 18,
-    fontFamily: fontFamilies.bold,
-    fontSize: 13,
-    color: '#6B4FFF',
-    letterSpacing: 0.5,
   },
 });

@@ -10,13 +10,13 @@ export interface SpinnerState {
 }
 
 export interface SpinnerDrawResult {
-  /** Base multiplier rolled by the server: 0..5. */
+  /** Multiplier rolled by the server: 0..5. */
   multiplier: number;
-  /** Bonus multiplier set only when `multiplier === 5`. */
-  meltdownMultiplier: number | null;
+  /** @deprecated Meltdown was removed; the server always returns null. */
+  meltdownMultiplier?: number | null;
   /** Bet amount (1..5) — the reward base. */
   gemsUsed: number;
-  /** Total CouPoints credited this spin (= gemsUsed × multiplier × (meltdownMultiplier ?? 1)). */
+  /** Total CouPoints credited this spin (= gemsUsed × multiplier). */
   pointsEarned: number;
   /** Post-debit gem balance. */
   gems: number;

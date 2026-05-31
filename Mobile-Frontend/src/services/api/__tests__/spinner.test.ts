@@ -43,7 +43,6 @@ const sampleSpinnerState: SpinnerState = {
 
 const sampleDrawResult: SpinnerDrawResult = {
   multiplier: 3,
-  meltdownMultiplier: null,
   gemsUsed: 5,
   pointsEarned: 15,
   gems: 4,
@@ -76,20 +75,19 @@ describe('spinner API', () => {
       expect(mockPost).toHaveBeenCalledWith('/api/spinner/draw/', { bet: 5 });
     });
 
-    it('returns the meltdownMultiplier when present', async () => {
-      const meltdown: SpinnerDrawResult = {
+    it('returns a flat multiplier payout (x5 has no meltdown bonus)', async () => {
+      const x5: SpinnerDrawResult = {
         ...sampleDrawResult,
         multiplier: 5,
-        meltdownMultiplier: 3,
-        pointsEarned: 75,
-        couPoints: 75,
+        pointsEarned: 25,
+        couPoints: 25,
       };
-      mockPost.mockResolvedValueOnce({ data: meltdown });
+      mockPost.mockResolvedValueOnce({ data: x5 });
 
-      const result = await drawSpinner(3);
+      const result = await drawSpinner(5);
 
-      expect(result.meltdownMultiplier).toBe(3);
-      expect(result.pointsEarned).toBe(75);
+      expect(result.multiplier).toBe(5);
+      expect(result.pointsEarned).toBe(25);
     });
 
     it('propagates 409 desync errors via normalizeError', async () => {

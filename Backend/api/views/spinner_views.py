@@ -2,8 +2,8 @@
 Server-authoritative solo spinner draw + state.
 
 The mobile FE used to roll the multiplier client-side (useSpinLogic.ts). That
-is moved here: the server owns the RNG, the reward table, the meltdown roll,
-and the wallet mutation. The FE becomes a thin animator that targets the
+is moved here: the server owns the RNG, the reward table, and the wallet
+mutation. The FE becomes a thin animator that targets the
 sector the server returned.
 
 Endpoints:
@@ -14,12 +14,13 @@ Endpoints:
 
 Notes:
   * `bet` (1..5) in the request body sets how many gems to wager. The
-    reward is `bet × effective_multiplier` CouPoints.
+    reward is `bet × multiplier` CouPoints.
   * `floor` shifts the available multipliers up based on the bet:
     same shape as the FE's getFloor(bet, players=1).
-  * The meltdown bonus only fires on a base multiplier of 5; we surface
-    `meltdownMultiplier` as a separate field so the FE can sequence its
-    own animation.
+  * Per-multiplier odds come from the admin-tunable SpinnerConfig singleton
+    (api.services.spinner_config), falling back to w(v)=1/(v+1).
+  * `meltdownMultiplier` is deprecated (meltdown removed) and always null;
+    retained in the response for already-shipped app builds.
   * Rate limit: server-enforced minimum interval (settings.SOLO_SPINNER_RATE_LIMIT_SECONDS)
     between consecutive solo draws per user — checked against the last
     SPINNER_SOLO WalletTransaction row.
@@ -40,6 +41,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from api.exceptions import CouProAPIException
+from api.services.spinner_config import get_base_weights
 from api.spinner_coop.models import Wallet, WalletTransaction
 from api.spinner_coop.wallet_service import (
     InsufficientGemsError,
@@ -50,16 +52,11 @@ logger = logging.getLogger(__name__)
 
 
 # ── Reward table (mirrors Mobile-Frontend/src/features/spinner/constants.ts) ──
-# Base multipliers: weight = 1 / (v + 1). Higher values rarer.
+# The wheel sectors are these multiplier values. The *odds* of each are owned
+# by the server: per-value weights come from the SpinnerConfig singleton
+# (admin-tunable, falling back to w(v)=1/(v+1)). Changing weights does not
+# change the wheel's appearance — the FE just lands on the value we return.
 _BASE_MULTIPLIERS = (0, 1, 2, 3, 4, 5)
-
-# Meltdown roll (only when base multiplier == 5).
-# (value, probability). Probabilities sum to 1.0.
-_MELTDOWN_TABLE = (
-    (2, 0.475),
-    (3, 0.475),
-    (5, 0.050),
-)
 
 # Allowed bet range.
 _MIN_BET = 1
@@ -107,14 +104,25 @@ def _get_floor(gems: int, players: int = 1) -> int:
     return 0
 
 
-def _roll_base_multiplier(floor: int) -> int:
+def _roll_base_multiplier(floor: int, weights_map: dict[int, float] | None = None) -> int:
     """Weighted sample over _BASE_MULTIPLIERS filtered by `v >= floor`.
-    Weight(v) = 1 / (v + 1). Uses secrets for crypto-strength randomness."""
+
+    Per-value weights come from the admin-tunable SpinnerConfig (falling back
+    to w(v)=1/(v+1)). Callers may pass `weights_map` to avoid a DB read inside a
+    transaction; when omitted it is fetched here. Uses secrets for
+    crypto-strength randomness."""
+    if weights_map is None:
+        weights_map = get_base_weights()
     available = [v for v in _BASE_MULTIPLIERS if v >= floor]
-    weights = [1.0 / (v + 1) for v in available]
+    weights = [weights_map.get(v, 0.0) for v in available]
     total = sum(weights)
-    # secrets.randbelow is integer-only; build a uniform float over [0, total)
-    # by combining two 32-bit randoms.
+    if total <= 0:
+        # Floor filtered out every weighted value (e.g. only sub-floor values
+        # carry weight). Fall back to a uniform draw over the available set so
+        # the spinner never deadlocks.
+        weights = [1.0] * len(available)
+        total = float(len(available))
+    # secrets.randbits is integer-only; build a uniform float over [0, total).
     r = (secrets.randbits(53) / float(1 << 53)) * total
     acc = 0.0
     for v, w in zip(available, weights):
@@ -122,17 +130,6 @@ def _roll_base_multiplier(floor: int) -> int:
         if r < acc:
             return v
     return available[-1]  # numerical-edge fallback
-
-
-def _roll_meltdown() -> int:
-    """Roll the bonus multiplier when the base multiplier is 5."""
-    r = secrets.randbits(53) / float(1 << 53)
-    acc = 0.0
-    for v, p in _MELTDOWN_TABLE:
-        acc += p
-        if r < acc:
-            return v
-    return _MELTDOWN_TABLE[-1][0]
 
 
 # ── Views ────────────────────────────────────────────────────────────────────
@@ -171,7 +168,7 @@ def post_spinner_draw(request):
     Response:
         {
           "multiplier":          <0..5>,
-          "meltdownMultiplier":  <int|null>,    # set only when multiplier==5
+          "meltdownMultiplier":  null,          # deprecated (meltdown removed), always null
           "gemsUsed":            <int>,         # bet amount (= reward base)
           "pointsEarned":        <int>,         # total CouPoints credited
           "gems":                <int>,         # post-debit balance
@@ -200,6 +197,10 @@ def post_spinner_draw(request):
 
     interval = max(0, int(getattr(settings, 'SOLO_SPINNER_RATE_LIMIT_SECONDS', 2)))
 
+    # Read the (admin-tunable) odds before opening the wallet transaction so we
+    # don't hold the select_for_update lock across an unrelated DB read.
+    weights_map = get_base_weights()
+
     with transaction.atomic():
         wallet = Wallet.objects.select_for_update().get(user_id=user_id)
         gems_before = wallet.gems
@@ -227,10 +228,8 @@ def post_spinner_draw(request):
                 )
 
         floor = _get_floor(bet)
-        base_mult = _roll_base_multiplier(floor)
-        meltdown_mult: int | None = _roll_meltdown() if base_mult == 5 else None
-        effective_mult = base_mult * (meltdown_mult if meltdown_mult else 1)
-        points_earned = bet * effective_mult
+        base_mult = _roll_base_multiplier(floor, weights_map)
+        points_earned = bet * base_mult
 
         try:
             tx = WalletService.mutate(
@@ -238,10 +237,7 @@ def post_spinner_draw(request):
                 delta_gems=-bet,
                 delta_cou_points=points_earned,
                 kind=WalletTransaction.Kind.SPINNER_SOLO,
-                note=(
-                    f"bet={bet} x{base_mult}"
-                    + (f" meltdown x{meltdown_mult}" if meltdown_mult else "")
-                ),
+                note=f"bet={bet} x{base_mult}",
             )
         except InsufficientGemsError as exc:
             raise WalletGemsDesync(
@@ -254,7 +250,6 @@ def post_spinner_draw(request):
             "user_id": user_id,
             "bet": bet,
             "multiplier": base_mult,
-            "meltdown_multiplier": meltdown_mult,
             "points_earned": points_earned,
             "tx_id": tx.id,
         },
@@ -262,7 +257,9 @@ def post_spinner_draw(request):
 
     return Response({
         'multiplier': base_mult,
-        'meltdownMultiplier': meltdown_mult,
+        # Deprecated: meltdown was removed. Always null; kept in the payload so
+        # already-shipped app builds that read this field don't break.
+        'meltdownMultiplier': None,
         'gemsUsed': bet,
         'pointsEarned': points_earned,
         'gems': tx.balance_after_gems,

@@ -3,11 +3,10 @@
 Covers:
   * auth required
   * GET returns gems / floor / lastSpinAt
-  * draw rejects when no gems
-  * draw debits exactly 1 gem and credits gems_before × multiplier
-  * meltdown only fires when base multiplier == 5
+  * draw rejects when no gems / invalid or oversized bet
+  * draw debits the bet and credits bet × multiplier CouPoints
+  * meltdown is gone: x5 pays a flat bet × 5 and meltdownMultiplier is null
   * floor reaches 1 when gems >= 3
-  * client/server gem desync returns 409
   * rate limit returns 429
   * ledger row written with kind=spinner_solo and correct snapshots
 """
@@ -92,76 +91,76 @@ class TestPostSpinnerDraw:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.json().get("error_code") == "NO_GEMS_TO_SPIN"
 
-    def test_debits_one_gem_and_credits_pts(self, client, consumer, wallet):
+    def test_debits_bet_and_credits_points(self, client, consumer, wallet):
         wallet.gems = 5
         wallet.save()
-        # Stub the RNG so the test is deterministic
+        # Stub the RNG so the test is deterministic.
         with patch("api.views.spinner_views._roll_base_multiplier", return_value=3):
-            resp = client.post("/api/spinner/draw/", {}, format="json")
+            resp = client.post("/api/spinner/draw/", {"bet": 5}, format="json")
         body = resp.json()
         assert resp.status_code == 200
         assert body["multiplier"] == 3
-        assert body["meltdownMultiplier"] is None
+        assert body["meltdownMultiplier"] is None  # deprecated field, always null
         assert body["gemsUsed"] == 5
-        assert body["pointsEarned"] == 15  # 5 gems × x3
-        assert body["gems"] == 4  # cost = 1
+        assert body["pointsEarned"] == 15  # bet 5 × x3
+        assert body["gems"] == 0  # debited the full bet
         assert body["couPoints"] == 15
         # Ledger row
         tx = WalletTransaction.objects.get(id=body["transactionId"])
         assert tx.kind == WalletTransaction.Kind.SPINNER_SOLO
-        assert tx.delta_gems == -1
+        assert tx.delta_gems == -5
         assert tx.delta_cou_points == 15
-        assert tx.balance_after_gems == 4
+        assert tx.balance_after_gems == 0
         assert tx.balance_after_cou_points == 15
 
-    def test_meltdown_fires_on_multiplier_5(self, client, wallet):
-        wallet.gems = 5
+    def test_bet_defaults_to_one(self, client, wallet):
+        wallet.gems = 2
         wallet.save()
-        with patch("api.views.spinner_views._roll_base_multiplier", return_value=5), \
-             patch("api.views.spinner_views._roll_meltdown", return_value=3):
+        with patch("api.views.spinner_views._roll_base_multiplier", return_value=2):
             resp = client.post("/api/spinner/draw/", {}, format="json")
         body = resp.json()
-        assert body["multiplier"] == 5
-        assert body["meltdownMultiplier"] == 3
-        assert body["pointsEarned"] == 5 * 5 * 3  # gems × base × meltdown
-        assert body["couPoints"] == 75
+        assert body["gemsUsed"] == 1
+        assert body["pointsEarned"] == 2  # bet 1 × x2
+        assert body["gems"] == 1
 
-    def test_no_meltdown_when_multiplier_below_5(self, client, wallet):
-        wallet.gems = 1
+    def test_multiplier_five_pays_flat_no_meltdown(self, client, wallet):
+        """x5 used to trigger a meltdown bonus roll; now it pays a flat bet × 5."""
+        wallet.gems = 5
         wallet.save()
-        with patch("api.views.spinner_views._roll_base_multiplier", return_value=2), \
-             patch("api.views.spinner_views._roll_meltdown", return_value=5):
-            resp = client.post("/api/spinner/draw/", {}, format="json")
-        assert resp.json()["meltdownMultiplier"] is None
+        with patch("api.views.spinner_views._roll_base_multiplier", return_value=5):
+            resp = client.post("/api/spinner/draw/", {"bet": 5}, format="json")
+        body = resp.json()
+        assert body["multiplier"] == 5
+        assert body["meltdownMultiplier"] is None
+        assert body["pointsEarned"] == 25  # 5 × 5, no meltdown multiplier
+        assert body["couPoints"] == 25
+
+    def test_rejects_bet_exceeding_balance(self, client, wallet):
+        wallet.gems = 2
+        wallet.save()
+        resp = client.post("/api/spinner/draw/", {"bet": 5}, format="json")
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.json().get("error_code") == "NO_GEMS_TO_SPIN"
+
+    def test_rejects_invalid_bet(self, client, wallet):
+        wallet.gems = 5
+        wallet.save()
+        resp = client.post("/api/spinner/draw/", {"bet": 9}, format="json")
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.json().get("error_code") == "INVALID_BET"
 
     def test_floor_propagates(self, client, wallet):
         wallet.gems = 4
         wallet.save()
         captured = {}
-        def spy(floor):
+
+        def spy(floor, weights_map=None):
             captured["floor"] = floor
-            return 0
+            return floor
+
         with patch("api.views.spinner_views._roll_base_multiplier", side_effect=spy):
-            client.post("/api/spinner/draw/", {}, format="json")
-        assert captured["floor"] == 1  # gems >= 3 → floor 1
-
-    def test_desync_409_when_client_disagrees(self, client, wallet):
-        wallet.gems = 2
-        wallet.save()
-        resp = client.post(
-            "/api/spinner/draw/", {"gems": 99}, format="json"
-        )
-        assert resp.status_code == status.HTTP_409_CONFLICT
-        assert resp.json().get("error_code") == "WALLET_GEMS_DESYNC"
-
-    def test_accepts_matching_client_hint(self, client, wallet):
-        wallet.gems = 2
-        wallet.save()
-        with patch("api.views.spinner_views._roll_base_multiplier", return_value=1):
-            resp = client.post(
-                "/api/spinner/draw/", {"gems": 2}, format="json"
-            )
-        assert resp.status_code == 200
+            client.post("/api/spinner/draw/", {"bet": 4}, format="json")
+        assert captured["floor"] == 1  # bet >= 3 → floor 1
 
 
 class TestRateLimit:

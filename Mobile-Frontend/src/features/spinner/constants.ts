@@ -29,19 +29,6 @@ export interface ChargeState {
   intensity: number;
 }
 
-export interface MeltMultiplier {
-  v: number;
-  color: string;
-  label: string;
-  prob: number;
-}
-
-export const MELT_MULTS: MeltMultiplier[] = [
-  { v: 2, color: '#888888', label: 'x2', prob: 0.475 },
-  { v: 3, color: '#FFAD31', label: 'x3', prob: 0.475 },
-  { v: 5, color: '#6B4FFF', label: 'x5', prob: 0.05 },
-];
-
 export function getCharge(gems: number): ChargeState {
   if (gems <= 1) {
     return { glow: true, lightning: 0, particles: 0, vignette: 0, vibrate: false, intensity: 0.18 };
