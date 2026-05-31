@@ -466,13 +466,15 @@ def auto_start_countdown(room: Room, *, now_ms: int) -> TransitionResult:
     return start_countdown(room, user_id=room.host_id, now_ms=now_ms)
 
 
-def complete_countdown(room: Room, *, now_ms: int) -> TransitionResult:
+def complete_countdown(
+    room: Room, *, now_ms: int, weights_map: dict[int, float] | None = None
+) -> TransitionResult:
     """Timer-triggered: COUNTDOWN → SPINNING (skips CHARGING).
 
     Charging was removed because WebSocket latency made the simultaneous
     button-hold feel laggy.  We set all players to fully charged and
     immediately trigger the draw so the wheel spins right after the
-    3-2-1 countdown.
+    3-2-1 countdown. ``weights_map`` is forwarded to the roll (co-op odds).
     """
     if room.phase != Phase.COUNTDOWN:
         return TransitionResult(room=room)
@@ -484,7 +486,7 @@ def complete_countdown(room: Room, *, now_ms: int) -> TransitionResult:
         charging_started_at_ms=now_ms,
         players=charged_players,
     )
-    return complete_charging(new_room, now_ms=now_ms)
+    return complete_charging(new_room, now_ms=now_ms, weights_map=weights_map)
 
 
 # ---------------------------------------------------------------------------
@@ -542,10 +544,15 @@ def press_out(
 
 
 def tick_charge_progress(
-    room: Room, *, now_ms: int, rng: random.Random | None = None
+    room: Room,
+    *,
+    now_ms: int,
+    rng: random.Random | None = None,
+    weights_map: dict[int, float] | None = None,
 ) -> TransitionResult:
     """Periodic timer (10Hz) — recompute progress for all currently-charging players.
-    Triggers CHARGING → SPINNING when every player is fully charged."""
+    Triggers CHARGING → SPINNING when every player is fully charged.
+    ``weights_map`` is forwarded to the roll (co-op odds)."""
     if room.phase != Phase.CHARGING:
         return TransitionResult(room=room)
 
@@ -579,7 +586,9 @@ def tick_charge_progress(
 
     if new_room.all_charged():
         # CHARGING → SPINNING (atomic gem debit + roll)
-        spin_result = complete_charging(new_room, rng=rng, now_ms=now_ms)
+        spin_result = complete_charging(
+            new_room, rng=rng, now_ms=now_ms, weights_map=weights_map
+        )
         new_room = spin_result.room
         events = events + spin_result.events
         side_effects = side_effects + spin_result.side_effects
@@ -601,9 +610,17 @@ def _compute_charge(player: Player, now_ms: int) -> float:
 # ---------------------------------------------------------------------------
 
 def complete_charging(
-    room: Room, *, rng: random.Random | None = None, now_ms: int
+    room: Room,
+    *,
+    rng: random.Random | None = None,
+    now_ms: int,
+    weights_map: dict[int, float] | None = None,
 ) -> TransitionResult:
     """All players fully charged → DEBIT GEMS atomically + roll M + compute shares.
+
+    ``weights_map`` (injected by the consumer from SpinnerConfig.coop_base_weights)
+    sets the multiplier odds; defaults to the legacy 1/(v+1) formula. Kept as a
+    param so this transition stays pure (no DB access).
 
     Emits room.spinning. Schedules a SPINNING → REVEAL timer."""
     if room.phase != Phase.CHARGING:
@@ -619,7 +636,7 @@ def complete_charging(
         PlayerStake(user_id=p.user_id, seat=p.seat, stake=p.stake)
         for p in room.players
     ]
-    result: RoundResult = compute_round(stakes, rng=rng)
+    result: RoundResult = compute_round(stakes, rng=rng, weights_map=weights_map)
     round_id = str(uuid.uuid4())
 
     debit_payload = {p.user_id: p.stake for p in room.players}

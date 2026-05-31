@@ -10,13 +10,21 @@ Covers:
 from __future__ import annotations
 
 import random
+from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError
 
 from api.models import SpinnerConfig
-from api.services.spinner_config import formula_weights, get_base_weights
+from api.services.spinner_config import (
+    formula_weights,
+    get_base_weights,
+    get_coop_weights,
+)
+from api.services import spinner_coop_draw
 from api.services.spinner_coop_draw import roll_multiplier
+from api.spinner_coop import transitions as T
+from api.spinner_coop.states import COUNTDOWN_DURATION_MS, Phase
 from api.views.spinner_views import _roll_base_multiplier
 
 
@@ -82,6 +90,79 @@ class TestSoloRollUsesConfig:
         SpinnerConfig(base_weights={"0": 1.0}).save()
         for _ in range(30):
             assert _roll_base_multiplier(2) >= 2
+
+
+class TestCoopConfigAccessor:
+    def test_uses_coop_weights_when_set(self):
+        SpinnerConfig.objects.all().delete()
+        SpinnerConfig(base_weights={"0": 1.0}, coop_base_weights={"5": 9.0}).save()
+        assert get_coop_weights() == {5: 9.0}
+
+    def test_falls_back_to_solo_when_coop_blank(self):
+        SpinnerConfig.objects.all().delete()
+        SpinnerConfig(base_weights={"2": 4.0}, coop_base_weights={}).save()
+        assert get_coop_weights() == {2: 4.0}
+
+    def test_falls_back_to_formula_when_both_blank(self):
+        SpinnerConfig.objects.all().delete()
+        SpinnerConfig(base_weights={}, coop_base_weights={}).save()
+        assert get_coop_weights() == formula_weights()
+
+    def test_falls_back_to_formula_when_no_row(self):
+        SpinnerConfig.objects.all().delete()
+        assert get_coop_weights() == formula_weights()
+
+
+class TestCoopConfigClean:
+    def test_clean_allows_empty_coop(self):
+        # Empty coop = "follow solo" — must not raise.
+        SpinnerConfig(base_weights={"0": 1.0}, coop_base_weights={}).clean()
+
+    def test_clean_rejects_unknown_coop_multiplier(self):
+        with pytest.raises(ValidationError):
+            SpinnerConfig(base_weights={"0": 1.0}, coop_base_weights={"9": 1.0}).clean()
+
+    def test_clean_rejects_negative_coop_weight(self):
+        with pytest.raises(ValidationError):
+            SpinnerConfig(base_weights={"0": 1.0}, coop_base_weights={"3": -2.0}).clean()
+
+
+def _countdown_room():
+    """Build a 2-player room sitting in COUNTDOWN, ready for the draw."""
+    r = T.create_room(
+        host_id="alice",
+        host_display_name="Alice",
+        solo=False,
+        now_ms=1000,
+        room_id_factory=lambda: "room-x",
+        code_factory=lambda: "ABCDEF",
+    ).room
+    r = T.join_room(r, user_id="bob", display_name="Bob", now_ms=1100).room
+    r = T.set_stake(r, user_id="alice", gems=3, now_ms=1200).room
+    r = T.set_stake(r, user_id="bob", gems=2, now_ms=1300).room
+    r = T.lock_stake(r, user_id="alice", now_ms=1400).room
+    r = T.lock_stake(r, user_id="bob", now_ms=1500).room
+    r = T.start_countdown(r, user_id="alice", now_ms=1600).room
+    assert r.phase == Phase.COUNTDOWN
+    return r
+
+
+class TestCoopTransitionThreadsWeights:
+    def test_complete_countdown_forwards_weights_to_roll(self):
+        """The live co-op draw path must pass injected weights into compute_round."""
+        room = _countdown_room()
+        sentinel = {3: 1.0}  # value 3 is >= the 2-player floor, so the round resolves
+        with patch(
+            "api.spinner_coop.transitions.compute_round",
+            wraps=spinner_coop_draw.compute_round,
+        ) as mock_cr:
+            result = T.complete_countdown(
+                room, now_ms=1600 + COUNTDOWN_DURATION_MS, weights_map=sentinel
+            )
+        assert mock_cr.called
+        assert mock_cr.call_args.kwargs.get("weights_map") == sentinel
+        # With all weight on value 3 (>= floor 2), the rolled multiplier is 3.
+        assert result.room.phase == Phase.SPINNING
 
 
 class TestCoopRollWeights:
