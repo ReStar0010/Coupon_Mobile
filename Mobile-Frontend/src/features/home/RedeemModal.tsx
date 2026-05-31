@@ -46,7 +46,7 @@ export default function RedeemModal({
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        <Text style={styles.title}>兌換現金券</Text>
+        <Text style={styles.title}>兌換現金折抵</Text>
 
         {/* Balance subtitle */}
         <View style={styles.subtitleRow}>
@@ -95,7 +95,7 @@ export default function RedeemModal({
           >
             {ok && v ? (
               <View style={styles.confirmInner}>
-                <Text style={styles.confirmText}>兌換 ${v.amt} 現金券 (−</Text>
+                <Text style={styles.confirmText}>兌換 ${v.amt} 現金折抵 (−</Text>
                 <CoinIcon size={14} />
                 <Text style={styles.confirmText}>{v.cost})</Text>
               </View>
