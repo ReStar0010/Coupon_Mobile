@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MULTS, MELT_MULTS, getFloor } from './constants';
+import { MULTS, getFloor } from './constants';
 import type { SpinResult } from './ResultModal';
 import { drawSpinner } from '../../services/api/spinner';
 import type { SpinnerDrawResult } from '../../services/api/spinner';
@@ -11,7 +11,7 @@ import { getFlag } from '../../services/analytics/flags';
 /** Variants for the first spinner A/B test. Wired into PostHog as a multivariate flag. */
 export type SpinnerCostVariant = 'default' | 'cheap' | 'bundled';
 
-export type SpinPhase = 'idle' | 'launch' | 'peak' | 'decel' | 'pause' | 'reveal' | 'meltdown';
+export type SpinPhase = 'idle' | 'launch' | 'peak' | 'decel' | 'pause' | 'reveal';
 
 interface SpinLogicOptions {
   /** Number of gems being wagered this spin (1..5). */
@@ -32,9 +32,6 @@ interface SpinLogicReturn {
   nearMiss: boolean;
   pendingColor: string | null;
   gemsAtSpin: number;
-  meltdownResult: SpinResult | null;
-  meltdownSpin: number;
-  meltdownSpinning: boolean;
   spinError: string | null;
   handleSpin: () => void;
   dismissResult: () => void;
@@ -78,9 +75,6 @@ export function useSpinLogic({
   const [nearMiss, setNearMiss] = useState(false);
   const [pendingColor, setPendingColor] = useState<string | null>(null);
   const [gemsAtSpin, setGemsAtSpin] = useState(0);
-  const [meltdownResult, setMeltdownResult] = useState<SpinResult | null>(null);
-  const [meltdownSpin, setMeltdownSpin] = useState(0);
-  const [meltdownSpinning, setMeltdownSpinning] = useState(false);
   const [serverFloor, setServerFloor] = useState<number | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
 
@@ -112,7 +106,7 @@ export function useSpinLogic({
   }, [gems]);
 
   const startAnimation = (draw: SpinnerDrawResult): void => {
-    const { multiplier, meltdownMultiplier, gemsUsed, pointsEarned } = draw;
+    const { multiplier, gemsUsed, pointsEarned } = draw;
 
     setGemsAtSpin(gemsUsed);
     setServerFloor(draw.floor);
@@ -138,43 +132,10 @@ export function useSpinLogic({
       setSpinning(false);
       const miss = multiplier <= 1 && Math.random() < 0.38;
       setNearMiss(miss);
-      // For x5 + meltdown the points should reveal the meltdown total only after
-      // the meltdown wheel settles. The base reveal shows the wheel-stop tier.
-      const baseRevealPoints =
-        meltdownMultiplier !== null && meltdownMultiplier !== undefined
-          ? gemsUsed * multiplier
-          : pointsEarned;
-      setResult({ mult: multiplier, points: baseRevealPoints, color: sector.color });
+      setResult({ mult: multiplier, points: pointsEarned, color: sector.color });
       setPhase('reveal');
       setPendingColor(null);
-
-      if (multiplier === 5 && meltdownMultiplier !== null && meltdownMultiplier !== undefined) {
-        push(() => {
-          const mSector = computeSectorMath(MELT_MULTS, meltdownMultiplier);
-
-          setMeltdownSpinning(true);
-          setMeltdownSpin((prev) => {
-            const mod = ((prev % 360) + 360) % 360;
-            const pos = (mSector.centerDeg + mod) % 360;
-            const rawAdj = ((270 - pos) % 360 + 360) % 360;
-            const adj = rawAdj === 0 ? 360 : rawAdj;
-            return prev + 360 * 5 + adj + (Math.random() * 4 - 2);
-          });
-          setPhase('meltdown');
-
-          push(() => {
-            setMeltdownSpinning(false);
-            setMeltdownResult({
-              mult: meltdownMultiplier,
-              points: pointsEarned,
-              color: mSector.color,
-            });
-            if (refreshWallet) {
-              void Promise.resolve(refreshWallet()).catch(() => undefined);
-            }
-          }, 2200);
-        }, 2500);
-      } else if (refreshWallet) {
+      if (refreshWallet) {
         void Promise.resolve(refreshWallet()).catch(() => undefined);
       }
     }, 4700);
@@ -186,7 +147,6 @@ export function useSpinLogic({
     clearTimers();
     setSpinning(true);
     setResult(null);
-    setMeltdownResult(null);
     setNearMiss(false);
     setSpinError(null);
     setPhase('launch');
@@ -227,7 +187,6 @@ export function useSpinLogic({
   const dismissResult = (): void => {
     clearTimers();
     setResult(null);
-    setMeltdownResult(null);
     setNearMiss(false);
     setPhase('idle');
     setGemsAtSpin(0);
@@ -244,9 +203,6 @@ export function useSpinLogic({
     nearMiss,
     pendingColor,
     gemsAtSpin,
-    meltdownResult,
-    meltdownSpin,
-    meltdownSpinning,
     spinError,
     handleSpin,
     dismissResult,

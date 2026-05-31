@@ -1241,6 +1241,84 @@ class ViolationRecord(models.Model):
         return f"Violation #{self.id} - {self.merchant.username}"
 
 
+# ── CouSino (solo spinner) tunable odds ─────────────────────────────────────
+class SpinnerConfig(models.Model):
+    """Singleton holding the solo CouSino multiplier odds.
+
+    ``base_weights`` maps each multiplier value ("0".."5") to a relative weight;
+    the draw samples the values ``>= floor`` with these weights (higher weight =
+    more likely). Editable in Django admin to retune odds live — no deploy, no
+    app release. The FE wheel is a thin animator that lands on whatever value
+    the server returns, so its visual sectors are unaffected by weight changes.
+
+    Exactly one row (``pk`` pinned to ``SINGLETON_ID``). When the row is absent,
+    empty, or invalid the server falls back to the legacy ``w(v)=1/(v+1)``
+    formula (see ``api.services.spinner_config``).
+    """
+
+    SINGLETON_ID = 1
+    #: Multiplier values that may appear on the wheel. Must mirror
+    #: Mobile-Frontend/src/features/spinner/constants.ts (MULTS) and
+    #: api/services/spinner_coop_draw.MULTIPLIERS.
+    ALLOWED_VALUES = (0, 1, 2, 3, 4, 5)
+
+    base_weights = models.JSONField(
+        default=dict,
+        help_text=(
+            '每個倍率的相對權重，例如 {"0":1.0,"1":0.5,...,"5":0.1667}。'
+            '數字越大越容易抽中。留空則回退為 1/(v+1) 公式。'
+        ),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'spinner_config'
+        verbose_name = 'CouSino 機率設定'
+        verbose_name_plural = 'CouSino 機率設定'
+
+    def __str__(self) -> str:
+        return f"SpinnerConfig(weights={self.base_weights})"
+
+    def save(self, *args, **kwargs):
+        # Pin to a single row so this stays a singleton regardless of caller.
+        self.pk = self.SINGLETON_ID
+        # Enforce clean() on every save (admin already does; this also guards
+        # shell / management-command writes). validate_unique is skipped: this
+        # is a singleton that intentionally upserts the pinned pk, so the unique
+        # check would wrongly reject the second save as "already exists". The
+        # accessor still defends against malformed rows inserted via raw SQL.
+        self.full_clean(validate_unique=False)
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        weights = self.base_weights or {}
+        if not isinstance(weights, dict):
+            raise ValidationError({'base_weights': 'Must be a JSON object of value→weight.'})
+
+        positive = 0
+        for key, raw in weights.items():
+            try:
+                value = int(key)
+            except (TypeError, ValueError):
+                raise ValidationError({'base_weights': f'Key {key!r} is not an integer multiplier.'})
+            if value not in self.ALLOWED_VALUES:
+                raise ValidationError(
+                    {'base_weights': f'Multiplier {value} is not one of {list(self.ALLOWED_VALUES)}.'}
+                )
+            try:
+                weight = float(raw)
+            except (TypeError, ValueError):
+                raise ValidationError({'base_weights': f'Weight for {key} is not a number.'})
+            if weight < 0:
+                raise ValidationError({'base_weights': f'Weight for {key} must be >= 0.'})
+            if weight > 0:
+                positive += 1
+        if weights and positive == 0:
+            raise ValidationError({'base_weights': 'At least one weight must be greater than 0.'})
+
+
 # ── Spinner Co-op (deliverable 3b) ──────────────────────────────────────────
 # Re-export so Django picks them up via app config.
 from api.spinner_coop.models import (  # noqa: E402, F401

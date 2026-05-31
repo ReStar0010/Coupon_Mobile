@@ -56,7 +56,6 @@ describe('SpinnerScreen', () => {
     mockedDrawSpinner.mockReset();
     mockedDrawSpinner.mockResolvedValue({
       multiplier: 2,
-      meltdownMultiplier: null,
       gemsUsed: 1,
       pointsEarned: 2,
       gems: 0,

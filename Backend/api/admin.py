@@ -2443,6 +2443,28 @@ class DailyDrawAttemptAdmin(admin.ModelAdmin):
 
 
 # =============================================================================
+# CouSino (solo spinner) odds — admin-tunable singleton
+# =============================================================================
+
+@admin.register(SpinnerConfig)
+class SpinnerConfigAdmin(admin.ModelAdmin):
+    """Edit the solo CouSino multiplier odds live.
+
+    Singleton: one row only. The wheel's appearance is unaffected — these
+    weights only change how often each multiplier is rolled server-side.
+    """
+    list_display = ['__str__', 'updated_at']
+    readonly_fields = ['updated_at']
+
+    def has_add_permission(self, request):
+        # Singleton: only allow adding when no row exists yet.
+        return not SpinnerConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+# =============================================================================
 # Admin Site Customization
 # =============================================================================
 

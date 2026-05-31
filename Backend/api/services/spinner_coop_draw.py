@@ -60,16 +60,30 @@ def floor_multiplier(gems_total: int, num_players: int) -> int:
     return max(indicator_g, indicator_p)
 
 
-def roll_multiplier(floor: int, rng: random.Random) -> int:
+def roll_multiplier(
+    floor: int,
+    rng: random.Random,
+    weights_map: dict[int, float] | None = None,
+) -> int:
     """
-    Draw M from {floor..5} weighted by w(v) = 1/(v+1) (inverse probability).
+    Draw M from {floor..5} weighted by ``weights_map`` (defaults to the legacy
+    inverse-probability weights w(v) = 1/(v+1)).
 
-    Lower multipliers are more likely; the wheel never lands below the floor.
+    Lower multipliers are more likely under the default; the wheel never lands
+    below the floor. ``weights_map`` lets the caller inject the admin-tunable
+    SpinnerConfig odds while keeping this function pure (no DB access here).
     """
     if floor < 0 or floor > MULTIPLIERS[-1]:
         raise ValueError(f"floor {floor} outside multiplier range")
     available = [v for v in MULTIPLIERS if v >= floor]
-    weights = [1.0 / (v + 1) for v in available]
+    if weights_map is None:
+        weights = [1.0 / (v + 1) for v in available]
+    else:
+        weights = [max(0.0, float(weights_map.get(v, 0.0))) for v in available]
+        if sum(weights) <= 0:
+            # Injected weights zeroed out the available set — fall back to
+            # uniform so the round can still resolve.
+            weights = [1.0] * len(available)
     [pick] = rng.choices(available, weights=weights, k=1)
     return pick
 
@@ -159,6 +173,7 @@ class RoundResult:
 def compute_round(
     players: Iterable[PlayerStake | tuple[str, int, int]],
     rng: random.Random | None = None,
+    weights_map: dict[int, float] | None = None,
 ) -> RoundResult:
     """
     Roll one co-op round and return the authoritative outcome.
@@ -168,6 +183,9 @@ def compute_round(
                  (user_id, seat, stake) tuple. Stakes must be in [STAKE_MIN, STAKE_MAX].
         rng:     Random source. Defaults to `random.SystemRandom()` for production
                  cryptographic-grade randomness; tests pass a seeded `random.Random`.
+        weights_map: Optional {multiplier: weight} override for the M roll.
+                 Defaults to the legacy w(v)=1/(v+1) formula. Passed through to
+                 keep this function pure; the caller injects SpinnerConfig odds.
 
     Raises:
         ValueError on invalid inputs.
@@ -202,7 +220,7 @@ def compute_round(
     P = len(normalized)
     G = sum(p.stake for p in normalized)
     f = floor_multiplier(G, P)
-    M = roll_multiplier(f, rng)
+    M = roll_multiplier(f, rng, weights_map)
 
     pool = G * M
     random_shares = multinomial_draw(pool, [1] * P, rng)

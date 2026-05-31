@@ -18,7 +18,6 @@ import CoinIcon from '../../components/icons/CoinIcon';
 import WheelDial from './WheelDial';
 import ResultModal from './ResultModal';
 import type { SpinResult } from './ResultModal';
-import MeltdownOverlay from './MeltdownOverlay';
 import Coachmark from '@/src/features/onboarding/Coachmark';
 import { OnboardingAnchor, ANCHOR } from '@/src/components/onboarding/onboardingAnchors';
 import { useSpinLogic } from './useSpinLogic';
@@ -100,9 +99,6 @@ export default function SpinnerScreen({
     nearMiss,
     pendingColor,
     gemsAtSpin,
-    meltdownResult,
-    meltdownSpin,
-    meltdownSpinning,
     spinError,
     handleSpin,
     dismissResult,
@@ -897,16 +893,7 @@ export default function SpinnerScreen({
       <ResultModal
         result={isMultiplayer ? null : result}
         onDismiss={dismissResult}
-        canDismiss={phase === 'reveal' && result?.mult !== 5}
-      />
-
-      <MeltdownOverlay
-        active={phase === 'meltdown'}
-        meltdownResult={meltdownResult}
-        meltdownSpin={meltdownSpin}
-        meltdownSpinning={meltdownSpinning}
-        originalResult={result}
-        onDismiss={dismissResult}
+        canDismiss={phase === 'reveal'}
       />
 
       {/* Co-op result — Phase 1: ResultModal with multiplier spring animation */}
