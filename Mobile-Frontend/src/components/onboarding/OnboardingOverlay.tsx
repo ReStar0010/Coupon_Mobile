@@ -36,8 +36,8 @@ export type ScreenKey = 'home' | 'map' | 'spinner' | 'coupon-detail' | 'coupon-s
 const ONBOARDING: Record<ScreenKey, OnboardingStep[]> = {
   home: [
     { text: '歡迎使用 CouPro！這是你的優惠券錢包。', anchor: ANCHOR.homeWallet },
-    { text: '這裡顯示你的 CouPoint 餘額，累積可換現金券。', anchor: ANCHOR.homeBalance },
-    { text: '點「兌換 →」，用 CouPoints 選擇面額換現金券。', anchor: ANCHOR.homeRedeem },
+    { text: '這裡顯示你的 CouPoint 餘額，結帳時可直接現金折抵。', anchor: ANCHOR.homeBalance },
+    { text: '點「兌換 →」，用 CouPoints 選擇面額，直接現金折抵。', anchor: ANCHOR.homeRedeem },
     { text: '有寶石嗎？點這裡去 CouSino 用寶石抽積分！', anchor: ANCHOR.homeGem },
     { text: '點✈送出優惠券分享給別人，或點券本身查看詳情。', anchor: ANCHOR.homeCoupon },
   ],
@@ -72,11 +72,8 @@ const ONBOARDING: Record<ScreenKey, OnboardingStep[]> = {
     { text: '選好後按這裡確認分享，寶石馬上入帳！', anchor: ANCHOR.shareConfirm },
   ],
   settings: [
-    { text: '這裡是設定頁，可以調整你的帳號與通知偏好。', anchor: ANCHOR.settingsProfile },
-    // Push-notification and privacy-mode toggles aren't present yet — these
-    // render as centered tooltips until the controls exist.
-    { text: '開啟「推播通知」不錯過任何限時優惠券。' },
-    { text: '「隱私模式」開啟後，其他人無法在 CouMap 看到你的位置。' },
+    { text: '這裡是設定頁，可以管理帳號資料、驗證 Email／手機。', anchor: ANCHOR.settingsProfile },
+    { text: '在「隱私與資料」管理你封鎖的商家，也能回報問題或重看新手教學。' },
   ],
 };
 
