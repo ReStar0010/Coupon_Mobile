@@ -195,7 +195,7 @@ export default function ForgotPasswordScreen() {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 secureTextEntry
-                placeholder="至少 8 個字元"
+                placeholder="請輸入新密碼"
                 testID="new-password-input"
               />
 

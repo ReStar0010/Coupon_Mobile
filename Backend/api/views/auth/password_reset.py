@@ -15,7 +15,6 @@ from ...models import PasswordResetProfile
 from ...auth import generate_password_reset_token, is_token_valid
 from ...exceptions import (
     EmailSendFailed,
-    PasswordTooShort,
     InvalidResetLink,
     UserNotFound,
 )
@@ -96,9 +95,6 @@ def reset_password(request):
 
     if not all([email, token, new_password]):
         return Response({'error': '所有欄位均為必填'}, status=status.HTTP_400_BAD_REQUEST)
-
-    if len(new_password) < 8:
-        raise PasswordTooShort(developer_message="密碼長度至少需要8個字符", context={"min_length": 8})
 
     try:
         user = User.objects.get(email=email)

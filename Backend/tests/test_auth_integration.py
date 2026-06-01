@@ -53,15 +53,15 @@ class StudentRegistrationTests(TestCase):
         self.assertLess(response.status_code, 500)
 
     @patch('api.views.auth.register.send_verification_email')
-    def test_register_student_short_password(self, mock_send):
-        """POST api/register/ with a password shorter than 8 chars returns 400."""
+    def test_register_student_short_password_allowed(self, mock_send):
+        """POST api/register/ accepts a short password (no length minimum)."""
         mock_send.return_value = True
         response = self.client.post('/api/register/', {
             'email': 'short@test.com',
             'password': 'abc',
             'user_type': 'student',
         }, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_register_student_missing_fields(self):
         """POST api/register/ missing email or password returns 400."""

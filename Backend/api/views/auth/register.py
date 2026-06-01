@@ -133,9 +133,9 @@ def register(request):
     else:
         # Student registration (existing logic)
         password = request.data.get('password', '')
-        if len(password) < 8:
+        if not password:
             return Response(
-                {'error': '密碼長度至少需要8個字元'},
+                {'error': '請輸入密碼'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

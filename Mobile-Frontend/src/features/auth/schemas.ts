@@ -45,16 +45,14 @@ export const loginSchema = z.object({
 export type LoginInput = z.input<typeof loginSchema>;
 export type LoginParsed = z.output<typeof loginSchema>;
 
-// Min length for a reset password. Pinned to 8 to match the backend's
-// `verify_password_reset_otp` check (`len(new_password) < 8` → error).
-// Note this is deliberately stricter than loginSchema's min 6.
-const RESET_PASSWORD_MIN_LENGTH = 8;
 const OTP_LENGTH = 6;
 
 /**
  * Schema for the phone-OTP password reset form. Reuses the same phone
- * normalization as loginSchema, plus a 6-digit OTP and an 8+ char new
- * password (BE-enforced minimum).
+ * normalization as loginSchema, plus a 6-digit OTP and a new password.
+ * No length minimum: the `verify_password_reset_otp` endpoint accepts any
+ * non-empty password (matching registration's lowest-friction policy), so
+ * the form must not reject anything the server would accept.
  */
 export const phoneResetSchema = z.object({
   phone: z
@@ -70,7 +68,7 @@ export const phoneResetSchema = z.object({
     .refine((c) => new RegExp(`^\\d{${OTP_LENGTH}}$`).test(c), {
       message: `請輸入 ${OTP_LENGTH} 位數驗證碼`,
     }),
-  newPassword: z.string().min(RESET_PASSWORD_MIN_LENGTH, '密碼至少 8 個字元'),
+  newPassword: z.string().min(1, '請輸入密碼'),
 });
 
 export type PhoneResetInput = z.input<typeof phoneResetSchema>;

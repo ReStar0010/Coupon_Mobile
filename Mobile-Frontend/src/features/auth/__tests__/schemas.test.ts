@@ -100,11 +100,20 @@ describe('phoneResetSchema', () => {
     }
   });
 
-  it('rejects a password shorter than 8 characters (stricter than login)', () => {
+  it('accepts a short new password (no length minimum, matches BE)', () => {
     const parsed = phoneResetSchema.safeParse({
       phone: '0912345678',
       otp: '123456',
-      newPassword: 'pw12345',
+      newPassword: 'pw',
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects an empty new password', () => {
+    const parsed = phoneResetSchema.safeParse({
+      phone: '0912345678',
+      otp: '123456',
+      newPassword: '',
     });
     expect(parsed.success).toBe(false);
     if (!parsed.success) {
@@ -126,7 +135,7 @@ describe('phoneResetSchema', () => {
     const parsed = phoneResetSchema.safeParse({
       phone: 'abc',
       otp: '12',
-      newPassword: 'x',
+      newPassword: '',
     });
     expect(parsed.success).toBe(false);
     if (!parsed.success) {

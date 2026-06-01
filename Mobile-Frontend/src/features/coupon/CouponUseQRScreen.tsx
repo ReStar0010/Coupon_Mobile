@@ -1,5 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated, TextInput, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Animated,
+  TextInput,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Path } from 'react-native-svg';
@@ -202,14 +212,26 @@ export default function CouponUseQRScreen({
             style={s.camera}
             facing="back"
             enableTorch={torch}
-            onBarcodeScanned={success ? undefined : (e) => { void handleScan(e?.data); }}
+            onBarcodeScanned={
+              success
+                ? undefined
+                : (e) => {
+                    void handleScan(e?.data);
+                  }
+            }
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
           />
         ) : (
           <PermissionDeniedView
             title="需要相機權限"
             description="開啟相機以掃描店家 QR Code 並完成核銷"
-            onRetry={permission?.canAskAgain ? () => { void requestPermission(); } : undefined}
+            onRetry={
+              permission?.canAskAgain
+                ? () => {
+                    void requestPermission();
+                  }
+                : undefined
+            }
           />
         )}
         <Text style={s.scanHint}>將店家 QR Code 對準框內</Text>
@@ -316,9 +338,7 @@ export default function CouponUseQRScreen({
                 (!manualCode.trim() || success || isSubmitting) && s.submitBtnDisabled,
               ]}
             >
-              <Text style={s.submitBtnText}>
-                {isSubmitting ? '核銷中…' : '確認核銷'}
-              </Text>
+              <Text style={s.submitBtnText}>{isSubmitting ? '核銷中…' : '確認核銷'}</Text>
             </Pressable>
           </View>
         </View>
