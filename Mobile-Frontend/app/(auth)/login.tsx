@@ -81,7 +81,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="phone-pad"
             placeholder="0912-345-678"
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={colors.placeholder}
             testID="phone-input"
           />
           {phoneError ? (
@@ -100,7 +100,7 @@ export default function LoginScreen() {
             }}
             secureTextEntry
             placeholder="••••••••"
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={colors.placeholder}
             testID="password-input"
           />
           {passwordError ? (

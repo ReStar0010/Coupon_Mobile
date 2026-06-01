@@ -3,6 +3,9 @@ export const colors = {
   card: '#FFFFFF',
   fg: '#333333',
   muted: '#888888',
+  // Form-input placeholder text. Deliberately darker than `muted` so it stays
+  // legible on the white input card; still lighter than `fg` typed text.
+  placeholder: '#555555',
   subtle: '#DDDDDD',
   canvas: '#1A1A1A',
   yellow: '#FFAD31',

@@ -144,7 +144,7 @@ export default function RegisterScreen() {
                 autoCapitalize="none"
                 keyboardType="phone-pad"
                 placeholder="0912-345-678"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.placeholder}
                 testID="phone-input"
               />
 
@@ -155,7 +155,7 @@ export default function RegisterScreen() {
                 onChangeText={setPassword}
                 secureTextEntry
                 placeholder="請輸入密碼"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.placeholder}
                 testID="password-input"
               />
 
@@ -188,7 +188,7 @@ export default function RegisterScreen() {
                 onChangeText={(t) => setOtp(t.replace(/\D/g, '').slice(0, OTP_LENGTH))}
                 keyboardType="number-pad"
                 placeholder="6 位數驗證碼"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={colors.placeholder}
                 maxLength={OTP_LENGTH}
                 testID="otp-input"
               />
