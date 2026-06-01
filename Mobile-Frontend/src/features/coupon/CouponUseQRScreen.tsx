@@ -233,21 +233,23 @@ export default function CouponUseQRScreen({
                   <Text style={s.confirmHeader}>核銷成功</Text>
                 </View>
 
-                <Text style={s.confirmCouponName} numberOfLines={2}>
-                  {couponName}
-                </Text>
-                {couponDetail ? (
-                  <Text style={s.confirmDetail} numberOfLines={2}>
-                    {couponDetail}
+                <View style={s.confirmContentBlock}>
+                  <Text style={s.confirmContentLabel}>核銷內容</Text>
+                  <Text style={s.confirmCouponName} numberOfLines={3}>
+                    {couponName}
                   </Text>
-                ) : null}
-
-                <View style={s.confirmSavingsRow}>
-                  <Text style={s.confirmSavingsLabel}>折抵金額</Text>
-                  <Text style={s.confirmSavings}>${displaySavings}</Text>
+                  {couponDetail ? (
+                    <Text style={s.confirmDetail} numberOfLines={4}>
+                      {couponDetail}
+                    </Text>
+                  ) : null}
                 </View>
 
                 <View style={s.confirmMetaBlock}>
+                  <View style={s.confirmMetaRow}>
+                    <Text style={s.confirmMetaLabel}>折抵金額</Text>
+                    <Text style={s.confirmMetaValue}>${displaySavings}</Text>
+                  </View>
                   <View style={s.confirmMetaRow}>
                     <Text style={s.confirmMetaLabel}>店家</Text>
                     <Text style={s.confirmMetaValue} numberOfLines={1}>
@@ -499,6 +501,21 @@ const s = StyleSheet.create({
     color: colors.fg,
     letterSpacing: -0.5,
   },
+  confirmContentBlock: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: colors.yellowLight,
+    borderWidth: 2.5,
+    borderColor: colors.border,
+    borderRadius: 8,
+  },
+  confirmContentLabel: {
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    color: colors.muted,
+    marginBottom: 6,
+  },
   confirmCouponName: {
     fontFamily: fontFamilies.extraBold,
     fontSize: 26,
@@ -508,28 +525,10 @@ const s = StyleSheet.create({
   },
   confirmDetail: {
     fontFamily: fontFamilies.regular,
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: 4,
-  },
-  confirmSavingsRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: colors.yellowLight,
-    borderWidth: 2.5,
-    borderColor: colors.border,
-    borderRadius: 8,
-  },
-  confirmSavingsLabel: { fontFamily: fontFamilies.bold, fontSize: 14, color: colors.fg },
-  confirmSavings: {
-    fontFamily: fontFamilies.monoSemiBold,
-    fontSize: 30,
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.fg,
-    letterSpacing: -0.5,
+    marginTop: 8,
   },
   confirmMetaBlock: { marginTop: 16, gap: 8 },
   confirmMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
