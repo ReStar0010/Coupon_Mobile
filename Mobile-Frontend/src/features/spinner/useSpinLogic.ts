@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { MULTS, getFloor } from './constants';
+import { computeSectorMath, computeLandingSpin } from './spinnerMath';
 import type { SpinResult } from './ResultModal';
 import { drawSpinner } from '../../services/api/spinner';
 import type { SpinnerDrawResult } from '../../services/api/spinner';
@@ -35,30 +36,6 @@ interface SpinLogicReturn {
   spinError: string | null;
   handleSpin: () => void;
   dismissResult: () => void;
-}
-
-interface SectorMath {
-  centerDeg: number;
-  color: string;
-}
-
-function computeSectorMath(
-  table: ReadonlyArray<{ v: number; color: string }>,
-  multiplier: number,
-): SectorMath {
-  const weights = table.map((m) => 1 / (m.v + 1));
-  const total = weights.reduce((a, b) => a + b, 0);
-  // WheelDial draws sectors starting at -90° (top). Accumulate from -90°
-  // so the target degree matches the visual position under the top needle.
-  let acc = -90;
-  for (let i = 0; i < table.length; i++) {
-    const w = (weights[i] / total) * 360;
-    if (table[i].v === multiplier) {
-      return { centerDeg: ((acc + w / 2) % 360 + 360) % 360, color: table[i].color };
-    }
-    acc += w;
-  }
-  return { centerDeg: 0, color: table[0]?.color ?? '#2E2E2E' };
 }
 
 export function useSpinLogic({
@@ -115,15 +92,7 @@ export function useSpinLogic({
     const sector = computeSectorMath(filteredMults, multiplier);
     setPendingColor(sector.color);
 
-    setSpin((s) => {
-      const currentMod = ((s % 360) + 360) % 360;
-      const sectorPos = (sector.centerDeg + currentMod) % 360;
-      // The needle sits at -90° (= 270° from positive-x). To land the sector
-      // center under the needle: adjustment = (270 - sectorPos) mod 360.
-      const raw = ((270 - sectorPos) % 360 + 360) % 360;
-      const adjustment = raw === 0 ? 360 : raw;
-      return s + 360 * 7 + adjustment + (Math.random() * 4 - 2);
-    });
+    setSpin((s) => computeLandingSpin(s, sector.centerDeg, 7));
 
     push(() => setPhase('peak'), 500);
     push(() => setPhase('decel'), 2000);

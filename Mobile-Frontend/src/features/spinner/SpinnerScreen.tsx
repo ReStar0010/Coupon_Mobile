@@ -27,6 +27,11 @@ import { fontFamilies } from '../../theme/typography';
 import { useCoopContext } from './coop/CoopContext';
 import CoinRainReveal from './coop/CoinRainReveal';
 import type { PlayerResult } from './coop/CoinRainReveal';
+import {
+  useCoopSpinAnimation,
+  COOP_FREE_CHUNK_MS,
+  COOP_LAND_DURATION_MS,
+} from './coop/useCoopSpinAnimation';
 import { MULTS } from './constants';
 
 interface SpinnerScreenProps {
@@ -89,20 +94,36 @@ export default function SpinnerScreen({
     setBet((b) => Math.min(Math.max(1, b), maxBet));
   }, [maxBet]);
 
-  const {
-    spin,
-    spinning,
-    result,
-    gemShake,
-    floor,
-    phase,
-    nearMiss,
-    pendingColor,
-    gemsAtSpin,
-    spinError,
-    handleSpin,
-    dismissResult,
-  } = useSpinLogic({ gems: bet, players, allFilled, refreshWallet });
+  const solo = useSpinLogic({ gems: bet, players, allFilled, refreshWallet });
+
+  // Identity + my stake feed the co-op animation driver.
+  const meUserId = coop.state.meUserId ?? '';
+  const myStake = coopPlayers.find((p) => p.user_id === meUserId)?.stake ?? bet;
+
+  // Co-op drives the SAME wheel + effect stack as solo, but off server WS
+  // phases instead of a local drawSpinner() call. Disabled (idle) in solo mode.
+  const coopAnim = useCoopSpinAnimation({
+    phase: coop.state.phase,
+    reveal: coop.state.reveal,
+    floor: coop.state.floor,
+    meUserId,
+    myStake,
+    enabled: isMultiplayer,
+  });
+
+  // Single source the wheel + every reveal effect read from.
+  const spin = isMultiplayer ? coopAnim.spin : solo.spin;
+  const spinning = isMultiplayer ? coopAnim.spinning : solo.spinning;
+  const phase = isMultiplayer ? coopAnim.phase : solo.phase;
+  const result = isMultiplayer ? coopAnim.result : solo.result;
+  const pendingColor = isMultiplayer ? coopAnim.pendingColor : solo.pendingColor;
+  const gemsAtSpin = isMultiplayer ? coopAnim.gemsAtSpin : solo.gemsAtSpin;
+  const nearMiss = isMultiplayer ? coopAnim.nearMiss : solo.nearMiss;
+  const floor = isMultiplayer ? coopAnim.floor : solo.floor;
+  const wheelSpinMode = isMultiplayer ? coopAnim.spinMode : 'land';
+  const wheelGems = isMultiplayer ? myStake : bet;
+  // Solo-only outputs.
+  const { gemShake, spinError, handleSpin, dismissResult } = solo;
 
   const canSpin = !spinning && allFilled && gems >= 1 && bet >= 1 && bet <= gems;
 
@@ -436,8 +457,7 @@ export default function SpinnerScreen({
   // Slot 0 is the local player; any slot > 0 is an "invite this friend"
   // affordance that hands the user off to the real CoopRoomScreen. Local
   // state no longer pretends to track guest fills — that's the WS layer's
-  // job once the user reaches the co-op screen.
-  const meUserId = coop.state.meUserId ?? '';
+  // job once the user reaches the co-op screen. (meUserId is defined above.)
   const slotType = (i: number): 'me' | 'player' | 'empty' => {
     if (isMultiplayer) {
       const p = coopPlayers[i];
@@ -448,14 +468,15 @@ export default function SpinnerScreen({
     return 'empty';
   };
 
-  const myCoopPlayer = isMultiplayer
-    ? coopPlayers.find((p) => p.user_id === meUserId)
-    : null;
+  const myCoopPlayer = isMultiplayer ? coopPlayers.find((p) => p.user_id === meUserId) : null;
   const myLocked = myCoopPlayer?.locked ?? false;
   const isHost = coop.state.hostId === meUserId;
   const wsOpen = coop.status === 'open';
-  const coopEnded = isMultiplayer &&
-    (coop.state.phase === 'ABORTED' || coop.state.phase === 'DISPOSED' || coop.state.phase === 'SETTLED');
+  const coopEnded =
+    isMultiplayer &&
+    (coop.state.phase === 'ABORTED' ||
+      coop.state.phase === 'DISPOSED' ||
+      coop.state.phase === 'SETTLED');
   const coopDisconnected = isMultiplayer && coop.status === 'closed';
 
   const exitMultiplayer = () => {
@@ -586,7 +607,6 @@ export default function SpinnerScreen({
     handleSpin();
   };
 
-
   const mainBtnDisabled = isMultiplayer
     ? (!wsOpen && !coopDisconnected && !coopEnded) ||
       (coopPhase === 'STAKING' && myLocked) ||
@@ -595,8 +615,8 @@ export default function SpinnerScreen({
       coopPhase === 'SPINNING'
     : !canSpin;
 
-  const coopReveal = isMultiplayer && (coopPhase === 'REVEAL' || coopPhase === 'SETTLED')
-    ? coop.state.reveal : null;
+  const coopReveal =
+    isMultiplayer && (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') ? coop.state.reveal : null;
   const [coopRevealDismissed, setCoopRevealDismissed] = useState(false);
   const prevRoundIdRef = useRef<string | null>(null);
 
@@ -607,8 +627,10 @@ export default function SpinnerScreen({
     }
   }, [coopReveal]);
 
+  // Hold the multiplier modal back until the wheel has actually landed
+  // (phase 'reveal'), so the spin choreography reads before the result card.
   const coopRevealResult: SpinResult | null =
-    coopReveal && !coopRevealDismissed
+    coopReveal && !coopRevealDismissed && phase === 'reveal'
       ? {
           mult: coopReveal.M,
           points: coopReveal.totalPayout,
@@ -640,11 +662,13 @@ export default function SpinnerScreen({
           )}
           <Text style={styles.title}>CouSino</Text>
           {isMultiplayer && (
-            <View style={[
-              styles.statusPill,
-              wsOpen && styles.statusPillOpen,
-              coopDisconnected && styles.statusPillClosed,
-            ]}>
+            <View
+              style={[
+                styles.statusPill,
+                wsOpen && styles.statusPillOpen,
+                coopDisconnected && styles.statusPillClosed,
+              ]}
+            >
               <Text style={styles.statusPillText}>
                 {wsOpen ? '已連線' : coopDisconnected ? '已斷線' : '連線中…'}
               </Text>
@@ -690,13 +714,8 @@ export default function SpinnerScreen({
 
       {/* Co-op status banners */}
       {isMultiplayer && coop.state.lastError && (
-        <Pressable
-          style={styles.coopBanner}
-          onPress={coop.clearError}
-        >
-          <Text style={styles.coopBannerText}>
-            ⚠ {coop.state.lastError.message}
-          </Text>
+        <Pressable style={styles.coopBanner} onPress={coop.clearError}>
+          <Text style={styles.coopBannerText}>⚠ {coop.state.lastError.message}</Text>
         </Pressable>
       )}
       {isMultiplayer && coop.state.phase === 'ABORTED' && (
@@ -714,7 +733,10 @@ export default function SpinnerScreen({
       {stuckTimeout && (
         <Pressable
           style={[styles.coopBanner, styles.coopBannerWarn]}
-          onPress={() => { setStuckTimeout(false); coop.reconnect(); }}
+          onPress={() => {
+            setStuckTimeout(false);
+            coop.reconnect();
+          }}
         >
           <Text style={styles.coopBannerText}>連線逾時，點擊重新連線</Text>
         </Pressable>
@@ -727,11 +749,12 @@ export default function SpinnerScreen({
           {Array.from({ length: displayPlayers }).map((_, i) => {
             const slot = slotType(i);
             const player = isMultiplayer ? coopPlayers[i] : null;
-            const slotLabel = slot === 'me'
-              ? '我'
-              : slot === 'player'
-                ? (player?.display_name?.slice(0, 2) ?? '?')
-                : '+';
+            const slotLabel =
+              slot === 'me'
+                ? '我'
+                : slot === 'player'
+                  ? (player?.display_name?.slice(0, 2) ?? '?')
+                  : '+';
             return (
               <Reanimated.View key={i} style={slotStyles[i]}>
                 <Pressable
@@ -768,10 +791,15 @@ export default function SpinnerScreen({
             spinning={spinning}
             // Wheel rim heat (colour, width, glow) scales with the WAGER —
             // a 5-gem bet earns the purple max-rim regardless of how much
-            // is left over in the wallet.
-            gems={bet}
+            // is left over in the wallet. In co-op this is my own stake.
+            gems={wheelGems}
             phase={phase}
             upcomingColor={phase === 'pause' ? pendingColor : null}
+            // Solo lands directly; co-op free-spins until the reveal arrives,
+            // then settles. Timings must match the driver's intervals.
+            spinMode={wheelSpinMode}
+            landDurationMs={isMultiplayer ? COOP_LAND_DURATION_MS : 4200}
+            freeChunkMs={COOP_FREE_CHUNK_MS}
           />
         </OnboardingAnchor>
 
@@ -853,23 +881,23 @@ export default function SpinnerScreen({
           )}
         </View>
         <OnboardingAnchor id={ANCHOR.spinnerSpin}>
-        <Reanimated.View style={btnBreathStyle}>
-          <Pressable
-            testID="spin-button"
-            onPress={handleMainButton}
-            disabled={mainBtnDisabled}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: mainBtnDisabled }}
-            style={[
-              styles.spinBtn,
-              !mainBtnDisabled ? styles.spinBtnActive : styles.spinBtnDisabled,
-            ]}
-          >
-            <Text style={[styles.spinBtnText, mainBtnDisabled && styles.spinBtnTextDisabled]}>
-              {spinBtnLabel()}
-            </Text>
-          </Pressable>
-        </Reanimated.View>
+          <Reanimated.View style={btnBreathStyle}>
+            <Pressable
+              testID="spin-button"
+              onPress={handleMainButton}
+              disabled={mainBtnDisabled}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: mainBtnDisabled }}
+              style={[
+                styles.spinBtn,
+                !mainBtnDisabled ? styles.spinBtnActive : styles.spinBtnDisabled,
+              ]}
+            >
+              <Text style={[styles.spinBtnText, mainBtnDisabled && styles.spinBtnTextDisabled]}>
+                {spinBtnLabel()}
+              </Text>
+            </Pressable>
+          </Reanimated.View>
         </OnboardingAnchor>
       </View>
 
@@ -906,22 +934,27 @@ export default function SpinnerScreen({
       />
 
       {/* Co-op result — Phase 2: Lucky Rain per-player distribution */}
-      {isMultiplayer && coopRevealDismissed && coopReveal && (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') && (
-        <View style={styles.coopResultOverlay}>
-          <CoinRainReveal
-            multiplier={coopReveal.M}
-            totalPool={coopReveal.totalPayout}
-            players={coopReveal.shares.map((s): PlayerResult => ({
-              userId: s.user_id,
-              seat: s.seat,
-              displayName: `Seat ${s.seat}`,
-              points: s.share,
-              isMe: s.user_id === (coop.state.meUserId ?? ''),
-            }))}
-            onDone={() => coop.requestRematch()}
-          />
-        </View>
-      )}
+      {isMultiplayer &&
+        coopRevealDismissed &&
+        coopReveal &&
+        (coopPhase === 'REVEAL' || coopPhase === 'SETTLED') && (
+          <View style={styles.coopResultOverlay}>
+            <CoinRainReveal
+              multiplier={coopReveal.M}
+              totalPool={coopReveal.totalPayout}
+              players={coopReveal.shares.map(
+                (s): PlayerResult => ({
+                  userId: s.user_id,
+                  seat: s.seat,
+                  displayName: `Seat ${s.seat}`,
+                  points: s.share,
+                  isMe: s.user_id === (coop.state.meUserId ?? ''),
+                }),
+              )}
+              onDone={() => coop.requestRematch()}
+            />
+          </View>
+        )}
 
       <Coachmark screen="spinner" />
     </View>

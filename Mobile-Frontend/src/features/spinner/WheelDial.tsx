@@ -17,6 +17,17 @@ import { MULTS } from './constants';
 import { colors } from '../../theme/colors';
 import type { SpinPhase } from './useSpinLogic';
 
+/**
+ * How the wheel eases toward `spin` while `spinning`:
+ *   - 'land' (default): ease-out over `landDurationMs` — the solo behaviour and
+ *     the co-op settle. Lands the target sector under the needle.
+ *   - 'free': constant-velocity linear segment over `freeChunkMs` — the co-op
+ *     pre-reveal spin where the target isn't known yet. The driver bumps `spin`
+ *     by a fixed angle each `freeChunkMs` so back-to-back linear segments read
+ *     as one continuous spin.
+ */
+export type WheelSpinMode = 'land' | 'free';
+
 interface WheelDialProps {
   size?: number;
   floor?: number;
@@ -25,6 +36,11 @@ interface WheelDialProps {
   gems: number;
   phase?: SpinPhase;
   upcomingColor?: string | null;
+  spinMode?: WheelSpinMode;
+  /** Ease-out duration for 'land' mode. Default 4200 (matches solo timeline). */
+  landDurationMs?: number;
+  /** Linear segment duration for 'free' mode; should equal the driver's bump interval. */
+  freeChunkMs?: number;
 }
 
 function buildRanges(floor: number) {
@@ -77,6 +93,9 @@ export default function WheelDial({
   gems,
   phase,
   upcomingColor,
+  spinMode = 'land',
+  landDurationMs = 4200,
+  freeChunkMs = 600,
 }: WheelDialProps): React.JSX.Element {
   const r = size / 2 - 18;
   const cx = size / 2;
@@ -88,15 +107,23 @@ export default function WheelDial({
   // Sector spin rotation
   const rotation = useSharedValue(0);
   React.useEffect(() => {
-    if (spinning) {
+    if (!spinning) {
+      rotation.value = spin;
+      return;
+    }
+    if (spinMode === 'free') {
+      // Constant velocity: each fixed-angle bump animates linearly over the
+      // driver's interval, so consecutive segments chain into one smooth spin.
+      rotation.value = withTiming(spin, { duration: freeChunkMs, easing: Easing.linear });
+    } else {
+      // Ease-out landing — eases from wherever the rotation currently is
+      // (rest for solo, mid-free-spin for co-op) onto the target.
       rotation.value = withTiming(spin, {
-        duration: 4200,
+        duration: landDurationMs,
         easing: Easing.bezier(0.12, 0, 0.04, 1),
       });
-    } else {
-      rotation.value = spin;
     }
-  }, [spin, spinning]);
+  }, [spin, spinning, spinMode, freeChunkMs, landDurationMs]);
 
   // Idle decoration rotation (outer rim notches)
   const idleDecor = useSharedValue(0);
