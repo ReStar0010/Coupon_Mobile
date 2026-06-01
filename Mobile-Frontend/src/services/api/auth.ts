@@ -172,6 +172,67 @@ export async function verifyOtp(phoneNumber: string, otpCode: string): Promise<O
   }
 }
 
+/**
+ * Phone-based password reset step 1: send a 6-digit OTP to a registered
+ * phone number. Mirrors the registration OTP flow.
+ *
+ * Security: the BE is enumeration-safe — it returns an identical 200 body
+ * whether or not the phone is registered, only actually sending the SMS for
+ * registered numbers. So callers must NOT treat success as proof the phone
+ * exists. In dev mode the BE echoes `otp_code` to ease testing.
+ */
+export interface PhoneResetOtpResponse {
+  message: string;
+  cooldown_seconds?: number;
+  expires_in_seconds?: number;
+  /** Present only when the BE runs in dev mode (no real SMS sent). */
+  dev_mode?: boolean;
+  otp_code?: string;
+}
+
+export async function sendPasswordResetOtp(
+  phoneNumber: string,
+): Promise<PhoneResetOtpResponse> {
+  try {
+    const response = await apiClient.post<PhoneResetOtpResponse>(
+      '/api/forgot-password/phone/send-otp/',
+      { phone_number: phoneNumber },
+    );
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export interface PhoneResetPasswordResponse {
+  message: string;
+}
+
+/**
+ * Phone-based password reset step 2: verify the OTP and set a new password.
+ * Unlike registration, the BE does NOT return tokens here — the user is sent
+ * back to the login screen to sign in with the new password.
+ */
+export async function resetPasswordWithOtp(
+  phoneNumber: string,
+  otpCode: string,
+  newPassword: string,
+): Promise<PhoneResetPasswordResponse> {
+  try {
+    const response = await apiClient.post<PhoneResetPasswordResponse>(
+      '/api/forgot-password/phone/reset/',
+      {
+        phone_number: phoneNumber,
+        otp_code: otpCode,
+        new_password: newPassword,
+      },
+    );
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
 export interface ForgotPasswordResponse {
   detail: string;
 }

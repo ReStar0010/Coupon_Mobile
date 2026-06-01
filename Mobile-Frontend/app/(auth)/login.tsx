@@ -121,6 +121,13 @@ export default function LoginScreen() {
             style={styles.btn}
           />
 
+          <Pressable
+            onPress={() => router.push('/(auth)/forgot-password')}
+            style={styles.link}
+          >
+            <Text style={styles.linkText}>忘記密碼？</Text>
+          </Pressable>
+
           <Pressable onPress={() => router.push('/(auth)/register')} style={styles.link}>
             <Text style={styles.linkText}>還沒有帳號？立即註冊</Text>
           </Pressable>

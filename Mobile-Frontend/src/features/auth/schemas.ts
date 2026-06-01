@@ -42,6 +42,55 @@ export const loginSchema = z.object({
 export type LoginInput = z.input<typeof loginSchema>;
 export type LoginParsed = z.output<typeof loginSchema>;
 
+// Min length for a reset password. Pinned to 8 to match the backend's
+// `verify_password_reset_otp` check (`len(new_password) < 8` → error).
+// Note this is deliberately stricter than loginSchema's min 6.
+const RESET_PASSWORD_MIN_LENGTH = 8;
+const OTP_LENGTH = 6;
+
+/**
+ * Schema for the phone-OTP password reset form. Reuses the same phone
+ * normalization as loginSchema, plus a 6-digit OTP and an 8+ char new
+ * password (BE-enforced minimum).
+ */
+export const phoneResetSchema = z.object({
+  phone: z
+    .string()
+    .min(1, '請輸入手機號碼')
+    .transform(stripPhonePunctuation)
+    .refine((p) => TW_MOBILE_PATTERN.test(p), {
+      message: '請輸入有效的台灣手機號碼 (09 開頭，共 10 碼)',
+    }),
+  otp: z
+    .string()
+    .min(1, '請輸入驗證碼')
+    .refine((c) => new RegExp(`^\\d{${OTP_LENGTH}}$`).test(c), {
+      message: `請輸入 ${OTP_LENGTH} 位數驗證碼`,
+    }),
+  newPassword: z.string().min(RESET_PASSWORD_MIN_LENGTH, '密碼至少 8 個字元'),
+});
+
+export type PhoneResetInput = z.input<typeof phoneResetSchema>;
+export type PhoneResetParsed = z.output<typeof phoneResetSchema>;
+
+/**
+ * Pull the first per-field error out of a phoneResetSchema parse failure.
+ */
+export function resetFieldErrorsFrom(error: z.ZodError<PhoneResetInput>): {
+  phone?: string;
+  otp?: string;
+  newPassword?: string;
+} {
+  const out: { phone?: string; otp?: string; newPassword?: string } = {};
+  for (const issue of error.issues) {
+    const field = issue.path[0];
+    if (field === 'phone' && !out.phone) out.phone = issue.message;
+    if (field === 'otp' && !out.otp) out.otp = issue.message;
+    if (field === 'newPassword' && !out.newPassword) out.newPassword = issue.message;
+  }
+  return out;
+}
+
 /**
  * Pull the first per-field error message out of a Zod parse failure.
  * Convenience for UI code that wants `{ phone?: string, password?: string }`.

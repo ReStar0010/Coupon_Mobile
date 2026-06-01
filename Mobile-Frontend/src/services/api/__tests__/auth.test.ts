@@ -39,6 +39,8 @@ import {
   refreshToken,
   registerWithPhone,
   sendRegistrationOtp,
+  sendPasswordResetOtp,
+  resetPasswordWithOtp,
 } from '../auth';
 
 const mockAxiosInstance = (axios.create as jest.Mock)();
@@ -172,6 +174,48 @@ describe('auth API', () => {
         password: 'pw12345678',
       });
       expect(result).toEqual({ access: 'reg-access', refresh: 'reg-refresh' });
+    });
+  });
+
+  describe('sendPasswordResetOtp', () => {
+    it('POSTs phone_number to the phone reset send-otp endpoint', async () => {
+      mockPost.mockResolvedValueOnce({
+        data: { message: 'sent', cooldown_seconds: 60, expires_in_seconds: 600 },
+      });
+
+      const result = await sendPasswordResetOtp('0912345678');
+
+      expect(mockPost).toHaveBeenCalledWith('/api/forgot-password/phone/send-otp/', {
+        phone_number: '0912345678',
+      });
+      expect(result.message).toBe('sent');
+    });
+
+    it('normalises network errors via normalizeError', async () => {
+      mockPost.mockRejectedValueOnce(new Error('boom'));
+      await expect(sendPasswordResetOtp('0912345678')).rejects.toThrow();
+    });
+  });
+
+  describe('resetPasswordWithOtp', () => {
+    it('POSTs phone+otp+new_password (snake_case) to the phone reset endpoint', async () => {
+      mockPost.mockResolvedValueOnce({ data: { message: '密碼已重設成功' } });
+
+      const result = await resetPasswordWithOtp('0912345678', '123456', 'pw12345678');
+
+      expect(mockPost).toHaveBeenCalledWith('/api/forgot-password/phone/reset/', {
+        phone_number: '0912345678',
+        otp_code: '123456',
+        new_password: 'pw12345678',
+      });
+      expect(result.message).toBe('密碼已重設成功');
+    });
+
+    it('normalises network errors via normalizeError', async () => {
+      mockPost.mockRejectedValueOnce(new Error('boom'));
+      await expect(
+        resetPasswordWithOtp('0912345678', '123456', 'pw12345678'),
+      ).rejects.toThrow();
     });
   });
 });
