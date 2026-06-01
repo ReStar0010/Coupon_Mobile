@@ -153,6 +153,7 @@ export default function ForgotPasswordScreen() {
                 autoCapitalize="none"
                 keyboardType="phone-pad"
                 placeholder="0912-345-678"
+                placeholderTextColor={colors.muted}
                 testID="phone-input"
               />
 
@@ -185,6 +186,7 @@ export default function ForgotPasswordScreen() {
                 onChangeText={(t) => setOtp(t.replace(/\D/g, '').slice(0, OTP_LENGTH))}
                 keyboardType="number-pad"
                 placeholder="6 位數驗證碼"
+                placeholderTextColor={colors.muted}
                 maxLength={OTP_LENGTH}
                 testID="otp-input"
               />
@@ -196,6 +198,7 @@ export default function ForgotPasswordScreen() {
                 onChangeText={setNewPassword}
                 secureTextEntry
                 placeholder="請輸入新密碼"
+                placeholderTextColor={colors.muted}
                 testID="new-password-input"
               />
 
