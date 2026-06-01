@@ -36,7 +36,10 @@ export const loginSchema = z.object({
     .refine((p) => TW_MOBILE_PATTERN.test(p), {
       message: '請輸入有效的台灣手機號碼 (09 開頭，共 10 碼)',
     }),
-  password: z.string().min(6, '密碼至少 6 個字元'),
+  // Only a non-empty check. Registration accepts any non-empty password
+  // (lowest friction), so login must not reject anything registration allows
+  // — otherwise short-password users would be locked out of their accounts.
+  password: z.string().min(1, '請輸入密碼'),
 });
 
 export type LoginInput = z.input<typeof loginSchema>;

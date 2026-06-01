@@ -38,8 +38,15 @@ describe('loginSchema', () => {
     expect(parsed.success).toBe(false);
   });
 
-  it('rejects a password shorter than 6 characters', () => {
+  it('accepts a short non-empty password (registration allows any non-empty)', () => {
+    // Login must not reject what registration permits, or short-password
+    // users would be locked out. Only an empty password is invalid.
     const parsed = loginSchema.safeParse({ phone: '0912345678', password: 'pw1' });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects an empty password', () => {
+    const parsed = loginSchema.safeParse({ phone: '0912345678', password: '' });
     expect(parsed.success).toBe(false);
     if (!parsed.success) {
       const issue = parsed.error.issues.find((i) => i.path[0] === 'password');

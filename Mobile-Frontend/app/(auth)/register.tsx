@@ -17,7 +17,11 @@ import NeoButton from '@/src/components/ui/NeoButton';
 import LogoIcon from '@/src/components/icons/LogoIcon';
 import { normalizeTwPhone, sendRegistrationOtp } from '@/src/services/api/auth';
 
-const MIN_PASSWORD_LENGTH = 8;
+// Lowest-friction registration: any non-empty password is accepted. The
+// phone-OTP backend never enforced a length (create_user skips Django's
+// password validators), so this only aligns the UI with existing BE behavior.
+// Kept as a named constant so the non-empty guards below still read clearly.
+const MIN_PASSWORD_LENGTH = 1;
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -149,7 +153,7 @@ export default function RegisterScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
-                placeholder="至少 8 個字元"
+                placeholder="請輸入密碼"
                 testID="password-input"
               />
 
