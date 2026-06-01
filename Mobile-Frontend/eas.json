@@ -18,8 +18,9 @@
       "distribution": "internal",
       "environment": "preview",
       "env": {
+        "APP_VARIANT": "preview",
         "EXPO_PUBLIC_BACKEND_MODE": "production",
-        "EXPO_PUBLIC_API_URL": "https://coupon-mobile.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://coupon-mobile-dev.onrender.com"
       },
       "channel": "preview"
     },

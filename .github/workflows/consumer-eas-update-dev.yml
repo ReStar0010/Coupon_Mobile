@@ -33,7 +33,19 @@ jobs:
       # shell — a multi-line message or one with $/"/+ chars otherwise breaks
       # the command (and is a script-injection vector). Falls back to the SHA
       # on manual dispatch (no head_commit).
-      - name: Publish dev OTA update
+
+      # CouPro Dev (development channel) → prod backend. No EXPO_PUBLIC_API_URL
+      # is set, so the bundle uses client.ts's prod fallback URL.
+      - name: Publish dev OTA update (CouPro Dev → prod backend)
         run: eas update --branch development --message "$EAS_MESSAGE"
         env:
           EAS_MESSAGE: ${{ github.event.head_commit.message || format('manual dispatch ({0})', github.sha) }}
+
+      # CouPro Prev (preview channel) → dev backend. Same dev-branch FE bits as
+      # above, but EXPO_PUBLIC_API_URL is inlined at export time so the OTA
+      # bundle talks to the dev backend instead of prod.
+      - name: Publish preview OTA update (CouPro Prev → dev backend)
+        run: eas update --branch preview --message "$EAS_MESSAGE"
+        env:
+          EAS_MESSAGE: ${{ github.event.head_commit.message || format('manual dispatch ({0})', github.sha) }}
+          EXPO_PUBLIC_API_URL: https://coupon-mobile-dev.onrender.com
