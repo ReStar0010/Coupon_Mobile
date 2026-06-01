@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
-import { redeemCoupon } from '@/src/services/api/coupons';
+import { redeemCoupon, type RedeemResponse } from '@/src/services/api/coupons';
 import { useWallet } from '@/src/state/WalletContext';
 import { track } from '@/src/services/analytics/posthog';
 import PermissionDeniedView from '@/src/components/ui/PermissionDeniedView';
@@ -62,18 +62,27 @@ const scanStyles = StyleSheet.create({
   },
 });
 
+/** Format the BE `redeemed_at` ISO timestamp as local `YYYY/MM/DD HH:MM`. */
+function formatRedeemedAt(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function CouponUseQRScreen({
   onNavigate,
   params,
 }: CouponScreenProps): React.JSX.Element {
   const [torch, setTorch] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [result, setResult] = useState<RedeemResponse | null>(null);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [manualCode, setManualCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scanned = useRef(false);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insets = useSafeAreaInsets();
   const { refreshWallet } = useWallet();
 
@@ -94,17 +103,18 @@ export default function CouponUseQRScreen({
     const id = params.id;
 
     try {
+      let redeemed: RedeemResponse | null = null;
       if (id) {
-        await redeemCoupon(id, code);
+        redeemed = await redeemCoupon(id, code);
       }
       track('coupon.redeem_succeeded', { couponId: id });
+      // Keep the server's authoritative redemption details so the merchant
+      // sees exactly which coupon was redeemed. The confirmation overlay now
+      // stays up until the merchant taps 確認 — no silent auto-dismiss.
+      setResult(redeemed);
       setSuccess(true);
       // BE +1 hook (kind=COUPON_REDEEM) credits the gem; refresh to reflect it.
       await refreshWallet();
-      successTimerRef.current = setTimeout(() => {
-        successTimerRef.current = null;
-        onNavigate('home');
-      }, 2600);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Redeem failed';
       setRedeemError(msg);
@@ -125,12 +135,15 @@ export default function CouponUseQRScreen({
     if (!permission?.granted) requestPermission();
   }, [permission, requestPermission]);
 
-  useEffect(
-    () => () => {
-      if (successTimerRef.current) clearTimeout(successTimerRef.current);
-    },
-    [],
-  );
+  // Server-authoritative display values, with param fallbacks for the
+  // manual-code and deep-link paths where the response may be partial.
+  const couponName = result?.coupon_name?.trim() || '優惠券';
+  const couponDetail = result?.coupon_detail?.trim() || params.detail || '';
+  const displaySavings =
+    result?.savings_amount != null && Number.isFinite(result.savings_amount)
+      ? result.savings_amount
+      : amount;
+  const redeemedAtText = formatRedeemedAt(result?.redeemed_at);
 
   return (
     <KeyboardAvoidingView
@@ -201,21 +214,74 @@ export default function CouponUseQRScreen({
         )}
         <Text style={s.scanHint}>將店家 QR Code 對準框內</Text>
         {success && (
-          <View style={s.successOverlay}>
-            <View style={s.successIcon}>
-              <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M20 6L9 17L4 12"
-                  stroke="#fff"
-                  strokeWidth={3}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
+          <View style={s.successOverlay} testID="redeem-confirm-overlay">
+            <View style={s.confirmCardOuter}>
+              <View style={s.confirmCardShadow} />
+              <View style={s.confirmCard}>
+                <View style={s.confirmHeaderRow}>
+                  <View style={s.successIcon}>
+                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+                      <Path
+                        d="M20 6L9 17L4 12"
+                        stroke="#fff"
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  </View>
+                  <Text style={s.confirmHeader}>核銷成功</Text>
+                </View>
+
+                <Text style={s.confirmCouponName} numberOfLines={2}>
+                  {couponName}
+                </Text>
+                {couponDetail ? (
+                  <Text style={s.confirmDetail} numberOfLines={2}>
+                    {couponDetail}
+                  </Text>
+                ) : null}
+
+                <View style={s.confirmSavingsRow}>
+                  <Text style={s.confirmSavingsLabel}>折抵金額</Text>
+                  <Text style={s.confirmSavings}>${displaySavings}</Text>
+                </View>
+
+                <View style={s.confirmMetaBlock}>
+                  <View style={s.confirmMetaRow}>
+                    <Text style={s.confirmMetaLabel}>店家</Text>
+                    <Text style={s.confirmMetaValue} numberOfLines={1}>
+                      {store}
+                    </Text>
+                  </View>
+                  {redeemedAtText ? (
+                    <View style={s.confirmMetaRow}>
+                      <Text style={s.confirmMetaLabel}>核銷時間</Text>
+                      <Text style={s.confirmMetaValue}>{redeemedAtText}</Text>
+                    </View>
+                  ) : null}
+                  {result?.redemption_id != null ? (
+                    <View style={s.confirmMetaRow}>
+                      <Text style={s.confirmMetaLabel}>核銷編號</Text>
+                      <Text style={s.confirmMetaValueMono}>#{result.redemption_id}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <Text style={s.confirmGem}>顧客 +1 顆寶石</Text>
+
+                <View style={s.confirmBtnOuter}>
+                  <View style={s.confirmBtnShadow} />
+                  <Pressable
+                    testID="redeem-confirm"
+                    onPress={() => onNavigate('home')}
+                    style={s.confirmBtn}
+                  >
+                    <Text style={s.confirmBtnText}>確認</Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
-            <Text style={s.successTitle}>使用成功！</Text>
-            <Text style={s.successSub}>+1 顆寶石</Text>
-            <Text style={s.successReturn}>返回首頁中…</Text>
           </View>
         )}
       </View>
@@ -392,39 +458,127 @@ const s = StyleSheet.create({
   },
   successOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.82)',
+    backgroundColor: 'rgba(0,0,0,0.88)',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
     zIndex: 20,
   },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: colors.green,
+  confirmCardOuter: { position: 'relative', width: '100%', maxWidth: 360 },
+  confirmCardShadow: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    right: -5,
+    bottom: -5,
+    borderRadius: 10,
+    backgroundColor: colors.border,
+  },
+  confirmCard: {
+    backgroundColor: colors.card,
     borderWidth: 3,
-    borderColor: '#fff',
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 22,
+    paddingHorizontal: 20,
+  },
+  confirmHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  successIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 6,
+    backgroundColor: colors.green,
+    borderWidth: 2.5,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  successTitle: {
+  confirmHeader: {
     fontFamily: fontFamilies.extraBold,
-    fontSize: 20,
-    color: '#fff',
-    letterSpacing: -0.4,
+    fontSize: 22,
+    color: colors.fg,
+    letterSpacing: -0.5,
   },
-  successSub: {
+  confirmCouponName: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 26,
+    lineHeight: 32,
+    color: colors.fg,
+    letterSpacing: -0.6,
+  },
+  confirmDetail: {
     fontFamily: fontFamilies.regular,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
-    marginTop: 6,
+    color: colors.muted,
+    marginTop: 4,
   },
-  successReturn: {
+  confirmSavingsRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: colors.yellowLight,
+    borderWidth: 2.5,
+    borderColor: colors.border,
+    borderRadius: 8,
+  },
+  confirmSavingsLabel: { fontFamily: fontFamilies.bold, fontSize: 14, color: colors.fg },
+  confirmSavings: {
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 30,
+    color: colors.fg,
+    letterSpacing: -0.5,
+  },
+  confirmMetaBlock: { marginTop: 16, gap: 8 },
+  confirmMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  confirmMetaLabel: { fontFamily: fontFamilies.regular, fontSize: 13, color: colors.muted },
+  confirmMetaValue: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: colors.fg,
+    flexShrink: 1,
+    textAlign: 'right',
+    marginLeft: 12,
+  },
+  confirmMetaValueMono: {
+    fontFamily: fontFamilies.monoSemiBold,
+    fontSize: 13,
+    color: colors.fg,
+  },
+  confirmGem: {
     fontFamily: fontFamilies.monoRegular,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
-    marginTop: 8,
+    letterSpacing: 0.3,
+    color: colors.muted,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  confirmBtnOuter: { position: 'relative', marginTop: 18 },
+  confirmBtnShadow: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 8,
+    backgroundColor: colors.border,
+  },
+  confirmBtn: {
+    height: 52,
+    backgroundColor: colors.green,
+    borderWidth: 2.5,
+    borderColor: colors.border,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmBtnText: {
+    fontFamily: fontFamilies.extraBold,
+    fontSize: 17,
+    color: '#fff',
+    letterSpacing: 1,
   },
   manualSection: { paddingHorizontal: 16, paddingTop: 14, zIndex: 5 },
   manualLabel: {

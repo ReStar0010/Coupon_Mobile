@@ -177,18 +177,34 @@ describe('CouponUseQRScreen', () => {
     expect(mockRedeemCoupon).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the success overlay after scan', async () => {
-    const { getByText } = render(<CouponUseQRScreen {...makeProps()} />);
+  it('shows the merchant confirmation overlay with the redeemed coupon details', async () => {
+    mockRedeemCoupon.mockResolvedValueOnce({
+      message: 'ok',
+      coupon_name: '滿百折二十',
+      coupon_detail: '現金折抵券',
+      savings_amount: 88,
+      redeemed_at: 'now',
+      redemption_id: 42,
+    });
+    const { getByText, getByTestId } = render(<CouponUseQRScreen {...makeProps()} />);
 
     await act(async () => {
       triggerScan('REAL_REDEEM_CODE');
     });
 
-    expect(getByText('使用成功！')).toBeTruthy();
-    expect(getByText('+1 顆寶石')).toBeTruthy();
+    expect(getByTestId('redeem-confirm-overlay')).toBeTruthy();
+    expect(getByText('核銷成功')).toBeTruthy();
+    expect(getByText('滿百折二十')).toBeTruthy();
+    expect(getByText('現金折抵券')).toBeTruthy();
+    // Distinct from the banner's $25 so this asserts the redeemed savings value.
+    expect(getByText('$88')).toBeTruthy();
+    expect(getByText('#42')).toBeTruthy();
+    // The gem reward is a customer perk — present but framed as the customer's,
+    // so the merchant is not confused about what they are confirming.
+    expect(getByText('顧客 +1 顆寶石')).toBeTruthy();
   });
 
-  it('navigates to home after 2600 ms post-scan', async () => {
+  it('does NOT auto-navigate home after a successful redeem', async () => {
     const onNavigate = jest.fn();
     render(<CouponUseQRScreen {...makeProps({ onNavigate })} />);
 
@@ -197,9 +213,22 @@ describe('CouponUseQRScreen', () => {
     });
 
     act(() => {
-      jest.advanceTimersByTime(2600);
+      jest.advanceTimersByTime(10000);
     });
 
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('navigates home only when the merchant taps 確認', async () => {
+    const onNavigate = jest.fn();
+    const { getByTestId } = render(<CouponUseQRScreen {...makeProps({ onNavigate })} />);
+
+    await act(async () => {
+      triggerScan('REAL_REDEEM_CODE');
+    });
+
+    expect(onNavigate).not.toHaveBeenCalled();
+    fireEvent.press(getByTestId('redeem-confirm'));
     expect(onNavigate).toHaveBeenCalledWith('home');
   });
 
