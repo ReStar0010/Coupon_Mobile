@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import TicketIcon from '@/src/components/icons/TicketIcon';
@@ -52,12 +53,9 @@ function getUrgency(coupon: Coupon): 'expiring' | 'new' | null {
     const month = Number(parts[0]);
     const day = Number(parts[1]);
     if (!Number.isNaN(month) && !Number.isNaN(day)) {
-      const year =
-        month < now.getMonth() + 1 ? now.getFullYear() + 1 : now.getFullYear();
+      const year = month < now.getMonth() + 1 ? now.getFullYear() + 1 : now.getFullYear();
       const expiresAt = new Date(year, month - 1, day);
-      const diffDays = Math.ceil(
-        (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-      );
+      const diffDays = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       if (diffDays >= 0 && diffDays <= 7) return 'expiring';
     }
   }
@@ -82,9 +80,7 @@ export default function HomeScreen({
   // 'shared' = held by the user with an outstanding LINK share, still theirs
   // until the recipient collects it. Keep these visible (they carry a 分享中
   // badge + 收回 control); they only drop off once collected/withdrawn.
-  const visibleCoupons = coupons.filter(
-    (c) => c.status === 'active' || c.status === 'shared',
-  );
+  const visibleCoupons = coupons.filter((c) => c.status === 'active' || c.status === 'shared');
   // listMyShares already returns pending-only, but filter defensively.
   const pendingShares = shares.filter((s) => s.status === 'pending');
   // CouMap (public) shares live in the footer; the coupon left the wallet.
@@ -93,9 +89,7 @@ export default function HomeScreen({
   // + withdraw onto the matching active coupon card. BE coupon_id is numeric;
   // wallet coupon ids are strings — key by String() so the lookup matches.
   const privateShareByCouponId = new Map<string, MyShare>(
-    pendingShares
-      .filter((s) => !s.is_public)
-      .map((s) => [String(s.coupon_id), s]),
+    pendingShares.filter((s) => !s.is_public).map((s) => [String(s.coupon_id), s]),
   );
 
   const loadShares = useCallback(async () => {
@@ -117,43 +111,73 @@ export default function HomeScreen({
     }
   }, []);
 
+  // Single canonical reload of everything the home list derives from:
+  // the wallet (coupon entries + balances), pending shares (分享中 badges
+  // + CouMap footer), and the daily-draw gate. Silent — no pull-spinner.
+  const reload = useCallback(async (): Promise<void> => {
+    await Promise.all([refreshWallet(), loadShares(), loadDrawStatus()]);
+  }, [refreshWallet, loadShares, loadDrawStatus]);
+
+  // Initial load of the share/draw state on mount. The wallet itself is
+  // already fetched by WalletContext when auth becomes true, so we don't
+  // refresh it here — the focus effect below handles every later return.
   useEffect(() => {
     void loadShares();
     void loadDrawStatus();
   }, [loadShares, loadDrawStatus]);
 
-  const handleWithdraw = useCallback((share: MyShare) => {
-    const [title, message] = share.is_public
-      ? ['收回優惠券', `確定要從 CouMap 收回「${share.coupon_name}」嗎？`]
-      : ['收回分享連結', `確定要收回「${share.coupon_name}」的分享連結嗎？對方將無法再領取。`];
-    Alert.alert(title, message, [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '收回',
-        style: 'destructive',
-        onPress: async () => {
-          setWithdrawingId(share.share_id);
-          try {
-            await withdrawShare(share.share_id);
-            await Promise.all([refreshWallet(), loadShares()]);
-          } catch {
-            Alert.alert('收回失敗', '請稍後再試');
-          } finally {
-            setWithdrawingId(null);
-          }
+  // Auto-refresh whenever the home screen regains focus — returning from
+  // any coupon-changing flow (receive, redeem, share, withdraw, draw, or a
+  // share-link claim) re-focuses this tab and pulls canonical state, so the
+  // list never goes stale without a manual pull. The first focus is skipped:
+  // WalletContext + the mount effect above already loaded everything, and a
+  // refetch there would just double-fetch on cold start.
+  const hasFocusedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedRef.current) {
+        hasFocusedRef.current = true;
+        return;
+      }
+      void reload();
+    }, [reload]),
+  );
+
+  const handleWithdraw = useCallback(
+    (share: MyShare) => {
+      const [title, message] = share.is_public
+        ? ['收回優惠券', `確定要從 CouMap 收回「${share.coupon_name}」嗎？`]
+        : ['收回分享連結', `確定要收回「${share.coupon_name}」的分享連結嗎？對方將無法再領取。`];
+      Alert.alert(title, message, [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '收回',
+          style: 'destructive',
+          onPress: async () => {
+            setWithdrawingId(share.share_id);
+            try {
+              await withdrawShare(share.share_id);
+              await Promise.all([refreshWallet(), loadShares()]);
+            } catch {
+              Alert.alert('收回失敗', '請稍後再試');
+            } finally {
+              setWithdrawingId(null);
+            }
+          },
         },
-      },
-    ]);
-  }, [refreshWallet, loadShares]);
+      ]);
+    },
+    [refreshWallet, loadShares],
+  );
 
   const onRefresh = useCallback(async (): Promise<void> => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshWallet(), loadShares(), loadDrawStatus()]);
+      await reload();
     } finally {
       setRefreshing(false);
     }
-  }, [refreshWallet, loadShares, loadDrawStatus]);
+  }, [reload]);
 
   const header = (
     <>
@@ -232,11 +256,7 @@ export default function HomeScreen({
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.fg}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.fg} />
         }
         renderItem={({ item, index }) => {
           const linkShare = privateShareByCouponId.get(item.id);
@@ -295,7 +315,9 @@ export default function HomeScreen({
                   </View>
                   <Pressable
                     testID={`withdraw-btn-${sh.share_id}`}
-                    onPress={() => { void handleWithdraw(sh); }}
+                    onPress={() => {
+                      void handleWithdraw(sh);
+                    }}
                     disabled={withdrawingId === sh.share_id}
                     style={s.withdrawBtn}
                   >

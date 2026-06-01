@@ -1,9 +1,9 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import HomeScreen from '../HomeScreen';
 import type { Coupon, MyShare } from '../../../services/api/coupons';
-import { listMyShares, withdrawShare } from '../../../services/api/coupons';
+import { listMyShares, withdrawShare, getDailyDrawStatus } from '../../../services/api/coupons';
 
 // ── WalletContext mock ───────────────────────────────────────────────────────
 const mockRefreshWallet = jest.fn().mockResolvedValue(undefined);
@@ -14,6 +14,28 @@ jest.mock('../../../state/WalletContext', () => ({
     refreshWallet: mockRefreshWallet,
   }),
 }));
+
+// ── expo-router useFocusEffect mock ──────────────────────────────────────────
+// HomeScreen refreshes on focus. The real hook fires the callback on initial
+// focus (mount) and again each time the tab re-focuses. We mimic that: run the
+// callback once via an effect on mount, and stash it so a test can fire a
+// subsequent "re-focus" manually.
+const mockFocusEffectHolder: { cb: (() => void | (() => void)) | undefined } = {
+  cb: undefined,
+};
+jest.mock('expo-router', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const ReactModule = require('react');
+  return {
+    useFocusEffect: (cb: () => void | (() => void)) => {
+      mockFocusEffectHolder.cb = cb;
+      ReactModule.useEffect(() => {
+        const cleanup = cb();
+        return typeof cleanup === 'function' ? cleanup : undefined;
+      }, [cb]);
+    },
+  };
+});
 
 // ── coupons API mock ─────────────────────────────────────────────────────────
 // HomeScreen fetches the user's pending shares + daily-draw status on mount;
@@ -26,6 +48,7 @@ jest.mock('../../../services/api/coupons', () => ({
 
 const mockListMyShares = listMyShares as jest.Mock;
 const mockWithdrawShare = withdrawShare as jest.Mock;
+const mockGetDailyDrawStatus = getDailyDrawStatus as jest.Mock;
 
 const makePublicShare = (overrides: Partial<MyShare> = {}): MyShare => ({
   share_id: 100,
@@ -80,6 +103,7 @@ const makeProps = (overrides = {}) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockCoupons = SAMPLE_COUPONS;
+  mockFocusEffectHolder.cb = undefined;
 });
 
 describe('HomeScreen', () => {
@@ -209,6 +233,30 @@ describe('HomeScreen', () => {
       fireEvent.press((await findAllByTestId('coupon-withdraw-btn'))[0]);
 
       await waitFor(() => expect(mockWithdrawShare).toHaveBeenCalledWith(200));
+    });
+  });
+
+  describe('auto-refresh on focus', () => {
+    it('does not re-pull the wallet on the initial focus (mount)', async () => {
+      render(<HomeScreen {...makeProps()} />);
+      // Shares + draw status load once on mount; the wallet is owned by
+      // WalletContext (loaded on auth) and must not be re-fetched on first focus.
+      await waitFor(() => expect(mockListMyShares).toHaveBeenCalledTimes(1));
+      expect(mockRefreshWallet).not.toHaveBeenCalled();
+    });
+
+    it('refreshes wallet + shares + draw status when the screen re-focuses', async () => {
+      render(<HomeScreen {...makeProps()} />);
+      await waitFor(() => expect(mockListMyShares).toHaveBeenCalledTimes(1));
+
+      // Simulate returning to the home tab after a coupon-changing flow.
+      await act(async () => {
+        mockFocusEffectHolder.cb?.();
+      });
+
+      await waitFor(() => expect(mockRefreshWallet).toHaveBeenCalledTimes(1));
+      expect(mockListMyShares).toHaveBeenCalledTimes(2);
+      expect(mockGetDailyDrawStatus).toHaveBeenCalledTimes(2);
     });
   });
 });

@@ -6,6 +6,7 @@ import { colors } from '@/src/theme/colors';
 import { fontFamilies } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
 import { useAuth } from '@/src/state/AuthContext';
+import { useWallet } from '@/src/state/WalletContext';
 import { acceptShare } from '@/src/services/api/sharing';
 import { track } from '@/src/services/analytics/posthog';
 
@@ -19,6 +20,7 @@ export default function CollectionTokenRoute(): React.JSX.Element {
   const router = useRouter();
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { refreshWallet } = useWallet();
   const [state, setState] = useState<ClaimState>({ kind: 'idle' });
 
   useEffect(() => {
@@ -39,6 +41,9 @@ export default function CollectionTokenRoute(): React.JSX.Element {
         if (cancelled) return;
         track('coupon.claim_succeeded', { couponId: res.coupon_id });
         setState({ kind: 'success', couponName: res.coupon_name || '優惠券' });
+        // Pull the newly-claimed coupon into the wallet so home is fresh the
+        // moment the user taps through (and even before the focus refresh).
+        void refreshWallet().catch(() => undefined);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -50,7 +55,7 @@ export default function CollectionTokenRoute(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [token, isAuthenticated, authLoading, router]);
+  }, [token, isAuthenticated, authLoading, router, refreshWallet]);
 
   return (
     <SafeAreaView style={s.root}>
@@ -79,7 +84,9 @@ export default function CollectionTokenRoute(): React.JSX.Element {
         {state.kind === 'error' && (
           <>
             <Text style={s.title}>領取失敗</Text>
-            <Text testID="claim-error" style={s.errorText}>{state.message}</Text>
+            <Text testID="claim-error" style={s.errorText}>
+              {state.message}
+            </Text>
             <Pressable
               testID="claim-go-home"
               onPress={() => router.replace('/(tabs)/home')}
