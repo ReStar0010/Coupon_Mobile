@@ -328,9 +328,14 @@ def share_coupon_public(request, coupon_id):
                 message=share_message,
             )
 
-            # Immediately remove coupon from user's collection
+            # Immediately remove coupon from user's collection.
+            # acquisition_method describes how the *current holder* acquired the coupon;
+            # once the coupon enters the public pool there is no current holder, so
+            # the field is cleared to avoid misleading stale values (e.g. 'admin_issue'
+            # remaining visible while current_holder is blank).
             coupon.last_holder = coupon.current_holder
             coupon.current_holder = None
+            coupon.acquisition_method = None
             coupon.save()
 
             # Log the share action
